@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077193.6493;
+@lastedit=0077193.6765;
 
 ###---###---###---###---###
 @noupdate;
@@ -13,10 +13,10 @@
 @lmode=2;
 
 @loadwindow=
- dumpTemplates=,
  gitCreateIni=,
  gcBranchName=getini('gitInfo','BRANCHNAME','unknown','c:\client\key\gitInfo.ini'),
  gcBat='gitcmd_temp.bat',
+ gcBatIni='gitcmdIni_temp.bat',
  create(150,34,64,3,'',002),
  prop(150,'From','matt|nate|wade|master'),
  prop(150,'Width',80),
@@ -41,14 +41,29 @@
 \t001Current Branch; \h002; \f002=gcBranchName;
 \t003Git Status; \h004;
 
-\t105&Git Commit;
+\t105Export Templates;
 @acc105=
+ dumpTemplates=,
+ gitCreateIni=,
+ gitStatus=;
+
+\t110Git Reset;
+@acc110=
+ gcGitCmd='call git reset --hard HEAD',
+ gitCommand=,
+ gitCreateIni=,
+ gitStatus=;
+
+\t111&Git Commit + Push;
+@acc111=
  iw(',.t000Please Enter the Commit Message...., ,.t001Commit Message., ,.w002300.,'),
  break(gcretval<>'OK'),
  lcMessage=obj7:key1,
  gcGitCmd='call git add templates\*',
  gitCommand=,
  gcGitCmd='call git commit -a -m "key_commit: '&lcMessage&'"',
+ gitCommand=,
+ gcGitCmd='call git push origin '&obj:key1,
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
@@ -57,7 +72,6 @@
  break(obj:key1<'  0'),
  gcGitCmd='git checkout '&obj:key1,
  gitCommand=,
- dumpTemplates=,
  gitCreateIni=,
  gitStatus=;
 
@@ -75,14 +89,10 @@
  runw(gcBat,'Git Command...');
 
 @gitCreateIni=
- send(gcBat,'@echo off'),
- send(gcBat,'pushd \client\key\kts',1),
- send(gcBat,'echo [gitInfo] > ..\gitInfo.ini',1),
- send(gcBat,'for /F "tokens=3 delims=/" %%i in (.git/HEAD) do echo BRANCHNAME=%%i >> ..\gitInfo.ini',1),
- send(gcBat,'git status > ..\gitStatus.txt',1),
- send(gcBat,'popd',1),
- runw(gcBat,'Git Command...');
-
- lcFile='gitInfo.ini',
- send(lcFile,'[gitInfo]'),
- send(lcFile,'branchname=
+ send(gcBatIni,'@echo off'),
+ send(gcBatIni,'pushd \client\key\kts',1),
+ send(gcBatIni,'echo [gitInfo] > ..\gitInfo.ini',1),
+ send(gcBatIni,'for /F "tokens=3 delims=/" %%i in (.git/HEAD) do echo BRANCHNAME=%%i >> ..\gitInfo.ini',1),
+ send(gcBatIni,'git status > ..\gitStatus.txt',1),
+ send(gcBatIni,'popd',1),
+ runw(gcBatIni,'Git Command...');
