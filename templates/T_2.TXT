@@ -1,24 +1,88 @@
 @id=2;
-@template=Key Utility Procedures;
+@template=Key Git Procedures;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077193.4992;
+@lastedit=0077193.6493;
 
 ###---###---###---###---###
+@noupdate;
+@bbgcolor=999B0Dh;
+@wbgcolor=999B0Dh;
+@lmode=2;
 
-@gitcommit=
- m('Prepare the templates for Version Control?','Git prep','question.ico',6,4),
- break(gcretval<>2),
- exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0'),
- m('SVN Templates Ready!... Run Git Add?','Git Add','question.ico',6,4),
- break(gcretval<>2),
+@loadwindow=
+ dumpTemplates=,
+ gitCreateIni=,
+ gcBranchName=getini('gitInfo','BRANCHNAME','unknown','c:\client\key\gitInfo.ini'),
+ gcBat='gitcmd_temp.bat',
+ create(150,34,64,3,'',002),
+ prop(150,'From','matt|nate|wade|master'),
+ prop(150,'Width',80),
+ prop(150,'Height',12),
+ prop(150,'Readonly',0),
+ prop(150,'Drop',5),
+ prop(150,7cfah,16777215),
+ create(151,10,64,17,'test',),
+ prop(151,'Width',300),
+ prop(151,'Height',120),
+ prop(151,7cfah,16777215);
+
+ tabord('002150102040'),
+ prop(102,font,Lucida Console),
+ prop(102,fontsize,8),
+ lccodeh=mh-100,
+ prop(102,height,lccodeh),
+
+@afterloadwindow=
+ gitStatus=;
+
+\t001Current Branch; \h002; \f002=gcBranchName;
+\t003Git Status; \h004;
+
+\t105&Git Commit;
+@acc105=
  iw(',.t000Please Enter the Commit Message...., ,.t001Commit Message., ,.w002300.,'),
  break(gcretval<>'OK'),
  lcMessage=obj7:key1,
- lcBat='gitadd.bat',
- send(lcBat,'cd \client\key\kts'),
- send(lcBat,'call git add templates\*',1),
- send(lcBat,'call git commit -a -m "key_commit: '&lcMessage&'"',1),
- runw('gitadd','git is adding...',1);
+ gcGitCmd='call git add templates\*',
+ gitCommand=,
+ gcGitCmd='call git commit -a -m "key_commit: '&lcMessage&'"',
+ gitCommand=,
+ gitCreateIni=,
+ gitStatus=;
+
+@acc150=
+ break(obj:key1<'  0'),
+ gcGitCmd='git checkout '&obj:key1,
+ gitCommand=,
+ dumpTemplates=,
+ gitCreateIni=,
+ gitStatus=;
+
+@dumpTemplates=
+ exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0');
+
+@gitStatus=
+ readdos('gitStatus.txt'),
+ prop(151,text,workmemo);
+
+@gitCommand=
+ send(gcBat,'pushd \client\key\kts'),
+ send(gcBat,'call '&gcGitCmd,1),
+ send(gcBat,'popd',1),
+ runw(gcBat,'Git Command...');
+
+@gitCreateIni=
+ send(gcBat,'@echo off'),
+ send(gcBat,'pushd \client\key\kts',1),
+ send(gcBat,'echo [gitInfo] > ..\gitInfo.ini',1),
+ send(gcBat,'for /F "tokens=3 delims=/" %%i in (.git/HEAD) do echo BRANCHNAME=%%i >> ..\gitInfo.ini',1),
+ send(gcBat,'git status > ..\gitStatus.txt',1),
+ send(gcBat,'popd',1),
+ runw(gcBat,'Git Command...');
+
+ lcFile='gitInfo.ini',
+ send(lcFile,'[gitInfo]'),
+ send(lcFile,'branchname=
