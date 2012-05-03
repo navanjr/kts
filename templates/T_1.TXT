@@ -1,0 +1,73 @@
+@id=1;
+@template=Key;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077193.4690;
+
+###---###---###---###---###
+
+
+\b002060u-02;\b003035t16;\b004022d22;b005050d9;\b006040d56;
+
+@button1=Login,,,login,secur06.ico,45,,always;
+@button13=ExportTemplates,,,press,,100,,always;
+@button16=Exit [F12],,,press,wizdown.ico,40r,123,always;
+@title=KellPro Treasurers System Version 01.01.01;
+
+@namesearch=browse(1,10,,,,1);
+
+@help='kts.CHM';
+\p0007a15h,c:\client\key\kellpro2.bmp;  
+\p0007a16h,1;  
+
+@updatetemplates='kts';
+
+setdist=do(2419,setdistnum=);
+setstockpileb=do(2419,setstockpile=);
+
+loginscript=
+d1select('select top 1 id from object where typ=2419 order by id'),
+get(obj7:d1),
+gcstate=obj7:key1,
+gccountyname=obj7:key2,
+gccountynum=obj7:key3,
+ucdistnum=obj7:a1,
+gcavgpricing=obj7:a3,
+gceditrec=obj7:a4,
+gcpurchasing=obj7:a5,
+ctdrdet=obj7:a6,
+ucdistnumid=obj7:a7,
+gcsiteid=obj7:id,
+gcpurposebydate=obj7:a14,
+gcempmatlink=obj7:a15,
+gcoriginaltimereport=obj7:a16,
+if(len(readstring(cur:data,'@56k1='))=0 and instring('@button8',cur:options,)>0,select(1,56,,'Please select a default Fiscal Year...')),
+if(len(readstring(cur:data,'@2408k1='))=0 and instring('@button6',cur:options,)>0,do(2419,setdistnum=));
+
+@kppreupdate=
+runw('if not exist one md one'),
+runw('if not exist two md two'),
+runw('if not exist three md three'),
+runw('if not exist four md four'),
+runw('if not exist five md five'),
+runw('del five\*.* /q'),
+runw('xcopy four\*.* five /e /Y'),
+runw('del four\*.* /q'),
+runw('xcopy three\*.* four /e /Y'),
+runw('del three\*.* /q'),
+runw('xcopy two\*.* three /e /Y'),
+runw('del two\*.* /q'),
+runw('xcopy one\*.* two /e /Y'),
+runw('del one\*.* /q'),
+runw('xcopy kts_reports\*.* one /e /Y');
+
+@tb11=m('test11');
+m('Prepare an upload file?','Upload file','question.ico',6,4),
+break(gcretval<>2),
+exporttemplate('c:\client\kts\kts.dte','rtem:id>0'),
+m('Upload Files Ready!','Upload Ready'),
+run('c:\client\kts\dkts.bat',1);
+
+@tb13=do(2,'gitcommit=');

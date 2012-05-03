@@ -1,0 +1,192 @@
+@id=451;
+@template=SQL Objects;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077193.3837;
+
+###---###---###---###---###
+** Written by nathan@bepo.com **
+
+@bbgcolor=999B0Dh;
+@wbgcolor=999B0Dh;
+@lmode=2;
+@commentboxe1;
+
+@loadbrowse=
+ prop(011,7cfah,16777215),
+ prop(026,7cfah,16777215),
+ prop(002,7cfah,16777215),
+ prop(001,font,Lucida Console),
+ prop(001,fontsize,8),
+ prop(002,font,Lucida Console),
+ prop(002,fontsize,8);
+
+@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M30C(2)~Length~#30#|M50L(2)~Status~#4#|M;
+@browse4='select case when max(datalength(o.e1))*2=sum(datalength(c.text)) then ''OK'' else ''Out-Dated'' end from object o, dbo.sysobjects s, dbo.syscomments c where o.key1=s.name and s.id=c.id and o.id='&obj:id&' group by s.id, o.key1, s.name';
+'select case when dbo.clariondate(refdate)<'&obj:lasteditdate&' then ''Out-Dated'' else ''OK'' end from dbo.sysobjects where id = object_id(N''[dbo].['&obj:key1&']'') and OBJECTPROPERTY(id, N''Is'&obj:key2&''')=1';
+
+@ordername=Name,Create Order;
+@key2=format(obj:a17,@n05);
+
+@bb1=Import &Prime;
+@bbproc1=m('Are you sure?','Import KeyWeb SQL Objects...','Question.ico',6,4),if(gcretval=2,importprime=);
+
+@importprime=
+ kpmo('Preparing...','Import KeyWeb SQL Objects...'),
+ get('typ=453'),
+ lclinkserver=obj7:a2,
+ lccount=kp('select count(*) from '&lclinkserver&'object where typ=451'),
+ sqlloop('select id,key1 from '&obj7:a2&'object where typ=451 order by a17','impprimeloop='),
+ kpmc();
+
+@impprimeloop=
+ kpmm(lccount&' - '&obj5:a2,'Import KeyWeb SQL Objects...'),
+ lcid=kp('select id from object where typ=451 and key1='''&obj5:a2&''''),
+ if(lcid+0>0,impupdate=,impinsert=),
+ lccount=lccount-1;
+@impupdate=sql('update object set typ=h.typ, key2=h.key2, a17=h.a17, a18=h.a18, e1=h.e1 from object l, '&lclinkserver&'object h where l.key1=h.key1 and l.id = '&lcid&' and h.id = '&obj5:a1);
+@impinsert=sql('insert object (typ,key1,key2,a17,a18,e1) select typ,key1,key2,a17,a18,e1 from '&lclinkserver&'object where id = '&obj5:a1);
+
+
+@bb4=C&reate Object;  @bbproc4=acc105=;
+@bb5=Create &All;  @bbproc5=m('Are you sure?','Create all SQL Objects...','question.ico',6,4),if(gcretval=2,createallobjects=);
+@createallobjects=
+ kpmo('Creating SQL Objects...','Please wait...'),
+ sqlloop('select o.id,o.key1,o.key2 
+ from object o, dbo.sysobjects s, dbo.syscomments c
+ where o.key1=s.name and s.id=c.id
+ group by s.id, o.key1, s.name, o.id,o.key1,o.key2 
+ having max(datalength(o.e1))*2<>sum(datalength(c.text))',createallobjectsloop=),
+ kpmc();
+
+@createallobjectsloop=
+ gcid=obj5:a1,
+ gcname=obj5:a2,
+ gctype=obj5:a3,
+ kpmm('Creating '&gcname,'Please wait...'),
+ dropobject=,
+ createobject=;
+
+
+@loadwindow=
+ create(150,34,64,15,'',004),
+ prop(150,'From','Procedure|ScalarFunction|TableFunction'),
+ prop(150,'Width',118),
+ prop(150,'Height',12),
+ prop(150,'Readonly',0),
+ prop(150,'Drop',5),
+ prop(150,7cfah,16777215),
+ tabord('002150102040'),
+ prop(102,font,Lucida Console),
+ prop(102,fontsize,8),
+ lccodeh=mh-100,
+ prop(102,height,lccodeh);
+
+@afterloadwindow=
+;
+
+@select=102;
+
+\t001Object Name;
+\t003Type;  \h004;
+
+\t039Create Order;  \t040@n05;
+\t041Data Length;  \s042-'select datalength(e1) from object where id='&obj:id;
+\t101SQL Create Code;  \w102600;  @acc102=calcfld(042);
+
+\t105C&reate Object;
+@acc105=if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=);
+
+@createoneobject=
+ update,
+ gcid=obj:id,
+ gcname=obj:key1,
+ gctype=obj:key2,
+ dropobject=,
+ createobject=;
+
+@createobject=sql('
+ declare
+  @id int,
+  @loopcount int,
+  @looptally int,
+  @sqlclip nvarchar(4000),
+  @sql_1 nvarchar(4000),
+  @sql_2 nvarchar(4000),
+  @sql_3 nvarchar(4000),
+  @sql_4 nvarchar(4000),
+  @sql_5 nvarchar(4000)
+ set @id='&obj:id&'
+ declare @sql table
+  (line int IDENTITY(1,1), sqlcode nvarchar(4000))
+ select @loopcount=(datalength(e1)/4000)+1 from object where id=@id
+ set @looptally=1
+ set @sqlclip = ''''
+ set @sql_1 = ''''
+ set @sql_2 = ''''
+ set @sql_3 = ''''
+ set @sql_4 = ''''
+ set @sql_5 = ''''
+ while 1=1
+  begin 
+   print @looptally
+   set @loopcount=@loopcount-1
+   select @sqlclip=substring(e1,@looptally,4000) 
+    from object 
+    where id=@id
+   insert @sql (sqlcode) values (@sqlclip)
+   if @looptally=1
+    set @sql_1 = @sqlclip
+   if @looptally=4001
+    set @sql_2 = @sqlclip
+   if @looptally=8001
+    set @sql_3 = @sqlclip
+   if @looptally=12001
+    set @sql_4 = @sqlclip
+   if @looptally=16001
+    set @sql_5 = @sqlclip
+   set @looptally=@looptally+4000
+   set @sqlclip = ''''
+   if @loopcount=0
+    break
+   continue
+  end
+ exec(@sql_1+@sql_2+@sql_3+@sql_4+@sql_5)');
+
+ sql('declare @sql varchar(8000) select @sql=cast(e1 as varchar(8000)) from object where id='&gcid&'  exec ( @sql )');
+
+@dropobject=
+ if(gctype='Procedure',gcdroptype='Procedure'),
+ if(gctype='ScalarFunction',gcdroptype='Function'),
+ if(gctype='TableFunction',gcdroptype='Function'),
+ sql('if exists (select * from dbo.sysobjects where id = object_id(N''[dbo].['&gcname&']'') and OBJECTPROPERTY(id, N''Is'&gctype&''') = 1) drop '&gcdroptype&' [dbo].['&gcname&']');
+
+
+@importobjects=
+ kpmo('Importing Objects...','Please wait...'),
+ lcorder=kp('select max(cast(a17 as money)) from object where typ=451'),
+ sqlloop('select 
+  a.name,
+  case a.xtype
+   when ''P'' then ''Procedure''
+   when ''FN'' then ''ScalarFunction''
+   when ''TF'' then ''TableFunction''
+  end,
+  a.id
+ from dbo.sysobjects a
+ where a.refdate>= ''2005-06-06 10:52:05.280''
+  and (a.name < ''wb0'' or a.name > ''wb9'')
+  and (a.name < ''wbf0'' or a.name > ''wbf9'')
+  and (a.name < ''wbl0'' or a.name > ''wbl9'')
+  and (a.name < ''wburl0'' or a.name > ''wburl9'')
+  and a.name not in (select key1 from object where typ=451)
+ order by a.refdate',imploop=),
+ kpmc();
+
+@imploop=
+ lcorder=lcorder+1, 
+ kpmo(lcorder&'. Importing '&obj5:a2&' '&obj5:a1,'Please wait...'),
+ lcsql=kp('select text from dbo.syscomments where id='&obj5:a3),
+ insert(-02=451,002=obj5:a1,004=obj5:a2,040=lcorder,102=lcsql);
