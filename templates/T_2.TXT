@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077197.6326;
+@lastedit=0077198.6676;
 
 ###---###---###---###---###
 @noupdate;
@@ -37,9 +37,6 @@
  prop(152,font,Lucida Console),
  prop(152,fontsize,7);
 
- tabord('002150102040'),
- lccodeh=mh-100,
- prop(102,height,lccodeh),
 
 @afterloadwindow=
  gitFetchAll=,
@@ -52,6 +49,7 @@
 @acc105=
  dumpTemplates=,
  dumpUsers=,
+ exportObjects=,
  gitCreateIni=,
  gitStatus=;
 
@@ -59,6 +57,7 @@
 @acc108=
  templateImport=,
  userImport=,
+ importObjects=,
  gitCreateIni=,
  gitStatus=;
 
@@ -89,6 +88,10 @@
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
+
+\t113Test;
+@acc113=
+ importObjects=;
 
 @acc150=
  break(obj:key1<'  0'),
@@ -122,6 +125,70 @@
  gcGitCmd='copy '&lcpath&'\kts.usr '&lcpath1&'\kts.usr',
  gitCommand=;
 
+@exportObjects=
+ if(kpexists(kpexepath()&'\kts\SqlObjects')<>1,createFolder=,cleanOutFolder=),
+ sqlloop('select id,key1,key2,a17,a18 from object where typ=451',exportObject1=);
+ 
+@createFolder=
+ gcGitCmd='mkdir c:\client\key\kts\SqlObjects',
+ gitCommand=;
+
+@cleanOutFolder=
+  gcGitCmd='del '&kpexepath()&'\kts\sqlobjects\*.* /q',
+  gitCommand=;
+
+@exportObject1=
+ lcFile=obj5:a2&'~'&obj5:a3&'~'&obj5:a4&'.TXT',
+ e1select('select e1 from object where id='&obj5:a1),
+ send('kts\SqlObjects\'&lcFile,clip(obj7:e1));
+
+@importObjects=
+ setpath(kpexepath()&'\KTS\sqlObjects'),
+ dirObjectCheck=;
+
+@importObjectsA=
+ sqlloop('select name,path from dbo.dirRead('''&kp('path')&''') where name is not null',importObjects1=),
+ do(451,bbproc5=),
+ setpath(kpexepath());
+
+@importObjects1=
+ lcFile=obj5:a1,
+ importObjects2=;
+
+@importObjects2=
+ lcWrk=lcFile,
+ lcName=sub(lcWrk,1,instring('~',lcWrk,1,1)-1),
+ lcWrk=sub(lcWrk,len(lcName)+2,len(lcWrk)-(len(lcName))),
+ lcType=sub(lcWrk,1,instring('~',lcWrk,1,1)-1),
+ lcOrder=sub(lcWrk,len(lcType)+2,len(lcWrk)-(len(lcType))),
+ readdos(lcFile&'.txt'),
+ lcObjectId=kp('select id from object where typ=451 and key1='''&lcName&''''),
+ if(lcObjectId+0>0,updateIt=,insertIt=);
+
+@updateIt=
+ modify(lcObjectId,004=lcType,006=lcOrder,102=workmemo);
+@insertIt=
+ insert(-02=451,002=lcName,004=lcType,006=lcOrder,102=workmemo);
+
+@dirObjectCheck=
+ lcDirId=kp('select id from dbo.sysobjects where id = object_id(N''[dbo].[dirRead]'') and OBJECTPROPERTY(id, N''IsTableFunction'') = 1'),
+ if(lcDirId+0=0,createFunction=),
+ importObjectsA=;
+
+@createFunction=
+ lcFile='EnableAdvancedSQLOptions~Script~99',
+ importObjects2=,
+ createoneobject=,
+ lcFile='dirRead~TableFunction~99',
+ importObjects2=,
+ createoneobject=;
+
+@createoneobject=
+ get(obj1:id),
+ gcid=obj7:id,
+ gcname=obj7:key1,
+ gctype=obj7:key2,
+ do(451,createobject=)
 
 @gitFetchAll=
  gcGitCmd='git fetch --all',
