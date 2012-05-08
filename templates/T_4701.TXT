@@ -1,58 +1,62 @@
 @id=4701;
-@template=Fiscal Calendar;
+@template=G/L Accounts;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077197.7695;
+@lastedit=0077198.4292;
 
 ###---###---###---###---###
-0@fastinsert;
+
+
+@fastinsert;
 @save;
+@loadbrowse=if(tier=-3,dbrowse=),
+ if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
-@loadwindow=
- create(39,12,120,1,,40),
- brw(150,1,'select gl.link1,sum(cast(gl.key3 as money)),sum(cast(gl.a1 as money)) from object gl where gl.typ=204 and gl.link3='&obj:id&' group by gl.link1 having sum(cast(gl.key3 as money)) <> sum(cast(gl.a1 as money))',63,119,100,100,'50R(2)~Debits~@n-12.2@#2#|M50R(2)~Credits~@n-12.2@#3#|M');
- 
-@sel106=if(obj:a17=0,set(40,'',1));
+@bb6=&Print Account;  
+@bbproc6=
+ writecurdata(@201=,obj:id),
+ lcid=kp('select max(id) from object where typ=209'),
+ if(lcid+0=0,new(209),setandchange=);
+@setandchange=
+ fastmodify(lcid,-03=obj:id,-04=obj:id,002=obj:key1,004=obj:key1,040=obj:key2,042=obj:key2),
+ change(lcid);
 
-@format=30L(2)~Code~#1#|M100L(2)~Description~#2#|M35L(2)~Start~@d1@#3#|M35L(2)~End~@d1@#5#|M15C(2)~Closed~#4#|M50R(2)~Debits~@n-12.2b@#17#|M50R(2)~Credits~@n-12.2b@#18#|M30L(2)~~#8#|M;
-@browse4=choose(obj:a17=1,'X','');
-@browse8=choose(obj:a5+0=obj:a6+0,'','X');
+@ordername=Account #,Description;
+@key2=obj:key2;
 
-@bb4=Create FY;
+@loadwindow=create(39,9),set(40,'',1);
+
+\t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
+\t003Description;  \c004;  \e004;
+\t005Code;  \u006;  \t006@s10;  \w00650;  @acc006=update,d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),if(obj7:d1>1,'pfcode=');  @pfcode=message('Code already in use.'),set(006,''),focus(006);
+\t007Type;  \l0084702;r008002010004012006;  \q008;  \w00850;
+\t009Description;  \d010;
+\t011Report Code;  \d012;  \w01225;  \w01250;
+\t013BS Summary;
+\t015Fiscal Period;  \w01630;  \l0164700,5;r016002018004;  @acc016=calcrecord;
+\t017Period Total;  \w01850;    \t018@n$-12.2;  \s018+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and link3='&obj:link5;
+\t019Running Total;  \t020@n$-12.2;  \w02050;  \s020+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and a3<='&obj:a5;
+
+\t039Change Account #;  \w03970;  \x039-10;  
+@acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&format(obj:a17,'P#####Pb')&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
+@p039y=d1select('select count(*) from object where typ=204 and link2='&obj:id),m('There are '&obj7:d1&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&format(obj:a17,'P#####Pb')&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y2=sql('update object set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
+
+\t053Account Balance;  \t054@n$-12.2;  \w05450;  \s054+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id;
+
+\t108&Print Account;  @acc108=bbproc6=;
+
+
+@bb4=Import Funds,,,gcadmin=1;
 @bbproc4=
- iw(',.t000Please enter the 4 digit year...., ,.t001Year., ,.w00235., ,.t002p####p.,'),
- break(gcretval<>'OK'),
- gcfyr=obj7:key1,
- gcfyoffset=0,
- gcfmo='01',gcfmoname='July',createfy=,
- gcfmo='02',gcfmoname='August',createfy=,
- gcfmo='03',gcfmoname='September',createfy=,
- gcfmo='04',gcfmoname='October',createfy=,
- gcfmo='05',gcfmoname='November',createfy=,
- gcfmo='06',gcfmoname='December',createfy=,
- gcfyoffset=1,
- gcfmo='07',gcfmoname='January',createfy=,
- gcfmo='08',gcfmoname='February',createfy=,
- gcfmo='09',gcfmoname='March',createfy=,
- gcfmo='10',gcfmoname='April',createfy=,
- gcfmo='11',gcfmoname='May',createfy=,
- gcfmo='12',gcfmoname='June',createfy=;
-@createfy=
- gcfyy=gcfyr+gcfyoffset,
- lcid=kp('select id from object where typ=4701 and key1 = '''&gcfyr&gcfmo&''''),
- if(lcid<1,fastinsert(-02=4701,002=gcfyr&gcfmo,004=gcfmoname&' '&gcfyy,006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4))));
-
-\t001Code;    \w00245;
-\t003Description;  \c004;
-\t005Start Date;  \t006@d2;   \w00645;
-\t007End Date;  \t008@d2;   \w00845;
-\t009Working Days;  \t010@n-12;   \w01025;
-\t011Sales Forcast;  \w01245;  \t012@n$-12.2;
-
-\t015Debits;  \w01650;  \t016@n-12.2;  \s016+'select sum(cast(key3 as money)) from object where typ=4704 and link3='&obj:id;
-\t017Credits;  \w01850;  \t018@n-12.2;  \s018+'select sum(cast(a1 as money)) from object where typ=4704 and link3='&obj:id;
-\t019db<>cr;  \h020;
-
-\t039Period Closed;  \h040;
+ gcFundTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcFundTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcFundTypeId<1),
+ gcFundTypeCode=kp('select key1 from object where typ=4702 and id='&gcFundTypeId),
+ gcFundTypeDesc=kp('select key2 from object where typ=4702 and id='&gcFundTypeId),
+ sqlloop('select fundcode,name from dbo.mike_fund()',impFunds=);
+@impFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcFundTypeCode,010=gcFundTypeDesc,-07=gcFundTypeId));
