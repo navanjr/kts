@@ -4,35 +4,46 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077198.6643;
+@lastedit=0077199.3679;
 
 ###---###---###---###---###
 @lmode=2;
 @loadbrowse=
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
+@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n14.2@#6#|M150L(2)~Comments~##|M;
+
 @loadwindow=
- brw(150,1,'select id,key1,key2,key3,a1 from object where typ=4503 and link1='&obj:id,65,81,270,100,'118L~Description~#2#|M50L~Source~#3#|M50L~Fund~#4#|M50R~Amount~@n14.2b@#5#|M',,1),
- create(160,9,3,85,'&delete');
+ brw(150,1,'select id,key1,key2,key3,a1 from object where typ=4503 and link1='&obj:id,65,81,270,100,'118L(2)~Description~#2#M50L(2)~Source~#3#M50L(2)~Fund~#4#M50R(2)~Amount~@n14.2b@#5#M',7,1);
+
+@afterloadwindow=
+ create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
+ create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
+ blankEm=;
 
 \t001Receipt Number; \t002@p######p;
 \t003Receipt Date; \t004@d2;
+ \w00200455;r2
 
 \t007Received From;  \l0084601,2; @nopop008;
-\t009detailId;\d009010;r
-\t011Description;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
+
+\t009detailId;\d009010;r \h009010;r
+\t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
 \t015Fund;  \l0164701; @lf016='typ=4701 and a1=''FUND''';
 \t017Amount; \t018@n14.2; @acc018=miscDetail=;
  \h011017;r2
  \x014184; \y014=012; \w01449; \n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; \n016obj:a5>'  0';
- \x018286; \y018=012; \w01849;
+ \x018286; \y018=012; \w01849; \p0187c0ch,1;
 
 \t039Status;
 \t041Deputy;
 \t043Treasurer;
 \t045Printed;
+
+\t087Due;  \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,000FFFFH;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
+\t089Paid;
 
 \t097Comments;
 
@@ -54,10 +65,18 @@
  \h071076;r
 
 @miscDetail=
- fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),
- set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
+ if(obj:a2>'  0',fastmodify('typ=4503 and id='&obj:a2,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6)),
+ blankEm=,
  focus(012),
- brwreload(1);
+ refreshDetail=;
+
+@blankEm=
+ set(010,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1);
+
+@refreshDetail=
+ brwreload(1),
+ calcfld(088);
 
 @newselbrw150=
  set(10,kpbrwid(1),1),
@@ -65,17 +84,28 @@
  set(012,readstring(lcblob,'@description='),1),
  set(014,readstring(lcblob,'@source='),1),
  set(016,readstring(lcblob,'@fund='),1),
- set(018,readstring(lcblob,'@amount='),1);
+ set(018,readstring(lcblob,'@amount='),1),
+ focus(012);
 
 @acc160=
+ miscDetail=,
+ focus(012);
+
+@acc161=
  fastmodify('typ=4503 and id='&kpbrwid(1),-02=-4503),
- brwreload(1);
+ blankEm=,
+ focus(012),
+ refreshDetail=,
+ blankEm=;
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)
  select 4502,rcptno,dbo.clariondate114(rdate),rcvdof,miscamnt,status,deputy,treasurer,printrec,comments,road1,road2,rocity,rostate,rozip,rophone,dirdep,lastupdt,updtuser,r_memo from dbo.mike_misc()');
 @bb5=Purge,,,gcadmin=1;
 @bbproc5=sql('delete object where typ=4502');
+
+@brw1=
+ m(kpbrwid(1));
 
 ** data conversion stuff - for some reason this import routine does not work. it just spins for awhile and nothing get imported
 @importcount4502=5;
