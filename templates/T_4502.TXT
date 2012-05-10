@@ -1,0 +1,56 @@
+@id=4502;
+@template=Receipts;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077194.9597;
+
+###---###---###---###---###
+@loadbrowse=
+ if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
+
+\t001Receipt Number; \t002@p######p;
+\t003Receipt Date; \t004@d2;
+
+\t007Received From;  \l0084601,2; @nopop008;
+\t009Amount; \t010@n14.2;
+
+\t039Status;
+\t041Deputy;
+\t043Treasurer;
+\t045Printed;
+
+\t097Comments;
+
+\t101Memo;
+
+\t025road1;
+\t027road2;
+\t029rocity;
+\t031rostate;
+\t033rozip;
+\t035rophone;
+ \d026036;r2
+
+\t071dirdep;
+\t073lastupdt;
+\t075updtuser;
+ \d072076;r2
+
+@bb4=Import,,,gcadmin=1;
+@bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)
+ select 4502,rcptno,dbo.clariondate114(rdate),rcvdof,miscamnt,status,deputy,treasurer,printrec,comments,road1,road2,rocity,rostate,rozip,rophone,dirdep,lastupdt,updtuser,r_memo from dbo.mike_misc()');
+@bb5=Purge,,,gcadmin=1;
+@bbproc5=sql('delete object where typ=4502');
+
+** data conversion stuff - for some reason this import routine does not work. it just spins for awhile and nothing get imported
+@importcount4502=5;
+@lastimport=4502;
+@import=c:\receipts.txt,002001038002040003008004026005028006030007032008034009036010010011042012044013098014072015074016076017046018,004=deformat(obj:key2,@d12);
+
+** Foxpro export command
+COPY TO c:\receipts.txt FOR not deleted() TYPE DELIMITED FIELDS MISC.RCPTNO,
+ MISC.RDATE,MISC.STATUS,MISC.RCVDOF,MISC.ROAD1,MISC.ROAD2,MISC.ROCITY,MISC.ROSTATE,
+ MISC.ROZIP,MISC.ROPHONE,MISC.MISCAMNT,MISC.DEPUTY,MISC.TREASURER,MISC.COMMENTS,
+ MISC.DIRDEP,MISC.LASTUPDT,MISC.UPDTUSER,MISC.PRINTREC
