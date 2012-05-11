@@ -4,10 +4,9 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077198.5701;
+@lastedit=0077200.6559;
 
 ###---###---###---###---###
-
 
 
 @fastinsert;
@@ -24,8 +23,13 @@
  fastmodify(lcid,-03=obj:id,-04=obj:id,002=obj:key1,004=obj:key1,040=obj:key2,042=obj:key2),
  change(lcid);
 
-@ordername=Account #,Description;
+@bb8=G/L Report;  @bbproc8=trreport('glreport');
+
+@filtername=All,Bank Accounts,Fund Accounts;
+@filter='1=1','a1=''BANK''','a1=''FUND''';
+@ordername=Account #,Description,Report Order;
 @key2=obj:key2;
+@key3=obj:a9;
 
 @loadwindow=create(39,9),set(40,'',1);
 
@@ -47,8 +51,12 @@
 
 \t053Account Balance;  \t054@n$-12.2;  \w05450;  \s054+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id;
 
-\t108&Print Account;  @acc108=bbproc6=;
+\t097Account Number;
 
+\t023Report Order; \w02450;
+
+
+\t108&Print Account;  @acc108=bbproc6=;
 
 @bb4=Import Funds,,,gcadmin=1;
 @bbproc4=
@@ -56,7 +64,7 @@
  if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
  break(gcAcctTypeId<1),
  getAcctType=,
- sqlloop('select fundcode,name from dbo.mike_fund()',impFunds=);
+ sqlloop('select fundcode,name from dbo.mike_fund() where left(name,4)=''CV00''',impFunds=);
 @impFunds=
  lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
  if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
@@ -71,6 +79,25 @@
 @impSource=
  lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
  if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,006=obj5:a3,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@bb7=Import GL,,,gcadmin=1;
+@bbproc7=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''BANK'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a BANK account type before you import Bank Accounts.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
+@impBanks=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo,024=obj5:a3,098=obj5:a4));
+@impGLFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo,024=obj5:a3,098=obj5:a4));
 
 @getAcctType=
  gcAcctTypeCode=kp('select key1 from object where typ=4702 and id='&gcAcctTypeId),
