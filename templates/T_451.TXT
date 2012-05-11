@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077201.6921;
+@lastedit=0077201.7101;
 
 ###---###---###---###---###
 ** Written by nate.anderson@kellpro.com **
@@ -24,8 +24,8 @@ wbgcolor=999B0Dh;
  prop(002,fontsize,8);
 
 @format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M30C(2)~Length~#30#|M50L(2)~Status~#4#|M;
-@browse4='select case when max(datalength(o.e1))*2=sum(datalength(c.text)) then ''OK'' else ''Out-Dated'' end from object o, dbo.sysobjects s, dbo.syscomments c where o.key1=s.name and s.id=c.id and o.id='&obj:id&' group by s.id, o.key1, s.name';
-'select case when dbo.clariondate(refdate)<'&obj:lasteditdate&' then ''Out-Dated'' else ''OK'' end from dbo.sysobjects where id = object_id(N''[dbo].['&obj:key1&']'') and OBJECTPROPERTY(id, N''Is'&obj:key2&''')=1';
+@browse4='select stat from dbo.sqlObjectCompare('&obj:id&')';
+
 
 @ordername=Name,Create Order;
 @key2=format(obj:a17,@n05);
@@ -36,11 +36,7 @@ wbgcolor=999B0Dh;
 
 @createallobjects=
  kpmo('Creating SQL Objects...','Please wait...'),
- sqlloop('select o.id,o.key1,o.key2 
- from object o, dbo.sysobjects s, dbo.syscomments c
- where o.key1=s.name and s.id=c.id
- group by s.id, o.key1, s.name, o.id,o.key1,o.key2 
- having max(datalength(o.e1))*2<>sum(datalength(c.text))',createallobjectsloop=),
+ sqlloop('select * from dbo.sqlObjectCompare(0) order by ord',createallobjectsloop=),
  kpmc();
 
 @createallobjectsloop=
@@ -143,7 +139,7 @@ wbgcolor=999B0Dh;
  if(gctype='Procedure',gcdroptype='Procedure'),
  if(gctype='ScalarFunction',gcdroptype='Function'),
  if(gctype='TableFunction',gcdroptype='Function'),
- if(gctype='View',gcdroptype='View'),
+if(gctype='View',gcdroptype='View'),
  sql('if exists (select * from dbo.sysobjects where id = object_id(N''[dbo].['&gcname&']'') and OBJECTPROPERTY(id, N''Is'&gctype&''') = 1) drop '&gcdroptype&' [dbo].['&gcname&']');
 
 @exportObjects=
