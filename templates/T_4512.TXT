@@ -4,11 +4,16 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077201.5515;
+@lastedit=0077201.6134;
 
 ###---###---###---###---###
-@format=40R(3)~J/E Num~@p######p@#1#|M50R(3)~J/E Date~@d2@#2#|M250L(3)~Description~#3#|M50R(3)~Balance~@n14.2@#47#|M50C~Posted~##;
+@format=40R(3)~J/E Num~@p######p@#1#|M50R(3)~J/E Date~@d2@#2#|M250L(3)~Description~#3#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
 
+@browsedelete=
+ if(obj:a17='Posted',m('This record has been posted and can not be deleted.','Oops..'),altDelete=);
+@altDelete=
+ m('Are you sure you wish to delete this Journal Entry?','Delete...',,6,4),
+ if(gcretval=2,);
 
 @loadwindow=
  brwstuff=;
@@ -23,30 +28,35 @@
 @select=choose(obj:key3>'0',008,006);
 
 \t001J/E Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+;
-\t003J/E Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \w00200455;r2
-\t005Description; \w006175;
+\t003J/E Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \w00200455;r2 \d004obj:a17='Posted';
+\t005Description; \w006175; \d006obj:a17='Posted';
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+
 \t007&Account Code; \l0084701,1;r008002010004; 
 \t009Description; \d010;
-
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
+ \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h151obj:a17='Posted';
 
-\t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700;
+\t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700; \d076;
  \s076+'select sum(amount) from gldetailstage where sourceId = '&obj:id;
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
 
 \t109&Print; @acc109=;
-\t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0;
+\t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0; \h110obj:a17='Posted';
 
-\t113&Delete; @acc113=removeRow=;
+\t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
 
 @brwstuff=
- gcsql='select id*-1 as id,accountDesc,amount from gldetailstage where sourceid='&obj:id,
+ lcTable=choose(obj:a17='Posted','gldetail','glDetailStage'),
+ gcsql='select id*-1 as id,accountDesc,amount from '&lcTable&' where sourceid='&obj:id,
  brw(150,1,gcsql,3,70,300,202,'200L(2)~Account~#2#|M50R(2)~debit(+) or credit(-)~@n-14.2@#3#|M',7,1);
 @lbrw1forecolor=obj7:c10<0,255;
 
 @brw1=
+ break(obj:a17='Posted'),
  set(-07,kpbrwid(1)*-1),
- lcblob=kp('select dbo.getGLDetailStageBlob('&kpbrwid(1)*-1&')'),
+ lcblob=kp('select dbo.glDetailStageGetBlob('&kpbrwid(1)*-1&')'),
  set(008,readstring(lcblob,'@accountCode=')),
  set(010,readstring(lcblob,'@accountDesc=')),
  set(046,readstring(lcblob,'@amount=')),
@@ -66,7 +76,7 @@
 
 @saveRow=
  if(gcToggle=gcToggleDb,lcAmt=obj:a20,lcAmt=obj:a20*-1),
- sql('exec dbo.stageGLDetail '&obj:id&','&obj:link1&','&lcAmt&','&obj:link5),
+ sql('exec dbo.glDetailStageAdd '&obj:id&','&obj:link1&','&lcAmt&','&obj:link5),
  refreshbrw=,
  blankEm=,
  focus(008);
@@ -84,7 +94,7 @@
  m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
  break(gcretval<>2),
  d1select('dbo.glPost '&obj:id&','&obj:key2),
- m(readstring(obj7:d1,'@message='),'Posting...');
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
 @acc151=
  if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
