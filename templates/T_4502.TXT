@@ -4,28 +4,37 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077199.3679;
+@lastedit=0077199.4485;
 
 ###---###---###---###---###
 @lmode=2;
 @loadbrowse=
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
-@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n14.2@#6#|M150L(2)~Comments~##|M;
+@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n14.2@#53#|M150L(2)~Comments~#58#|M;
 
 @loadwindow=
- brw(150,1,'select id,key1,key2,key3,a1 from object where typ=4503 and link1='&obj:id,65,81,270,100,'118L(2)~Description~#2#M50L(2)~Source~#3#M50L(2)~Fund~#4#M50R(2)~Amount~@n14.2b@#5#M',7,1);
+ brwstuff=;
+@select=008;
+@brwstuff=
+ gcbrw1sql='select id,key1,key2,key3,a1 from dbo.miscReceiptDetail('&obj:id&')',
+ brw(150,1,gcbrw1sql,65,81,270,100,
+  '118L(2)~Description~#2#M
+50L(2)~Source~#3#M
+50L(2)~Fund~#4#M
+50R(2)~Amount~@n14.2b@#5#M
+',7,1);
 
 @afterloadwindow=
  create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
-\t001Receipt Number; \t002@p######p;
-\t003Receipt Date; \t004@d2;
+\t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002;
+\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1;
  \w00200455;r2
 
-\t007Received From;  \l0084601,2; @nopop008;
+\t007Received From;  \l0084601,2;r008004; @nopop008;
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
@@ -33,8 +42,8 @@
 \t015Fund;  \l0164701; @lf016='typ=4701 and a1=''FUND''';
 \t017Amount; \t018@n14.2; @acc018=miscDetail=;
  \h011017;r2
- \x014184; \y014=012; \w01449; \n014obj:a4>'  0';
- \x016235; \y016=012; \w01648; \n016obj:a5>'  0';
+ \x014184; \y014=012; \w01449; n014obj:a4>'  0';
+ \x016235; \y016=012; \w01648; n016obj:a5>'  0';
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
 
 \t039Status;
@@ -42,7 +51,7 @@
 \t043Treasurer;
 \t045Printed;
 
-\t087Due;  \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,000FFFFH;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
+\t087Due;  \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
 \t089Paid;
 
 \t097Comments;
@@ -78,13 +87,13 @@
  brwreload(1),
  calcfld(088);
 
-@newselbrw150=
+@brw1=
  set(10,kpbrwid(1),1),
- lcblob=kp('select dbo.getMiscDetail('&kpbrwid()&')'),
- set(012,readstring(lcblob,'@description='),1),
- set(014,readstring(lcblob,'@source='),1),
- set(016,readstring(lcblob,'@fund='),1),
- set(018,readstring(lcblob,'@amount='),1),
+ gcblob=kp('select dbo.getMiscDetail('&kpbrwid(1)&')'),
+ set(012,readstring(gcblob,'@description=')),
+ set(014,readstring(gcblob,'@source=')),
+ set(016,readstring(gcblob,'@fund=')),
+ set(018,readstring(gcblob,'@amount=')),
  focus(012);
 
 @acc160=
@@ -104,14 +113,10 @@
 @bb5=Purge,,,gcadmin=1;
 @bbproc5=sql('delete object where typ=4502');
 
-@brw1=
- m(kpbrwid(1));
-
 ** data conversion stuff - for some reason this import routine does not work. it just spins for awhile and nothing get imported
 @importcount4502=5;
 @lastimport=4502;
 @import=c:\receipts.txt,002001038002040003008004026005028006030007032008034009036010010011042012044013098014072015074016076017046018,004=deformat(obj:key2,@d12);
-
 
 ** Foxpro export command
 COPY TO c:\receipts.txt FOR not deleted() TYPE DELIMITED FIELDS MISC.RCPTNO,

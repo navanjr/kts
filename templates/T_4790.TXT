@@ -1,0 +1,71 @@
+@id=4790;
+@template=G/L Reports;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077201.6781;
+
+###---###---###---###---###
+@afterloadbrowse=
+ glJournalEntryReport=;
+
+
+@glJournalEntryReport=
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ lcDBTot=0,
+ lcCRTot=0,
+ tr(
+  prn(printed),
+  prn(page),
+  prn('Journal Entry Report',t1),
+  prn(,lcRm,1500),
+  bnd('HO',,lcAw+2000),
+  bnd('H',,500,'Account',2000,'Debit',-1000,'Credit',-1000),
+  bnd('HU',,lcAw+2000),
+  grp(1,obj5:a1,bnd('H','J/E Number: '&format(obj5:a1,@p######p),1000,'Date: '&format(obj5:a4,@d2),500,obj5:a5,1000)),
+  nl,
+  det('select a.key1,b.accountDesc,b.amount,a.key2,a.key3 from gldetail b, object a where b.sourceid = a.id order by a.key1,b.accountCode'),
+   lcDB=0,lcCR=0,
+   if(obj5:a3>0),lcDB=abs(obj5:a3),
+   if(obj5:a3<0),lcCR=abs(obj5:a3),
+   bnd('D',,500,obj5:a2,2000,format(lcDB,@n-14.2b),-1000,format(lcCR,@n-14.2b),-1000),
+   lcDBTot=lcDBTot=lcDB,
+   lcCRTot=lcCRTot=lcCR,
+  edt,
+  bnd('HO',,lcAw+2000),
+  bnd('H',,500,'Report Totals',2000,format(lcDBTot,@n-14.2b),-1000,format(lcCRTot,@n-14.2b),-1000),
+ );
+ 
+
+@glreport=
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ tr(
+  prn(printed),
+  prn(page),
+  prn('G/L Report',t1),
+  prn(,lcRm,1500),
+  grp(1,obj5:a1,
+   do(
+    bnd('HO',,lcAw+2000),
+    bnd('H','Name of '&obj5:a1&' Account',2000,'Beginning Balance',lcCw*-1,'Transfer In',lcCw*-1,'Transfer Out',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('HU',,lcAw+2000),
+    nl,
+   ),
+   do(
+    prn(,2500),
+    bnd('HO',,lcAw),
+    prn(,lcRm),
+    bnd('H',,2000,1,lcCw*-1,1,lcCw*-1,1,lcCw*-1,1,lcCw*-1),prn(,lcRm),
+    nl,nl,nl
+   )
+  ),
+  det('select a1,ltrim(key2) from object where typ=4701 order by a9'),
+   bnd('D',obj5:a2,2000),
+  edt,
+ );
+

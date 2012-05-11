@@ -1,0 +1,50 @@
+create procedure dbo.glDetailStageAdd (
+ @sourceId int,
+ @accountId int,
+ @amount money,
+ @stageId int = 0
+) as 
+begin
+ -- bail if amount is zero
+ if @amount = 0.00
+  return
+
+ -- check to see if this source instrument is already posted
+ if (select a17 from object where id=@sourceId) = 'Posted'
+  return
+
+ declare 
+  @accountCode varchar(50),
+  @accountDesc varchar(50)
+
+ select 
+  @accountCode = key1,
+  @accountDesc = key2
+ from object
+ where typ = 4701 and id = @accountId
+
+ if @stageId = 0
+ begin
+  insert gldetailstage (sourceId,accountId,accountCode,accountDesc,amount)
+   select @sourceId,@accountId,@accountCode,@accountDesc,@amount
+ end
+
+ else
+
+ begin 
+  if exists(select * from glDetailStage where id = @stageId)
+   update gldetailstage set 
+    sourceId = @sourceId,
+    accountId = @accountId,
+    accountCode = @accountCode,
+    accountDesc = @accountDesc,
+    amount = @amount 
+   where id = @stageId
+  else
+  insert gldetailstage (sourceId,accountId,accountCode,accountDesc,amount)
+   select @sourceId,@accountId,@accountCode,@accountDesc,@amount
+ end
+
+ return
+
+end
