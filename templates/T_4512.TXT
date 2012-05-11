@@ -4,10 +4,10 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077201.6277;
+@lastedit=0077201.7434;
 
 ###---###---###---###---###
-@format=40R(3)~J/E Num~@p######p@#1#|M50R(3)~J/E Date~@d2@#2#|M250L(3)~Description~#3#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
+@format=40R(3)~J/E Num~@p######p@#1#|M50R(3)~J/E Date~@d2@#2#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 @ordername=Number,Date;
@@ -28,6 +28,7 @@
  gcToggle=gcToggleDb,
  create(151,9,263,20,'Credi&t'),
  prop(151,7cfah,gcToggle),
+ gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
  refreshbrw=;
 
 @select=choose(obj:key3>'0',008,006);
@@ -43,11 +44,13 @@
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
  \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h151obj:a17='Posted';
 
+\t073ABSValue; \h073074;r \s074+'select sum(amount) from '&gcTable4512&' where amount > 0 and sourceId = '&obj:id;
+
 \t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700; \d076;
  \s076+'select sum(amount) from gldetailstage where sourceId = '&obj:id;
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
 
-\t109&Print; @acc109=;
+\t109&Print; @acc109=gcJEReportWhere='where sourceId='&obj:id,trreport('glJournalEntryReport=');
 \t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0; \h110obj:a17='Posted';
 
 \t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
@@ -68,6 +71,8 @@
  focus(008);
 
 @refreshbrw=
+ gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
+ calcfld(074),
  calcfld(076),
  if(obj:b15=0,prop(075,text,'Balanced'),prop(075,text,'Out of Balance')),
  brwreload(1),
