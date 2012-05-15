@@ -4,36 +4,38 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077199.4485;
+@lastedit=0077205.6875;
 
 ###---###---###---###---###
 @lmode=2;
 @loadbrowse=
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
-@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n14.2@#53#|M150L(2)~Comments~#58#|M;
+@format=50L(2)~Receipt #~@p######p@#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M;
 
 @loadwindow=
+ create(19,9),
+ setMiscReceiptAcct=,
  brwstuff=;
 @select=008;
 @brwstuff=
- gcbrw1sql='select id,key1,key2,key3,a1 from dbo.miscReceiptDetail('&obj:id&')',
- brw(150,1,gcbrw1sql,65,81,270,100,
-  '118L(2)~Description~#2#M
-50L(2)~Source~#3#M
-50L(2)~Fund~#4#M
-50R(2)~Amount~@n14.2b@#5#M
+ gcbrw1sql='select id,description,subdescription,amount from dbo.miscReceiptDetail('&obj:id&')order by ord',
+ brw(150,1,gcbrw1sql,65,181,270,200,
+  '118L(2)~~#2#M
+100L(2)~~#3#M
+50R(2)~Amount~@n-14.2b@#4#M
 ',7,1);
+@lbrw1forecolor=obj7:c10<0,255;
 
 @afterloadwindow=
  create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
-\t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002;
-\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1;
+\t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+;
+\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update;
  \w00200455;r2
-
+\t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
 \t007Received From;  \l0084601,2;r008004; @nopop008;
 
 \t009detailId;\d009010;r \h009010;r
@@ -46,17 +48,29 @@
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
 
-\t039Status;
+\t019PaycodeTEST; \l0204505; \w02050;
+\t021Payment Amount; \t022@n14.2; \w02250; \p0227c0ch,1;
+\t023Check Number; \w02450;
+
+@acc019=
+ break(obj:a7<'  0'),break(obj:a8<'  0'),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0'),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ break(readstring(obj7:d1,'@code=')=1),
+ refreshDetail=,
+ blankEm=;
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
 \t041Deputy;
 \t043Treasurer;
 \t045Printed;
 
-\t087Due;  \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
-\t089Paid;
+\t087Due; \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
+\t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where sourceId='&obj:id;
 
 \t097Comments;
 
-\t101Memo;
+\t101Memo; \h101102;r
 
 \t025road1;
 \t027road2;
@@ -73,6 +87,11 @@
  \d072076;r2
  \h071076;r
 
+@setMiscReceiptAcct=
+ break(obj:key3>'  0'),
+ set(006,'MISC'),
+ update;
+
 @miscDetail=
  break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
  if(obj:a2>'  0',fastmodify('typ=4503 and id='&obj:a2,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6)),
@@ -81,13 +100,15 @@
  refreshDetail=;
 
 @blankEm=
- set(010,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1);
+ set(010,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ set(020,''),set(022,''),set(024,'');
 
 @refreshDetail=
  brwreload(1),
- calcfld(088);
+ calcfld(088),calcfld(090);
 
 @brw1=
+ break(kpbrwid(1)<=0),
  set(10,kpbrwid(1),1),
  gcblob=kp('select dbo.getMiscDetail('&kpbrwid(1)&')'),
  set(012,readstring(gcblob,'@description=')),
@@ -101,6 +122,17 @@
  focus(012);
 
 @acc161=
+ if(kpbrwid(1)>0,deleteReceiptDetail=),
+ if(kpbrwid(1)<0,deletePayment=);
+
+@deletePayment=
+ m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),
+ break(gcretval<>2),
+ d1select('exec receiptPaymentRemove '&kpbrwid(1)*-1&', '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ refreshDetail=;
+
+@deleteReceiptDetail=
  fastmodify('typ=4503 and id='&kpbrwid(1),-02=-4503),
  blankEm=,
  focus(012),
