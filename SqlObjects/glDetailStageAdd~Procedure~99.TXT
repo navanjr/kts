@@ -2,8 +2,7 @@ create procedure dbo.glDetailStageAdd (
  @sourceId int,
  @accountId int,
  @amount money,
- @stageId int = 0,
- @contraId int = null
+ @stageId int = 0
 ) as 
 begin
  -- bail if amount is zero
@@ -23,21 +22,11 @@ begin
   @accountDesc = key2
  from object
  where typ = 4701 and id = @accountId
- 
- -- check for account summary mode
- if @stageId = -1
- begin
-  if exists(select * from glDetailStage where sourceId = @sourceId and accountId = @accountId)
-   select @stageId = id, @amount = @amount + amount 
-   from glDetailStage where sourceId = @sourceId and accountId = @accountId
-  else
-   select @stageId = 0
- end
 
  if @stageId = 0
  begin
-  insert gldetailstage (sourceId,accountId,accountCode,accountDesc,amount,contraId)
-   select @sourceId,@accountId,@accountCode,@accountDesc,@amount,@contraId
+  insert gldetailstage (sourceId,accountId,accountCode,accountDesc,amount)
+   select @sourceId,@accountId,@accountCode,@accountDesc,@amount
  end
 
  else
@@ -56,20 +45,8 @@ begin
    select @sourceId,@accountId,@accountCode,@accountDesc,@amount
  end
 
- -- if contraId exists
- if @contraId is not null
- begin
-  declare
-   @contraStageId int,
-   @contraAmount money
-  -- get the stage records id if it already exists
-  select @contraStageId = id from glDetailStage where sourceId = @sourceId and accountId = @contraId
-  -- get the value of the transaction
-  select @contraAmount = sum(amount)*-1 from glDetailStage where sourceId = @sourceId and contraId = @contraId and accountId <> @contraId
-  set @contraStageId = ISNULL(@contraStageId,0)
-  exec dbo.glDetailStageAdd @sourceId, @contraId,@contraAmount, @contraStageId
- end
-
  return
 
 end
+
+

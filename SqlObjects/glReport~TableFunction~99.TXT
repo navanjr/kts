@@ -1,0 +1,54 @@
+create function dbo.glReport(@period int) returns 
+@rt table(
+		glId int,
+		sAcct varchar(50),
+		sDescrip varchar(50),
+		glType varchar(50),
+		bBal money,
+		tIn money,
+		tOut money,
+		bal money)
+begin		
+	insert into @rt
+		select	ID,
+				Key1,
+				Key2,
+				A1,
+				0,
+				0,
+				0,
+				0
+				from Object 
+				where TYP=4701 
+				and A1 in ('Fund','Bank') 
+
+	declare @wt table (
+			link1 int,
+			bBal money,
+			tOut money,
+			tIn Money,
+			bal money
+			)
+			insert into @wt
+			select	accountId,
+					abs(SUM(case when fpCode<@Period then amount else 0 end)),
+					abs(SUM(case when fpCode=@Period and (A1='fund' and amount<0 or A1='bank' and amount>0) then amount else 0 end)), 
+					abs(SUM(case when fpCode=@Period and (A1='fund' and amount>0 or A1='bank' and amount<0) then amount else 0 end)),
+					abs(SUM(case when fpCode<=@Period then amount else 0 end))
+				from gldetail,Object o where o.ID=accountId
+				group by accountId
+		
+update rt set
+		rt.bBal=wt.bBal,
+		rt.tIn=wt.tIn,
+		rt.tOut=wt.tOut,
+		rt.Bal=wt.bal
+
+from @rt rt,@wt wt where wt.link1=rt.glId
+			
+			
+/*
+select * from dbo.glReport(201111) order by glType
+*/
+return
+end
