@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077201.7330;
+@lastedit=0077205.6886;
 
 ###---###---###---###---###
 @afterloadbrowse=
@@ -39,15 +39,24 @@
  lcRm=500,
  lcCw=1200,
  lcAw=(lcCw*4)+400,
+ lcbBal=0,
+ lctIn=0,
+ lctOut=0,
+ lcBal=0,
  tr(
   prn(printed),
   prn(page),
   prn('G/L Report',t1),
+  prn('Period: '&gcPeriod,t2),
   prn(,lcRm,1500),
-  grp(1,obj5:a1,
+  grp(1,obj5:a2,
    do(
+   lcbBal=0,
+   lctIn=0,
+   lctOut=0,
+   lcBal=0,
     bnd('HO',,lcAw+2000),
-    bnd('H','Name of '&obj5:a1&' Account',2000,'Beginning Balance',lcCw*-1,'Transfer In',lcCw*-1,'Transfer Out',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('H',obj5:a2&' Accounts',2000,'Beginning Balance',lcCw*-1,'Transfer In',lcCw*-1,'Transfer Out',lcCw*-1,'Ending Balance',lcCw*-1),
     bnd('HU',,lcAw+2000),
     nl,
    ),
@@ -55,11 +64,15 @@
     prn(,2500),
     bnd('HO',,lcAw),
     prn(,lcRm),
-    bnd('H',,2000,1,lcCw*-1,1,lcCw*-1,1,lcCw*-1,1,lcCw*-1),prn(,lcRm),
+    bnd('H',,2000,lcbBal,lcCw*-1,lctIn,lcCw*-1,1lctOutlcCw*-1,lcBal,lcCw*-1),prn(,lcRm),
     nl,nl,nl
    )
   ),
-  det('select a1,ltrim(key2) from object where typ=4701 order by a9'),
-   bnd('D',obj5:a2,2000),
-  edt,
- );
+  det('select sDescrip,glType,bBal,tIn,tOut,bal from dbo.glReport('&gcPeriod&') order by glType'),
+   bnd('D',obj5:a1,2000,format(obj5:a3,@n-14.2b),lcCw*-1,format(obj5:a4,@n-14.2b),lcCw*-1,format(obj5:a5,@n-14.2b),lcCw*-1,format(obj5:a6,@n-14.2b),lcCw*-1),
+   edt, 
+);
+  lcbBal=lcbBal+obj5:a3,
+  lctIn=lctIn+obj5:a4,
+  lctOut=lctOut+obj5:a5,
+  lcBal=lcBal+obj5:a6,
