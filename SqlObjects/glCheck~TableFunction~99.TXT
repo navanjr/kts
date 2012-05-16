@@ -1,31 +1,32 @@
-create function dbo.glCheck(@sourceId int, @cdate int) returns  
+create function dbo.glCheck(@sourceId int) returns  
 @rettable table(
  code int,
  message varchar(500), 
- fpId int
+ fpId int,
+ postDate int
 )
 begin
  
  declare 
   @message varchar(500),
   @rowCount int,
-  @fpid int
+  @fpId int,
+  @postDate int
 
  -- we dont post if there are already records with this sourceId
  if exists(select * from glDetail where sourceId = @sourceId)
  begin
-  insert @rettable select 1, 'Posting data already exists for this instrument.', @fpid 
+  insert @rettable select 1, 'Posting data already exists for this instrument.', @fpid, @postDate 
   return
  end
 
  -- check to see if the fiscal period is open
- select @fpid = id from object where typ = 4700 and a17 <> '1' and @cdate between cast(key3 as int) and cast(a1 as int) 
- if not isnull(@fpid,0) > 1
-  set @fpid = 0
+ select @postDate = cast(key2 as int) from object where id = @sourceId
+ select @fpid = dbo.glGetFiscalPeriodId(@postDate)
  
  if not @fpid > 0
  begin
-  insert @rettable select 1, 'Fiscal period does not exist or period is locked.', @fpid
+  insert @rettable select 1, 'Fiscal period does not exist or period is locked.', @fpid, @postDate
   return 
  end
 
@@ -33,20 +34,19 @@ begin
  select @rowCount = count(*) from glDetailStage where sourceId = @sourceId
  if isnull(@rowCount,0) < 2
  begin
-  insert @rettable select 1, 'Not enough records to post.  We need more than one.', @fpid
+  insert @rettable select 1, 'Not enough records to post.  We need more than one.', @fpid, @postDate
   return
  end
 
  -- check for a balanced post
  if (select sum(amount) from glDetailStage where sourceId = @sourceId) <> 0.00
  begin
-  insert @rettable select 1, 'This posting is out of balance', @fpid
+  insert @rettable select 1, 'This posting is out of balance', @fpid, @postDate
   return
  end
 
- insert @rettable select 0, 'Data is good. Ready to post to the G/L.', @fpid 
+ insert @rettable select 0, 'Data is good. Ready to post to the G/L.', @fpid, @postDate 
  return
 
 end
-
 
