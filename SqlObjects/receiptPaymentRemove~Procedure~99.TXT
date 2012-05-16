@@ -30,10 +30,12 @@ begin
  begin transaction
   delete paid where id = @paymentId
   
-  exec dbo.glDetailStagePayments @sourceId
+  exec dbo.receiptStagePayments @sourceId
   
- commit transaction
-
+  if (select sum(amount) from dbo.glDetailStage where sourceId = @sourceId) <> 0
+   rollback transaction
+  else
+   commit transaction
 
  select '@code=0;@message=Payment removed OK.;'
  return

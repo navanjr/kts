@@ -1,0 +1,29 @@
+create procedure dbo.depositLinkAllPayments(@depositId int) as
+begin
+
+ declare
+  @tally int,
+  @curPaymentId int
+
+ set @tally = 0
+
+ declare @linkCanidates table(
+  depositId int,
+  paymentId int
+ )
+
+ insert @linkCanidates
+ select @depositId, id from paid where isnull(depositId,0) = 0
+
+ while (select count(*) from @linkCanidates) > 0
+ begin
+  select top 1 @curPaymentId = paymentId from @linkCanidates
+  exec dbo.depositLinkPayment @depositId, @curPaymentId, 1
+  delete @linkCanidates where paymentId = @curPaymentId
+  set @tally = @tally + 1
+ end
+
+ select '@code=0;@message=' + cast(@tally as varchar) + ' payments were processed.;'
+ return
+ 
+end
