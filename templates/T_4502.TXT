@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077205.7500;
+@lastedit=0077206.3958;
 
 ###---###---###---###---###
 @lmode=2;
@@ -21,7 +21,7 @@
 @select=008;
 @brwstuff=
  gcbrw1sql='select id,description,subdescription,amount from dbo.miscReceiptDetail('&obj:id&')order by ord',
- brw(150,1,gcbrw1sql,65,181,270,200,
+ brw(150,1,gcbrw1sql,65,81,270,200,
   '118L(2)~~#2#M
 100L(2)~~#3#M
 50R(2)~Amount~@n-14.2b@#4#M
@@ -29,15 +29,16 @@
 @lbrw1forecolor=obj7:c10<0,255;
 
 @afterloadwindow=
+ break(obj:a17='Posted'),
  create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
 \t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+;
-\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update;
+\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
  \w00200455;r2
 \t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
-\t007Received From;  \l0084601,2;r008004; @nopop008;
+\t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
@@ -48,10 +49,12 @@
  \x014184; \y014=012; \w01449; n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
+ \h012018obj:a17='Posted';r2
 
 \t019PaycodeTEST; \l0204505; \w02050;
 \t021Payment Amount; \t022@n14.2; \w02250; \p0227c0ch,1;
 \t023Check Number; \w02450;
+ \h019024obj:a17='Posted';r
 
 @acc019=
  break(obj:a7<'  0'),break(obj:a8<'  0'),
@@ -64,12 +67,13 @@
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
 \t041Deputy;
 \t043Treasurer;
-\t045&Print;
+ \d042044obj:a17='Posted';r2
+\t045&Print; @acc045=postAndPrint=; \d046;
 
 \t087Due; \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
 \t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where sourceId='&obj:id;
 
-\t097Comments;
+\t097Comments; \d098obj:a17='Posted';
 
 \t101Memo; \h101102;r
 
@@ -109,6 +113,7 @@
  calcfld(088),calcfld(090);
 
 @brw1=
+ break(obj:a17='Posted'),
  break(kpbrwid(1)<=0),
  set(10,kpbrwid(1),1),
  gcblob=kp('select dbo.getMiscDetail('&kpbrwid(1)&')'),
@@ -139,6 +144,17 @@
  focus(012),
  refreshDetail=,
  blankEm=;
+
+@postAndPrint=
+ postGL=;
+ 
+@postGL=
+ break(obj:a17='Posted'),
+ m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
+ break(gcretval<>2),
+ update,
+ d1select('dbo.glPost '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)
