@@ -1,29 +1,101 @@
 @id=4502;
-@template=Receipts;
+@template=Misc Receipts;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077194.9597;
+@lastedit=0077206.8700;
 
 ###---###---###---###---###
+@wbgcolor=12701121;
+@lmode=2;
 @loadbrowse=
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
-\t001Receipt Number; \t002@p######p;
-\t003Receipt Date; \t004@d2;
+@format=50L(2)~Receipt #~@p######p@#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M;
 
-\t007Received From;  \l0084601,2; @nopop008;
-\t009Amount; \t010@n14.2;
+@loadwindow=
+ create(165,9,160,310,'&Apply Payment'),
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ create(45,9),
+ setMiscReceiptAcct=,
+ brwstuff=;
+@select=008;
+@brwstuff=
+ gcbrw1sql='select id,description,subdescription,amount from dbo.miscReceiptDetail('&obj:id&')order by ord',
+ brw(150,1,gcbrw1sql,65,81,270,200,
+  '118L(2)~~#2#M
+100L(2)~~#3#M
+50R(2)~Amount~@n-14.2b@#4#M
+',7,1),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10<0,255;
 
-\t039Status;
-\t041Deputy;
-\t043Treasurer;
-\t045Printed;
+@afterloadwindow=
+ refreshDetail=,
+ break(obj:a17='Posted'),
+ create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
+ create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
+ blankEm=;
 
-\t097Comments;
+\t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+;
+\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
+ \w00200455;r2
+\t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
 
-\t101Memo;
+\t009detailId;\d009010;r \h009010;r
+\t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
+\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
+\t015Fund;  \l0164701; @lf016='typ=4701 and a1=''FUND''';
+\t017Amount; \t018@n14.2; @acc018=miscDetail=;
+ \h011017;r2
+ \x014184; \y014=012; \w01449; n014obj:a4>'  0';
+ \x016235; \y016=012; \w01648; n016obj:a5>'  0';
+ \x018286; \y018=012; \w01849; \p0187c0ch,1;
+ \h012018obj:a17='Posted';r2
+
+\t019Paycode; \l0204505; \w02050;
+\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1;
+\t023Check #; \w02450;
+ \h019024obj:a17='Posted';r
+ \y019283; \x01965; \y020293; \x02065;
+ \y021283; \x021165; \y022293; \x022165;
+ \y023305; \x02365; \y024316; \x02465;
+
+@acc165=
+ lcBreak=0,
+ break(obj:a17='Posted'),
+ evalPaycode=,break(lcBreak),
+ evalAmount=,break(lcBreak),
+ evalCheck=,break(lcBreak),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0'),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ break(readstring(obj7:d1,'@code=')=1),
+ refreshDetail=,
+ blankEm=,
+ focus(020);
+
+@evalPaycode=if(obj:a7<'  0',focus(020)),if(obj:a7<'  0',lcBreak=1);
+@evalAmount=if(obj:a8<'  0',focus(022)),if(obj:a8<'  0',lcBreak=1);
+@evalCheck=break(obj:a7<>'CHECK'),if(obj:a9<'  0',focus(024)),if(obj:a9<'  0',lcBreak=1);
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Deputy;  \f042=cur:fullname; 
+\t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
+ \d042044;r2 
+\t045&Print; @acc045=postAndPrint=; \d046;
+ \w04204687;r2
+
+\t087Due; \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
+\t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where sourceId='&obj:id;
+ \y087283; \y088282; \x087250; \x088278;
+ \y089294; \y090293; \x089250; \x090278;
+
+\t097Comments; \d098obj:a17='Posted'; \w098271;
+ \y09754; \x0973; \y09854; \x09864; 
+
+\t101Memo; \h101102;r
 
 \t025road1;
 \t027road2;
@@ -32,11 +104,85 @@
 \t033rozip;
 \t035rophone;
  \d026036;r2
+ \h025036;r
 
 \t071dirdep;
 \t073lastupdt;
 \t075updtuser;
  \d072076;r2
+ \h071076;r
+
+@setMiscReceiptAcct=
+ break(obj:key3>'  0'),
+ set(006,'MISC'),
+ update;
+
+@miscDetail=
+ break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
+ if(obj:a2>'  0',fastmodify('typ=4503 and id='&obj:a2,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6)),
+ blankEm=,
+ focus(012),
+ refreshDetail=;
+
+@blankEm=
+ set(010,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ set(020,''),set(022,''),set(024,'');
+
+@refreshDetail=
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ brwreload(1),
+ calcfld(088),calcfld(090);
+
+@brw1=
+ break(obj:a17='Posted'),
+ break(kpbrwid(1)<=0),
+ set(10,kpbrwid(1),1),
+ gcblob=kp('select dbo.getMiscDetail('&kpbrwid(1)&')'),
+ set(012,readstring(gcblob,'@description=')),
+ set(014,readstring(gcblob,'@source=')),
+ set(016,readstring(gcblob,'@fund=')),
+ set(018,readstring(gcblob,'@amount=')),
+ focus(012);
+
+@acc160=
+ miscDetail=,
+ focus(012);
+
+@acc161=
+ if(kpbrwid(1)>0,deleteReceiptDetail=),
+ if(kpbrwid(1)<0,deletePayment=);
+
+@deletePayment=
+ m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),
+ break(gcretval<>2),
+ d1select('exec receiptPaymentRemove '&kpbrwid(1)*-1&', '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ refreshDetail=;
+
+@deleteReceiptDetail=
+ fastmodify('typ=4503 and id='&kpbrwid(1),-02=-4503),
+ blankEm=,
+ focus(012),
+ refreshDetail=,
+ blankEm=;
+
+@postAndPrint=
+ printRec=,
+ postGL=;
+
+@printRec=
+ update,
+ gcRecId=obj:id,
+ report('KTS\Reports\MiscReceipt.rpt','{receipt.recId} = '&gcRecId,,,,'~miscreceipt');
+ trreport(miscReceipt);
+ 
+@postGL=
+ break(obj:a17='Posted'),
+ m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
+ break(gcretval<>2),
+ update,
+ d1select('dbo.glPost '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)

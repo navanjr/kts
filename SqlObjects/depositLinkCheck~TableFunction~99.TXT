@@ -1,0 +1,53 @@
+create function dbo.depositLinkCheck(@depositId int, @paymentId int) returns  
+@rettable table(
+ code int,
+ message varchar(500)
+)
+begin
+ 
+ declare 
+  @postdate int,
+  @message varchar(500),
+  @status varchar(50)
+
+ -- is deposit Posted
+ if (select dbo.getStatus(@depositId)) = 'Posted'
+ begin
+  insert @rettable select 1, 'Deposit is already posted. Link Check Failed.'
+  return
+ end
+
+ -- check to see if the fiscal period is open
+ if (select dbo.glGetFiscalPeriodIdFromSourceId(@depositId)) = 0
+ begin
+  insert @rettable select 1, 'Fiscal period does not exist or period is locked.'
+  return 
+ end
+
+ -- do we know the bank account to debit?
+ if not exists(select * from object where id = @depositId and link1 > 0)
+ begin
+  insert @rettable select 1, 'Missing link to bank account.'
+  return 
+ end
+
+ -- check to see if the Payments receipt is truely posted
+ if not exists(select * from dbo.depositAvailablePayments where id = @paymentId)
+ begin
+  insert @rettable select 1, 'Payment is not in the available payments view. contact support.'
+  return 
+ end
+
+ -- check to see if payment is already linked to an different deposit
+ if exists(select * from paid where id = @paymentId and isnull(depositId,0) not in (@depositId,0) ) 
+ begin
+  insert @rettable select 1, 'Payment is already linked to another deposit.'
+  return 
+ end
+
+ insert @rettable select 0, 'link should be good.' 
+ return
+
+end
+
+

@@ -1,0 +1,83 @@
+create procedure dbo.glPost (@sourceId int) 
+as 
+begin
+
+ declare @rettable table(
+  code int,
+  message varchar(500),
+  fpId int,
+  postDate int
+ )
+
+ -- first we look to see if this is good to post
+ insert @rettable select * from dbo.glCheck(@sourceId)
+ if (select code from @rettable) = 1
+ begin
+  select '@code=' + cast(code as varchar) + ';@message=' + message + ';@fpid=' + cast(fpId as varchar) + ';'  from @rettable
+  return
+ end
+
+ if (select code from @rettable) = 0
+ begin
+
+  declare 
+   @postDate int,
+   @fpId int, 
+   @fpCode varchar(50),
+   @fpDesc varchar(50),
+   @rowCount int,
+   @absValue money,
+   @rowCount2 int,
+   @absValue2 money
+
+  select @postDate = postDate, @fpid = fpid from @rettable
+  select @fpCode = key1, @fpDesc = key2 from object where typ = 4700 and id = @fpid
+
+  -- get the stats to do the final compare
+  select
+   @rowCount = count(*),
+   @absValue = sum(abs(amount)) 
+  from glDetailStage 
+  where sourceId = @sourceId
+
+  begin transaction
+
+   insert gldetail (fpId, fpCode, fpDesc, accountId, sourceId, amount, date)
+    select @fpid, @fpCode, @fpDesc, accountId, sourceId, amount, @postDate
+     from glDetailStage where sourceId = @sourceId
+   
+   update a set accountCode = key1, accountDesc = key2
+    from gldetail a, object b
+    where a.accountId = b.id and b.typ = 4701 and a.sourceId = @sourceId
+ 
+   update object set a17 = 'Posted' where id = @sourceId
+
+   delete glDetailStage where sourceId = @sourceId
+ 
+   -- check to see if the post was successful
+   select
+    @rowCount2 = count(*),
+    @absValue2 = sum(abs(amount)) 
+   from glDetail 
+   where sourceId = @sourceId
+   
+   if @rowCount = @rowCount2 and @absValue = @absValue2
+   begin
+    update @rettable set message = 'Posting complete.'
+    commit transaction
+   end
+   else
+   begin
+    update @rettable set code = 1, message = 'Posting transaction was rolled back.  oops.  please contact support.'
+    rollback transaction
+   end
+
+  select '@code=' + cast(code as varchar) + ';@message=' + message + ';@fpid=' + cast(fpId as varchar) + ';'  from @rettable
+  return
+ end
+
+ return
+end
+
+
+

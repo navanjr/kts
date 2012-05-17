@@ -1,0 +1,60 @@
+create procedure dbo.depositStagePayments (@sourceId int) as
+begin
+ 
+ declare @accounts table(
+  accountId int,
+  amount money
+ )
+ 
+ declare 
+  @contraId int,
+  @tokenId int,
+  @tokenAmount money
+ 
+ select @contraId = link1 from object where id = @sourceId
+
+ -- get the credits
+ insert @accounts
+ select
+  b.link1, sum(a.amount) * -1
+ from paid a, object b 
+ where a.paycode = b.key1 and b.typ = 4505 and a.depositId = @sourceId 
+ group by b.link1
+ 
+ -- get the debits
+ if exists(select * from paid where depositId = @sourceId)
+  insert @accounts
+  select 
+   @contraId, sum(amount)
+  from paid 
+  where depositId = @sourceId
+ 
+ -- remove 
+ delete glDetailStage where sourceId = @sourceId and accountId not in (select accountId from @accounts)
+
+ -- update
+ update a set a.amount = b.amount
+ from glDetailStage a, @accounts b
+ where a.accountId = b.accountId
+  and a.sourceId = @sourceId
+ 
+ delete @accounts where accountId in (select accountId from glDetailStage where sourceId = @sourceId)
+
+ -- insert
+ while (select count(*) from @accounts) > 0
+ begin
+  select top 1 @tokenId = accountId, @tokenAmount = amount from @accounts
+  insert gldetailstage (sourceId,accountId,amount,contraId) select @sourceId,@tokenId,@tokenAmount,@contraId
+  delete @accounts where accountId = @tokenId
+ end
+ 
+ update a set
+  a.accountCode = b.key1,
+  a.accountDesc = b.key2
+ from glDetailStage a, object b
+ where a.accountId = b.id
+  and b.typ = 4701
+  and a.sourceId = @sourceId 
+
+end
+

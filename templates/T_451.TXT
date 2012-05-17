@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077194.4717;
+@lastedit=0077205.7291;
 
 ###---###---###---###---###
 ** Written by nate.anderson@kellpro.com **
@@ -24,41 +24,19 @@ wbgcolor=999B0Dh;
  prop(002,fontsize,8);
 
 @format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M30C(2)~Length~#30#|M50L(2)~Status~#4#|M;
-@browse4='select case when max(datalength(o.e1))*2=sum(datalength(c.text)) then ''OK'' else ''Out-Dated'' end from object o, dbo.sysobjects s, dbo.syscomments c where o.key1=s.name and s.id=c.id and o.id='&obj:id&' group by s.id, o.key1, s.name';
-'select case when dbo.clariondate(refdate)<'&obj:lasteditdate&' then ''Out-Dated'' else ''OK'' end from dbo.sysobjects where id = object_id(N''[dbo].['&obj:key1&']'') and OBJECTPROPERTY(id, N''Is'&obj:key2&''')=1';
+@browse4='select stat from dbo.sqlObjectCompare('&obj:id&')';
+
 
 @ordername=Name,Create Order;
 @key2=format(obj:a17,@n05);
 
-@bb1=Import &Prime;
-@bbproc1=m('Are you sure?','Import KeyWeb SQL Objects...','Question.ico',6,4),if(gcretval=2,importprime=);
-
-@importprime=
- kpmo('Preparing...','Import KeyWeb SQL Objects...'),
- get('typ=453'),
- lclinkserver=obj7:a2,
- lccount=kp('select count(*) from '&lclinkserver&'object where typ=451'),
- sqlloop('select id,key1 from '&obj7:a2&'object where typ=451 order by a17','impprimeloop='),
- kpmc();
-
-@impprimeloop=
- kpmm(lccount&' - '&obj5:a2,'Import KeyWeb SQL Objects...'),
- lcid=kp('select id from object where typ=451 and key1='''&obj5:a2&''''),
- if(lcid+0>0,impupdate=,impinsert=),
- lccount=lccount-1;
-@impupdate=sql('update object set typ=h.typ, key2=h.key2, a17=h.a17, a18=h.a18, e1=h.e1 from object l, '&lclinkserver&'object h where l.key1=h.key1 and l.id = '&lcid&' and h.id = '&obj5:a1);
-@impinsert=sql('insert object (typ,key1,key2,a17,a18,e1) select typ,key1,key2,a17,a18,e1 from '&lclinkserver&'object where id = '&obj5:a1);
-
-
 @bb4=C&reate Object;  @bbproc4=acc105=;
+
 @bb5=Create &All;  @bbproc5=m('Are you sure?','Create all SQL Objects...','question.ico',6,4),if(gcretval=2,createallobjects=);
+
 @createallobjects=
  kpmo('Creating SQL Objects...','Please wait...'),
- sqlloop('select o.id,o.key1,o.key2 
- from object o, dbo.sysobjects s, dbo.syscomments c
- where o.key1=s.name and s.id=c.id
- group by s.id, o.key1, s.name, o.id,o.key1,o.key2 
- having max(datalength(o.e1))*2<>sum(datalength(c.text))',createallobjectsloop=),
+ sqlloop('select * from dbo.sqlObjectCompare(0) order by ord',createallobjectsloop=),
  kpmc();
 
 @createallobjectsloop=
@@ -72,7 +50,7 @@ wbgcolor=999B0Dh;
 
 @loadwindow=
  create(150,34,64,15,'',004),
- prop(150,'From','Procedure|ScalarFunction|TableFunction'),
+ prop(150,'From','Procedure|ScalarFunction|Script|TableFunction|View'),
  prop(150,'Width',118),
  prop(150,'Height',12),
  prop(150,'Readonly',0),
@@ -92,7 +70,7 @@ wbgcolor=999B0Dh;
 \t001Object Name;
 \t003Type;  \h004;
 
-\t039Create Order;  \t040@n05;
+\t039Create Order;  \t040@n05; \f04099;
 \t041Data Length;  \s042-'select datalength(e1) from object where id='&obj:id;
 \t101SQL Create Code;  \w102600;  @acc102=calcfld(042);
 
@@ -118,7 +96,7 @@ wbgcolor=999B0Dh;
   @sql_3 nvarchar(4000),
   @sql_4 nvarchar(4000),
   @sql_5 nvarchar(4000)
- set @id='&obj:id&'
+ set @id='&gcid&'
  declare @sql table
   (line int IDENTITY(1,1), sqlcode nvarchar(4000))
  select @loopcount=(datalength(e1)/4000)+1 from object where id=@id
@@ -161,7 +139,18 @@ wbgcolor=999B0Dh;
  if(gctype='Procedure',gcdroptype='Procedure'),
  if(gctype='ScalarFunction',gcdroptype='Function'),
  if(gctype='TableFunction',gcdroptype='Function'),
+if(gctype='View',gcdroptype='View'),
  sql('if exists (select * from dbo.sysobjects where id = object_id(N''[dbo].['&gcname&']'') and OBJECTPROPERTY(id, N''Is'&gctype&''') = 1) drop '&gcdroptype&' [dbo].['&gcname&']');
+
+@exportObjects=
+ sqlloop('select id, from object where typ=451',exportObject1=);
+
+@exportObject1=
+ e1select('select e1 from object where id='&obj5:a1),
+
+
+ 
+
 
 
 @importobjects=

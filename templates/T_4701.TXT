@@ -1,0 +1,112 @@
+@id=4701;
+@template=G/L Accounts;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077205.7573;
+
+###---###---###---###---###
+
+
+
+
+@fastinsert;
+@save;
+@loadbrowse=if(tier=-3,dbrowse=),
+ if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
+
+@bb6=&Print Account;  
+@bbproc6=
+ writecurdata(@201=,obj:id),
+ lcid=kp('select max(id) from object where typ=209'),
+ if(lcid+0=0,new(209),setandchange=);
+@setandchange=
+ fastmodify(lcid,-03=obj:id,-04=obj:id,002=obj:key1,004=obj:key1,040=obj:key2,042=obj:key2),
+ change(lcid);
+
+@bb8=G/L Report;  
+@bbproc8=
+ iw(',.t000G/L Report., ,.t001Period., ,.f002=kp('select top 1 key1 from object where typ=4700 and '''&today()&''' between key3 and a1')., ,.\l0024700., ,.w00250.,'),
+ break(gcretval<'  0' or gcretval='esc'),
+ gcPeriod=obj7:key1,
+ trreport('glreport');
+
+@filtername=All,Bank Accounts,Fund Accounts;
+@filter='1=1','a1=''BANK''','a1=''FUND''';
+@ordername=Account #,Description,Report Order;
+@key2=obj:key2;
+@key3=obj:a9;
+
+@loadwindow=create(39,9),set(40,'',1);
+
+\t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
+\t003Description;  \c004;  \e004;
+\t005Code;  \u006;  \t006@s10;  \w00650;  @acc006=update,d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),if(obj7:d1>1,'pfcode=');  @pfcode=message('Code already in use.'),set(006,''),focus(006);
+\t007Type;  \l0084702;r008002010004012006;  \q008;  \w00850;
+\t009Description;  \d010;
+\t011Report Code;  \d012;  \w01225;  \w01250;
+\t013BS Summary;
+\t015Fiscal Period;  \w01630;  \l0164700,5;r016002018004;  @acc016=calcrecord;
+\t017Period Total;  \w01850;    \t018@n$-12.2;  \s018+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and link3='&obj:link5;
+\t019Running Total;  \t020@n$-12.2;  \w02050;  \s020+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and a3<='&obj:a5;
+
+\t039Change Account #;  \w03970;  \x039-10;  
+@acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&format(obj:a17,'P#####Pb')&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
+@p039y=d1select('select count(*) from object where typ=204 and link2='&obj:id),m('There are '&obj7:d1&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&format(obj:a17,'P#####Pb')&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y2=sql('update object set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
+
+\t053Account Balance;  \t054@n$-12.2;  \w05450;  \s054+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id;
+
+\t097Account Number;
+
+\t023Report Order; \w02450;
+
+
+\t108&Print Account;  @acc108=bbproc6=;
+
+@bb4=Import Funds,,,gcadmin=1;
+@bbproc4=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name from dbo.mike_fund() where left(name,4)=''CV00''',impFunds=);
+@impFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@bb5=Import Sources,,,gcadmin=1;
+@bbproc5=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''SOURCE'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a SOURCE account type before you import sources.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select srcinc,name,seca from dbo.mike_source()',impSource=);
+@impSource=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,006=obj5:a3,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@bb7=Import GL,,,gcadmin=1;
+@bbproc7=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''BANK'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a BANK account type before you import Bank Accounts.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
+@impBanks=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo,024=obj5:a3,098=obj5:a4));
+@impGLFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo,024=obj5:a3,098=obj5:a4));
+
+@getAcctType=
+ gcAcctTypeCode=kp('select key1 from object where typ=4702 and id='&gcAcctTypeId),
+ gcAcctTypeDesc=kp('select key2 from object where typ=4702 and id='&gcAcctTypeId),
+ gcAcctTypeRepo=kp('select key3 from object where typ=4702 and id='&gcAcctTypeId);
