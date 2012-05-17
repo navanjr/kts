@@ -1,4 +1,4 @@
-create procedure dbo.depositStagePayments (@sourceId int) as
+create procedure dbo.glDetailStagePayments (@sourceId int) as
 begin
  
  declare @accounts table(
@@ -7,27 +7,31 @@ begin
  )
  
  declare 
+  @code int,
   @contraId int,
   @tokenId int,
   @tokenAmount money
  
- select @contraId = link1 from object where id = @sourceId
+ select 
+  @code = code,
+  @contraId = contraId 
+ from dbo.receiptCheck(@sourceId,null)
 
- -- get the credits
+ -- get the debits
  insert @accounts
  select
-  b.link1, sum(a.amount) * -1
+  b.link1, sum(a.amount)
  from paid a, object b 
- where a.paycode = b.key1 and b.typ = 4505 and a.depositId = @sourceId 
+ where a.paycode = b.key1 and b.typ = 4505 and a.sourceId = @sourceId 
  group by b.link1
  
- -- get the debits
- if exists(select * from paid where depositId = @sourceId)
+ -- get the credits
+ if exists(select * from paid where sourceId = @sourceId)
   insert @accounts
   select 
-   @contraId, sum(amount)
+   @contraId, sum(amount) * -1
   from paid 
-  where depositId = @sourceId
+  where sourceId = @sourceId
  
  -- remove 
  delete glDetailStage where sourceId = @sourceId and accountId not in (select accountId from @accounts)
@@ -57,5 +61,4 @@ begin
   and a.sourceId = @sourceId 
 
 end
-
 
