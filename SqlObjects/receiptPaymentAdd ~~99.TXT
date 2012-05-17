@@ -48,13 +48,16 @@ begin
    select @paycode,@sourceId,@amount,@checkNumber,@bankId
    
   -- add to the gl stage
-  exec dbo.glDetailStagePayments @sourceId
+  exec dbo.receiptStagePayments @sourceId
   
-
- commit Transaction
+ if (select sum(amount) from dbo.glDetailStage where sourceId = @sourceId) <> 0
+   rollback transaction
+  else
+   commit transaction
 
  select '@code=0;@message=Payment applied OK.;'
  return
 
 end
+
 

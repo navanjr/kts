@@ -1,0 +1,37 @@
+create procedure dbo.depositLinkPayment(@depositId int, @paymentId int, @supressOutput int = 0) as
+begin
+
+ declare 
+  @code int,
+  @message varchar(500)
+
+ select @code = code, @message = message from dbo.depositLinkCheck(@depositId, @paymentId)
+
+ -- first we run the link check
+ if @code = 1
+ begin
+  if @supressOutput = 0
+   select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+  return
+ end
+
+ begin transaction
+
+  if exists(select * from paid where id = @paymentId and depositId = @depositId)
+   update paid set depositId = 0 where id = @paymentId
+  else
+   update paid set depositId = @depositId where id = @paymentId
+
+  exec dbo.depositStagePayments @depositId
+
+  if (select sum(amount) from dbo.glDetailStage where sourceId = @depositId) <> 0
+   rollback transaction
+  else
+   commit transaction
+
+ if @supressOutput = 0
+  select '@code=0;@message=link was sucessful;'
+ return
+ 
+end
+
