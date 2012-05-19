@@ -1,0 +1,53 @@
+@id=4791;
+@template=G/L Analysis;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077209.6901;
+
+###---###---###---###---###
+@noupdate;
+@menuprocess=new(4501);
+@afterloadbrowse=new(4501);
+@select=150;
+
+\t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1;
+
+\t039(+) Days; \t040@p###p; \w04030; @acc040=changeDate=; @selected040=gcdr1=1;
+
+\t077End Date; \t078@d2; \w07845; \f078=c; @acc078=changeDate=; @selected078=gcdr1=3;
+
+@changeDate=
+ if(gcdr1=1,set(78,obj:key1+obj:a17)),
+ if(gcdr1=3,set(40,obj:c1-obj:key1)),
+ gfwindow=,
+ if(gcdr1=1,focus(078));
+
+@loadwindow=
+ brwstuff=;
+
+@gcvar=
+ gcsql='select id,ord,rowstring from dbo.dailydata('&choose(obj:key1>'  0',obj:key1,'0')&','&choose(obj:a17>'  0',obj:a17,0)&') order by ord',
+
+@brwstuff=
+ gcvar=,
+ lcbrwheight=mh-120,
+ brw(150,1,gcsql,1,15,610,lcbrwheight,
+  '4000L~~#3#|M'
+  ,6),
+ prop(150,7cfah,13499135),
+ prop(150,7c10h,'Courier'),
+ prop(150,7c11h,9),
+ prop(0,7cfbh,0),
+ prop(0,7cfch,BEBEEEH);
+
+@gfwindow=
+ gcvar=,
+ brwreload(1,gcsql);
+
+@brw1=
+ lcid=kpbrwid(1)*-1,
+ break(lcid<1),
+ browse(1,lcid,'key2 between '&obj:key1&' and '&obj:c1);
+ if(lcid > 0,m(kpbrwid(1)));

@@ -1,0 +1,50 @@
+create procedure dbo.receiptDetailCRUD(
+ @sourceId int 
+) as
+begin
+ declare 
+  @receiptDetailId int,
+  @description varchar(50),
+  @sourceDescription varchar(50),
+  @fundDescription varchar(50),
+  @amount money,
+  @receiptTyp int,
+  @receiptDetailTyp int
+
+ select 
+  @receiptTyp = 4502,
+  @receiptDetailTyp = 4503
+
+ select
+  @receiptDetailId = link5,
+  @description = a3,
+  @sourceDescription = a4,
+  @fundDescription = a5,
+  @amount = case when isnumeric(a6) = 1 then cast(a6 as money) else 0 end
+ from object where typ = @receiptTyp and id = @sourceId
+
+ begin transaction
+
+  if isnull(@receiptDetailId,0) = 0
+   insert object (typ,link1,key1,key2,key3,a1) 
+    select
+     @receiptDetailTyp,
+     @sourceId,
+     @description,
+     @sourceDescription,
+     @fundDescription,
+     cast(@amount as varchar(50))
+  else 
+   update object set 
+    key1 = @description,
+    key2 = @sourceDescription,
+    key3 = @fundDescription,
+    a1 = cast(@amount as varchar(50))
+   where id = @receiptDetailId and typ = @receiptDetailTyp
+
+ -- this record represents a credit to the source account and a debit to the appropriate COGS account
+
+ commit transaction
+
+end
+
