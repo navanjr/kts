@@ -1,0 +1,92 @@
+CREATE function dbo.glAnalysis(@fpId int) returns 
+@rettable table (
+ id int,
+ ord varchar(50),
+ rowstring varchar(250),
+ accountId int,
+ accountDesc varchar(50),
+ accountType varchar(50),
+ beginningBalance money,
+ debits money,
+ credits money,
+ endingBalance money,
+ recCount int
+)
+begin
+
+ declare @fpCode varchar(50)
+ select @fpCode = key1 from object where typ = 4700 and id = @fpId
+ declare @beginFPIds table(fpId int)
+ insert @beginFPIds select id from object where typ = 4700 and key1 < @fpCode 
+ declare @glTypes table(glType varchar(50))
+ insert @glTypes select 'BANK'
+ insert @glTypes select 'FUND'
+
+ declare @bbal table(id int, amount money, cnt int)
+ declare @cbal table(id int, amount money, cnt int)
+
+ insert @rettable (id,ord,accountId,accountDesc,accountType)
+  select id*-1,'Az',id,ltrim(key2),a1 from object where typ = 4701 and a1 in (select glType from @glTypes)
+
+ insert @bbal
+  select accountId, sum(amount), count(distinct sourceId) from glDetail where fpId in (select fpId from @beginFPIds) group by accountId
+ insert @cbal
+  select accountId, sum(amount), count(distinct sourceId) from glDetail where fpId = @fpId group by accountId
+
+ update a set
+  a.beginningBalance = b.amount, a.recCount = b.cnt
+ from @rettable a, @bbal b
+ where a.accountId = b.id
+
+ update a set
+  a.debits = b.amount, a.recCount = b.cnt
+ from @rettable a, @cbal b
+ where a.accountId = b.id and b.amount > 0
+
+ update a set
+  a.credits = abs(b.amount), a.recCount = b.cnt
+ from @rettable a, @cbal b
+ where a.accountId = b.id and b.amount < 0
+
+ update @rettable set
+  endingBalance = isnull(beginningBalance,0.00) + isnull(debits,0.00) - isnull(credits,0.00) 
+
+ update @rettable set
+  ord = ord + dbo.padRight(accountType,' ',5) + left(ltrim(accountDesc),4),
+  rowString = '  '
+   + dbo.padRight(accountDesc,' ',29)
+   + ' ' + dbo.padLeft(case when recCount != 0 then cast(recCount as varchar) else '' end,' ',4)
+   + dbo.padLeft(case when beginningBalance != 0 then convert(varchar,isnull(beginningBalance,0),1) else '' end,' ',16)
+   + dbo.padLeft(case when debits != 0 then convert(varchar,isnull(debits,0),1) else '' end,' ',16)
+   + dbo.padLeft(case when credits != 0 then convert(varchar,isnull(credits,0),1) else '' end,' ',16)
+   + dbo.padLeft(case when endingBalance != 0 then convert(varchar,isnull(endingBalance,0),1) else '' end,' ',16)
+
+ -- add the extra display info
+ insert @rettable (id,ord,rowstring)
+  select 0,'AA',
+   ' '
+   + dbo.padRight('Account',' ',30)
+   + '     '
+   + dbo.padLeft('Beginning',' ',16)
+   + dbo.padLeft('Debits',' ',16)
+   + dbo.padLeft('Credits',' ',16)
+   + dbo.padLeft('Ending',' ',16)
+
+ insert @rettable (id,ord,rowstring)
+  select 0,'AB',replicate('-',100)
+
+ insert @rettable (id,ord,rowString) 
+  select 0,'AZ' + dbo.padRight(glType,' ',5),' ' + glType from @glTypes 
+ insert @rettable (id,ord,rowString) 
+  select 0,'AZ' + dbo.padRight(glType,' ',5) + 'ZZ','' from @glTypes 
+
+ return
+
+end
+
+
+
+
+
+
+
