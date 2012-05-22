@@ -4,11 +4,12 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077209.6019;
+@lastedit=0077212.0159;
 
 ###---###---###---###---###
 @afterloadbrowse=
- glJournalEntryReport=;
+ glreport=;
+
 
 @glJournalEntryReport=
  lcRm=500,
@@ -38,6 +39,8 @@
  );
 
 @glreport=
+ do(4506,getSiteInfo=),
+ lcPeriod=kp('select key1+'' - ''+key2 from object where typ=4700 and key1='&gcPeriod),
  lcRm=500,
  lcCw=1200,
  lcAw=(lcCw*4)+400,
@@ -45,13 +48,20 @@
  lctIn=0,
  lctOut=0,
  lcBal=0,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcSql='select sDescrip,glType,bBal,tIn,tOut,bal from dbo.glReport('&gcPeriod&') order by glType',
  tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
   prn(printed),
   prn(page),
-  prn('G/L Report',t1),
-  prn('Period: '&gcPeriod,t2),
-  prn(,,,7,400,'Courier New'), 
-  prn(,lcRm,1500),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER`S LEDGER',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Period: '&lcPeriod,8500C),
+  prn(,lcRm,1500,,,lcFont),
   grp(1,obj5:a2,
    do(
    lcbBal=0,
@@ -67,12 +77,12 @@
     prn(,2500),
     bnd('HO',,lcAw),
     prn(,lcRm),
-    bnd('H',,2000,format(lcbBal,@n$-14.2b),lcCw*-1,format(lctIn,@n$-14.2b),lcCw*-1,format(lctOut,@n$-14.2b),lcCw*-1,format(lcBal,@n$-14.2b),lcCw*-1),
+    bnd('H',,2000,format(lcbBal,@n$-16.2b),lcCw*-1,format(lctIn,@n$-16.2b),lcCw*-1,format(lctOut,@n$-16.2b),lcCw*-1,format(lcBal,@n$-16.2b),lcCw*-1),
     prn(,lcRm),
     nl,nl,nl
    )
   ),
-  det('select sDescrip,glType,bBal,tIn,tOut,bal from dbo.glReport('&gcPeriod&') order by glType'),
+  det(gcSql),
    bnd('D',obj5:a1,2000,format(obj5:a3,@n$-14.2b),lcCw*-1,format(obj5:a4,@n$-14.2b),lcCw*-1,format(obj5:a5,@n$-14.2b),lcCw*-1,format(obj5:a6,@n$-14.2b),lcCw*-1),
    lcbBal=lcbBal+obj5:a3,
    lctIn=lctIn+obj5:a4,
@@ -80,4 +90,3 @@
    lcBal=lcBal+obj5:a6,
    edt, 
 );
-  
