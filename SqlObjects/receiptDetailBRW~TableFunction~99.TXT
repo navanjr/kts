@@ -1,4 +1,4 @@
-create function dbo.receiptDetailBRW(@receiptId int) returns 
+create function dbo.receiptDetailBRW(@receiptId int, @showGL int) returns 
 @rettable table(
  ord varchar(50),
  id int,
@@ -21,24 +21,27 @@ begin
   select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1 from dbo.paid where sourceId = @receiptId
  end
 
- if exists(select * from dbo.glDetailStage where sourceId = @receiptId)
+ if @showGl = 1
  begin
-  insert @rettable
-  select 'ca',0,'','',0
-  insert @rettable
-  select 'cb',0,'GL Detail (staged)','',0
-  insert @rettable
-  select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where sourceId = @receiptId
- end
+  if exists(select * from dbo.glDetailStage where sourceId = @receiptId)
+  begin
+   insert @rettable
+   select 'ca',0,'','',0
+   insert @rettable
+   select 'cb',0,'GL Detail (staged)','',0
+   insert @rettable
+   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where sourceId = @receiptId
+  end
 
- if exists(select * from dbo.glDetail where sourceId = @receiptId)
- begin
-  insert @rettable
-  select 'ca',0,'','',0
-  insert @rettable
-  select 'cb',0,'GL Detail (posted)','',0
-  insert @rettable
-  select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where sourceId = @receiptId
+  if exists(select * from dbo.glDetail where sourceId = @receiptId)
+  begin
+   insert @rettable
+   select 'ca',0,'','',0
+   insert @rettable
+   select 'cb',0,'GL Detail (posted)','',0
+   insert @rettable
+   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where sourceId = @receiptId
+  end
  end
 
  return
