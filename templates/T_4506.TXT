@@ -1,21 +1,20 @@
 @id=4506;
-@template=Reports;
+@template=Receipt Reports;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077207.6468;
+@lastedit=0077206.5834;
 
 ###---###---###---###---###
-@bb1=&Print; @bbproc1=trreport(offDeposit);
-
-@getSiteInfo=
- gcCity=readstring(gcSiteBlob,'@city='),
- gcCounty=readstring(gcSiteBlob,'@county='),
- gcFState=readstring(gcSiteBlob,'@fullState='),
- gcOfficial=readstring(gcSiteBlob,'@OfficialName=');
+@bb1=&Print; @bbproc1=trreport(miscReceipt);
 
 @miscReceipt=
+ get('typ=40'),
+ gcCity=obj7:a4,
+ gcCounty=obj7:key1,
+ gcFState=obj7:a8,
+ gcOfficial=obj7:a14,
  sqlloop('select key1,key2,a1,c6,c7,d1 from object where id='&gcRecId,donothing=),
 tr(
   prn(printed),
@@ -32,45 +31,3 @@ tr(
   prn(,200,8000),
   bnd('H',gcOfficial&' COUNTY TREASURER',5000,cur:fullname&' Deputy',5000)
 );
-
-
-@offDeposit=
- get(gcDepId),
- gcDepNo=obj7:key1,
- gcDepDate=obj7:key2,
- gcTreasurer=obj7:a19,
- gcDeputy=obj7:a18,
- gcBank=OBJ7:A1,
- gcdetsql='select id,description,subdescription,amount from dbo.depositDetail('&gcDepId&') where ord=''bc'' order by ord',
- getSiteInfo=,
- lcCw=2000,
- lcamt=0,
- tr( 
- prn(printed),
- prn(page),
- prn('	DEPOSITED BY THE',t1),
- prn('TREASURER OF '&gcCounty&' COUNTY',t2),
- prn(gcCity&' , '&gcFState,t3),
- prn('WITH THE',t4),
- prn(gcBank&'  '&gcBloc&'  ,'&gcFState&' '&format(gcDepDate,@d2b),t5),
- prn(,,,,,'courier new'),
- prn('NO. '&right('000000'&gcDepNo,6),7000,1100),
- rn(gcCity&' '&gcFState&', '&format(obj5:a2,@d2b),6000,1225),
- prn(,500,1500),
- bnd('H','To Be Credited to the Official',5000L),
- bnd('H','Depository Account of '&gcCounty&' COUNTY TREASURER',5000L),
- nl,nl,nl,
- bnd('H','By Whom Drawn',lcCw,'Bank Drawn On',lcCw,'Location of Bank',lcCw,'Amount',(lcCw-700)*-1),
- det(gcdetsql),
- bnd('DB3',obj5:a2,lcCw,obj5:a3,lcCw,'',lcCw,format(obj5:a4,@n$-14.2),(lcCw-700)*-1),
- lcamt=lcamt+obj5:a4,
- edt,
- nl,
- bnd('H','Total',(lcCw*-3)-200,format(lcamt,@n$-14.2),(lcCw-700)*-1),
- prn(,750,8000),
- bnd('H','RECEIVED THE ABOVE DEPOSIT AGGREGATING '&format(lcamt,@n$-14.2)&' AND CREDITED THE OFFICIAL',500),
- bnd('H','DEPOSITORY ACCOUNT OF '&gcTreasurer&' COUNTY TREASURER',500),
- nl,nl,
- bnd('HU','NAME OF BANK',3500,'BY:',3250),
-);
-
