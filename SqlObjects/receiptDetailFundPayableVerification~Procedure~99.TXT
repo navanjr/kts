@@ -1,0 +1,27 @@
+create procedure dbo.receiptDetailFundPayableVerification (@fundCode varchar(50)) as
+begin
+ 
+ if exists(select * from glAccounts where accountCode = @fundCode)
+  begin
+
+   if not exists(select * from glAccounts where accountCode = @fundCode+'_ap')
+    begin
+
+     declare
+      @typeDesc varchar(50),
+      @reportCode varchar(50)
+
+     select 
+      @typeDesc = key2,
+      @reportCode = key3
+     from object where typ = 4702 and key1 = 'PAYABLE'
+
+     insert object (typ,key1,key2,a1,a2,a3,a8,link1) 
+     select 4701,@fundCode+'_AP',rtrim(accountDesc)+' Payable','PAYABLE',@typeDesc,@reportCode,@fundCode,accountId 
+      from glAccounts where accountCode = @fundCode
+
+    end
+
+  end
+
+end
