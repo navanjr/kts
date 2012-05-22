@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077208.3657;
+@lastedit=0077209.3629;
 
 ###---###---###---###---###
 @wbgcolor=12701121;
@@ -12,10 +12,10 @@
 @loadbrowse=
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
 
-@format=50L(2)~Receipt #~@p######p@#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M;
+@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M;
 
 @loadwindow=
- create(165,9,160,310,'&Apply Payment'),
+ create(165,9,3,291,'&Apply Payment'),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  create(45,9),
  setMiscReceiptAcct=,
@@ -38,7 +38,7 @@
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
-\t001Receipt Number; \t002@p######p; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+;
+\t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
 \t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
  \w00200455;r2
 \t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
@@ -84,7 +84,7 @@
 \t041Deputy;  \f042=cur:fullname; 
 \t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
  \d042044;r2 
-\t045&Print(F9); \v045120; @acc045=postAndPrint=; \d046;
+\t045&Print; @acc045=postAndPrint=; \d046;
  \w04204687;r2
 
 \t087Due; \t088@n14.2;  \s088-'select sum(cast(a1 as money)) from object where typ=4503 and link1='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
@@ -112,6 +112,14 @@
  \d072076;r2
  \h071076;r
 
+\t111&Void; @acc111=voidReceipt=;
+
+@voidReceipt=
+ m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
+ break(gcretval<>2);
+ 
+
+
 @setMiscReceiptAcct=
  break(obj:key3>'  0'),
  set(006,'MISC'),
@@ -119,13 +127,18 @@
 
 @miscDetail=
  break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
- if(obj:a2>'  0',fastmodify('typ=4503 and id='&obj:a2,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6)),
+ update,
+ d1select('exec receiptDetailCRUD '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
+ break(readstring(obj7:d1,'@code=')=1),
  blankEm=,
  focus(012),
  refreshDetail=;
+ 
+ if(obj:link5>0,fastmodify('typ=4503 and id='&obj:link5,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6),fastinsert(-02=4503,-03=obj:id,002=obj:a3,004=obj:a4,006=obj:a5,008=obj:a6)),
 
 @blankEm=
- set(010,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
  set(020,''),set(022,''),set(024,'');
 
 @refreshDetail=
@@ -136,7 +149,7 @@
 @brw1=
  break(obj:a17='Posted'),
  break(kpbrwid(1)<=0),
- set(10,kpbrwid(1),1),
+ set(-07,kpbrwid(1),1),
  gcblob=kp('select dbo.getMiscDetail('&kpbrwid(1)&')'),
  set(012,readstring(gcblob,'@description=')),
  set(014,readstring(gcblob,'@source=')),
