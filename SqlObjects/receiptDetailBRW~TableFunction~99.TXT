@@ -9,7 +9,7 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int) returns
 begin
 
  insert @rettable
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,subDescription,amount from receiptDetail where receiptId = @receiptId
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where receiptId = @receiptId
 
  if exists(select * from dbo.paid where sourceId = @receiptId)
  begin
@@ -30,7 +30,8 @@ begin
    insert @rettable
    select 'cb',0,'GL Detail (staged)','',0
    insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where sourceId = @receiptId
+   select 'cc',0,'   '+a.accountDesc,lower(b.accountType),a.amount
+   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.sourceId = @receiptId
   end
 
   if exists(select * from dbo.glDetail where sourceId = @receiptId)
@@ -40,7 +41,8 @@ begin
    insert @rettable
    select 'cb',0,'GL Detail (posted)','',0
    insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where sourceId = @receiptId
+   select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount
+   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.sourceId = @receiptId
   end
  end
 
