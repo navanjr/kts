@@ -1,0 +1,70 @@
+@id=454;
+@template=Export CSV;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077214.5250;
+
+###---###---###---###---###
+@nolock;
+
+@loadwindow=
+ if(obj:key1<>obj:type,create(150,12,115,3,'Export',4),brwTyp=);
+
+@brwTyp=
+ brw(151,1,'select id,key1,key2 from object where typ=454 and key1<>454',3,3,60,100,'50L(2)~Template#~#2#|M');
+
+@lbrw1color=obj7:c10=1,32768;
+
+@brw1=
+ fastmodify(kpbrwid(1),004=choose(pic:key2=1,'',1)),
+ gfwindow=;
+
+@gfwindow=
+ if(obj:type=obj:key1,brwreload(1));
+
+\t001Type; \t002@n8; \w00240; \h001002obj:key1=obj:type;r
+\t003Export Flag; \h003004;r
+
+@createFolder=
+ gcGitCmd='mkdir c:\client\key\kts\CSV',
+ do(2,gitCommand=);
+
+@exportCsv1=
+  lcId=kp('select id from object where typ=454 and key1=typ'),
+  change(lcId);
+
+\t105&Add; @acc105=new(obj:type);
+
+\t108&Delete; 
+@acc108=
+ sql('delete object where id='&kpbrwid(1)),
+ gfwindow=;
+
+\t109&Export; 
+@acc109=
+ if(kpexists(kpexepath()&'\kts\CSV')<>1,createFolder=),
+ lcFile=kpexepath()&'\kts\CSV\objData.csv',
+ sqlexport('select Typ,Link1,Link2,Link3,Link4,Link5,Key1,Key2,Key3,A1,A2,A3,A4 from object where typ in (select Key1 from Object where Typ=454 and key2=''1'')',lcFile,4);
+
+
+\t110&Import;
+@acc110=
+ lcFile=kpexepath()&'\kts\CSV\objData.csv',
+ scancsv(lcFile,loadem=,1);
+
+@loadem=
+ lcId=kp('select id from object where typ='&imp:fld01&'and key1='''&imp:fld07&''''),
+ if(lcId>'  0',updateIt=,createIt=);
+
+@updateIt=
+ fastmodify(lcId,-03=imp:fld02,-04=imp:fld03,-05=imp:fld04,-06=imp:fld05,-07=imp:fld06,002=imp:fld07,004=imp:fld08,006=imp:fld09,008=imp:fld10,010=imp:fld11,012=imp:fld12);
+
+@createIt=
+ fastinsert(-02=imp:fld01,-03=imp:fld02,-04=imp:fld03,-05=imp:fld04,-06=imp:fld05,-07=imp:fld06,002=imp:fld07,004=imp:fld08,006=imp:fld09,008=imp:fld10,010=imp:fld11,012=imp:fld12);
+
+ 
+
+
+
