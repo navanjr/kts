@@ -1,0 +1,38 @@
+create function dbo.glAnalysisSrc(@fpId int,@AccId int) returns @rt table(
+ sId int,
+ sType int,
+ sNo varchar(50),
+ sName varchar(50),
+ sDate varchar(50),
+ debit money,
+ credit money,
+ sDesc varchar(100)
+ )
+ as
+begin
+
+insert into @rt (sId,debit,credit)
+	select  
+		sourceId,
+		case when amount > 0 then amount else 0 end as debit,
+		case when amount < 0 then abs(amount) else 0 end as credit
+	from glDetail
+	where fpid=@fpId and accountId=@AccId 
+
+update @rt set 
+	sNo=key1,
+	sType=typ,
+	sDate=dbo.date1(key2),
+	sDesc=case when Typ = 4512 then ' - '+Key3 else '' end 
+	from Object where ID=sId
+
+update @rt set
+	sName=template,
+	sDesc=Template+''+sDesc
+	from Template where ID=sType
+
+return
+
+ end
+
+ --select *from dbo.glAnalysisSrc(1002,922)

@@ -4,12 +4,12 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077212.0598;
+@lastedit=0077214.6952;
 
 ###---###---###---###---###
-@bb1=&Print; @bbproc1=trreport(offDeposit);
+@bb1=&Print; @bbproc1=receipt=;
 
-@loadbrowse=
+loadbrowse=
  receipt=;
 
 @getSiteInfo=
@@ -66,42 +66,62 @@
 @printMiscRec=
  getSiteInfo=,
  lcLm=250,
- lcRm=1000,
+ lcM=1000,
  lcCw=2000,
- lcAw=(lcCw*3)+(lcRm*2),
+ lcAw=(lcCw*3)+lcM,
  lcbBal=0,
  lctIn=0,
  lctOut=0,
  lcBal=0,
  lcFont='',
  lcHeaderFontSize=12,
- gcSql='select sDescrip,glType,bBal,tIn,tOut,bal from dbo.glReport('&gcPeriod&') order by glType',
- tr(
  get(gcRecId),
+ lcy=450,
+ lcASpell=N2W(choose(OBJ7:c6+0=0,obj7:c7,obj7:c6),1),
+ gcsql4506='select account,source,fund,general from receiptDetailView where reclink='&gcRecId,
  tr(
-  box(450,450,4000,950,6),
+  box(450,lcy,4000,950,1),
   prn(printed),
   prn(page),
-  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
-  prn(gcOfficial,1500,700),
+  lcy=lcy+50,
+  prn(gcCounty&' COUNTY TREASURER',1500,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,1500,lcy),
   prn(printed),
   prn(page),
-  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  lcy=lcy+400,
+  prn(,,lcy,lcHeaderFontSize+2,bold,lcFont),
   bnd(,'MISCELLANEOUS RECEIPTS',8500C),
   prn(,,,lcHeaderFontSize,bold,lcFont),
-  bnd(,'OFFICE OF THE TREASURER OF'&gcCounty&' COUNTY '&gcFState,8500C),
-  prn(,lcLm,1500,,,lcFont),
+  nl,
+  lcy=lcy+125,
+  bnd(,'OFFICE OF THE TREASURER OF '&gcCounty&' COUNTY '&gcFState,8500C),
+  lcy=lcy+500,
+  prn(,lcLm,lcy,,,lcFont),
   bnd('H','NO. '&obj7:key1,7500R),
   bnd('H',gcCity&' '&gcFState&', '&format(obj7:key2,@d2b),7500R),
-  prn(,500,1350),
+  prn(,lcLm+50,lcy),
   bnd('H','RECEIVED OF: '&obj7:a1,5000L),
   nl,
-  bnd('H','THE SUM OF: '&N2W(OBJ7:c6,1),5000L),
+  lcy=lcy+125,
+  bnd('H','THE SUM OF: '&lcASpell,5000L),
   nl,
-  bnd('U','',lcAw),
-  bnd('H','Item',lcCw,'Source',lcCw,'Fund Name',lcCw,Total,lcRm),
+  lcy=lcy+125,
   nl,
-  
+  lcy=lcy+125,
+  lcy=lcy+250,
+  box(lcLm,lcy,lcAw+900,lcy+200),
+  lcy=lcy+200,
+  lcLs=lcy,
+  bnd('H','Item',lcCw,'Source',lcCw,'Fund Name',lcCw,'Total',lcM),
+  nl,
+  lcy=lcy+185,
+  det(gcsql4506),
+  bnd('D',obj5:a1,lcCw,obj5:a2,lcCw,obj5:a3,lcCw,format(obj5:a4,@n$-14.2b),lcM),
+  lcy=lcy+125,
+  edt,
+  box(lcLm,lcLs,lcAw+900,lcy),
+  nd('U',,lcAw+450),
   prn(,200,8000),
   bnd('H',gcOfficial&' COUNTY TREASURER',5000,cur:fullname&' Deputy',5000)
 );
