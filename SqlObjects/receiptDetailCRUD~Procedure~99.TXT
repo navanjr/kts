@@ -1,0 +1,59 @@
+create procedure dbo.receiptDetailCRUD(
+ @receiptId int 
+) as
+begin
+ declare 
+  @receiptDetailId int,
+  @description varchar(50),
+  @sourceCode varchar(50),
+  @fundCode varchar(50),
+  @amount money,
+  @receiptTyp int
+
+ select 
+  @receiptTyp = 4502
+
+ select
+  @receiptDetailId = link5,
+  @description = a3,
+  @sourceCode = a4,
+  @fundCode = a5,
+  @amount = case when isnumeric(a6) = 1 then cast(a6 as money) else 0 end
+ from object where typ = @receiptTyp and id = @receiptId
+
+ begin transaction
+
+  --run fund payable account verification
+  exec dbo.receiptDetailFundPayableVerification @fundCode
+
+  if isnull(@receiptDetailId,0) = 0
+   insert receiptDetail (receiptId,description,subDescription,sourceCode,fundCode,amount) 
+    select
+     @receiptId,
+     @description,
+     rtrim(@sourceCode) + '/' + rtrim(@fundCode),
+     @sourceCode,
+     @fundCode,
+     cast(@amount as varchar(50))
+  else 
+   update receiptDetail set 
+    description = @description,
+    subDescription = rtrim(@sourceCode) + '/' + rtrim(@fundCode),
+    sourceCode = @sourceCode,
+    fundCode = @fundCode,
+    amount = @amount
+   where id = @receiptDetailId
+
+  -- add to the gl stage
+  exec dbo.receiptStageGL @receiptId
+
+ if (select sum(amount) from dbo.glDetailStage where sourceId = @receiptId) <> 0
+  rollback transaction
+ else
+  commit transaction
+
+end
+
+
+
+

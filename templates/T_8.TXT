@@ -1,0 +1,70 @@
+@id=8;
+@template=People;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077207.6854;
+
+###---###---###---###---###
+@dk1;
+@fastinsert;
+@gfbnr=1;
+
+@format=100L(2)~Name~#1#|M90L(2)~Add1~#2#|M60L(2)~Add2~#3#|M60L(2)~City~#5#|M25L(2)~State~#6#|M50L(2)~Zip~#7#|M50L(2)~Phone~#8#|M50L(2)~Charges Due~@n$12.2b@#9#|M50L(2)~Not Invoiced~@n$12.2b@#10#|M;
+@browse8=OBJ:A4;@browse9=obj:a7;@browse10=obj:a8;
+
+@filter='a11=''A''','a11=''A'' and cast(a7 as money)>0','a11<>''A''';  
+@filtername=All Active,Active w/ Outstanding Charges,Historical Only;
+@forder=1,2;
+
+filter='a11=''A'''
+
+\o018014;
+\t001Name;\c002;\c002;
+\t003Add1;\c004;
+\t005Add2;\c006;
+\t007C&ity;\c008;\n008;\l0089;r008004010006012002;@lf008='key2>''0''',2;
+\t009State;\u010;\t010@s2;\u010\n010;\w01015;\d010;
+\t011Zipcode;\u012;\l0129;r008004010006012002;\w01201660;r2
+\t013Phone;\u014;\t014@k(###) ###-####kb;
+\t015SSN;\t016@k###-##-####kb;\y015106;\y016106;
+\t017Fax;\t018@k(###) ###-####kb;\y01793;\y01893;
+
+\t025Bank;
+  \l0268,1;
+
+\t027(A)ctive/(&H)istory;
+  @choose028:AH;
+  \u028; 
+  \w028012;
+  \f028A;
+  \y027184;
+  \y028184;
+
+\t029Email;
+  \y029171;
+  \y030171;  
+
+
+\t110&Envelope(F9);
+  \v110120;
+  \i110wizprn.ico;
+  \h110cur:SecurityLevel<11;
+  @acc110=;
+    set(048,obj:key1),
+    set(050,obj:key2),
+    set(052,obj:key3),
+    set(054,obj:a1),
+    set(088,obj:a2),
+    set(090,obj:a3),
+    update,
+    report('krs_land\envelope.rpt','{object.ID}='&obj:id,,,,,'~Envelope');
+
+
+@bb7=Import Banks,,,gcadmin=1;
+@bbproc7=
+ sqlloop('select bankname,address,town,state,zip from dbo.mike_banks() where bankname > '' 0''',impBanks=),
+@impBanks=
+ lcid=kp('select id from object where typ=8 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=8,002=obj5:a1,004=obj5:a2,008=obj5:a3,010=obj5:a4,012=obj5:a5));

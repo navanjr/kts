@@ -5,6 +5,7 @@ create function dbo.receiptCheck(@sourceId int, @paycode varchar(50) = null) ret
  receiptType varchar(50),
  suspenseAccountId int, 
  contraId int,
+ arAccountId int,
  fpid int,
  status varchar(50)
 )
@@ -15,6 +16,7 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
+  @arAccountId int,
   @fpid int,
   @status varchar(50)
 
@@ -28,7 +30,7 @@ begin
  if @status = 'Posted'
  begin
   insert @rettable 
-   select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@fpid,@status
+   select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
   return
  end
 
@@ -37,7 +39,7 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@fpid,@status
+   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
   return
  end
 
@@ -46,7 +48,16 @@ begin
  if isnull(@contraId,0) = 0
  begin
   insert @rettable
-   select 1,'Missing G/L Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@fpid,@status
+   select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status
+  return
+ end
+
+ -- check for AR account
+ select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+ if isnull(@arAccountId,0) = 0
+ begin
+  insert @rettable
+   select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
   return
  end
 
@@ -57,16 +68,19 @@ begin
   if not isnull(@suspenseAccountId,0) > 0
   begin
    insert @rettable 
-    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@fpid,@status
+    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
    return 
   end
  end
  
  insert @rettable
-  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@fpid,@status
+  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
  return
 
 end
+
+
+
 
 
 

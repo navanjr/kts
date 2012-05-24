@@ -1,0 +1,76 @@
+Create Function SpellOut(@Num Float)
+ Returns Varchar(2000)
+ As
+ begin
+ Declare @WORD1 Varchar(200),@WORD2 Varchar(200),@WORD3 Varchar(200),@WORD4 Varchar(200)
+ Declare @S     Varchar(200),@STAIL Varchar(200),@SHEAD Varchar(200)
+ Declare @VT    BigInt,     @HEAD  BigInt,     @TERM  BigInt
+ Declare @TAIL   Float
+ Select
+  @WORD1 = 'ZERO ONE  TWO  THREEFOUR FIVE SIX  SEVENEIGHTNINE ',
+  @WORD2 = 'TEN      ELEVEN   TWELVE   THIRTEEN FOURTEEN FIFTEEN  SIXTEEN  SEVENTEENEIGHTEEN NINETEEN ',
+  @WORD3 = 'TWENTY THIRTY FORTY  FIFTY  SIXTY  SEVENTYEIGHTY NINETY ',
+  @WORD4 = '        THOUSANDMILLION BILLION ',
+  @STAIL = 'ONLY',
+  @TAIL  = 0,
+  @S     ='',
+  @STAIL ='',
+  @SHEAD =''  
+ if @Num <>Floor(@Num) --not a BigInt
+  begin
+    Set @TAIL = (@Num - Floor(@Num)) * 100
+    if  @TAIL - Floor(@TAIL) > 0.001 
+     Set  @TAIL = Floor(@TAIL) + 1
+    else
+     Set  @TAIL= Floor(@TAIL)
+    if    @TAIL >= 20 
+    begin
+      Select @S= RTrim(LTRIM(SubString(@WORD3, Convert(int,@TAIL / 9.99) * 7 - 13, 7))),
+             @TAIL=Floor(@TAIL)-Floor(Floor(@TAIL)/10)*10 
+      if @TAIL > 0.001 
+      begin
+       Select @STAIL=RTrim(LTRIM(SubString(@WORD1, Convert(int,@TAIL * 5 + 1), 5)) + ' ' + @STAIL),
+        @S= RTRIM(LTRIM(@S))+ ' ' + @STAIL
+      end
+      else
+       Select @S=RTRIM(LTRIM(@S)) + ' ' + @STAIL
+     Select @STAIL= @S, @S= ''
+    end
+    else 
+     if @TAIL >= 10 
+     Set @STAIL=RTRIM(LTRIM(SubString(@WORD2, (Convert(int,@TAIL) - 10) * 9 + 1, 9))) + ' ' + @STAIL
+    else
+     Set @STAIL=RTRIM(LTRIM(SubString(@WORD1, Convert(int,@TAIL) * 5 + 1, 5))) + ' ' + @STAIL
+    Set  @STAIL= 'AND ' +LTRIM(@STAIL)+' CENTS'
+  end;
+  Select @HEAD= Floor(@Num),@TERM=0
+  while  @HEAD > 0 
+  begin
+   Select @VT  =@HEAD-Floor(@HEAD/1000)*1000,
+          @HEAD= Floor(@HEAD / 1000)
+    if @VT > 0 
+     Set @TAIL= Floor(@VT / 100)
+    if @TAIL > 0 
+     Select @SHEAD=RTRIM(LTrim(@SHEAD)) + ' ' +RTRIM(LTrim(SubString(@WORD1, Convert(int,@TAIL * 5 + 1), 5))) + ' HUNDRED'
+     Set       @TAIL = Floor(@VT)-Floor(@VT/100)*100
+    if @TAIL >= 20 
+    begin
+     Select @SHEAD=RTRIM(LTrim(@SHEAD)) + ' ' +SubString(@WORD3, (Convert(int,@TAIL / 10) - 2) * 7 + 1, 7),
+            @TAIL =Floor(@TAIL)-Floor(@TAIL/10)*10
+      if @TAIL > 0 
+       Set @SHEAD=RTRIM(Ltrim(@SHEAD)) + ' ' + SubString(@WORD1, Convert(int,@TAIL) * 5 + 1, 5)
+    end
+    else if @TAIL >= 10 
+      Set @SHEAD=RTRIM(Ltrim(@SHEAD)) + ' ' +SubString(@WORD2, (Convert(int,@TAIL) - 10) * 9 + 1, 9)
+    else if @TAIL > 0 
+       Set @SHEAD=RTRIM(Ltrim(@SHEAD)) + ' ' + SubString(@WORD1,Convert(int,@TAIL * 5) + 1, 5)
+    Select @SHEAD=RTRIM(Ltrim(@SHEAD)) + ' ' +SubString(@WORD4, Convert(int,@TERM * 8) + 1, 8),
+           @TERM =@TERM + 1,
+           @S    =RTRIM(Ltrim(@SHEAD)) + ' ' + @S,
+           @SHEAD= ''
+  end
+ Select @S=RTRIM(Ltrim(@S)) + ' DOLLARS ' + @STAIL
+  Return @S
+ end
+
+

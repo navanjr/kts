@@ -4,9 +4,19 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077198.4117;
+@lastedit=0077209.7141;
 
 ###---###---###---###---###
+@browsedelete=
+ if(obj:a17=1,m('Sorry, Fiscal Period is locked and can not be deleted.','Oops...')),
+ break(obj:a17=1),
+ lcCheck=kp('select count(*) from glDetail where fpId='&obj:id),
+ if(lcCheck+0>0,m('This period has posted detail attached and can not be deleted.','Oops..'),altDelete=);
+@altDelete=
+ m('Are you sure you wish to delete this Fiscal Period?','Delete...',,6,4),
+ break(gcretval<>2),
+ fastmodify(obj:id,-02=-4700);
+
 @fastinsert;
 @save;
 @loadbrowse=
@@ -17,7 +27,7 @@
  
 @sel106=if(obj:a17=0,set(40,'',1));
 
-@format=30L(2)~Code~#1#|M100L(2)~Description~#2#|M40R(2)~Start~@d1@#3#|M40R(2)~End~@d1@#5#|M30R(2)~Closed~#4#|M50R(2)~Debits~@n-12.2b@#17#|M50R(2)~Credits~@n-12.2b@#18#|M30L(2)~~#8#|M;
+@format=30L(2)~Code~#1#|M100L(2)~Description~#2#|M40R(2)~Start~@d1@#3#|M40R(2)~End~@d1@#5#|M35C(0)~Locked~#4#|M70R(2)~Debits~@n14.2b@#17#|M70R(2)~Credits~@n14.2b@#18#|M30L(2)~~#8#|M;
 @browse4=choose(obj:a17=1,'X','');
 @browse8=choose(obj:a5+0=obj:a6+0,'','X');
 
@@ -26,14 +36,14 @@
  iw(',.t000Please enter the 4 digit year...., ,.t001Year., ,.w00235., ,.t002p####p.,'),
  break(gcretval<>'OK'),
  gcfyr=obj7:key1,
- gcfyoffset=0,
+ gcfyoffset=-1,
  gcfmo='01',gcfmoname='July',createfy=,
  gcfmo='02',gcfmoname='August',createfy=,
  gcfmo='03',gcfmoname='September',createfy=,
  gcfmo='04',gcfmoname='October',createfy=,
  gcfmo='05',gcfmoname='November',createfy=,
  gcfmo='06',gcfmoname='December',createfy=,
- gcfyoffset=1,
+ gcfyoffset=0,
  gcfmo='07',gcfmoname='January',createfy=,
  gcfmo='08',gcfmoname='February',createfy=,
  gcfmo='09',gcfmoname='March',createfy=,
@@ -45,15 +55,17 @@
  lcid=kp('select id from object where typ=4700 and key1 = '''&gcfyr&gcfmo&''''),
  if(lcid<1,fastinsert(-02=4700,002=gcfyr&gcfmo,004=gcfmoname&' '&gcfyy,006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4))));
 
-\t001Code;    \w00245;
-\t003Description;  \c004;
+@bb5=&Lock Period;  
+@bbproc5=if(obj:a17=1,fastmodify(obj:id,040=0),fastmodify(obj:id,040=1));
+
+\t001Code;    \w00245; \e002;
+\t003Description;  \c004; \e004;
 \t005Start Date;  \t006@d2;   \w00645;
 \t007End Date;  \t008@d2;   \w00845;
 \t009Working Days;  \t010@n-12;   \w01025;
-\t011Sales Forcast;  \w01245;  \t012@n$-12.2;
 
-\t015Debits;  \w01650;  \t016@n-12.2;  \s016+'select sum(cast(key3 as money)) from object where typ=4704 and link3='&obj:id;
-\t017Credits;  \w01850;  \t018@n-12.2;  \s018+'select sum(cast(a1 as money)) from object where typ=4704 and link3='&obj:id;
+\t015Debits;  \w01670;  \t016@n14.2; \p0167cfah,13499135; \p0167c13h,700; \p0167c0ch,1; \s016+'select sum(amount) from glDetail where amount > 0 and fpId='&obj:id;
+\t017Credits;  \w01870;  \t018@n14.2; \p0187cfah,13499135; \p0187c13h,700; \p0187c0ch,1; \s018+'select abs(sum(amount)) from glDetail where amount < 0 and fpId='&obj:id;
 \t019db<>cr;  \h020;
 
-\t039Period Closed;  \h040;
+\t039&Lock Period;  \h040;
