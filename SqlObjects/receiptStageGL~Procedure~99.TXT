@@ -30,26 +30,34 @@ begin
  select @tokenAmount = abs(sum(amount)) from @accountsWorking
  insert @accountsWorking select @arAccountId, @tokenAmount
 
- -- debit tresurers receipt fund and credit fund payables
- insert @accountsWorking select @contraId, @tokenAmount
- insert @accountsWorking
-  select b.accountId, sum(a.amount)*-1
-  from receiptDetail a, dbo.glAccounts b where a.receiptId = @sourceId and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
+ if exists(select * from paid where sourceId = @sourceId)
+ begin
+  declare @ap table(accountId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
+  declare @paidTotal money
+
+  -- credit AR
+  select @paidTotal = sum(amount)*-1 from paid where sourceId = @sourceId
+  insert @accountsWorking select @arAccountId, @paidTotal
+
+  -- debit suspense accounts
+  insert @accountsWorking
+  select b.link1, sum(a.amount)
+  from paid a, object b 
+  where a.paycode = b.key1 and b.typ = 4505 and a.sourceId = @sourceId group by b.link1
+
+  -- debit tresurers receipt fund and credit fund payables
+  insert @accountsWorking select @contraId, @paidTotal
+  insert @ap
+   select b.accountId,sum(a.amount)*-1, 0, 0
+   from receiptDetail a, dbo.glAccounts b
+   where a.receiptId = @sourceId and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
+
+  update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
+  update @ap set payAmount = round(@paidTotal * prorate,2)
+ end 
  
- -- debit suspense accounts
- insert @accountsWorking
- select
-  b.link1, sum(a.amount)
- from paid a, object b 
- where a.paycode = b.key1 and b.typ = 4505 and a.sourceId = @sourceId 
- group by b.link1
- 
- -- credit AR
- insert @accountsWorking
-  select @arAccountId, sum(amount)*-1
-  from paid 
-  where sourceId = @sourceId
- 
+ insert @accountsWorking select accountId, payAmount from @ap
+
  insert @accounts select accountId, sum(isnull(amount,0)) from @accountsWorking group by accountId having sum(isnull(amount,0)) != 0
 
  -- remove 
@@ -79,6 +87,7 @@ begin
   and a.sourceId = @sourceId 
 
 end
+
 
 
 

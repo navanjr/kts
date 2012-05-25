@@ -44,11 +44,16 @@ begin
     amount = @amount
    where id = @receiptDetailId
 
- -- this record represents a credit to the source account and a debit to the appropriate COGS account
+  -- add to the gl stage
+  exec dbo.receiptStageGL @receiptId
 
- commit transaction
+ if (select sum(amount) from dbo.glDetailStage where sourceId = @receiptId) <> 0
+  rollback transaction
+ else
+  commit transaction
 
 end
+
 
 
 
