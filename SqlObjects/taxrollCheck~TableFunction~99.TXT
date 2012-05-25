@@ -1,36 +1,62 @@
-create function dbo.receiptCheck(@sourceId int, @paycode varchar(50) = null) returns
+create function dbo.taxrollCheck(@sourceId int) returns
 @rettable table(
  code int,
  message varchar(500),
- receiptType varchar(50),
- suspenseAccountId int, 
- contraId int,
- arAccountId int,
+ taxyear varchar(4),
+ district varchar(15),
+ rate varchar(15),
+ amount money,
  fpid int,
  status varchar(50)
 )
+
 begin
  
  declare
   @cdate int,
-  @receiptType varchar(50),
-  @suspenseAccountId int,
-  @contraId int,
-  @arAccountId int,
   @fpid int,
-  @status varchar(50)
+  @status varchar(50),
+  @taxyear varchar(4),
+  @district varchar(15),
+  @rate varchar(15),
+  @amount money,
+  @sourcetyp int
 
+ set @fpid=0
+ 
  select
-  @cdate = cast(key2 as int),
-  @receiptType = key3,
-  @status = a17
+  @sourcetyp = typ 
  from object where id = @sourceId
+
+ if @sourcetyp=4001
+  begin 
+   select 
+    @taxyear = key2,
+    @district = case when a19 > ' 0' then a19 else a18 end,
+    @rate = case when b1 > ' 0' then b1 else a20 end,
+    @amount = case when cast(c1 as money)>0.00 then cast(c1 as money) else cast(b15 as money) end,
+    @cdate = cast(olink1 as int),
+    @status = a17
+   from object where id = @sourceId
+  end 
+ else
+  begin
+   select 
+    @taxyear = '',
+    @district = '',
+    @rate = '',
+    @amount = 0.00,
+    @cdate = cast(olink1 as int),
+    @status = a17
+   from object where id = @sourceId
+ end 
+
 
  -- check for status of Posted
  if @status = 'Posted'
  begin
   insert @rettable 
-   select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
+   select 1,'Tax item has already been posted.',@taxyear,@district,@rate,@amount,@fpid,@status
   return
  end
 
@@ -39,42 +65,12 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
+   select 1,'Fiscal Period is locked or does not exist.',@taxyear,@district,@rate,@amount,@fpid,@status
   return
  end
 
- -- check for contra account id
- select @contraId = id from object where typ = 4701 and key3 = @receiptType 
- if isnull(@contraId,0) = 0
- begin
-  insert @rettable
-   select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status
-  return
- end
-
- -- check for AR account
- select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
- if isnull(@arAccountId,0) = 0
- begin
-  insert @rettable
-   select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
-  return
- end
-
- -- optionally check for the suspense account id
- if isnull(@paycode,'') > '  0'
- begin
-  select @suspenseAccountId = link1 from object where typ = 4505 and key1 = @paycode
-  if not isnull(@suspenseAccountId,0) > 0
-  begin
-   insert @rettable 
-    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
-   return 
-  end
- end
- 
  insert @rettable
-  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status
+  select 0,'OK',@taxyear,@district,@rate,@amount,@fpid,@status
  return
 
 end
