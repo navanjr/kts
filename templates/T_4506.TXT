@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077214.6952;
+@lastedit=0077215.4098;
 
 ###---###---###---###---###
 @bb1=&Print; @bbproc1=receipt=;
@@ -79,8 +79,11 @@ loadbrowse=
  lcy=450,
  lcASpell=N2W(choose(OBJ7:c6+0=0,obj7:c7,obj7:c6),1),
  gcsql4506='select account,source,fund,general from receiptDetailView where reclink='&gcRecId,
+ gcsql4506a='select paycode,checkno,amount from paid where sourceId='&gcRecId,
+ lctot=0,
+ lcPTot=0,
  tr(
-  box(450,lcy,4000,950,1),
+  box(450,lcy,4000,950,0),
   prn(printed),
   prn(page),
   lcy=lcy+50,
@@ -111,19 +114,53 @@ loadbrowse=
   lcy=lcy+125,
   lcy=lcy+250,
   box(lcLm,lcy,lcAw+900,lcy+200),
+  lcLS=lcy,
   lcy=lcy+200,
-  lcLs=lcy,
-  bnd('H','Item',lcCw,'Source',lcCw,'Fund Name',lcCw,'Total',lcM),
+  lcBs=lcy,
+  lcMR=lcM&'R',
+  bnd('H','Item',lcCw,'Source',lcCw,'Fund Name',lcCw,'Total',lcMR),
   nl,
   lcy=lcy+185,
   det(gcsql4506),
-  bnd('D',obj5:a1,lcCw,obj5:a2,lcCw,obj5:a3,lcCw,format(obj5:a4,@n$-14.2b),lcM),
+  bnd('D',obj5:a1,lcCw,obj5:a2,lcCw,obj5:a3,lcCw,format(obj5:a4,@n$-14.2b),lcMR),
   lcy=lcy+125,
+  lctot=lctot+obj5:a4,
   edt,
-  box(lcLm,lcLs,lcAw+900,lcy),
-  nd('U',,lcAw+450),
-  prn(,200,8000),
-  bnd('H',gcOfficial&' COUNTY TREASURER',5000,cur:fullname&' Deputy',5000)
+  box(lcLm,lcBs,lcAw+900,lcy),
+  lin(lcLm+100+lcCw,lcLS,lcLm+100+lcCw,lcy),
+  lin(lcLm+200+(lcCw*2),lcLS,lcLm+200+(lcCw*2),lcy),
+  lin(lcLm+300+(lcCw*3),lcLS,lcLm+300+(lcCw*3),lcy),
+  nl,
+  lcy=lcy+125,
+  bnd('H','',lcCw*3,format(lctot,@n$-14.2b),lcMR),
+  nl,
+  lcy=lcy+250,
+  lcRp3=lcy,
+  box(lcLm,lcy-100,(lcM*3)+550,lcy+100),
+  box(lcLm+4000,lcy-100,lcCw+100+4000,lcy+100),
+  box(lcLm+4000,lcy+100,lcCw+100+4000,lcy+300),
+  lcLS=lcy-100,
+  bnd('H','Paycode',lcM,'Reference',lcM,'Amount',lcM),
+  nl,
+  lcy=lcy+125,
+  det(gcsql4506a),
+  bnd('D',obj5:a1,lcM,obj5:a2,lcM,format(obj5:a3,@n$-14.2b),lcM),
+  lcy=lcy+125,
+  lcPTot=lcPTot+obj5:a3,
+  edt,
+  nl,
+  nl,
+  lcy=lcy+200,
+  box(lcLm,lcLS,(lcM*3)+550,lcy),
+  lin(lcLm+100+lcM,lcLS,lcLm+100+lcM,lcy),
+  lin(lcLm+200+(lcM*2),lcLS,lcLm+200+(lcM*2),lcy),
+  in(lcLm+300+(lcM*3),lcLS,lcLm+300+(lcCw*3),lcy),
+  bnd('H','',lcM*2,format(lcPTot,@n$-14.2b),lcM),
+  prn(,lcLm+4000+50,lcRp3-70),
+  bnd('H','Deputy',lcCw),
+  lcRp3=lcRp3+125,
+  prn(,,lcRp3),
+  bnd('D',obj7:a18,lcCw),
 );
 
  
