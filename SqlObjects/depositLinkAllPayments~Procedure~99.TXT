@@ -3,31 +3,36 @@ begin
 
  declare
   @tally int,
-  @curPaymentId int
+  @curPaymentId int,
+  @code int,
+  @message varchar(500)
 
- set @tally = 0
+  set @tally = 0
 
  declare @linkCanidates table(
   depositId int,
   paymentId int
  )
-
- insert @linkCanidates
- select @depositId, id from paid where isnull(depositId,0) = 0
+  insert @linkCanidates
+  select @depositId, id from paid where isnull(depositId,0) = 0
 
  while (select count(*) from @linkCanidates) > 0
  begin
   select top 1 @curPaymentId = paymentId from @linkCanidates
+  select @code = code, @message = message from dbo.depositLinkCheck(@depositId, @curPaymentId)
   exec dbo.depositLinkPayment @depositId, @curPaymentId, 1
   delete @linkCanidates where paymentId = @curPaymentId
   set @tally = @tally + 1
  end
-
- select '@code=0;@message=' + cast(@tally as varchar) + ' payments were processed.;'
+ if @code=0 
+  begin
+	select '@code=0;@message=' + cast(@tally as varchar) + ' payments were processed.;'
+  end
+ if @code=1 
+  begin
+	select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+  end
+ 
  return
  
 end
-
-
-
-
