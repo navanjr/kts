@@ -1,0 +1,82 @@
+create function dbo.taxrollCheck(@sourceId int) returns
+@rettable table(
+ code int,
+ message varchar(500),
+ taxyear varchar(4),
+ district varchar(15),
+ rate varchar(15),
+ amount money,
+ fpid int,
+ status varchar(50)
+)
+
+begin
+ 
+ declare
+  @cdate int,
+  @fpid int,
+  @status varchar(50),
+  @taxyear varchar(4),
+  @district varchar(15),
+  @rate varchar(15),
+  @amount money,
+  @sourcetyp int
+
+ set @fpid=0
+ 
+ select
+  @sourcetyp = typ 
+ from object where id = @sourceId
+
+ if @sourcetyp=4001
+  begin 
+   select 
+    @taxyear = key2,
+    @district = case when a19 > ' 0' then a19 else a18 end,
+    @rate = case when b1 > ' 0' then b1 else a20 end,
+    @amount = case when cast(c1 as money)>0.00 then cast(c1 as money) else cast(b15 as money) end,
+    @cdate = cast(olink1 as int),
+    @status = a17
+   from object where id = @sourceId
+  end 
+ else
+  begin
+   select 
+    @taxyear = '',
+    @district = '',
+    @rate = '',
+    @amount = 0.00,
+    @cdate = cast(olink1 as int),
+    @status = a17
+   from object where id = @sourceId
+ end 
+
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable 
+   select 1,'Tax item has already been posted.',@taxyear,@district,@rate,@amount,@fpid,@status
+  return
+ end
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
+ if @fpid = 0
+ begin
+  insert @rettable 
+   select 1,'Fiscal Period is locked or does not exist.',@taxyear,@district,@rate,@amount,@fpid,@status
+  return
+ end
+
+ insert @rettable
+  select 0,'OK',@taxyear,@district,@rate,@amount,@fpid,@status
+ return
+
+end
+
+
+
+
+
+
