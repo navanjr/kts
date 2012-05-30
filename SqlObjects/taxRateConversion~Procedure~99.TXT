@@ -1,0 +1,74 @@
+declare
+ @tableName varchar(50),
+ @sql nvarchar(500),
+ @parm nvarchar(500),
+ @idToken varchar(150),
+ @rateToken numeric(9,6)
+
+set @tableName = 'mat2011txlv' 
+
+declare @districtNames table(
+ id int identity(1,1),
+ district varchar(50),
+ rateName varchar(50)
+)
+declare @rateNames table(
+ name varchar(50)
+)
+declare @rates table(
+ id int identity(1,1),
+ district varchar(50),
+ rateName varchar(50),
+ rateCol varchar(50),
+ rate decimal(19,10),
+ processFlag int
+)
+
+insert @rateNames
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName and COLUMN_NAME not like '%other%' ORDER BY ORDINAL_POSITION ASC; 
+delete @rateNames where name in ('SCHOOLDISTRICTTAXRATE','SCHOOLDISTIRCTMAIN')
+insert @districtNames 
+select SCHOOLDISTIRCTMAIN,SCHOOLDISTRICTTAXRATE from mat2011txlv
+delete @districtNames where district = 'apphead'
+
+while exists(select * from @districtNames)
+begin
+ select top 1 @idToken = id from @districtNames
+ insert @rates select a.district,a.rateName,b.name,0.0,0 from @districtNames a, @rateNames b where a.id = @idToken
+ delete @districtNames where id = @idToken
+end 
+
+declare
+ @colToken varchar(50),
+ @distToken varchar(50),
+ @rToken varchar(50)
+
+while (select COUNT(*) from @rates where processFlag = 0) > 0
+begin
+ select top 1 @idToken = id from @rates where processFlag = 0
+
+ select 
+  @colToken = rateCol,
+  @distToken = district,
+  @rToken = rateName 
+ from @rates where id = @idToken
+
+ SET @sql = N'select @rateOut='+@colToken+' from mat2011txlv where SCHOOLDISTIRCTMAIN = @dist and SCHOOLDISTRICTTAXRATE = @rName'
+ SET @parm = N'@table varchar(50),@dist varchar(50),@rName varchar(50),@rateOUT numeric(9,6) OUTPUT'
+
+ EXECUTE sp_executesql @sql, @parm,@table=@tableName,@dist=@distToken,@rName=@rToken,@rateOUT=@rateToken OUTPUT;
+
+ update @rates set rate = @rateToken, processFlag = 1 where id = @idToken
+ 
+end
+
+delete @rates where rate = 0
+
+select * from @rates
+/*
+select district,rateName,SUM(rate) from @rates
+ where rateCol not in ('TREASURERTOTALMILLS','ASSESSORTOTALMILLS')
+  and rateCol not like '%percent%'
+  group by district,rateName
+  */
+
