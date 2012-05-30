@@ -1,14 +1,13 @@
 @id=4791;
-@template=Account Analysis;
+@template=G\L Analysis;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077212.3962;
+@lastedit=0077214.6085;
 
 ###---###---###---###---###
 @noupdate;
-
 @menuprocess=lcFPCode=kp('select top 1 key1 from object where typ=4700 and '''&today()&''' between key3 and a1'),new(4791,,002=lcFPCode);
 @afterloadbrowse=lcFPCode=kp('select top 1 key1 from object where typ=4700 and '''&today()&''' between key3 and a1'),new(4791,,002=lcFPCode);
 @select=150;
@@ -16,26 +15,30 @@
 \t001&Fiscal Period; \l0024700,1; \w00245; @acc002=changeDate=;
 
 @changeDate=
+ afterloadwindow=;
+
  if(gcdr1=1,set(78,obj:key1+obj:a17)),
  if(gcdr1=3,set(40,obj:c1-obj:key1)),
- gfwindow=,
  if(gcdr1=1,focus(078));
 
 @loadwindow=
  brwstuff=,
  checkboxes=;
 
+@afterloadwindow=
+ gcvar=,
+ brwreload(1,gcsql);
+
 @checkboxes=
  create(550,12,570,48,'BANK',78),
  create(551,12,570,61,'FUND',80),
  create(552,12,570,74,'PAYABLE',82);
 
-@acc550=gfwindow=;
-@acc551=gfwindow=;
-@acc552=gfwindow=;
+@acc550=afterloadwindow=;
+@acc551=afterloadwindow=;
+@acc552=afterloadwindow=;
 
 @calculate=076='A'&choose(obj:c1=1,'B','')&choose(obj:c2=1,'F','')&choose(obj:c3=1,'P','');
-
 
 @gcvar=
  gcFpId=obj:link1,
@@ -53,13 +56,13 @@
  prop(0,7cfbh,0),
  prop(0,7cfch,BEBEEEH);
 
-@gfwindow=
- gcvar=,
- brwreload(1,gcsql);
-
 @brw1=
  lcid=kpbrwid(1)*-1,
  break(lcid<1),
- change(lcid);
- browse(1,lcid,'key2 between '&obj:key1&' and '&obj:c1);
- if(lcid > 0,m(kpbrwid(1)));
+ gcAcctId=lcid,
+ lcBrwId=kp('select top 1 id from object where typ=4792'),
+ if(lcBrwId+0>'  0',change(lcBrwId),newOne=);
+
+@newOne=
+ insert(-02=4792,002=today()),
+ change(obj1:id);

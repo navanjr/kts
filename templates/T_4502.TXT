@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077214.3734;
+@lastedit=0077215.4966;
 
 ###---###---###---###---###
 @wbgcolor=12701121;
@@ -61,12 +61,12 @@
  \h012018obj:a17='Posted';r2
 
 \t019Paycode; \l0204505; \w02050;
-\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1;
-\t023Check #; \w02450;
+\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
+\t023Check #; \w02450; @acc024=acc165=;
  \h019024obj:a17='Posted';r
  \y019283; \x01965; \y020293; \x02065;
- \y021283; \x021165; \y022293; \x022165;
- \y023305; \x02365; \y024316; \x02465;
+ \y021283; \x021120; \y022293; \x022120;
+ \y023283; \x023175; \y024293; \x024175;
 
 @acc165=
  lcBreak=0,
@@ -89,7 +89,8 @@
 \t041Deputy;  \f042=cur:fullname; 
 \t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
  \d042044;r2 
-\t045&Print; @acc045=postAndPrint=; \d046;
+\t045&Print; @acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);\d046;
  \w04204687;r2
 
 \t087Due; \t088@n14.2;  \s088-'select sum(amount) from receiptDetail where receiptId='&obj:id; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
@@ -184,13 +185,15 @@
  gcRecType=obj:key3,
  trreport(Receipt);
 
- report('KTS\Reports\MiscReceipt.rpt','{receipt.recId} = '&gcRecId,,,,'~miscreceipt');
- 
 @postGL=
  break(obj:a17='Posted'),
+ set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
  update,
  d1select('dbo.glPost '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+
+ m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
+ break(gcretval<>2),
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)

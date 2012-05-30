@@ -1,0 +1,28 @@
+create procedure dbo.taxrollInvoiceBatch(
+ @taxYear varchar(4),
+ @processCount int
+)
+as
+
+begin
+
+ declare 
+  @sql varchar(500),
+  @idToken int
+ 
+ set @sql = 'select top ' + cast(@processCount as varchar) + ' id into temp_taxrollInvoice from object where typ = 4001 and key2 = ''' + @taxYear + ''' and cast(c1 as money)+cast(b15 as money) > 0 and id not in (select sourceId from glDetail)'
+
+ exec( @sql )
+
+ while exists(select * from temp_taxrollInvoice)
+ begin
+  select top 1 @idToken = id from temp_taxrollInvoice
+  exec dbo.taxrollInvoiceCRUD @idToken
+  delete temp_taxrollInvoice where id = @idToken
+ end
+
+ drop table temp_taxrollInvoice
+  
+
+end
+

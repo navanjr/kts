@@ -1,0 +1,147 @@
+create procedure dbo.taxRateImport(@year varchar(4), @tableName varchar(50)) as 
+begin
+
+declare
+ @sql nvarchar(500),
+ @parm nvarchar(500),
+ @idToken varchar(150),
+ @millToken numeric(19,10),
+ @rateToken numeric(19,10)
+
+declare @districtNames table(
+ id int identity(1,1),
+ district varchar(50),
+ rateName varchar(50),
+ totalMills decimal(19,10),
+ flag int
+)
+declare @rateNames table(
+ name varchar(50)
+)
+declare @rates table(
+ id int identity(1,1),
+ impLink int,
+ district varchar(50),
+ districtId int,
+ rateName varchar(50),
+ rateNameId int,
+ rateCol varchar(50),
+ mill decimal(19,10),
+ rate decimal(19,10),
+ processFlag int
+)
+declare @replaceNames table(
+ id int,
+ oldname nvarchar(50),
+ newname nvarchar(50)
+)
+-- get the raw import data
+exec(N'select * into tempTaxImpData from '+@tableName)
+ 
+-- first we get the column names from the import file
+insert @rateNames
+SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName ORDER BY ORDINAL_POSITION ASC; 
+-- remove columns that dont contain millage
+delete @rateNames where name in ('SCHOOLDISTRICTTAXRATE','SCHOOLDISTIRCTMAIN')
+delete @rateNames where name like '%PERCENT%'
+delete @rateNames where name like '%othername%'
+delete @rateNames where name like '%percentother%'
+delete @rateNames where name like '%TOTALMILLS%'
+delete @rateNames where name < '  0'
+
+insert @districtNames 
+select SCHOOLDISTIRCTMAIN,SCHOOLDISTRICTTAXRATE,TREASURERTOTALMILLS,0 from tempTaxImpData
+insert @replaceNames select 1,'MILLOTHER1',OTHERNAME1 from tempTaxImpData where SCHOOLDISTIRCTMAIN = 'apphead'
+insert @replaceNames select 2,'MILLOTHER2',OTHERNAME2 from tempTaxImpData where SCHOOLDISTIRCTMAIN = 'apphead'
+insert @replaceNames select 3,'MILLOTHER3',OTHERNAME3 from tempTaxImpData where SCHOOLDISTIRCTMAIN = 'apphead'
+insert @replaceNames select 4,'MILLOTHER4',OTHERNAME4 from tempTaxImpData where SCHOOLDISTIRCTMAIN = 'apphead'
+insert @replaceNames select 5,'MILLOTHER5',OTHERNAME5 from tempTaxImpData where SCHOOLDISTIRCTMAIN = 'apphead'
+delete @districtNames where district = 'apphead'
+
+while exists(select * from @districtNames where flag = 0)
+begin
+ select top 1 @idToken = id from @districtNames where flag = 0
+ insert @rates (impLink,district,rateName,rateCol,mill,rate,processFlag)
+  select a.id,district,a.rateName,b.name,0.0,0.0,0 from @districtNames a, @rateNames b where a.id = @idToken
+ update @districtNames set flag = 1 where id = @idToken
+end 
+
+declare
+ @colToken varchar(50),
+ @distToken varchar(50),
+ @rToken varchar(50)
+
+while (select COUNT(*) from @rates where processFlag = 0) > 0
+begin
+ select top 1 @idToken = id from @rates where processFlag = 0
+
+ select 
+  @colToken = rateCol,
+  @distToken = district,
+  @rToken = rateName 
+ from @rates where id = @idToken
+
+ SET @sql = N'select @rateOut='+@colToken+' from mat2011txlv where SCHOOLDISTIRCTMAIN = @dist and SCHOOLDISTRICTTAXRATE = @rName'
+ SET @parm = N'@table varchar(50),@dist varchar(50),@rName varchar(50),@rateOUT numeric(9,6) OUTPUT'
+
+ EXECUTE sp_executesql @sql, @parm,@table=@tableName,@dist=@distToken,@rName=@rToken,@rateOUT=@rateToken OUTPUT;
+
+ update @rates set mill = @rateToken, processFlag = 1 where id = @idToken
+ 
+end
+
+delete @rates where mill = 0
+update @rates set rate = mill / (select totalMills from @districtNames where id = impLink)
+
+-- clean up all the "other" column names
+update @rates set rateCol = newName from @rates, @replaceNames where rateCol = oldname
+
+-- prepare for import to object table
+update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4010
+update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4011
+
+-- remove any rates that wont import
+delete @rates where ISNULL(districtId,0)=0 
+delete @rates where ISNULL(rateNameId,0)=0 
+
+-- Manual verify totals  make sure they match
+update @districtNames set flag = 0
+while exists(select * from @districtNames where flag = 0)
+begin
+ select top 1 
+  @idToken = id,
+  @colToken = rateName,
+  @distToken = district 
+ from @districtNames where flag = 0
+ select @rateToken = SUM(mill) from @rates where district = @distToken and rateName = @colToken
+ if @rateToken <> (select totalMills from @districtNames where id = @idToken)
+  delete @rates where district = @distToken and rateName = @colToken
+ update @districtNames set flag = 1 where id = @idToken
+end 
+
+drop table tempTaxImpData
+
+begin transaction
+ while exists(select * from @rates where processFlag = 1)
+ begin
+  select top 1 
+   @idToken = id, @distToken = district, @rToken = rateName, @colToken = rateCol, @millToken = mill, @rateToken = rate
+  from @rates where processFlag = 1
+  if exists(select * from Object where typ = 4012 and Key1 = @distToken and Key2 = @rToken and Key3 = @year and A1 = @colToken)  
+   update Object set A2 = @millToken, A3 = @rateToken where typ = 4012 and Key1 = @distToken and Key2 = @rToken and Key3 = @year and A1 = @colToken
+  else
+   insert object (typ,key1,link1,key2,link2,key3,a1,a2,a3)
+   select 4012,district,districtId,rateName,rateNameId,@year,rateCol,cast(mill as varchar(50)),cast(rate as varchar(50)) from @rates where id = @idToken
+  
+  update @rates set processFlag = 0 where id = @idToken
+ 
+ end
+commit transaction
+
+
+
+end
+
+-- exec taxRateImport '2011', 'mat2011txlv'
+
+

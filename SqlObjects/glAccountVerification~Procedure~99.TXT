@@ -1,0 +1,79 @@
+create procedure dbo.glAccountVerification (
+ @accountCode varchar(50),
+ @accountType varchar(50),
+ @mode varchar(50),
+ @accountId int OUTPUT
+) as
+begin
+ 
+ if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType))
+ begin
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+  return
+ end
+
+ declare
+  @accountDesc varchar(50),
+  @typeDesc varchar(50),
+  @reportCode varchar(50)
+
+ if upper(@mode) = 'CREATE' and upper(@accountType) = 'SOURCE'
+ begin
+
+  select @accountDesc = replace(@accountCode,'_',' ')
+
+  select 
+   @typeDesc = key2,
+   @reportCode = key3
+  from object where typ = 4702 and key1 = upper(@accountType)
+
+  insert object (typ,key1,key2,a1,a2,a3) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+
+  return
+
+ end
+
+ if upper(@mode) = 'CREATE' and upper(@accountType) = 'PAYABLE'
+ begin
+
+  select @accountDesc = replace(replace(@accountCode,'_AP',' Payable'),'_',' ')
+
+  select 
+   @typeDesc = key2,
+   @reportCode = key3
+  from object where typ = 4702 and key1 = upper(@accountType)
+
+  insert object (typ,key1,key2,a1,a2,a3) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+
+  return
+
+ end
+
+ if upper(@mode) = 'CREATE' and upper(@accountType) = 'RECEIVABLE'
+ begin
+
+  select @accountDesc = replace(replace(@accountCode,'_AR',' Receivable'),'_',' ')
+
+  select 
+   @typeDesc = key2,
+   @reportCode = key3
+  from object where typ = 4702 and key1 = upper(@accountType)
+
+  insert object (typ,key1,key2,a1,a2,a3) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+
+  return
+
+ end
+
+end
+
+

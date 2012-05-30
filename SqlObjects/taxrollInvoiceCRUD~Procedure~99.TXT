@@ -1,0 +1,153 @@
+create procedure dbo.taxrollInvoiceCRUD(@taxrollId int) as
+begin
+
+ declare 
+  @code int,
+  @arAccountId int,
+  @message varchar(500)
+
+ select @code = code, @message = message, @arAccountId = debitId from dbo.taxrollCheck(@taxrollId)
+ if @code = 1
+ begin
+  select '@code=1;@message=' + @message + ';'
+  return
+ end
+
+ declare @invd table(
+  id int,
+  description varchar(500),
+  subDescription varchar(500),
+  sourceCode varchar(50),
+  sourceId int,
+  fundCode varchar(50),
+  fundId int,
+  amount money
+ )
+ insert @invd
+ select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@taxrollId)
+
+ if not exists(select * from @invd)
+ begin
+  select '@code=1;@message=No tax rate detail available.;'
+  return
+ end
+
+ begin transaction
+  declare 
+   @idToken int,
+   @newAccountId int,
+   @acctCodeToken varchar(50)
+  
+  -- run verification on each missing source account Id
+  while exists(select * from @invd where sourceId = 0) 
+  begin
+
+   select top 1
+    @idToken = id,
+    @acctCodeToken = sourceCode 
+   from @invd where sourceId = 0 
+   
+   exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @newAccountId OUTPUT
+
+   update @invd set sourceId = @newAccountId where id = @idToken   
+
+  end
+
+  -- run verification on each missing fund account Id
+  while exists(select * from @invd where fundId = 0) 
+  begin
+
+   select top 1
+    @idToken = id,
+    @acctCodeToken = fundCode 
+   from @invd where fundId = 0 
+   
+   exec dbo.glAccountVerification @acctCodeToken, 'PAYABLE', 'CREATE', @newAccountId OUTPUT
+
+   update @invd set fundId = @newAccountId where id = @idToken   
+
+  end
+ 
+  if exists(select * from @invd where isnull(sourceId,0) = 0)
+  begin
+   rollback transaction
+   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
+   return
+  end
+  if exists(select * from @invd where isnull(fundId,0) = 0)
+  begin
+   rollback transaction
+   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+   return
+  end
+  if (select sum(amount) from @invd) = 0
+  begin
+   rollback transaction
+   select '@code=1;@message=No amount exists to stage GL.;'
+   return
+  end
+
+  -- insert invoice detail
+  insert receiptDetail
+  select
+   @taxrollId,
+   description,
+   subDescription,
+   sourceCode,
+   fundCode,
+   amount
+  from @invd
+
+
+  -- stage the GL
+  declare @accountsWorking table(
+   accountId int,
+   amount money
+  )
+  declare 
+   @tokenAmount money
+ 
+  -- credit Source and Debit AR
+  insert @accountsWorking
+   select b.accountId, sum(a.amount)*-1 
+   from receiptDetail a, dbo.glAccounts b 
+   where a.receiptId = @taxrollId and a.sourceCode = b.accountCode group by b.accountId
+  select @tokenAmount = abs(sum(amount)) from @accountsWorking
+  insert @accountsWorking select @arAccountId, @tokenAmount
+
+  -- insert
+  insert gldetailstage (sourceId,accountId,amount) select @taxrollId,accountId,amount from @accountsWorking
+ 
+  update a set
+   a.accountCode = b.accountCode,
+   a.accountDesc = b.accountDesc
+  from glDetailStage a, glAccounts b
+  where a.accountId = b.accountId
+   and a.sourceId = @taxrollId 
+
+  select @code = code, @message = message from dbo.glCheck(@taxrollId)
+  if @code = 1
+  begin
+   rollback transaction
+   select '@code=1;@message=' + @message + ';'
+   return
+  end
+
+  -- post to the gl
+  exec dbo.glPost @taxrollId
+  
+  -- Check glDetail for good data
+  if (select dbo.glPostCheck(@taxrollId)) = 1 
+  begin
+   rollback transaction
+   select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
+   return
+  end
+
+  -- flag as posted
+  update object set a17 = 'Posted' where id = @taxrollId
+  
+ commit transaction
+
+end
+

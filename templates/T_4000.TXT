@@ -1,0 +1,25 @@
+@id=4000;
+@template=Tax Year;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077220.3414;
+
+###---###---###---###---###
+\t001Tax Year; \t002@p####p;
+
+\t007Taxroll Count; \s008+'select count(*) from object where typ=4001 and key2='''&obj:key1&'''';
+\t009Invoiced;  \s010+'select count(*) from object where typ=4001 and key2='''&obj:key1&''' and id in(select sourceId from gldetail)';
+
+\e002010;r2
+
+\t105In&voice; 
+@acc105=
+ iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ kpmo('Creating Invoices...'),
+ sql('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount),
+ calcfld(010),
+ kpmc();

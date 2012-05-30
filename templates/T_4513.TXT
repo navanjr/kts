@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077212.0602;
+@lastedit=0077215.5030;
 
 ###---###---###---###---###
 @format=40R(3)~Deposit~#1#|M50R(3)~Date~@d2@#2#|M200L(3)~Bank Account~#5#|M60R(3)~Amount~@n14.2b@#46#|M50C~Status~#29#;
@@ -12,7 +12,7 @@
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 
 @loadwindow=
- create(45,9),re
+ create(45,9),
  create(160,9,3,120,'Link &All'),
  brwstuff=;
 
@@ -23,10 +23,14 @@
 \t003Deposit Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \w00200455;r2 \d004obj:a17='Posted'; @acc004=update;
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
-\t041Deputy;
-\t043Treasurer;
+\t041Deputy; \f042=cur:fullname; 
+\t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName=');
  \d042044obj:a17='Posted';r2
-\t045&Print; @acc045=postAndPrint=; \d046;
+\t045&Print; 
+
+@acc045=
+ if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=); \d046;
  \w04204687;r2
 
 \t007Bank Account; \l0084701,1;r008004-03-01; @lf008='a1=''BANK''';
@@ -56,9 +60,11 @@
 @acc160=
  m('Are you sure you wish to link all payments to this deposit?','Link Payments...',,6,2),
  break(gcretval<>2),
+ update,
  d1select('exec dbo.depositLinkAllPayments '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
- refreshbrw=; 
+ refreshbrw=,
+ calcrecord(); 
 
 @refreshbrw=
  gcTable4513=choose(obj:a17='Posted','gldetail','glDetailStage'),
@@ -74,8 +80,7 @@
 
 @postGL=
  break(obj:a17='Posted'),
- m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
- break(gcretval<>2),
+ set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
  update,
  d1select('dbo.glPost '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
