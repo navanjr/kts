@@ -1,0 +1,27 @@
+create function dbo.glPostCheck(@sourceId int) returns int as
+begin
+
+ declare
+  @rowCount int,
+  @absValue money,
+  @balance money 
+
+  select
+   @rowCount = count(*),
+   @absValue = sum(abs(amount)),
+   @balance = sum(amount) 
+  from glDetail 
+  where sourceId = @sourceId
+   
+  if @rowCount < 2
+   return 1
+
+  if @absValue < .02
+   return 1
+
+  if @balance != 0 
+   return 1
+
+ return 0
+
+end

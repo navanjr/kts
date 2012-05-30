@@ -11,7 +11,8 @@ begin
   @message varchar(500),
   @rowCount int,
   @fpId int,
-  @postDate int
+  @postDate int,
+  @objTyp int
 
  -- we dont post if there are already records with this sourceId
  if exists(select * from glDetail where sourceId = @sourceId)
@@ -21,7 +22,11 @@ begin
  end
 
  -- check to see if the fiscal period is open
- select @postDate = cast(key2 as int) from object where id = @sourceId
+ select @objtyp = typ from object where id = @sourceId
+ if @objtyp in (4001)
+  select @postDate = cast(olink1 as int) from object where id = @sourceId
+ else
+  select @postDate = cast(key2 as int) from object where id = @sourceId
  select @fpid = dbo.glGetFiscalPeriodId(@postDate)
  
  if not @fpid > 0
@@ -53,10 +58,3 @@ end
 
 
 
-
-
-
-<<<<<<< HEAD
-
-=======
->>>>>>> matt

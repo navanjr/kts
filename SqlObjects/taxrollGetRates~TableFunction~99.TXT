@@ -1,0 +1,75 @@
+create function dbo.taxrollGetRates(@taxrollId int) returns @rettable table(
+ id int identity(1,1),
+ description varchar(500),
+ subDescription varchar(500),
+ sourceCode varchar(50),
+ sourceId int,
+ fundCode varchar(50),
+ fundId int,
+ mill decimal(19,10),
+ amount money
+)
+as
+begin
+
+ declare 
+  @taxYear varchar(4),
+  @district varchar(50),
+  @rateName varchar(50),
+  @totalMills decimal(19,10),
+  @taxAmount money,
+  @totalFigured money
+
+ select
+  @taxYear = taxYear,
+  @district = district,
+  @rateName = rateName,
+  @taxAmount = amount
+ from dbo.taxrollCheck(@taxrollId)
+
+ declare @millages table(rateName varchar(50), mill decimal(19,10))
+ insert @millages 
+  select a1, cast(a2 as decimal(19,10))
+  from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @taxYear
+
+ select @totalMills = sum(mill) from @millages
+
+ insert @rettable 
+ select
+  @district + ' ' + rateName,
+  'millage:' + cast(mill as varchar),
+  @district + '_' + rateName,
+  0,
+  @district + '_' + rateName + '_AP',
+  0,
+  mill,
+  round(@taxAmount * (mill / @totalMills),2)
+ from @millages
+
+ update a set a.sourceId = b.accountId 
+ from @rettable a, dbo.glAccounts b
+ where a.sourceCode = b.accountCode
+ 
+ update a set a.fundId = b.accountId 
+ from @rettable a, dbo.glAccounts b
+ where a.fundCode = b.accountCode
+
+ -- check the total and add or remove from the biggon
+ select @totalFigured = sum(amount) from @rettable
+ if @totalFigured != @taxAmount
+ begin
+
+  declare
+   @fudgeAmount money,
+   @fudgeToken int
+
+  select top 1 
+   @fudgeAmount = @totalFigured - @taxAmount,
+   @fudgeToken = id
+  from @rettable order by amount desc
+
+  update @rettable set amount = amount - @fudgeAmount where id = @fudgeToken
+ end
+
+ return
+end

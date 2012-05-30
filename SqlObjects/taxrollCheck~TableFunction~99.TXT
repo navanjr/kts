@@ -4,9 +4,10 @@ create function dbo.taxrollCheck(@sourceId int) returns
  message varchar(500),
  taxyear varchar(4),
  district varchar(15),
- rate varchar(15),
+ rateName varchar(15),
  amount money,
  fpid int,
+ debitId int,
  status varchar(50)
 )
 
@@ -18,8 +19,10 @@ begin
   @status varchar(50),
   @taxyear varchar(4),
   @district varchar(15),
-  @rate varchar(15),
+  @rateName varchar(15),
   @amount money,
+  @debitCode varchar(50),
+  @debitId int,
   @sourcetyp int
 
  set @fpid=0
@@ -33,7 +36,7 @@ begin
    select 
     @taxyear = key2,
     @district = case when a19 > ' 0' then a19 else a18 end,
-    @rate = case when b1 > ' 0' then b1 else a20 end,
+    @rateName = case when b1 > ' 0' then b1 else a20 end,
     @amount = case when cast(c1 as money)>0.00 then cast(c1 as money) else cast(b15 as money) end,
     @cdate = cast(olink1 as int),
     @status = a17
@@ -44,7 +47,7 @@ begin
    select 
     @taxyear = '',
     @district = '',
-    @rate = '',
+    @rateName = '',
     @amount = 0.00,
     @cdate = cast(olink1 as int),
     @status = a17
@@ -56,7 +59,7 @@ begin
  if @status = 'Posted'
  begin
   insert @rettable 
-   select 1,'Tax item has already been posted.',@taxyear,@district,@rate,@amount,@fpid,@status
+   select 1,'Tax item has already been posted.',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
 
@@ -65,15 +68,34 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@taxyear,@district,@rate,@amount,@fpid,@status
+   select 1,'Fiscal Period is locked or does not exist.',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
 
+ -- check for valid tax Year
+ if @taxYear < '  0'
+ begin
+  insert @rettable 
+   select 1,'Tax Year invalid',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ -- check for debit account
+ set @debitCode = @taxYear+'_ADVALOREM_AR'
+ select @debitId = accountId from glAccounts where accountCode = @debitCode and accountType = 'RECEIVABLE'
+ if isnull(@debitId,0) = 0
+ begin
+  insert @rettable 
+   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+ 
  insert @rettable
-  select 0,'OK',@taxyear,@district,@rate,@amount,@fpid,@status
+  select 0,'OK',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
  return
 
 end
+
 
 
 
