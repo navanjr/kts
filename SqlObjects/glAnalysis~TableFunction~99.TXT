@@ -30,11 +30,11 @@ begin
  if charindex('P',@glTypeFilter)>0 or @glTypeFilter='A'
     begin
       insert @glTypes select 'PAYABLE'
+      insert @glTypes select 'RECEIVABLE'
     end
 
  declare @bbal table(id int, amount money, cnt int)
  declare @cbal table(id int, amount money, cnt int)
-
 
  insert @rettable (id,ord,accountId,accountDesc,accountType)
   select id*-1,'Az',id,ltrim(key2),a1 from object where typ = 4701 and a1 in (select glType from @glTypes)
@@ -61,6 +61,9 @@ begin
 
  update @rettable set
   endingBalance = isnull(beginningBalance,0.00) + isnull(debits,0.00) - isnull(credits,0.00) 
+
+ if charindex('Z',@glTypeFilter) > 0
+  delete @rettable where isnull(beginningbalance,0)=0 and isnull(debits,0)=0 and isnull(credits,0)=0 and isnull(endingbalance,0)=0
 
  update @rettable set
   ord = ord + dbo.padRight(accountType,' ',5) + left(ltrim(accountDesc),4),
@@ -104,9 +107,6 @@ begin
    + dbo.padLeft(case when sum(isnull(credits,0)) != 0 then convert(varchar,sum(isnull(credits,0)),1) else '' end,' ',16)
    + dbo.padLeft(case when sum(isnull(endingBalance,0)) != 0 then convert(varchar,sum(isnull(endingBalance,0)),1) else '' end,' ',16)
    from @rettable group by accountType
-
-
-
 
  return
 
