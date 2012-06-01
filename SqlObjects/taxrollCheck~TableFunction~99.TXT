@@ -1,4 +1,4 @@
-create function dbo.taxrollCheck(@sourceId int) returns
+CREATE function [dbo].[taxrollCheck](@sourceId int) returns
 @rettable table(
  code int,
  message varchar(500),
@@ -22,37 +22,20 @@ begin
   @rateName varchar(15),
   @amount money,
   @debitCode varchar(50),
-  @debitId int,
-  @sourcetyp int
+  @debitId int
 
- set @fpid=0
+  set @fpid=0
  
- select
-  @sourcetyp = typ 
- from object where id = @sourceId
-
- if @sourcetyp=4001
   begin 
    select 
-    @taxyear = key2,
-    @district = case when a19 > ' 0' then a19 else a18 end,
-    @rateName = case when b1 > ' 0' then b1 else a20 end,
-    @amount = case when cast(c1 as money)>0.00 then cast(c1 as money) else cast(b15 as money) end,
-    @cdate = cast(olink1 as int),
-    @status = a17
-   from object where id = @sourceId
+    @taxyear = [REALTAXYEAR],
+    @district = case when [SCHOOLDISTRICTMAIN] > ' 0' then [SCHOOLDISTRICTMAIN] else [ORGSCHOOLDISTRICTMAIN] end,
+    @rateName = case when [SCHOOLDISTRICTTAXRATE] > ' 0' then [SCHOOLDISTRICTTAXRATE] else [ORGSCHOOLDISTRICTTAXRATE] end,
+    @amount = case when [TOTALDUE]>0.00 then [TOTALDUE] else [ORIGINALTOTALDUE] end,
+    @cdate = dbo.clariondate(getdate()),
+    @status = ''
+   from adtax where id = @sourceId
   end 
- else
-  begin
-   select 
-    @taxyear = '',
-    @district = '',
-    @rateName = '',
-    @amount = 0.00,
-    @cdate = cast(olink1 as int),
-    @status = a17
-   from object where id = @sourceId
- end 
 
 
  -- check for status of Posted
@@ -95,12 +78,4 @@ begin
  return
 
 end
-
-
-
-
-
-
-
-
 

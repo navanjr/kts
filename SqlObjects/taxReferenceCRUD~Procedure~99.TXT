@@ -1,0 +1,29 @@
+create procedure [dbo].[taxReferenceCRUD](@taxrollId int) as
+begin
+
+ declare 
+  @TaxRefExists int
+
+ set @TaxRefExists = isnull((select taxrollId from TaxReference where taxrollId=@taxrollId),0)
+ 
+ -- insert tax reference
+ if @TaxRefExists < 1 
+  begin
+   insert TaxReference ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS])
+   select
+    [ID],
+    [RECORDTYPE],
+    [FULLPIDNUMBER],
+    [ITEMNUMBER],
+    [REALTAXYEAR],
+    [OWNERNAME],
+    [BUSINESSNAME],
+    dbo.clariondate(getdate()),
+    ''
+   from adtax where id = @taxrollId
+  end
+
+end
+
+
+
