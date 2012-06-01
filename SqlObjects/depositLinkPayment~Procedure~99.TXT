@@ -18,13 +18,13 @@ begin
  begin transaction
 
   if exists(select * from paid where id = @paymentId and depositId = @depositId)
-   update paid set depositId = 0 where id = @paymentId
+   update paid set depositId = 0 where id = @paymentId 
   else
    update paid set depositId = @depositId where id = @paymentId
 
   exec dbo.depositStagePayments @depositId
 
-  if (select sum(amount) from dbo.glDetailStage where sourceId = @depositId) <> 0
+  if (select sum(amount) from dbo.glDetailStage where slink = @depositId and styp='o') <> 0
    rollback transaction
   else
    commit transaction
@@ -34,6 +34,7 @@ begin
  return
  
 end
+
 
 
 
