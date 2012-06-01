@@ -17,6 +17,18 @@ begin
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
 
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourceId')
+ begin
+  begin transaction
+   alter table glDetail add slink int, styp char(1)
+   exec(N'update glDetail set slink = sourceId, styp=''o''')
+   alter table glDetail drop column sourceId
+   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourceId')
+    rollback transaction
+   else
+    commit transaction
+ end
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetailStage]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetailStage(
    id int identity(1,1),
@@ -34,6 +46,18 @@ begin
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
 
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'sourceId')
+ begin
+  begin transaction
+   alter table glDetailStage add slink int, styp char(1)
+   exec(N'update glDetailStage set slink = sourceId, styp=''o''')
+   alter table glDetailStage drop column sourceId
+   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourceId')
+    rollback transaction
+   else
+    commit transaction
+ end
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[paid]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table paid(
    id int identity(1,1),
@@ -48,6 +72,18 @@ begin
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
+
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'paid' and COLUMN_NAME = 'sourceId')
+ begin
+  begin transaction
+   alter table paid add slink int, styp char(1)
+   exec(N'update paid set slink = sourceId, styp=''o''')
+   alter table paid drop column sourceId
+   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'paid' and COLUMN_NAME = 'sourceId')
+    rollback transaction
+   else
+    commit transaction
+ end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[audit]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table audit(

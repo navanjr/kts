@@ -11,16 +11,16 @@ begin
  begin 
   insert @rettable
   select
-   b.key1, 
+   a.sourceId, 
    sum(a.amount),
-   sum(case when a.amount > 0 then a.amount else 0 end),
-   sum(case when a.amount > 0 then 0 else a.amount end)
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end),
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
   from 
-   glDetail a, object b
-  where
-   b.typ = 4700
-   and a.fpid = b.id
-  group by b.key1
+   glDetail a
+  group by a.sourceId
+  having 
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end) !=
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
 
   return
  end
@@ -29,8 +29,8 @@ begin
  select
   b.key1, 
   sum(a.amount),
-  sum(case when a.amount > 0 then a.amount else 0 end),
-  sum(case when a.amount > 0 then 0 else a.amount end)
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end),
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
  from 
   glDetail a, object b
  where
