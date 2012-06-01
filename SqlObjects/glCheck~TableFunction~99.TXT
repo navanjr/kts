@@ -1,4 +1,4 @@
-create function dbo.glCheck(@sourceId int) returns  
+CREATE function dbo.glCheck(@sourceId int, @tableName varchar(30) = NULL) returns  
 @rettable table(
  code int,
  message varchar(500), 
@@ -6,7 +6,11 @@ create function dbo.glCheck(@sourceId int) returns
  postDate int
 )
 begin
- 
+ if len(isnull(@tableName,''))<1
+  begin
+   set @tableName='Object'
+  end
+  
  declare 
   @message varchar(500),
   @rowCount int,
@@ -22,12 +26,17 @@ begin
  end
 
  -- check to see if the fiscal period is open
- select @objtyp = typ from object where id = @sourceId
- if @objtyp in (4001)
-  select @postDate = cast(olink1 as int) from object where id = @sourceId
- else
-  select @postDate = cast(key2 as int) from object where id = @sourceId
- select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+ if @tableName='Object'
+  begin
+   select @postDate = cast(key2 as int) from object where id = @sourceId
+   select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+  end
+ 
+ if @tableName='TaxReference'
+  begin
+   select @postDate = [POSTDATE] from taxReference where taxrollId = @sourceId
+   select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+  end 
  
  if not @fpid > 0
  begin
@@ -54,6 +63,7 @@ begin
  return
 
 end
+
 
 
 

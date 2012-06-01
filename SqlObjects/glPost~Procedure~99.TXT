@@ -1,4 +1,4 @@
-create procedure dbo.glPost (@sourceId int) 
+create procedure dbo.glPost (@sourceId int, @tableName varchar(30) = NULL) 
 as 
 begin
 
@@ -10,7 +10,7 @@ begin
  )
 
  -- first we look to see if this is good to post
- insert @rettable select * from dbo.glCheck(@sourceId)
+ insert @rettable select * from dbo.glCheck(@sourceId,@tableName)
  if (select code from @rettable) = 1
  begin
   select '@code=' + cast(code as varchar) + ';@message=' + message + ';@fpid=' + cast(fpId as varchar) + ';'  from @rettable
@@ -49,8 +49,16 @@ begin
    update a set accountCode = key1, accountDesc = key2
     from gldetail a, object b
     where a.accountId = b.id and b.typ = 4701 and a.sourceId = @sourceId
- 
-   update object set a17 = 'Posted' where id = @sourceId
+
+   if isnull(@tableName,'')='taxReference' 
+    begin
+     update taxreference set [status] = 'Posted' where taxrollId = @sourceId
+    end
+   else
+    begin 
+     update object set a17 = 'Posted' where id = @sourceId
+    end
+
 
    delete glDetailStage where sourceId = @sourceId
  
@@ -78,5 +86,6 @@ begin
 
  return
 end
+
 
 

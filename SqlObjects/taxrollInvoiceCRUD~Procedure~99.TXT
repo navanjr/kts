@@ -125,7 +125,7 @@ begin
   where a.accountId = b.accountId
    and a.sourceId = @taxrollId 
 
-  select @code = code, @message = message from dbo.glCheck(@taxrollId)
+  select @code = code, @message = message from dbo.glCheck(@taxrollId,'taxReference')
   if @code = 1
   begin
    rollback transaction
@@ -134,7 +134,7 @@ begin
   end
 
   -- post to the gl
-  exec dbo.glPost @taxrollId
+  exec dbo.glPost @taxrollId, 'taxReference'
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@taxrollId)) = 1 
@@ -145,8 +145,9 @@ begin
   end
 
   -- flag as posted
-  update object set a17 = 'Posted' where id = @taxrollId
+  update taxReference set [status] = 'Posted' where id = @taxrollId
   
  commit transaction
 
 end
+
