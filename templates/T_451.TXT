@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077220.3304;
+@lastedit=0077221.7564;
 
 ###---###---###---###---###
 ** Written by nate.anderson@kellpro.com **
@@ -23,16 +23,16 @@ wbgcolor=999B0Dh;
  prop(002,font,Lucida Console),
  prop(002,fontsize,8);
 
-@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M30C(2)~Length~#30#|M50L(2)~Status~#4#|M;
-@browse4='select stat from dbo.sqlObjectCompare('&obj:id&')';
-
+@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M50L(2)~Status~#30#|M;
 
 @ordername=Name,Create Order;
 @key2=format(obj:a17,@n05);
 
-@bb4=C&reate Object;  @bbproc4=acc105=;
+@bb4=C&reate Object;  @bbproc4=acc105=,calcrecord();
 
 @bb5=Create &All;  @bbproc5=m('Are you sure?','Create all SQL Objects...','question.ico',6,4),if(gcretval=2,createallobjects=);
+
+@closewindow=update,calcfld(042),update;
 
 @createallobjects=
  kpmo('Creating SQL Objects...','Please wait...'),
@@ -44,7 +44,6 @@ wbgcolor=999B0Dh;
  gcname=obj5:a2,
  gctype=obj5:a3,
  kpmm('Creating '&gcname,'Please wait...'),
- dropobject=,
  createobject=;
 
 @loadwindow=
@@ -61,8 +60,7 @@ wbgcolor=999B0Dh;
  lccodeh=mh-100,
  prop(102,height,lccodeh);
 
-@afterloadwindow=
-;
+@afterloadwindow=;
 
 @select=102;
 
@@ -70,87 +68,30 @@ wbgcolor=999B0Dh;
 \t003Type;  \h004;
 
 \t039Create Order;  \t040@n05; \f04099;
-\t041Data Length;  \s042-'select datalength(e1) from object where id='&obj:id;
+\t041Status;  \s042-'select stat from dbo.sqlObjectCompare('&obj:id&')';
 \t101SQL Create Code;  \w102600;  @acc102=calcfld(042);
 
 \t105C&reate Object;
-@acc105=if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=);
+@acc105=if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=),calcfld(042);
 
 @createoneobject=
  update,
  gcid=obj:id,
  gcname=obj:key1,
  gctype=obj:key2,
- dropobject=,
- createobject=;
+ createobjectWError=;
 
-@createobject=sql('
- declare
-  @id int,
-  @loopcount int,
-  @looptally int,
-  @sqlclip nvarchar(4000),
-  @sql_1 nvarchar(4000),
-  @sql_2 nvarchar(4000),
-  @sql_3 nvarchar(4000),
-  @sql_4 nvarchar(4000),
-  @sql_5 nvarchar(4000)
- set @id='&gcid&'
- declare @sql table
-  (line int IDENTITY(1,1), sqlcode nvarchar(4000))
- select @loopcount=(datalength(e1)/4000)+1 from object where id=@id
- set @looptally=1
- set @sqlclip = ''''
- set @sql_1 = ''''
- set @sql_2 = ''''
- set @sql_3 = ''''
- set @sql_4 = ''''
- set @sql_5 = ''''
- while 1=1
-  begin 
-   print @looptally
-   set @loopcount=@loopcount-1
-   select @sqlclip=substring(e1,@looptally,4000) 
-    from object 
-    where id=@id
-   insert @sql (sqlcode) values (@sqlclip)
-   if @looptally=1
-    set @sql_1 = @sqlclip
-   if @looptally=4001
-    set @sql_2 = @sqlclip
-   if @looptally=8001
-    set @sql_3 = @sqlclip
-   if @looptally=12001
-    set @sql_4 = @sqlclip
-   if @looptally=16001
-    set @sql_5 = @sqlclip
-   set @looptally=@looptally+4000
-   set @sqlclip = ''''
-   if @loopcount=0
-    break
-   continue
-  end
- exec(@sql_1+@sql_2+@sql_3+@sql_4+@sql_5)');
+@createobjectWError=
+ d1select('exec keySQLObjectDispatcher '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Key Object Dispatcher...'));
 
- sql('declare @sql varchar(8000) select @sql=cast(e1 as varchar(8000)) from object where id='&gcid&'  exec ( @sql )');
-
-@dropobject=
- if(gctype='Procedure',gcdroptype='Procedure'),
- if(gctype='ScalarFunction',gcdroptype='Function'),
- if(gctype='TableFunction',gcdroptype='Function'),
-if(gctype='View',gcdroptype='View'),
- sql('if exists (select * from dbo.sysobjects where id = object_id(N''[dbo].['&gcname&']'') and OBJECTPROPERTY(id, N''Is'&gctype&''') = 1) drop '&gcdroptype&' [dbo].['&gcname&']');
+@createobject=sql('exec dbo.keySQLObjectDispatcher '&obj:id);
 
 @exportObjects=
  sqlloop('select id, from object where typ=451',exportObject1=);
 
 @exportObject1=
  e1select('select e1 from object where id='&obj5:a1),
-
-
- 
-
-
 
 @importobjects=
  kpmo('Importing Objects...','Please wait...'),
