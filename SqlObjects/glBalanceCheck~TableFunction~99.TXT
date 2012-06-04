@@ -1,0 +1,46 @@
+create function dbo.glBalanceCheck(@mode int = 0) returns @rettable table(
+ period varchar(10),
+ sumAmount money,
+ debits money,
+ credits money
+)
+
+begin
+
+ if @mode = 1
+ begin 
+  insert @rettable
+  select
+   a.slink, 
+   sum(a.amount),
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end),
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
+  from 
+   glDetail a
+  group by a.slink
+  having 
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end) !=
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
+
+  return
+ end
+ 
+ insert @rettable
+ select
+  b.key1, 
+  sum(a.amount),
+   sum(case when a.amount > 0 then abs(a.amount) else 0 end),
+   sum(case when a.amount > 0 then 0 else abs(a.amount) end)
+ from 
+  glDetail a, object b
+ where
+  b.typ = 4700
+  and a.fpid = b.id
+ group by b.key1
+
+ return
+
+
+end
+
+

@@ -8,22 +8,25 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int) returns
 )
 begin
 
- insert @rettable
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where receiptId = @receiptId
+ declare @styp char(1) = 'o'
+ declare @slink varchar(15) = @styp + cast(@receiptId as varchar)
 
- if exists(select * from dbo.paid where sourceId = @receiptId)
+ insert @rettable
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink
+
+ if exists(select * from dbo.paid where slink = @slink)
  begin
   insert @rettable
   select 'ba',0,'','',0
   insert @rettable
   select 'bb',0,'Payment(s)','',0
   insert @rettable
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1 from dbo.paid where sourceId = @receiptId
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1 from dbo.paid where slink = @slink
  end
 
  if @showGl = 1
  begin
-  if exists(select * from dbo.glDetailStage where sourceId = @receiptId)
+  if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
    insert @rettable
    select 'ca',0,'','',0
@@ -31,10 +34,10 @@ begin
    select 'cb',0,'GL Detail (staged)','',0
    insert @rettable
    select 'cc',0,'   '+a.accountDesc,lower(b.accountType),a.amount
-   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.sourceId = @receiptId
+   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
 
-  if exists(select * from dbo.glDetail where sourceId = @receiptId)
+  if exists(select * from dbo.glDetail where slink = @slink)
   begin
    insert @rettable
    select 'ca',0,'','',0
@@ -42,12 +45,13 @@ begin
    select 'cb',0,'GL Detail (posted)','',0
    insert @rettable
    select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount
-   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.sourceId = @receiptId
+   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
  end
 
  return
 end
+
 
 
 

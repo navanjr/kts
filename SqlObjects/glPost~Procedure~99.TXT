@@ -1,91 +1,92 @@
-create procedure dbo.glPost (@sourceId int, @tableName varchar(30) = NULL) 
+create procedure dbo.glPost (@id int, @styp char(1)) 
 as 
 begin
 
- declare @rettable table(
-  code int,
-  message varchar(500),
-  fpId int,
-  postDate int
- )
+ declare
+  @slink varchar(15) = @styp + cast(@id as varchar),
+  @code int,
+  @message varchar(500),
+  @fpId int,
+  @postDate int
 
  -- first we look to see if this is good to post
- insert @rettable select * from dbo.glCheck(@sourceId,@tableName)
- if (select code from @rettable) = 1
+ exec dbo.glCheck @id, @styp, @code output, @message output, @fpId output, @postDate output
+ if @code = 1
  begin
-  select '@code=' + cast(code as varchar) + ';@message=' + message + ';@fpid=' + cast(fpId as varchar) + ';'  from @rettable
+  select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
   return
  end
 
- if (select code from @rettable) = 0
+ if @code = 0
  begin
 
   declare 
-   @postDate int,
-   @fpId int, 
    @fpCode varchar(50),
    @fpDesc varchar(50),
    @rowCount int,
    @absValue money,
    @rowCount2 int,
-   @absValue2 money
+   @absValue2 money,
+   @sql varchar(500)
 
-  select @postDate = postDate, @fpid = fpid from @rettable
-  select @fpCode = key1, @fpDesc = key2 from object where typ = 4700 and id = @fpid
+  -- get fiscal code and description from the Fiscal Calendar
+  select
+   @fpCode = key1, 
+   @fpDesc = key2 
+  from object where typ = 4700 and id = @fpid
 
   -- get the stats to do the final compare
   select
    @rowCount = count(*),
    @absValue = sum(abs(amount)) 
   from glDetailStage 
-  where sourceId = @sourceId
+  where slink = @slink
 
   begin transaction
 
-   insert gldetail (fpId, fpCode, fpDesc, accountId, sourceId, amount, date)
-    select @fpid, @fpCode, @fpDesc, accountId, sourceId, amount, @postDate
-     from glDetailStage where sourceId = @sourceId
+   -- insert rows into glDetail
+   insert gldetail (fpId, fpCode, fpDesc, accountId, slink, amount, date)
+    select @fpid, @fpCode, @fpDesc, accountId, slink, amount, @postDate
+     from glDetailStage where slink = @slink
    
-   update a set accountCode = key1, accountDesc = key2
-    from gldetail a, object b
-    where a.accountId = b.id and b.typ = 4701 and a.sourceId = @sourceId
+   update a set
+    a.accountCode = b.accountCode,
+    a.accountDesc = b.accountDesc
+   from gldetail a, glAccounts b
+    where a.accountId = b.AccountId and a.slink = @slink
 
-   if isnull(@tableName,'')='taxReference' 
-    begin
-     update taxreference set [status] = 'Posted' where taxrollId = @sourceId
-    end
-   else
-    begin 
-     update object set a17 = 'Posted' where id = @sourceId
-    end
+   -- flag source record as posted
+   select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = ''Posted'' where ['+idFieldName+'] = '+cast(@id as varchar)
+   from dbo.keyExternalTableReference(@styp)
+   exec(@sql)
 
-
-   delete glDetailStage where sourceId = @sourceId
+   delete glDetailStage where slink = @slink
  
    -- check to see if the post was successful
    select
     @rowCount2 = count(*),
     @absValue2 = sum(abs(amount)) 
    from glDetail 
-   where sourceId = @sourceId
+   where slink = @slink
    
    if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
    begin
-    update @rettable set message = 'Posting complete.'
+    set @message = 'Posting complete.'
     commit transaction
    end
    else
    begin
-    update @rettable set code = 1, message = 'Posting transaction was rolled back.  oops.  please contact support.'
+    select @code = 1, @message = 'Posting transaction was rolled back.  oops.  please contact support.'
     rollback transaction
    end
 
-  select '@code=' + cast(code as varchar) + ';@message=' + message + ';@fpid=' + cast(fpId as varchar) + ';'  from @rettable
+  select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
   return
  end
 
  return
 end
+
 
 
 

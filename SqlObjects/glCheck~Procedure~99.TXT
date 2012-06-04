@@ -1,0 +1,75 @@
+create procedure dbo.glCheck(
+ @id int,
+ @styp char(1),
+ @code int output,
+ @message varchar(500) = null  output, 
+ @fpId int = null output,
+ @postDate int = null output
+) as
+begin
+
+ declare 
+  @rowCount int,
+  @objTyp int,
+  @slink varchar(15)
+
+ if isnull(@styp,'') = ''
+  set @styp = 'o'
+
+ set @slink = @styp + cast(@id as varchar)
+
+ -- we dont post if there are already records with this sourceId
+ if exists(select * from glDetail where slink = @slink)
+ begin
+  select
+   @code = 1,
+   @message = 'Posting data already exists for this instrument.'
+  return
+ end
+
+ -- check to see if the fiscal period is open
+ exec dbo.glGetPostDate @id, @styp, @postDate OUTPUT
+ select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+ 
+ if not @fpid > 0
+ begin
+  select
+   @code = 1, 
+   @message = 'Fiscal period does not exist or period is locked.'
+  return 
+ end
+
+ -- check for more than 1 row to post
+ select @rowCount = count(*) from glDetailStage where slink = @slink
+ if isnull(@rowCount,0) < 2
+ begin
+  select
+   @code = 1, 
+   @message = 'Not enough records to post.  We need more than one.'
+  return
+ end
+
+ -- check for a balanced post
+ if (select sum(amount) from glDetailStage where slink = @slink) <> 0.00
+ begin
+  select
+   @code = 1, 
+   @message = 'This posting is out of balance'
+  return
+ end
+
+ select
+  @code = 0, 
+  @message = 'Data is good. Ready to post to the G/L.'
+
+ return
+
+end
+
+
+
+
+
+
+
+
