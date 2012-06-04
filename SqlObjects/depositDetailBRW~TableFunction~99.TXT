@@ -7,6 +7,8 @@ create function dbo.depositDetailBRW(@depositId int, @showGL int) returns
  amount money 
 )
 begin
+ declare @styp char(1) = 'o'
+ declare @slink varchar(15) = @styp + cast(@depositId as varchar)
 
  if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = 0)
  begin
@@ -28,24 +30,24 @@ begin
 
  if @showGL = 1
  begin
-  if exists(select * from dbo.glDetailStage where slink = @depositId and styp = 'o')
+  if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
    insert @rettable
    select 'ca',0,'','',0
    insert @rettable
    select 'cb',0,'GL Detail (staged)','',0
    insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where slink = @depositId and styp = 'o'
+   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where slink = @slink
   end
 
-  if exists(select * from dbo.glDetail where slink = @depositId and styp = 'o')
+  if exists(select * from dbo.glDetail where slink = @slink)
   begin
    insert @rettable
    select 'ca',0,'','',0
    insert @rettable
    select 'cb',0,'GL Detail (posted)','',0
    insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where slink = @depositId and styp = 'o'
+   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where slink = @slink
   end
  end
 

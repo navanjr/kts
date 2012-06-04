@@ -1,4 +1,4 @@
-create procedure dbo.receiptStageGL (@sourceId int) as
+create procedure dbo.receiptStageGL (@receiptId int) as
 begin
  
  declare @accountsWorking table(
@@ -10,7 +10,9 @@ begin
   amount money
  )
  
- declare 
+ declare @styp char(1) = 'o'
+ declare
+  @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @code int,
   @contraId int,
   @arAccountId int,
@@ -21,36 +23,36 @@ begin
   @code = code,
   @contraId = contraId ,
   @arAccountId = arAccountId
- from dbo.receiptCheck(@sourceId,null)
+ from dbo.receiptCheck(@receiptId,null)
 
  -- credit Source and Debit AR
  insert @accountsWorking
   select b.accountId, sum(a.amount)*-1 
-  from receiptDetail a, dbo.glAccounts b where a.receiptId = @sourceId and a.sourceCode = b.accountCode group by b.accountId
+  from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
  select @tokenAmount = abs(sum(amount)) from @accountsWorking
  insert @accountsWorking select @arAccountId, @tokenAmount
 
- if exists(select * from paid where sourceId = @sourceId)
+ if exists(select * from paid where slink = @slink)
  begin
   declare @ap table(accountId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
   declare @paidTotal money
 
   -- credit AR
-  select @paidTotal = sum(amount)*-1 from paid where sourceId = @sourceId
+  select @paidTotal = sum(amount)*-1 from paid where slink = @slink
   insert @accountsWorking select @arAccountId, @paidTotal
 
   -- debit suspense accounts
   insert @accountsWorking
   select b.link1, sum(a.amount)
   from paid a, object b 
-  where a.paycode = b.key1 and b.typ = 4505 and a.sourceId = @sourceId group by b.link1
+  where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
 
   -- debit tresurers receipt fund and credit fund payables
   insert @accountsWorking select @contraId, @paidTotal
   insert @ap
    select b.accountId,sum(a.amount)*-1, 0, 0
    from receiptDetail a, dbo.glAccounts b
-   where a.receiptId = @sourceId and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
+   where a.slink = @slink and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
@@ -61,21 +63,21 @@ begin
  insert @accounts select accountId, sum(isnull(amount,0)) from @accountsWorking group by accountId having sum(isnull(amount,0)) != 0
 
  -- remove 
- delete glDetailStage where sourceId = @sourceId and accountId not in (select accountId from @accounts)
+ delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
 
  -- update
  update a set a.amount = b.amount
  from glDetailStage a, @accounts b
  where a.accountId = b.accountId
-  and a.sourceId = @sourceId
+  and a.slink = @slink
  
- delete @accounts where accountId in (select accountId from glDetailStage where sourceId = @sourceId)
+ delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
 
  -- insert
  while (select count(*) from @accounts) > 0
  begin
   select top 1 @tokenId = accountId, @tokenAmount = amount from @accounts
-  insert gldetailstage (sourceId,accountId,amount,contraId) select @sourceId,@tokenId,@tokenAmount,@contraId
+  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@contraId
   delete @accounts where accountId = @tokenId
  end
  
@@ -84,11 +86,8 @@ begin
   a.accountDesc = b.accountDesc
  from glDetailStage a, glAccounts b
  where a.accountId = b.accountId
-  and a.sourceId = @sourceId 
+  and a.slink = @slink 
 
 end
-
-
-
 
 

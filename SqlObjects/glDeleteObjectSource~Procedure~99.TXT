@@ -1,0 +1,31 @@
+-- this proc can only be used for source records in the object table
+-- it will delete glDetailStage records, and change the typ of the source record to a negative
+-- and will fail if there are posted details
+
+create procedure dbo.glDeleteObjectSource (@id int) as
+begin
+
+ declare @styp char(1) = 'o'
+ declare @slink varchar(15) = @styp + cast(@id as varchar)
+
+ if exists(select * from object where id = @id and typ > 0)
+ begin
+
+  -- bail if already posted
+  if exists(select * from glDetail where slink = @slink)
+   return
+
+  begin transaction
+   delete glDetailStage where slink = @slink
+   update object set typ = abs(typ) * -1 where id = @id
+  commit transaction
+ end
+
+end
+
+
+
+
+
+
+

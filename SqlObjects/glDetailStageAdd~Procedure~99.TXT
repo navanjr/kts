@@ -9,16 +9,23 @@ create procedure dbo.glDetailStageAdd (
 begin
  declare
   @code int,
+  @message varchar(500),
   @slink varchar(15) = @styp + cast(@id as varchar)
 
  -- bail if amount is zero
  if @amount = 0.00
+ begin
+  select '@code=1;@message=Can not stage a GL amount of Zero.;'
   return
+ end
 
- -- check to see if this source instrument is already posted
- exec dbo.glPreStageCheck @id, @styp, @code output
+ -- Pre Stage check 
+ exec dbo.glPreStageCheck @id, @styp, @code output, @message output
  if @code = 1
+ begin
+  select '@code='+cast(@code as varchar)+';@message='+@message+';'
   return
+ end
 
  declare 
   @accountCode varchar(50),
@@ -49,6 +56,7 @@ begin
  else
 
  begin 
+
   if exists(select * from glDetailStage where id = @stageId)
    update gldetailstage set 
     slink = @slink,
@@ -73,9 +81,10 @@ begin
   -- get the value of the transaction
   select @contraAmount = sum(amount)*-1 from glDetailStage where slink = @slink and contraId = @contraId and accountId <> @contraId
   set @contraStageId = ISNULL(@contraStageId,0)
-  exec dbo.glDetailStageAdd @id, @styp, @contraId,@contraAmount, @contraStageId
+  exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
  end
 
+ select '@code=0;@message=Staging of GL Successful;'
  return
 
 end

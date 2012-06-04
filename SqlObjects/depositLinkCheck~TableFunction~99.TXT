@@ -2,23 +2,26 @@ create function dbo.depositLinkCheck(@depositId int, @paymentId int) returns
 @rettable table(
  code int,
  message varchar(500)
-)
+) 
 begin
- 
+  
+ declare @styp char(1) = 'o'
  declare 
-  @postdate int,
+  @slink varchar(15) = @styp + cast(@depositId as varchar),
+  @postDate int,
   @message varchar(500),
   @status varchar(50)
 
  -- is deposit Posted
- if (select dbo.getStatus(@depositId)) = 'Posted'
+ if exists(select * from glDetail where slink = @slink)
  begin
   insert @rettable select 1, 'Deposit is already posted. Link Check Failed.'
   return
  end
 
  -- check to see if the fiscal period is open
- if (select dbo.glGetFiscalPeriodIdFromSourceId(@depositId)) = 0
+ select @postDate = key2 from object where typ = 4513 and id = @depositId
+ if (select dbo.glGetFiscalPeriodId(@postDate)) = 0
  begin
   insert @rettable select 1, 'Fiscal period does not exist or period is locked.'
   return 

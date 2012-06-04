@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077222.7217;
+@lastedit=0077223.7653;
 
 ###---###---###---###---###
 @format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
@@ -20,7 +20,7 @@
 @altDelete=
  m('Are you sure you wish to delete this Journal Entry?','Delete...',,6,4),
  break(gcretval<>2),
- sql('exec glDeleteSource '&obj:id);
+ sql('exec glDeleteObjectSource '&obj:id);
 
 @loadwindow=
  brwstuff=;
@@ -51,7 +51,7 @@
  \s076+'select balance from glSummary('&obj:id&',''o'')';
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
 
-\t109&Print; @acc109=gcJEReportWhere='where sourceId='&obj:id,trreport('glJournalEntryReport=');
+\t109&Print; @acc109=gcJEReportWhere='where slink=''o'&obj:id&'''',trreport('glJournalEntryReport=');
 \t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0; \h110obj:a17='Posted';
 
 \t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
@@ -86,10 +86,12 @@
 
 @saveRow=
  if(gcToggle=gcToggleDb,lcAmt=obj:a20,lcAmt=obj:a20*-1),
- sql('exec dbo.glDetailStageAdd '&obj:id&',''o'','&obj:link1&','&lcAmt&','&obj:link5),
+ d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&obj:link1&','&lcAmt&','&obj:link5),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
+ focus(008),
+ break(readstring(obj7:d1,'@code=')=1),
  refreshbrw=,
- blankEm=,
- focus(008);
+ blankEm=;
 
 @removeRow=
  break(kpbrwid(1)=0),

@@ -1,7 +1,8 @@
-create procedure dbo.receiptDetailRemove(@receiptDetailId int, @sourceId int) as
+create procedure dbo.receiptDetailRemove(@receiptDetailId int, @receiptId int) as
 begin
 
  declare 
+  @styp char(1) = 'o',
   @code int,
   @message varchar(100),
   @receiptType varchar(50),
@@ -16,7 +17,7 @@ begin
   @suspenseAccountId = suspenseAccountId,
   @contraId =contraId,
   @fpId = fpId
- from dbo.receiptCheck(@sourceId,null)
+ from dbo.receiptCheck(@receiptId,null)
 
 
  -- bail if we dont have enough data
@@ -30,13 +31,12 @@ begin
  begin transaction
   delete receiptDetail where id = @receiptDetailId
   
-/*
-  exec dbo.receiptStagePayments @sourceId
-  
-  if (select sum(amount) from dbo.glDetailStage where sourceId = @sourceId) <> 0
+  -- add to the gl stage
+  exec dbo.receiptStageGL @receiptId
+
+  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
    rollback transaction
   else
-*/
    commit transaction
 
  select '@code=0;@message=Payment removed OK.;'

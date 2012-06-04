@@ -1,12 +1,14 @@
-create procedure dbo.taxrollInvoiceCRUD(@taxrollId int) as
+create procedure dbo.taxrollInvoiceCRUD(@id int) as
 begin
 
- declare 
+ declare @styp char(1) = 't'
+ declare
+  @slink varchar(15) = @styp + cast(@id as varchar),
   @code int,
   @arAccountId int,
   @message varchar(500)
 
- select @code = code, @message = message, @arAccountId = debitId from dbo.taxrollCheck(@taxrollId)
+ select @code = code, @message = message, @arAccountId = debitId from dbo.taxrollCheck(@id)
  if @code = 1
  begin
   select '@code=1;@message=' + @message + ';'
@@ -24,7 +26,7 @@ begin
   amount money
  )
  insert @invd
- select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@taxrollId)
+ select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@id)
 
  if not exists(select * from @invd)
  begin
@@ -39,6 +41,8 @@ begin
    @acctCodeToken varchar(50)
   
   -- run verification on each missing source account Id
+  -- TODO: streamline Fund and Source Account verification. no reason to do this inline, batch it before hand.
+
   while exists(select * from @invd where sourceId = 0) 
   begin
 
@@ -88,16 +92,15 @@ begin
   end
 
   -- insert invoice detail
-  insert receiptDetail
+  insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount)
   select
-   @taxrollId,
+   @slink,
    description,
    subDescription,
    sourceCode,
    fundCode,
    amount
   from @invd
-
 
   -- stage the GL
   declare @accountsWorking table(
@@ -111,33 +114,34 @@ begin
   insert @accountsWorking
    select b.accountId, sum(a.amount)*-1 
    from receiptDetail a, dbo.glAccounts b 
-   where a.receiptId = @taxrollId and a.sourceCode = b.accountCode group by b.accountId
+   where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
   insert @accountsWorking select @arAccountId, @tokenAmount
 
   -- insert
-  insert gldetailstage (sourceId,accountId,amount) select @taxrollId,accountId,amount from @accountsWorking
+  insert gldetailstage (slink,accountId,amount) select @slink,accountId,amount from @accountsWorking
  
   update a set
    a.accountCode = b.accountCode,
    a.accountDesc = b.accountDesc
   from glDetailStage a, glAccounts b
   where a.accountId = b.accountId
-   and a.sourceId = @taxrollId 
+   and a.slink = @slink 
 
-  select @code = code, @message = message from dbo.glCheck(@taxrollId,'taxReference')
-  if @code = 1
-  begin
-   rollback transaction
-   select '@code=1;@message=' + @message + ';'
-   return
-  end
+-- TODO: glCheck is not a tf anymore
+--  select @code = code, @message = message from dbo.glCheck(@id,@styp)
+--  if @code = 1
+--  begin
+--   rollback transaction
+--   select '@code=1;@message=' + @message + ';'
+--   return
+--  end
 
   -- post to the gl
-  exec dbo.glPost @taxrollId, 'taxReference'
+  exec dbo.glPost @id, @styp
   
   -- Check glDetail for good data
-  if (select dbo.glPostCheck(@taxrollId)) = 1 
+  if (select dbo.glPostCheck(@slink)) = 1 
   begin
    rollback transaction
    select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
@@ -145,7 +149,7 @@ begin
   end
 
   -- flag as posted
-  update taxReference set [status] = 'Posted' where id = @taxrollId
+--  update taxReference set [status] = 'Posted' where id = @taxrollId
   
  commit transaction
 

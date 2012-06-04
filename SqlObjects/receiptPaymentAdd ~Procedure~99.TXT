@@ -1,5 +1,5 @@
 create procedure dbo.receiptPaymentAdd(
- @sourceId int,
+ @receiptId int,
  @paycode varchar(50),
  @amount money,
  @checkNumber varchar(50) = '',
@@ -8,8 +8,11 @@ create procedure dbo.receiptPaymentAdd(
 )
 as
 begin
+
+ declare @styp char(1) = 'o'
  
  declare 
+  @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @code int,
   @message varchar(100),
   @receiptType varchar(50),
@@ -24,8 +27,7 @@ begin
   @suspenseAccountId = suspenseAccountId,
   @contraId =contraId,
   @fpId = fpId
- from dbo.receiptCheck(@sourceId,@paycode)
-
+ from dbo.receiptCheck(@receiptId,@paycode)
 
  -- bail if we dont have enough data
  if @code = 1
@@ -44,13 +46,13 @@ begin
  begin transaction
 
   -- add row to paid
-  insert paid (paycode,sourceId,amount,checkno,bankId)
-   select @paycode,@sourceId,@amount,@checkNumber,@bankId
+  insert paid (paycode,slink,amount,checkno,bankId)
+   select @paycode,@slink,@amount,@checkNumber,@bankId
    
   -- add to the gl stage
-  exec dbo.receiptStageGL @sourceId
-  
- if (select sum(amount) from dbo.glDetailStage where sourceId = @sourceId) <> 0
+  exec dbo.receiptStageGL @receiptId
+
+  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
    rollback transaction
   else
    commit transaction

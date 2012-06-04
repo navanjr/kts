@@ -1,7 +1,9 @@
 create procedure dbo.depositLinkPayment(@depositId int, @paymentId int, @supressOutput int = 0) as
 begin
 
+ declare @styp char(1) = 'o'
  declare 
+  @slink varchar(15) = @styp + cast(@depositId as varchar),
   @code int,
   @message varchar(500)
 
@@ -24,7 +26,7 @@ begin
 
   exec dbo.depositStagePayments @depositId
 
-  if (select sum(amount) from dbo.glDetailStage where slink = @depositId and styp='o') <> 0
+  if (select balance from dbo.glSummary(@depositId,'o')) <> 0
    rollback transaction
   else
    commit transaction

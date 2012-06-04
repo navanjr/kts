@@ -2,7 +2,10 @@ create procedure dbo.receiptDetailCRUD(
  @receiptId int 
 ) as
 begin
+
+ declare @styp char(1) = 'o'
  declare 
+  @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @receiptDetailId int,
   @description varchar(50),
   @sourceCode varchar(50),
@@ -22,6 +25,7 @@ begin
  select 
   @receiptTyp = 4502
 
+ -- retrieve the specifics from the receipt in object
  select
   @receiptDetailId = link5,
   @description = a3,
@@ -36,9 +40,9 @@ begin
   exec dbo.receiptDetailFundPayableVerification @fundCode
 
   if isnull(@receiptDetailId,0) = 0
-   insert receiptDetail (receiptId,description,subDescription,sourceCode,fundCode,amount) 
+   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
     select
-     @receiptId,
+     @slink,
      @description,
      rtrim(@sourceCode) + '/' + rtrim(@fundCode),
      @sourceCode,
@@ -56,7 +60,7 @@ begin
   -- add to the gl stage
   exec dbo.receiptStageGL @receiptId
 
- if (select sum(amount) from dbo.glDetailStage where sourceId = @receiptId) <> 0
+ if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
   rollback transaction
  else
   commit transaction

@@ -6,7 +6,9 @@ begin
   amount money
  )
  
+ declare @styp char(1) = 'o'
  declare 
+  @slink varchar(15) = @styp + cast(@depositId as varchar),
   @contraId int,
   @tokenId int,
   @tokenAmount money
@@ -30,21 +32,21 @@ begin
   where depositId = @depositId
  
  -- remove 
- delete glDetailStage where slink = @depositId and styp = 'o' and accountId not in (select accountId from @accounts)
+ delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
 
  -- update
  update a set a.amount = b.amount
  from glDetailStage a, @accounts b
  where a.accountId = b.accountId
-  and a.slink = @depositId and a.styp = 'o'
+  and a.slink = @slink
  
- delete @accounts where accountId in (select accountId from glDetailStage where sourceId = @sourceId)
+ delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
 
  -- insert
  while (select count(*) from @accounts) > 0
  begin
   select top 1 @tokenId = accountId, @tokenAmount = amount from @accounts
-  insert gldetailstage (sourceId,accountId,amount,contraId) select @sourceId,@tokenId,@tokenAmount,@contraId
+  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@contraId
   delete @accounts where accountId = @tokenId
  end
  
@@ -54,7 +56,7 @@ begin
  from glDetailStage a, object b
  where a.accountId = b.id
   and b.typ = 4701
-  and a.sourceId = @sourceId 
+  and a.slink = @slink 
 
 end
 

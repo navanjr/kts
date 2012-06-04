@@ -106,6 +106,19 @@ begin
    amount money
   )
 
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptDetail' and COLUMN_NAME = 'receiptId')
+ begin
+  begin transaction
+   alter table receiptDetail add slink varchar(15)
+   exec(N'update receiptDetail set slink = ''o''+cast(receiptId as varchar)')
+   alter table receiptDetail drop column receiptId
+   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptDetail' and COLUMN_NAME = 'receiptId')
+    rollback transaction
+   else
+    commit transaction
+ end
+
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[TaxReference]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[TaxReference](
 	[ID] [int] IDENTITY(1,1) NOT NULL,
