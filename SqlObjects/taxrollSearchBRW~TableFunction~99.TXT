@@ -1,0 +1,38 @@
+create function dbo.taxrollSearchBRW(
+ @selectedId int
+) returns @rt table(
+ invoiceId int,
+ name nvarchar(30),
+ parcel nvarchar(24),
+ taxYear numeric(5,0),
+ item numeric(7,1),
+ taxType nvarchar(1),
+ amount money,
+ due money
+)
+begin
+
+ declare
+  @name varchar(50),
+  @parcel varchar(50)
+
+ select 
+  @name = name,
+  @parcel = parcel
+ from invoices where id = @selectedId
+ 
+ if @name > '  0'
+  insert @rt
+  select id*-1,name,parcel,taxYear,item,typ,0,0
+  from dbo.invoices
+  where name = @name and id != @selectedId
+
+ if @parcel > '  0'
+  insert @rt
+  select id*-1,name,parcel,taxYear,item,typ,0,0
+  from dbo.invoices
+  where parcel = @parcel and id != @selectedId and id not in (select invoiceId from @rt)
+
+ return
+end
+
