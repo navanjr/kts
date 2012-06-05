@@ -1,18 +1,64 @@
 create function dbo.taxrollBRW(
- @searchString nvarchar(50)=''
-) returns @rettable table(
+ @taxYear varchar(10),
+ @searchString varchar(50),
+ @orderString varchar(50)
+) returns @rt table(
+ invoiceId int,
  name nvarchar(30),
  parcel nvarchar(24),
  taxYear numeric(5,0),
  item numeric(7,1),
  taxType nvarchar(1),
  amount money,
- due money
+ due money,
+ slink varchar(15)
 )
 Begin
- insert @rettable
- select name,parcel,taxYear,item,typ,0,0
- from dbo.taxReference
+
+  declare @taxYears table(yr varchar(4))
+
+  if lower(@taxYear) = 'all'
+   insert @taxYears select taxyear from invoices group by taxyear
+  else
+   insert @taxYears select @taxYear
+
+  if @searchString > '  0'
+   insert @rt
+   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(taxrollid as varchar)
+   from dbo.invoices
+   where name+' '+parcel like '%'+@searchString+'%'
+    and taxYear in (select yr from @taxYears)
+   order by case when @orderString = '01' then parcel else name end
+
+  else
+   insert @rt
+   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(taxrollid as varchar)
+   from dbo.invoices
+   where
+    taxYear in (select yr from @taxYears)
+   order by case when @orderString = '01' then parcel else name end
+
+/*
+  declare @arAccounts table(accountId int)
+  insert @arAccounts select accountId from dbo.glAccounts where accountType = 'RECEIVABLE'
+
+  declare @apAccounts table(accountId int)
+  insert @arAccounts select accountId from dbo.glAccounts where accountType = 'SOURCE'
+*/
+  declare @glSum table(slink varchar(15),arAmount money, apAmount money)
+  insert @glsum
+  select a.slink,
+   sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
+   sum(case when b.accountType != 'RECEIVABLE' then a.amount else 0.0 end)
+  from glDetail a, glAccounts b 
+  where a.accountId = b.accountId and a.slink in (select slink from @rt) 
+  group by a.slink
+
+  update a set
+   a.due = b.arAmount,
+   a.amount = b.apAmount 
+  from @rt a, @glSum b where a.slink = b.slink
+ 
 
  return
 
