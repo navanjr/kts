@@ -1,0 +1,47 @@
+create procedure dbo.taxrollSelected(
+ @receiptId int,
+ @InvoiceId int,
+ @part varchar(10),
+ @method varchar(10)
+) as 
+begin
+ 
+ -- TODO: bail if the id is not an invoice
+
+ if lower(@part) = 'full' and lower(@method) = 'tax'
+ begin
+  if exists(select * from taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId)
+   delete taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId
+  else
+   insert taxReceiptDetail (receiptId, invoiceId) select @receiptId, @invoiceId
+ end
+
+ if lower(@part) = 'full' and lower(@method) = 'name'
+ begin
+  -- TODO: we need to limit this to update to only available invoices
+  insert taxReceiptDetail (receiptId, invoiceId) 
+  select @receiptId, id from invoices 
+  where name = (select name from dbo.invoices where id = @invoiceId)
+   and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+ end
+
+ if lower(@part) = 'full' and lower(@method) = 'parcel'
+ begin
+  -- TODO: we need to limit this to update to only available invoices
+  insert taxReceiptDetail (receiptId, invoiceId) 
+  select @receiptId, id from invoices 
+  where parcel = (select parcel from dbo.invoices where id = @invoiceId)
+   and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+ end
+
+ if lower(@part) = 'full' and lower(@method) = 'reset'
+ begin
+  delete taxReceiptDetail where receiptId = @receiptId
+ end
+
+
+end
+
+
+
+

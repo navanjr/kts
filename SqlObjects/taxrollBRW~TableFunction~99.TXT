@@ -1,4 +1,5 @@
 create function dbo.taxrollBRW(
+ @receiptId int,
  @taxYear varchar(10),
  @searchString varchar(50),
  @orderString varchar(50)
@@ -11,7 +12,9 @@ create function dbo.taxrollBRW(
  taxType nvarchar(1),
  amount money,
  due money,
- slink varchar(15)
+ slink varchar(15),
+ selectedFlag char(1),
+ ord varchar(50)
 )
 Begin
 
@@ -24,28 +27,39 @@ Begin
 
   if @searchString > '  0'
    insert @rt
-   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(taxrollid as varchar)
+   select top 1000 
+    id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'','b_' 
    from dbo.invoices
    where name+' '+parcel like '%'+@searchString+'%'
     and taxYear in (select yr from @taxYears)
-   order by case when @orderString = '01' then parcel else name end
+    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
 
   else
    insert @rt
-   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(taxrollid as varchar)
+   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'','b_'
    from dbo.invoices
    where
     taxYear in (select yr from @taxYears)
-   order by case when @orderString = '01' then parcel else name end
+    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
 
-/*
-  declare @arAccounts table(accountId int)
-  insert @arAccounts select accountId from dbo.glAccounts where accountType = 'RECEIVABLE'
+  insert @rt
+  select 
+    id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'X','a_'
+  from dbo.invoices where id in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
 
-  declare @apAccounts table(accountId int)
-  insert @arAccounts select accountId from dbo.glAccounts where accountType = 'SOURCE'
-*/
-  declare @glSum table(slink varchar(15),arAmount money, apAmount money)
+  if @orderString = '10'
+   update @rt set ord = isnull(ord,'')+name
+  else
+   update @rt set ord = isnull(ord,'')+parcel
+
+  if exists(select * from taxReceiptDetail where receiptId = @receiptId)
+  begin
+   insert @rt (invoiceId,name,ord) select 0,'--Selected--',' _'
+   insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
+  end
+
+
+  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
   insert @glsum
   select a.slink,
    sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
@@ -56,13 +70,14 @@ Begin
 
   update a set
    a.due = b.arAmount,
-   a.amount = b.apAmount 
+   a.amount = b.srcAmount 
   from @rt a, @glSum b where a.slink = b.slink
- 
 
  return
 
 end
+
+
 
 
 

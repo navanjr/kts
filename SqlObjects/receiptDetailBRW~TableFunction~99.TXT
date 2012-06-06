@@ -47,10 +47,34 @@ begin
    select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
+
+  if exists(select * from dbo.taxReceiptDetail where receiptId = @receiptId)
+  begin
+
+   declare @taxInvoices table (slink varchar(15))
+   insert @taxInvoices select 't'+cast(id as varchar) from invoices where id in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+
+   insert @rettable
+   select 'ea',0,'','',0
+   insert @rettable
+   select 'eb',0,'GL Detail (posted via Tax Invoice)','',0
+   insert @rettable
+   select 'ec'+a.slink+'b',0,'      '+a.accountDesc,lower(b.accountType),a.amount
+   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink in (select slink from @taxInvoices)
+
+   insert @rettable
+   select 'ec'+a.slink+'a',0,'   '+b.name,b.parcel,0
+   from @taxInvoices a, invoices b
+   where a.slink = 't'+cast(b.id as varchar)
+ 
+  end
+
  end
 
  return
 end
+
+
 
 
 
