@@ -1,4 +1,4 @@
-create function dbo.receiptCheck(@sourceId int, @paycode varchar(50) = null) returns
+create function dbo.officialDepositCheck(@sourceId int, @paycode varchar(50) = null) returns
 @rettable table(
  code int,
  message varchar(500),
@@ -17,6 +17,7 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
+  @arAccountCode varchar(50),
   @arAccountId int,
   @fpid int,
   @status varchar(50),
@@ -26,7 +27,8 @@ begin
   @cdate = cast(key2 as int),
   @receiptType = key3,
   @status = a17,
-  @objectTyp = typ
+  @objectTyp = typ,
+  @arAccountCode = a2
  from object where id = @sourceId
 
  -- check for status of Posted
@@ -45,7 +47,7 @@ begin
    select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
   return
  end
-
+/*
  -- check for contra account id
  select @contraId = id from object where typ = 4701 and key3 = @receiptType 
  if isnull(@contraId,0) = 0
@@ -54,9 +56,9 @@ begin
    select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp
   return
  end
-
+*/
  -- check for AR account
- select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+ select @arAccountId = id from object where typ = 4701 and key1 = @arAccountCode 
  if isnull(@arAccountId,0) = 0
  begin
   insert @rettable
@@ -81,11 +83,5 @@ begin
  return
 
 end
-
-
-
-
-
-
 
 
