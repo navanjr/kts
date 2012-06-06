@@ -1,4 +1,5 @@
 create function dbo.taxrollSearchBRW(
+ @receiptId int,
  @selectedId int
 ) returns @rt table(
  invoiceId int,
@@ -8,7 +9,9 @@ create function dbo.taxrollSearchBRW(
  item numeric(7,1),
  taxType nvarchar(1),
  amount money,
- due money
+ due money,
+ slink varchar(15),
+ selectedFlag char(1)
 )
 begin
 
@@ -23,15 +26,31 @@ begin
  
  if @name > '  0'
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,0,0
+  select id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),''
   from dbo.invoices
   where name = @name and id != @selectedId
 
  if @parcel > '  0'
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,0,0
+  select id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),''
   from dbo.invoices
   where parcel = @parcel and id != @selectedId and id not in (select invoiceId from @rt)
+
+  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
+  insert @glsum
+  select a.slink,
+   sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
+   sum(case when b.accountType != 'RECEIVABLE' then a.amount else 0.0 end)
+  from glDetail a, glAccounts b 
+  where a.accountId = b.accountId and a.slink in (select slink from @rt) 
+  group by a.slink
+
+  update a set
+   a.due = b.arAmount,
+   a.amount = b.srcAmount 
+  from @rt a, @glSum b where a.slink = b.slink
+
+
 
  return
 end

@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077226.3486;
+@lastedit=0077226.9967;
 
 ###---###---###---###---###
 @menuprocess=
@@ -15,43 +15,42 @@
  create(150,12,110,3,'Unpaid',28),
  create(151,10,170,3,'Order By:'),
  create(152,12,210,3,'Name',32),
- create(153,12,250,3,'Parcel',34);
+ create(153,12,250,3,'Parcel',34),
+ createbrw=;
 
-@afterloadwindow=createbrw=;
 @dk1;
 @createbrw=
   kpmo('Selecting Taxroll Data...'),
-  gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,'''' from dbo.taxrollBRW('''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&''')',
-  brw(160,1,gcsql,3,15,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',,,),
-  gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,'''' from dbo.taxrollSearchBRW(0)',
-  brw(161,2,gcsql2,3,145,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',,,),
-  tsc,
+  gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&''') order by ord',
+  brw(160,1,gcsql,3,15,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35C(2)~Sel~#9#|M',7,1),
+  gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollSearchBRW('&obj:id&',0)',
+  brw(161,2,gcsql2,3,145,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',7,1),
   kpmc();
+
+@brw1=
+ break(kpbrwid(1)=0),
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
+ refreshBRW=;
+@brw2=
+ break(kpbrwid(1)=0),
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
+ refreshBRW=;
 
 @newselbrw160=
  lcSearchId=kpbrwid(1)*-1,
  break(lcSearchId+0<1),
- gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,'''' from dbo.taxrollSearchBRW('&lcSearchId&')',
- brwreload(2,gcsql2),
- tsc;
+ gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollSearchBRW('&obj:id&','&lcSearchId&')',
+ brwreload(2,gcsql2);
  
-
- brw(161,2,'select id,key1,key2,key3,a1,a2,c1,c2,case when link5='&obj:id&' and olink5<>''half'' then ''X'' when link5='&obj:id&' and olink5=''half'' then olink5 else '''' end from object where typ=4001 and id<>'&obj7:id&' and key3='''&obj7:key3&''' and key3>'' 0'' and cast(c2 as money)>0.00 order by key3,key1',3,145,400,60,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',,,),
-
-
-create(171,10,3,209,'Unpaids by Name'),
-brw(162,3,'select id,key1,key2,key3,a1,a2,c1,c2,case when link5='&obj:id&' and olink5<>''half'' then ''X'' when link5='&obj:id&' and olink5=''half'' then olink5 else '''' end from object where typ=4001 and id<>'&obj7:id&' and key1='''&obj7:key1&''' and key1>'' 0'' and cast(c2 as money)>0.00 order by key1,key3',3,217,400,60,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',,,),
-brw(163,4,'select id,a2,e1 from object where typ=4002 and (key2='''&obj7:key1&''' or len(key2)<1) and (key1='''&obj7:key3&''' or len(key1)<1) and (key3='''&obj7:a1&''' or len(key3)<1) and (a1='''&obj7:key2&''' or len(a1)<1)',3,279,400,60,'45L(2)~Date~@d2@#2#|M400L(2)~Comment~#3#|M',,,),
-tsc,focus(160);
-
 @acc152=if(obj:a13+0>0,set(34,0),set(34,1)),tsc,refreshBRW=;
 @acc153=if(obj:a14+0>0,set(32,0),set(32,1)),tsc,refreshBRW=;
 
 @refreshBRW=
   kpmo('Selecting Taxroll Data...'),
-  gcsql='select 0,name,taxyear,parcel,item,taxType,amount,due,'''' from dbo.taxrollBRW('''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&''')',
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&''') order by ord',
   brwreload(1,gcsql),
-  kpmc(); 
+  brwreload(2),
+  kpmc();
 
 \t001&Year; \w00230; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
 
@@ -65,13 +64,28 @@ tsc,focus(160);
  \x078-100;
  @acc078=createbrw=,focus(160);
 
-\t108Add Comment;
-  @acc108=gcbrwid=kpbrwid(1),break(gcbrwid+0<1),get(gcbrwid),neww(4002,,002=obj7:key3,004=obj7:key1,006=obj7:a1,008=obj7:key2),brwreload(4),focus(160);
+\t108New &Receipt;
+@acc108=new(4502,3,-14='TAX',-68=obj:id);
+
+\t109Add Comment;
+  @acc109=gcbrwid=kpbrwid(1),break(gcbrwid+0<1),get(gcbrwid),neww(4002,,002=obj7:key3,004=obj7:key1,006=obj7:a1,008=obj7:key2),brwreload(4),focus(160);
 
 \t110[Un]&Select Full;
-  @acc110=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
-lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
-if(lcmarked=obj:id and lchalf<'0',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5='''' where typ=4001 and id='&gcbrwid)),brwreload(1),brwreload(2),brwreload(3);
+@acc110=
+ break(kpbrwid(1)=0),
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
+ refreshBRW=;
+
+ gcbrwid=kpbrwid(),
+ m(gcbrwid);
+ if(gcbrwid+0<1,m('Please select a tax item to mark.')),
+ break(gcbrwid+0<1),
+ lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
+ lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
+ if(lcmarked=obj:id and lchalf<'0',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5='''' where typ=4001 and id='&gcbrwid)),
+ brwreload(1),
+ brwreload(2),
+ brwreload(3);
 
 \t111[Un]Select &Half;
   @acc111=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
@@ -79,15 +93,20 @@ lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
 if(lcmarked=obj:id and lchalf='half',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5=''half'' where typ=4001 and id='&gcbrwid)),brwreload(1),brwreload(2),brwreload(3);
 
 \t112UnSelect &All;
-  @acc112=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),
-sql('update object set link5=0,olink5='''' where typ=4001 and link5='&obj:id),brwreload(1),brwreload(2),brwreload(3);
+@acc112=
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''reset'''),
+ refreshBRW=;
 
 \t115Select &Parcel;
-  @acc115=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),get(gcbrwid),break(len(obj7:key3)<2),
-sql('update object set link5='&obj:id&' where typ=4001 and key3='''&obj7:key3&''' and cast(c2 as money)>0.00'),brwreload(1),brwreload(2),brwreload(3);
+@acc115=
+ break(kpbrwid(1)=0),
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''parcel'''),
+ refreshBRW=;
 
 \t120Select &Name;
-  @acc120=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),get(gcbrwid),
-sql('update object set link5='&obj:id&' where typ=4001 and key1='''&obj7:key1&''' and cast(c2 as money)>0.00'),brwreload(1),brwreload(2),brwreload(3);
+@acc120=
+ break(kpbrwid(1)=0),
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''name'''),
+ refreshBRW=;
 
-\t118View G/L; @acc118=new(4793,,-03=kpbrwid(3))
+\t118View G/L; @acc118=new(4793,,-68='t'&kpbrwid(1)*-1)

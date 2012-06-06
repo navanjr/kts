@@ -2,6 +2,7 @@ CREATE function [dbo].[taxrollCheck](@id int) returns
 @rettable table(
  code int,
  message varchar(500),
+ slink varchar(15),
  taxyear varchar(4),
  district varchar(15),
  rateName varchar(15),
@@ -15,7 +16,7 @@ begin
  declare @styp char(1) = 't'
  
  declare
-  @slink varchar(15) = @styp + cast(@id as varchar),
+  @slink varchar(15),
   @cdate int,
   @fpid int,
   @status varchar(50),
@@ -27,7 +28,7 @@ begin
   @debitId int
 
   set @fpid=0
- 
+
   begin 
    -- TODO: allow for an "as of" date for importing and posting of tax rolls
    select 
@@ -35,16 +36,24 @@ begin
     @district = case when [SCHOOLDISTRICTMAIN] > ' 0' then [SCHOOLDISTRICTMAIN] else [ORGSCHOOLDISTRICTMAIN] end,
     @rateName = case when [SCHOOLDISTRICTTAXRATE] > ' 0' then [SCHOOLDISTRICTTAXRATE] else [ORGSCHOOLDISTRICTTAXRATE] end,
     @amount = case when [TOTALDUE]>0.00 then [TOTALDUE] else [ORIGINALTOTALDUE] end,
-    @cdate = dbo.clariondate(getdate()),
-    @status = ''
+    @cdate = dbo.clariondate(getdate())
    from adtax where id = @id
   end 
+
+ -- check for invoice
+ if not exists(select * from invoices where taxrollid = @id)
+ begin
+  insert @rettable 
+   select 1,'there is no invoice for this taxroll item',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+ select @slink = @styp + cast(id as varchar) from invoices where taxrollid = @id
 
  -- check for status of Posted
  if exists(select * from glDetail where slink = @slink)
  begin
   insert @rettable 
-   select 1,'Tax item has already been posted.',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
 
@@ -53,7 +62,7 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Fiscal Period is locked or does not exist.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
 
@@ -61,7 +70,7 @@ begin
  if @taxYear < '  0'
  begin
   insert @rettable 
-   select 1,'Tax Year invalid',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Tax Year invalid',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
 
@@ -71,12 +80,15 @@ begin
  if isnull(@debitId,0) = 0
  begin
   insert @rettable 
-   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
   return
  end
+
+ if dbo.isPosted(@slink) = 'TRUE'
+  set @status = 'Posted'
  
  insert @rettable
-  select 0,'OK',@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  select 0,'OK',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
  return
 
 end

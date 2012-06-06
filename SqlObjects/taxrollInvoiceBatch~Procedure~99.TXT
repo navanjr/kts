@@ -8,23 +8,48 @@ begin
 
  declare 
   @sql varchar(500),
-  @idToken int
+  @idToken int,
+  @slink varchar(15),
+  @resultTally int
  
  set @sql = 'select top ' + cast(@processCount as varchar) + ' id into temp_taxrollInvoice from adtax where [RealTaxYear] = ''' + @taxYear + '''
   and [TOTALDUE]+[ORIGINALTOTALDUE] > 0 and id not in (select taxrollId from invoices where taxyear = '+@taxYear+')'
 
  exec( @sql )
 
+ declare @rt table(id int, resultInt int) 
+
  while exists(select * from temp_taxrollInvoice)
  begin
   select top 1 @idToken = id from temp_taxrollInvoice
-  exec dbo.taxReferenceCRUD @idToken
-  exec dbo.taxrollInvoiceCRUD @idToken
-  delete temp_taxrollInvoice where id = @idToken
+  begin transaction
+   exec dbo.taxReferenceCRUD @idToken
+   exec dbo.taxrollInvoiceCRUD @idToken
+  
+   select @slink = slink from dbo.taxrollCheck(@idToken)
+   if dbo.glPostCheck(@slink) = 0
+   begin
+    insert @rt select @idToken, 0
+    commit transaction
+   end
+   else
+   begin 
+    insert @rt select @idToken, 0
+    rollback transaction
+   end
+
+   delete temp_taxrollInvoice where id = @idToken
+
  end
 
  drop table temp_taxrollInvoice
-  
+
+ select @resultTally = count(*) from @rt where resultInt = 0
+
+ if isnull(@resultTally,0) = @processCount
+  select '@code=0;@message=OK;'
+ else
+  select '@code=1;@message='+cast(@processCount - isnull(@resultTally,0) as varchar)+' records failed to process correctly, Contact Support. (tx.inv.Batch);'
 
 end
 
