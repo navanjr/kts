@@ -19,20 +19,18 @@ begin
  declare @beginFPIds table(fpId int)
  insert @beginFPIds select id from object where typ = 4700 and key1 < @fpCode 
  declare @glTypes table(glType varchar(50))
- if charindex('B',@glTypeFilter)>0 or @glTypeFilter='A'
-    begin
-      insert @glTypes select 'BANK'
-    end
- if charindex('F',@glTypeFilter)>0 or @glTypeFilter='A'
-    begin
-      insert @glTypes select 'FUND'
-    end
- if charindex('P',@glTypeFilter)>0 or @glTypeFilter='A'
-    begin
-      insert @glTypes select 'PAYABLE'
-      insert @glTypes select 'RECEIVABLE'
-    end
-
+ if charindex('B',@glTypeFilter) > 0 
+  insert @glTypes select 'BANK'
+ if charindex('F',@glTypeFilter) > 0
+  insert @glTypes select 'FUND'
+ if charindex('P',@glTypeFilter) > 0
+  begin
+   insert @glTypes select 'PAYABLE'
+   insert @glTypes select 'RECEIVABLE'
+  end
+ if @glTypeFilter in ('A','AZ')
+  insert @glTypes select a1 from object where typ = 4701 and a1 not in (select glType from @glTypes) group by a1 
+ 
  declare @bbal table(id int, amount money, cnt int)
  declare @cbal table(id int, amount money, cnt int)
 
