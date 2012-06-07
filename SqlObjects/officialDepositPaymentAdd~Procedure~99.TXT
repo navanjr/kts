@@ -1,4 +1,4 @@
-create procedure dbo.receiptPaymentAdd(
+create procedure dbo.officialDepositPaymentAdd(
  @receiptId int,
  @paycode varchar(50),
  @amount money,
@@ -23,13 +23,8 @@ begin
   
  select 
   @code = code,
-  @message = message,
-  @receiptType = receiptType,
-  @suspenseAccountId = suspenseAccountId,
-  @contraId =contraId,
-  @fpId = fpId,
-  @objectTyp = objectTyp
- from dbo.receiptCheck(@receiptId,@paycode)
+  @message = message
+ from dbo.officialDepositCheck(@receiptId,@paycode)
 
  -- bail if we dont have enough data
  if @code = 1
@@ -52,7 +47,7 @@ begin
    select @paycode,@slink,@amount,@checkNumber,@bankId
    
   -- add to the gl stage
-  exec dbo.receiptStageGL @receiptId
+  exec dbo.officialDepositStageGL @receiptId
 
   if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
   begin

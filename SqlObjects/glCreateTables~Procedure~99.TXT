@@ -133,12 +133,16 @@ begin
 	[STATUS] [nvarchar] (10) NOT NULL
    ) ON [PRIMARY]
 
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'assessmentId')
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and not COLUMN_NAME = 'receiptId')
  begin
-  begin transaction
-   alter table invoices add assessmentId int not null default 0 
-  commit transaction
+   alter table invoices add receiptId int not null default 0
  end
+ 
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and not COLUMN_NAME = 'assessmentId')
+ begin
+   alter table invoices add assessmentId int not null default 0
+ end
+ 
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxReceiptDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[taxReceiptDetail](
