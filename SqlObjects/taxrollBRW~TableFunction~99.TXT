@@ -21,7 +21,7 @@ Begin
   declare @taxYears table(yr varchar(4))
 
   if lower(@taxYear) = 'all'
-   insert @taxYears select taxyear from invoices group by taxyear
+   insert @taxYears select cast(taxyear as varchar (4)) from invoices group by taxyear
   else
    insert @taxYears select @taxYear
 
@@ -31,7 +31,7 @@ Begin
     id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'','b_' 
    from dbo.invoices
    where name+' '+parcel like '%'+@searchString+'%'
-    and taxYear in (select yr from @taxYears)
+    and cast(taxYear as varchar) in (select yr from @taxYears)
     and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
 
   else
@@ -39,7 +39,7 @@ Begin
    select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'','b_'
    from dbo.invoices
    where
-    taxYear in (select yr from @taxYears)
+    cast(taxYear as varchar) in (select yr from @taxYears)
     and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
 
   insert @rt
