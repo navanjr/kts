@@ -1,4 +1,4 @@
-create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0) as
+create procedure dbo.taxrollInvoiceCRUD(@id int) as
 begin
 
  declare @styp char(1) = 't'
@@ -14,12 +14,9 @@ begin
   @arAccountId = debitId,
   @slink = slink
  from dbo.taxrollCheck(@id)
- if @code = 1 
+ if @code = 1
  begin
-  if @smode=0
-   begin
-    select '@code=1;@message=' + @message + ';'
-   end
+  select '@code=1;@message=' + @message + ';'
   return
  end
 
@@ -38,10 +35,7 @@ begin
 
  if not exists(select * from @invd)
  begin
-  if @smode = 0
-   begin
-    select '@code=1;@message=No tax rate detail available.;'
-   end
+  select '@code=1;@message=No tax rate detail available.;'
   return
  end
 
@@ -86,28 +80,19 @@ begin
   if exists(select * from @invd where isnull(sourceId,0) = 0)
   begin
    rollback transaction
-   if @smode = 0
-    begin
-     select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
-    end
+   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
    return
   end
   if exists(select * from @invd where isnull(fundId,0) = 0)
   begin
    rollback transaction
-   if @smode = 0
-    begin
-     select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
-    end
+   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
    return
   end
   if (select sum(amount) from @invd) = 0
   begin
    rollback transaction
-   if @smode = 0
-    begin
-     select '@code=1;@message=No amount exists to stage GL.;'
-    end
+   select '@code=1;@message=No amount exists to stage GL.;'
    return
   end
 
@@ -159,16 +144,13 @@ begin
 
   -- post to the gl
   declare @test int = substring(@slink,2,14)
-  exec dbo.glPost @test, @styp, @smode
+  exec dbo.glPost @test, @styp
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 
   begin
    rollback transaction
-   if @smode = 0
-    begin
-     select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
-    end
+   select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
    return
   end
 

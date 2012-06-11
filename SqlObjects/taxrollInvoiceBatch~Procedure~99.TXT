@@ -12,12 +12,6 @@ begin
   @slink varchar(15),
   @resultTally int
  
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_taxrollInvoice')
- begin
-  drop table temp_taxrollInvoice
- end
-
-
  set @sql = 'select top ' + cast(@processCount as varchar) + ' id into temp_taxrollInvoice from adtax where [RealTaxYear] = ''' + @taxYear + '''
   and [TOTALDUE]+[ORIGINALTOTALDUE] > 0 and id not in (select taxrollId from invoices where taxyear = '+@taxYear+')'
 
@@ -30,7 +24,7 @@ begin
   select top 1 @idToken = id from temp_taxrollInvoice
   begin transaction
    exec dbo.taxReferenceCRUD @idToken
-   exec dbo.taxrollInvoiceCRUD @idToken, 1
+   exec dbo.taxrollInvoiceCRUD @idToken
   
    select @slink = slink from dbo.taxrollCheck(@idToken)
    if dbo.glPostCheck(@slink) = 0

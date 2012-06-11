@@ -1,37 +1,60 @@
 CREATE function dbo.dailydata(@theDate int, @days int) returns 
-@rettable table (
+@rt table (
  id int,
  ord varchar(10),
  rowstring varchar(250)
 )
 begin
- insert @rettable
-  select 0,'  ',''
-
- insert @rettable
-  select 0,'AA','   Collections'
-
- insert @rettable
-  select 0,'AB',replicate('-',70)
-
- insert @rettable 
+ declare @showDetail table(id int)
+ insert @showDetail select 4522
+ declare @rawData table(
+  amount money,
+  tname varchar(50),
+  typ int,
+  num varchar(50),
+  slink varchar(15),
+  ord char(1)
+ )
+ insert @rawData
  select
-  c.id * -1, 
-  'AZ',
-  '   ' + dbo.padRight(c.template,' ',30)
-  + dbo.padLeft(cast(min(key1) as varchar),0,5)
-  + ' - ' + dbo.padLeft(cast(max(key1) as varchar),0,5)
-  + ' ' + dbo.padLeft(cast(count(distinct slink) as varchar),' ',4)
-  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
+  a.amount,
+  case when b.Typ in (select id from @showDetail) then b.a1 else c.Template end,
+  b.Typ,
+  b.key1,
+  a.slink,
+  ''
  from glDetail a, object b, template c 
  where a.slink = 'o'+cast(b.id as varchar) and b.typ = c.id
    and a.date between @theDate and @thedate + @days
    and a.amount > 0
- group by c.id, c.template
+
+ update @rawData set ord = 'A'
+ update @rawData set ord = 'B' where typ in (select id from @showDetail)
+
+ insert @rt
+ select
+  typ * -1, 
+  ord+'C',
+  '   ' + dbo.padRight(tname,' ',30)
+  + dbo.padLeft(cast(min(num) as varchar),0,5)
+  + ' - ' + dbo.padLeft(cast(max(num) as varchar),0,5)
+  + ' ' + dbo.padLeft(cast(count(distinct slink) as varchar),' ',4)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from @rawData 
+ group by ord, typ, tname
+
+ insert @rt select 0,'A ',''
+ insert @rt select 0,'AA','   Collections'
+ insert @rt select 0,'AB',replicate('-',70)
+
+ insert @rt select 0,'B ',''
+ insert @rt select 0,'BA','   Deposits by Officers'
+ insert @rt select 0,'BB',replicate('-',70)
 
  return
 
 end
+
 
 
 
