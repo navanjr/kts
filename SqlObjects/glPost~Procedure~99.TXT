@@ -1,4 +1,4 @@
-create procedure dbo.glPost (@id int, @styp char(1)) 
+create procedure dbo.glPost (@id int, @styp char(1), @smode int = 0) 
 as 
 begin
 
@@ -75,17 +75,23 @@ begin
     commit transaction
    end
    else
-   begin
-    select @code = 1, @message = 'Posting transaction was rolled back.  oops.  please contact support.'
+   begin 
+    if @smode=0
+     begin
+      select @code = 1, @message = 'Posting transaction was rolled back.  oops.  please contact support.'
+     end
     rollback transaction
    end
-
-  select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
+  if @smode=0
+   begin
+    select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
+   end
   return
  end
 
  return
 end
+
 
 
 
