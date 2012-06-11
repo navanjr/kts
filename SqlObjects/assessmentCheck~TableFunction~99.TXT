@@ -1,0 +1,73 @@
+create function dbo.assessmentCheck(@sourceId int) returns
+@rettable table(
+ code int,
+ message varchar(500),
+ receiptType varchar(50),
+ suspenseAccountId int, 
+ contraId int,
+ arAccountId int,
+ fpid int,
+ status varchar(50),
+ objectTyp int
+)
+begin
+ 
+ declare
+  @cdate int,
+  @receiptType varchar(50),
+  @suspenseAccountId int,
+  @contraId int,
+  @arAccountId int,
+  @fpid int,
+  @status varchar(50),
+  @objectTyp int
+
+ select
+  @cdate = cast(key2 as int),
+  @receiptType = 'TAX'+a18,
+  @status = a17,
+  @objectTyp = typ
+ from object where id = @sourceId
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable 
+   select 1,'Assessment has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+  return
+ end
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
+ if @fpid = 0
+ begin
+  insert @rettable 
+   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+  return
+ end
+
+ -- check for contra account id
+ select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+ if isnull(@contraId,0) = 0
+ begin
+  insert @rettable
+   select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp
+  return
+ end
+
+ -- check for AR account
+ select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+ if isnull(@arAccountId,0) = 0
+ begin
+  insert @rettable
+   select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+  return
+ end
+
+ 
+ insert @rettable
+  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+ return
+
+end
+
