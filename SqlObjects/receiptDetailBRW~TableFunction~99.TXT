@@ -14,6 +14,22 @@ begin
  insert @rettable
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink
 
+ if exists(select * from dbo.taxReceiptDetail where receiptId = @receiptId)
+ begin
+  insert @rettable
+  select 'aa',0,
+
+ MAX(c.NAME),
+ max(c.PARCEL),
+ SUM(b.amount)
+from taxReceiptDetail a, receiptDetail b, invoices c
+where 't'+CAST(a.invoiceId as varchar) = b.slink
+ and a.invoiceId = c.ID
+ and receiptId = @receiptId
+group by c.id
+
+ end
+
  if exists(select * from dbo.paid where slink = @slink)
  begin
   insert @rettable
