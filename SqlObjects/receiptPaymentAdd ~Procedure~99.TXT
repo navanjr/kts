@@ -18,7 +18,8 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
-  @fpId int
+  @fpId int,
+  @objectTyp int
   
  select 
   @code = code,
@@ -26,7 +27,8 @@ begin
   @receiptType = receiptType,
   @suspenseAccountId = suspenseAccountId,
   @contraId =contraId,
-  @fpId = fpId
+  @fpId = fpId,
+  @objectTyp = objectTyp
  from dbo.receiptCheck(@receiptId,@paycode)
 
  -- bail if we dont have enough data
@@ -53,7 +55,11 @@ begin
   exec dbo.receiptStageGL @receiptId
 
   if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
+  begin
    rollback transaction
+   select '@code=1;@message=Payment transaction was rolled back. Contact Support.;'
+   return
+  end
   else
    commit transaction
 
@@ -66,3 +72,7 @@ end
 
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> nate

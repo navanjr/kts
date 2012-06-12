@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077223.8473;
+@lastedit=0077227.5244;
 
 ###---###---###---###---###
 @wbgcolor=12701121;
@@ -16,8 +16,8 @@
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 
-
 @loadwindow=
+ if(tier=3,procTier3=),
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0),
  create(165,9,3,291,'&Apply Payment'),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
@@ -25,6 +25,10 @@
  setMiscReceiptAcct=,
  brwstuff=;
 @select=008;
+
+@procTier3=
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:olink1&','&obj:id);
+ 
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
  gcbrw1sql='select id,description,subdescription,amount from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&')order by ord',
@@ -93,7 +97,7 @@
   if(gcretval=2,postAndPrint=);\d046;
  \w04204687;r2
 
-\t087Due; \t088@n14.2;  \s088-'select sum(amount) from receiptDetail where slink=''o'&obj:id&''''; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
+\t087Due; \t088@n14.2;  \s088-'select dbo.receiptDue('&obj:id&')'; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
 \t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&'''';
  \y087283; \y088282; \x087250; \x088278;
  \y089294; \y090293; \x089250; \x090278;
@@ -118,7 +122,7 @@
 @miscDetail=
  break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
  update,
- d1select('exec receiptDetailCRUD '&obj:id),
+ d1select('exec receiptDetailCRUD '&obj:id&','&obj:type),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
  break(readstring(obj7:d1,'@code=')=1),
  blankEm=,

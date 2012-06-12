@@ -1,0 +1,50 @@
+create procedure dbo.officialDepositPaymentRemove(@paymentId int, @receiptId int) as
+begin
+
+ declare 
+  @code int,
+  @message varchar(100),
+  @receiptType varchar(50),
+  @suspenseAccountId int,
+  @contraId int,
+  @fpId int
+  
+ select 
+  @code = code,
+  @message = message,
+  @receiptType = receiptType,
+  @suspenseAccountId = suspenseAccountId,
+  @contraId =contraId,
+  @fpId = fpId
+ from dbo.officialDepositCheck(@receiptId,null)
+
+ -- bail if we dont have enough data
+ if @code = 1
+ begin
+  select '@code=1;@message=' + @message + ';'
+  return
+ end
+
+ begin transaction
+  delete paid where id = @paymentId
+  
+  -- add to the gl stage
+  exec dbo.officialDepositStageGL @receiptId
+
+  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
+   rollback transaction
+  else
+   commit transaction
+
+ select '@code=0;@message=Payment removed OK.;'
+ return
+
+end
+
+
+
+
+
+
+
+

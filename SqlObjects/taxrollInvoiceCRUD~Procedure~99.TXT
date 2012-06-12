@@ -3,12 +3,17 @@ begin
 
  declare @styp char(1) = 't'
  declare
-  @slink varchar(15) = @styp + cast(@id as varchar),
+  @slink varchar(15),
   @code int,
   @arAccountId int,
   @message varchar(500)
 
- select @code = code, @message = message, @arAccountId = debitId from dbo.taxrollCheck(@id)
+ select
+  @code = code,
+  @message = message,
+  @arAccountId = debitId,
+  @slink = slink
+ from dbo.taxrollCheck(@id)
  if @code = 1
  begin
   select '@code=1;@message=' + @message + ';'
@@ -138,7 +143,8 @@ begin
 --  end
 
   -- post to the gl
-  exec dbo.glPost @id, @styp
+  declare @test int = substring(@slink,2,14)
+  exec dbo.glPost @test, @styp
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 
@@ -154,6 +160,7 @@ begin
  commit transaction
 
 end
+
 
 
 
