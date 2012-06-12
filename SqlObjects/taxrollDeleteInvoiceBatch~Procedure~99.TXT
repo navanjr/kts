@@ -1,0 +1,53 @@
+create procedure dbo.taxrollDeleteInvoiceBatch(
+ @taxYear varchar(4),
+ @mode int = 0
+) as
+begin
+
+ -- mode 0 means return impact stats
+ -- mode 1 means go ahead and remove the data
+ 
+ declare @inv table(slink varchar(15))
+ insert @inv select 't'+cast(id as varchar(15)) from invoices where taxyear = @taxYear
+
+
+ if @mode = 0
+ begin
+
+  declare 
+   @invoiceCount int,
+   @receiptDetailCount int,
+   @glDetailCount int,
+   @glDetailSum money
+  
+  select
+   @invoiceCount = count(*) from @inv
+  select 
+   @receiptDetailCount = count(*) from receiptDetail where slink in (select slink from @inv)
+  select 
+   @glDetailCount = count(*), @glDetailSum = sum(amount) from glDetail where slink in (select slink from @inv)
+  
+  select 
+   invoices=@invoiceCount,
+   receiptDetail=@receiptDetailCount,
+   glDetail=@glDetailCount,
+   glDetailSum=@glDetailSum
+
+ end
+
+ if @mode = 1
+ begin
+
+  begin transaction
+  delete invoices where taxyear = @taxYear
+  delete receiptDetail where slink in (select slink from @inv)
+  delete glDetail where slink in (select slink from @inv)
+
+  if (select SUM(amount) from glDetail) = 0
+   commit transaction
+  else 
+   rollback transaction
+ 
+ end
+
+end
