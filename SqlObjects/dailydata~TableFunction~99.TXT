@@ -44,12 +44,29 @@ begin
  group by ord, typ, tname
 
  insert @rt select 0,'A ',''
- insert @rt select 0,'AA','   Collections'
+ insert @rt select 0,'AA','  Collections'
  insert @rt select 0,'AB',replicate('-',70)
 
  insert @rt select 0,'B ',''
- insert @rt select 0,'BA','   Deposits by Officers'
+ insert @rt select 0,'BA','  Deposits by Officers'
  insert @rt select 0,'BB',replicate('-',70)
+
+ declare @paycodes table(id int)
+ insert @paycodes select link1 from object where typ = 4505 and link1 > 0
+
+ insert @rt
+ select
+  0, 
+  'CC',
+  '   ' + dbo.padRight(accountDesc,' ',48)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from glDetail where accountId in (select id from @paycodes)
+ group by accountDesc
+ having sum(amount) != 0
+
+ insert @rt select 0,'C ',''
+ insert @rt select 0,'CA','  Suspense Accounts'
+ insert @rt select 0,'CB',replicate('-',70)
 
  return
 
