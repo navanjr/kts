@@ -1,0 +1,49 @@
+@id=4020;
+@template=Invoice;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077233.7610;
+
+###---###---###---###---###
+@noupdate;
+@menuprocess=new(4020,,-68=gcSourceId);
+@afterloadbrowse=
+ if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0),
+ new(4020,,-68=gcSourceId);
+@select=151;
+
+@loadwindow=
+ if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0),
+ brwstuff=;
+
+@gcvar=
+ gcsql='select 0,ord,fieldName,fieldValue from dbo.invoiceRow('&choose(obj:olink1>'  0',obj:olink1,0)&') order by ord',
+ gcbrw1sql='select id,description,subdescription,amount from dbo.glDetailBRW(''t'&obj:olink1&''','&choose(lcShowGL=1,'1','0')&')order by ord';
+
+@brwstuff=
+ lcShowGL=readstring(cur:options,'@showgl='),
+ gcvar=,
+ brw(150,1,gcsql,1,2,250,50,
+  '60L(3)~~#3#|M500L(3)~~#4#|M'
+  ,10,1),
+ prop(150,7cfah,13499135),
+ prop(150,7c10h,'Verdana'),
+ prop(150,7c11h,9),
+ prop(0,7cfbh,0),
+ prop(0,7cfch,BEBEEEH),
+ brw(151,2,gcbrw1sql,1,80,270,200,
+  '138L(2)~~#2#M
+100L(2)~~#3#M
+50R(2)~Amount~@n-14.2b@#4#M
+',7,1),
+ prop(151,7CFAH,13499135);
+@lbrw2forecolor=obj7:c10<0,255;
+
+@gfwindow=
+ gcvar=,
+ brwreload(1,gcsql);
+
+
+

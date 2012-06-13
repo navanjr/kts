@@ -1,28 +1,21 @@
-@id=4502;
-@template=Receipts;
+@id=4016;
+@template=Invoice;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077232.6863;
+@lastedit=0077233.3855;
 
 ###---###---###---###---###
+@noupdate;
+@dk1;
 @wbgcolor=12701121;
 @lmode=2;
-@loadbrowse=
- if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0);
-
-@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
-@filtername=All,Posted,Un-Posted;
-@filter='1=1','a17=''Posted''','a17<>''Posted''';
 
 @loadwindow=
  if(tier=3,procTier3=),
  if(instring('@group=Developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0),
- create(165,9,3,291,'&Apply Payment'),
- if(obj:a17='Posted',prop(165,'7C65H',1)),
  create(45,9),
- setMiscReceiptAcct=,
  brwstuff=;
 @select=008;
 
@@ -31,10 +24,10 @@
  
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
- gcbrw1sql='select id,description,subdescription,amount from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&')order by ord',
+ gcbrw1sql='select id,description,subdescription,amount from dbo.receiptDetailBRW('&obj:link5&','&choose(lcShowGL=1,'1','0')&',''t'')order by ord',
  brw(150,1,gcbrw1sql,65,81,270,200,
   '138L(2)~~#2#M
-80L(2)~~#3#M
+100L(2)~~#3#M
 50R(2)~Amount~@n-14.2b@#4#M
 ',7,1),
  prop(150,7CFAH,13499135);
@@ -47,11 +40,11 @@
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
-\t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
-\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
+\t001Item Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
+\t003&Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
  \w00200455;r2
-\t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
-\t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
+\t005Statement Type; \w00612; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\t007Name;   \d008obj:a17='Posted';
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012;
@@ -64,65 +57,29 @@
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
  \h012018obj:a17='Posted';r2
 
-\t019Paycode; \l0204505; \w02050;
-\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
-\t023Check #; \w02450; @acc024=acc165=;
- \h019024obj:a17='Posted';r
- \y019283; \x01965; \y020293; \x02065;
- \y021283; \x021120; \y022293; \x022120;
- \y023283; \x023175; \y024293; \x024175;
-
-@acc165=
- lcBreak=0,
- break(obj:a17='Posted'),
- evalPaycode=,break(lcBreak),
- evalAmount=,break(lcBreak),
- evalCheck=,break(lcBreak),
- d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0'),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
- break(readstring(obj7:d1,'@code=')=1),
- refreshDetail=,
- blankEm=,
- focus(020);
-
-@evalPaycode=if(obj:a7<'  0',focus(020)),if(obj:a7<'  0',lcBreak=1);
-@evalAmount=if(obj:a8<'  0',focus(022)),if(obj:a8<'  0',lcBreak=1);
-@evalCheck=break(obj:a7<>'CHECK'),if(obj:a9<'  0',focus(024)),if(obj:a9<'  0',lcBreak=1);
-
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
-\t041Deputy;  \f042=cur:fullname; 
-\t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
+\t041Parcel; 
+\t043Tax Year; \t044@n4;  
  \d042044;r2 
-\t045&Print; @acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
-  if(gcretval=2,postAndPrint=);\d046;
- \w04204687;r2
 
 \t087Due; \t088@n14.2;  \s088-'select dbo.receiptDue('&obj:id&')'; \p0880907cfah,13499135;r2 \p0880907c13h,700;r2 \p0880907c0ch,1;r2 \d088090;r2
-\t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&'''';
+\t089Paid; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''t'&obj:link5&'''';
  \y087283; \y088282; \x087250; \x088278;
  \y089294; \y090293; \x089250; \x090278;
 
 \t097Comments; \d098obj:a17='Posted'; \w098271;
  \y09754; \x0973; \y09854; \x09864; 
 
-\t111&Void; @acc111=voidReceipt=; \h111obj:a17<>'Posted';
-@voidReceipt=
- m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
- break(gcretval<>2);
+\t101Legal;
 
 \t120receiptCheck=; @acc120=receiptCheck=; \h120gcadmin=0;
 @receiptCheck=
- rsql('select * from receiptCheck('&obj:id&',null)');
-
-@setMiscReceiptAcct=
- break(obj:key3>'  0'),
- set(006,'MISC'),
- update;
+ rsql('select * from receiptCheck('&obj:link5&',null)');
 
 @miscDetail=
  break(obj:a3<'  0'),break(obj:a4<'  0'),break(obj:a5<'  0'),
  update,
- d1select('exec receiptDetailCRUD '&obj:id&','&obj:type),
+ d1select('exec receiptDetailCRUD '&obj:link5&','&obj:type&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
  break(readstring(obj7:d1,'@code=')=1),
  blankEm=,
