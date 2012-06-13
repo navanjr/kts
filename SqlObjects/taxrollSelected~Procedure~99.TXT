@@ -8,28 +8,34 @@ begin
  
  -- TODO: bail if the id is not an invoice
 
- if lower(@part) = 'full' and lower(@method) = 'tax'
+ declare @methodRate money
+ if lower(@part) = 'half'
+  select @methodRate = .5
+ else
+  select @methodRate = 1
+
+ if lower(@method) = 'tax'
  begin
   if exists(select * from taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId)
    delete taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId
   else
-   insert taxReceiptDetail (receiptId, invoiceId) select @receiptId, @invoiceId
+   insert taxReceiptDetail (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
  end
 
- if lower(@part) = 'full' and lower(@method) = 'name'
+ if lower(@method) = 'name'
  begin
   -- TODO: we need to limit this to update to only available invoices
-  insert taxReceiptDetail (receiptId, invoiceId) 
-  select @receiptId, id from invoices 
+  insert taxReceiptDetail (receiptId, invoiceId, methodRate) 
+  select @receiptId, id, @methodRate from invoices 
   where name = (select name from dbo.invoices where id = @invoiceId)
    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
  end
 
- if lower(@part) = 'full' and lower(@method) = 'parcel'
+ if lower(@method) = 'parcel'
  begin
   -- TODO: we need to limit this to update to only available invoices
-  insert taxReceiptDetail (receiptId, invoiceId) 
-  select @receiptId, id from invoices 
+  insert taxReceiptDetail (receiptId, invoiceId, methodRate) 
+  select @receiptId, id, @methodRate from invoices 
   where parcel = (select parcel from dbo.invoices where id = @invoiceId)
    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
  end
