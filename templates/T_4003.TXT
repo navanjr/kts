@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077233.7601;
+@lastedit=0077234.5915;
 
 ###---###---###---###---###
 @menuprocess=
@@ -16,7 +16,19 @@
  create(151,10,170,3,'Order By:'),
  create(152,12,210,3,'Name',32),
  create(153,12,250,3,'Parcel',34),
+ halfToggle=,
  createbrw=;
+
+@halfToggle=
+ gcTaxToggleF=14474460,
+ gcTaxToggleH=21759,
+ gcTaxToggle=gcTaxToggleF,
+ create(351,9,430,36,'&Half'),
+ prop(351,7cfah,gcTaxToggle);
+
+@acc351=
+ if(gcTaxToggle=gcTaxToggleF,gcTaxToggle=gcTaxToggleH,gcTaxToggle=gcTaxToggleF),
+ prop(351,7cfah,gcTaxToggle);
 
 @dk1;
 @createbrw=
@@ -30,16 +42,21 @@
   kpmc();
 
 @brw1=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
- refreshBRW=;
+ lcClickedId=kpbrwid(1),
+ lcMethod='tax',
+ brwClicked=;
 @brw2=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
+ lcClickedId=kpbrwid(2),
+ lcMethod='tax',
+ brwClicked=;
+@brwClicked=
+ break(lcClickedId=0),
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ sql('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&''''),
  refreshBRW=;
 
 @brw3=
- change(kpbrwid(),,1),
+ change(kpbrwid(3),,1),
  refreshBRW3=,
  focus(160);
 
@@ -105,7 +122,7 @@
  brwreload(2),
  brwreload(3);
 
-\t111[Un]Select &Half;
+\t111[Un]Select Half;
   @acc111=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
 lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
 if(lcmarked=obj:id and lchalf='half',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5=''half'' where typ=4001 and id='&gcbrwid)),brwreload(1),brwreload(2),brwreload(3);
@@ -117,15 +134,15 @@ if(lcmarked=obj:id and lchalf='half',sql('update object set link5=0,olink5='''' 
 
 \t115Select &Parcel;
 @acc115=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''parcel'''),
- refreshBRW=;
+ lcClickedId=kpbrwid(1),
+ lcMethod='parcel',
+ brwClicked=;
 
 \t116Select &Name;
 @acc116=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''name'''),
- refreshBRW=;
+ lcClickedId=kpbrwid(1),
+ lcMethod='name',
+ brwClicked=;
 
 \t118View G/L; @acc118=new(4020,,-68=kpbrwid(1)*-1);
 
