@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077226.5107;
+@lastedit=0077233.4074;
 
 ###---###---###---###---###
 ** Written by nate.anderson@kellpro.com **
@@ -23,7 +23,8 @@ wbgcolor=999B0Dh;
  prop(002,font,Lucida Console),
  prop(002,fontsize,8);
 
-@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M50L(2)~Status~#30#|M;
+@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M50L(2)~Status~#30#|M50L(2)~Skip~#4#|M;
+@browse4=choose(obj:a1=1,'X','');
 
 @filtername=All,Function,Procedure,Query,View;
 @filter='1=1','charindex(''Function'',key2)>0','key2=''Procedure''','charindex('''&filterfield1&''',e1)>0','key2=''View''';
@@ -39,7 +40,7 @@ wbgcolor=999B0Dh;
 
 @createallobjects=
  kpmo('Creating SQL Objects...','Please wait...'),
- sqlloop('select * from dbo.sqlObjectCompare(0) order by ord',createallobjectsloop=),
+ sqlloop('select * from dbo.sqlObjectCompare(0) where skipFlag != 1 order by ord',createallobjectsloop=),
  kpmc();
 
 @createallobjectsloop=
@@ -47,7 +48,9 @@ wbgcolor=999B0Dh;
  gcname=obj5:a2,
  gctype=obj5:a3,
  kpmm('Creating '&gcname,'Please wait...'),
- createobject=;
+ sql('exec dbo.keySQLObjectDispatcher '&gcid),
+ lcStatus=kp('select stat from dbo.sqlObjectCompare('&gcid&')'),
+ fastmodify(gcid,042=lcStatus);
 
 @loadwindow=
  create(150,34,64,15,'',004),
@@ -61,7 +64,8 @@ wbgcolor=999B0Dh;
  prop(102,font,Lucida Console),
  prop(102,fontsize,8),
  lccodeh=mh-100,
- prop(102,height,lccodeh);
+ prop(102,height,lccodeh),
+ create(151,12,400,3,'&Skip this object',008);
 
 @afterloadwindow=;
 
@@ -69,13 +73,17 @@ wbgcolor=999B0Dh;
 
 \t001Object Name;
 \t003Type;  \h004;
+\t007Skip Flag; \h007008;r
 
 \t039Create Order;  \t040@n05; \f04099;
 \t041Status;  \s042-'select stat from dbo.sqlObjectCompare('&obj:id&')';
 \t101SQL Create Code;  \w102800;  @acc102=calcfld(042);
 
 \t105C&reate Object;
-@acc105=if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=),calcfld(042);
+@acc105=
+ if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=),
+ calcfld(042);
+
 \t108Exec Proc;
 @acc108=
  d1select('exec dbo.'&obj:key1),
