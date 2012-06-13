@@ -133,21 +133,18 @@ begin
 	[STATUS] [nvarchar] (10) NOT NULL
    ) ON [PRIMARY]
 
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'invoiceId')
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and not COLUMN_NAME = 'receiptId')
  begin
-   alter table invoices add invoiceId int not null default 0
+   alter table invoices add receiptId int
  end
  
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxReceiptDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[taxReceiptDetail](
    id int identity(1,1),
    receiptId int,
    invoiceId int
   )        
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxReceiptDetail' and COLUMN_NAME = 'methodRate')
- begin
-   alter table taxReceiptDetail add methodRate money not null default 1.0
- end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[AdTax](
@@ -213,11 +210,28 @@ begin
    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 
 
+if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxRollDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table [dbo].[taxRollDetail](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[addTaxId] [INT] NOT NULL,
+	[parcelNumber] [nvarchar](3) NOT NULL,
+	[name] [nvarchar](30) NOT NULL,
+	[itemNumber] [numeric](7, 1) NOT NULL,
+	[taxYear] [numeric](5, 0) NOT NULL,
+	[Stamp] [varchar] (50)	NOT NULL,
+	[businessName] [nvarchar](30) NOT NULL,
+	[address1] [nvarchar](40) NOT NULL,
+	[address2] [nvarchar](40) NOT NULL,
+	[address3] [nvarchar](40) NOT NULL,
+	[city] [nvarchar](30) NOT NULL,
+	[state] [nvarchar](2) NOT NULL,
+	[zip1] [nvarchar](5) NOT NULL,
+	[zip2] [nvarchar](4) NOT NULL,
+	[comments] [TEXT] NOT NULL
+   ) ON [PRIMARY] 
+
 
 end
-
-
-
 
 
 
