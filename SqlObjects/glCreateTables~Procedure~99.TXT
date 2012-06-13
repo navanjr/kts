@@ -133,18 +133,21 @@ begin
 	[STATUS] [nvarchar] (10) NOT NULL
    ) ON [PRIMARY]
 
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and not COLUMN_NAME = 'receiptId')
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'invoiceId')
  begin
-   alter table invoices add receiptId int
+   alter table invoices add invoiceId int not null default 0
  end
  
-
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxReceiptDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[taxReceiptDetail](
    id int identity(1,1),
    receiptId int,
    invoiceId int
   )        
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxReceiptDetail' and COLUMN_NAME = 'methodRate')
+ begin
+   alter table taxReceiptDetail add methodRate money not null default 1.0
+ end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[AdTax](
@@ -212,6 +215,9 @@ begin
 
 
 end
+
+
+
 
 
 

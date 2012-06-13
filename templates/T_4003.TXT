@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077233.6539;
+@lastedit=0077234.6999;
 
 ###---###---###---###---###
 @menuprocess=
@@ -16,7 +16,19 @@
  create(151,10,170,3,'Order By:'),
  create(152,12,210,3,'Name',32),
  create(153,12,250,3,'Parcel',34),
+ halfToggle=,
  createbrw=;
+
+@halfToggle=
+ gcTaxToggleF=14474460,
+ gcTaxToggleH=21759,
+ gcTaxToggle=gcTaxToggleF,
+ create(351,9,430,36,'&Half'),
+ prop(351,7cfah,gcTaxToggle);
+
+@acc351=
+ if(gcTaxToggle=gcTaxToggleF,gcTaxToggle=gcTaxToggleH,gcTaxToggle=gcTaxToggleF),
+ prop(351,7cfah,gcTaxToggle);
 
 @dk1;
 @createbrw=
@@ -30,16 +42,23 @@
   kpmc();
 
 @brw1=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
- refreshBRW=;
+ lcClickedId=kpbrwid(1),
+ lcMethod='tax',
+ brwClicked=;
 @brw2=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
+ lcClickedId=kpbrwid(2),
+ lcMethod='tax',
+ brwClicked=;
+@brwClicked=
+ break(lcClickedId=0),
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ sql('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&''''),
  refreshBRW=;
 
+@lbrwclick160=m('test');
+
 @brw3=
- change(kpbrwid(),,1),
+ change(kpbrwid(3),,1),
  refreshBRW3=,
  focus(160);
 
@@ -88,27 +107,8 @@
   refreshBRW3=,
   focus(160);
 
-\t110[Un]&Select Full;
-@acc110=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''tax'''),
- refreshBRW=;
-
- gcbrwid=kpbrwid(),
- m(gcbrwid);
- if(gcbrwid+0<1,m('Please select a tax item to mark.')),
- break(gcbrwid+0<1),
- lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
- lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
- if(lcmarked=obj:id and lchalf<'0',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5='''' where typ=4001 and id='&gcbrwid)),
- brwreload(1),
- brwreload(2),
- brwreload(3);
-
-\t111[Un]Select &Half;
-  @acc111=gcbrwid=kpbrwid(),if(gcbrwid+0<1,m('Please select a tax item to mark.')),break(gcbrwid+0<1),lcmarked=kp('select link5 from object where typ=4001 and id='&gcbrwid),
-lchalf=kp('select olink5 from object where typ=4001 and id='&gcbrwid),
-if(lcmarked=obj:id and lchalf='half',sql('update object set link5=0,olink5='''' where typ=4001 and id='&gcbrwid),sql('update object set link5='&obj:id&',olink5=''half'' where typ=4001 and id='&gcbrwid)),brwreload(1),brwreload(2),brwreload(3);
+t110[Un]&Select Full;
+t111[Un]Select Half;
 
 \t112UnSelect &All;
 @acc112=
@@ -117,14 +117,32 @@ if(lcmarked=obj:id and lchalf='half',sql('update object set link5=0,olink5='''' 
 
 \t115Select &Parcel;
 @acc115=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''parcel'''),
- refreshBRW=;
+ lcClickedId=kpbrwid(1),
+ lcMethod='parcel',
+ brwClicked=;
 
-\t120Select &Name;
-@acc120=
- break(kpbrwid(1)=0),
- sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''name'''),
- refreshBRW=;
+\t116Select &Name;
+@acc116=
+ lcClickedId=kpbrwid(1),
+ lcMethod='name',
+ brwClicked=;
 
-\t118View G/L; @acc118=new(4793,,-68='t'&kpbrwid(1)*-1)
+\t118View G/L; @acc118=new(4020,,-68=kpbrwid(1)*-1);
+
+\t119Add Fee;
+  @acc119=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1),
+  iw('\t001Date; \t002@d2; \w00250; \t003Description; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE''''''; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND''''''; \t009Amount; \t010@n21.2; \w01050;'),
+  break(gcretval<>'OK'),
+  sql('exec dbo.subInvoiceCRUD '&lcSearchId&','''&obj7:key1&''','''&obj7:key2&''','''&obj7:key3&''','''&obj7:a1&''','&obj7:a2),
+  refreshBRW=,
+  focus(160);
+
+\t120Add Assessment;
+  @acc120=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1),
+  sql('exec dbo.taxrollAddAssessment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
+  d1select('select top 1 id from object where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
+  change(obj7:d1,,1),
+  refreshBRW=,
+  focus(160);

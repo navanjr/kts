@@ -1,4 +1,4 @@
-create procedure dbo.taxrollInvoiceCRUD(@id int) as
+create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0) as
 begin
 
  declare @styp char(1) = 't'
@@ -14,9 +14,12 @@ begin
   @arAccountId = debitId,
   @slink = slink
  from dbo.taxrollCheck(@id)
- if @code = 1
+ if @code = 1 
  begin
-  select '@code=1;@message=' + @message + ';'
+  if @smode=0
+   begin
+    select '@code=1;@message=' + @message + ';'
+   end
   return
  end
 
@@ -35,7 +38,10 @@ begin
 
  if not exists(select * from @invd)
  begin
-  select '@code=1;@message=No tax rate detail available.;'
+  if @smode = 0
+   begin
+    select '@code=1;@message=No tax rate detail available.;'
+   end
   return
  end
 
@@ -80,19 +86,28 @@ begin
   if exists(select * from @invd where isnull(sourceId,0) = 0)
   begin
    rollback transaction
-   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
+   if @smode = 0
+    begin
+     select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
+    end
    return
   end
   if exists(select * from @invd where isnull(fundId,0) = 0)
   begin
    rollback transaction
-   select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+   if @smode = 0
+    begin
+     select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+    end
    return
   end
   if (select sum(amount) from @invd) = 0
   begin
    rollback transaction
-   select '@code=1;@message=No amount exists to stage GL.;'
+   if @smode = 0
+    begin
+     select '@code=1;@message=No amount exists to stage GL.;'
+    end
    return
   end
 
@@ -124,7 +139,7 @@ begin
   insert @accountsWorking select @arAccountId, @tokenAmount
 
   -- insert
-  insert gldetailstage (slink,accountId,amount) select @slink,accountId,amount from @accountsWorking
+  insert gldetailstage (slink,accountId,amount) select @slink,accountId,amount from @accountsWorking where amount != 0
  
   update a set
    a.accountCode = b.accountCode,
@@ -144,13 +159,16 @@ begin
 
   -- post to the gl
   declare @test int = substring(@slink,2,14)
-  exec dbo.glPost @test, @styp
+  exec dbo.glPost @test, @styp, @smode
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 
   begin
    rollback transaction
-   select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
+   if @smode = 0
+    begin
+     select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
+    end
    return
   end
 
@@ -160,6 +178,9 @@ begin
  commit transaction
 
 end
+
+
+
 
 
 

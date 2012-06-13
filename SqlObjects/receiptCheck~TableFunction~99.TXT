@@ -46,22 +46,25 @@ begin
   return
  end
 
- -- check for contra account id
- select @contraId = id from object where typ = 4701 and key3 = @receiptType 
- if isnull(@contraId,0) = 0
+ -- check for contra account id if we are not a tax receipt
+ if @receiptType != 'TAX'
  begin
-  insert @rettable
-   select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp
-  return
- end
+  select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+  if isnull(@contraId,0) = 0
+  begin
+   insert @rettable
+    select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp
+   return
+  end
 
- -- check for AR account
- select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
- if isnull(@arAccountId,0) = 0
- begin
-  insert @rettable
-   select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
-  return
+  -- check for AR account
+  select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+  if isnull(@arAccountId,0) = 0
+  begin
+   insert @rettable
+    select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+   return
+  end
  end
 
  -- optionally check for the suspense account id
@@ -81,6 +84,8 @@ begin
  return
 
 end
+
+
 
 
 
