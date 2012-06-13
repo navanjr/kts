@@ -1,0 +1,26 @@
+create function dbo.invoiceTotalAR(@invoiceId int) returns money as
+begin
+ declare @sources table (slink varchar(15))
+
+ declare
+  @glAmt money,
+  @glAmtStage money,
+  @amount money
+
+ -- tax invoices
+ insert @sources select 't'+cast(invoiceId as varchar) from taxReceiptDetail where receiptId = @receiptId
+ 
+ -- receipt stuff
+ insert @sources select 'o'+cast(@receiptId as varchar)
+
+ select @glAmt = sum(a.amount) 
+ from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @sources)
+
+ select @glAmtStage = sum(a.amount) 
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @sources)
+
+ select @amount = isnull(@glAmt,0) + isnull(@glAmtStage,0)
+ 
+ return @amount
+
+end
