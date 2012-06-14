@@ -19,7 +19,8 @@ begin
   @suspenseAccountId int,
   @contraId int,
   @fpId int,
-  @objectTyp int
+  @objectTyp int,
+  @balance money
   
  select 
   @code = code,
@@ -47,6 +48,7 @@ begin
 
  begin transaction
 
+
   -- add row to paid
   insert paid (paycode,slink,amount,checkno,bankId)
    select @paycode,@slink,@amount,@checkNumber,@bankId
@@ -57,7 +59,14 @@ begin
   else 
    exec dbo.receiptStageGL @receiptId
 
-  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
+  -- get the balance of the glStage to check your work
+
+  if @receiptType = 'TAX'
+   select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
+  else 
+   select @balance = balance from dbo.glSummary(@receiptId,'o')
+
+  if @balance != 0
   begin
    rollback transaction
    select '@code=1;@message=Payment transaction was rolled back. Contact Support.;'

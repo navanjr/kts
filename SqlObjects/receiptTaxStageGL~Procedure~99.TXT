@@ -1,8 +1,138 @@
 create procedure dbo.receiptTaxStageGL (@receiptId int) as
 begin
 
- select 
+ declare @receiptSlink varchar(15) = 'o' + cast(@receiptId as varchar)
+
+ declare @wt table(
+  linkid int,
+  invoiceId int,
+  slink varchar(15),
+  taxYear varchar(10),
+  due money default 0,
+  methodRate money,
+  applyAmount money default 0,
+  arAccountId int,
+  contraAccountId int,
+  processFlag int default 0
+ )
+ declare @glFundDebits table(
+  slink varchar(15),
+  accountId int,
+  amount money,
+  prorate decimal(19,18),
+ payAmount decimal(19,10)
+ )
+ declare @glSalesCredits table(
+  slink varchar(15),
+  accountId int,
+  amount money
+ )
+ declare @glSuspense table(
+  slink varchar(15),
+  accountId int,
+  amount money
+ )
+ declare @glStage table(
+  slink varchar(15),
+  accountId int,
+  amount money
+ )
+
+ declare
+  @paidTotal money,
+  @idToken int,
+  @dueToken money,
+  @amountToken money,
+  @currTaxId int,
+  @backTaxId int,
+  @currTaxCode varchar(10)
+
+ --TODO: bail if there is already gldetail for these receiptLinks 
+ --TODO: bail if we are offered too much money
+
+ -- get the invoices linked to this receipt
+ insert @wt (linkId, invoiceId, slink, methodRate, taxyear)
+ select a.id, a.invoiceId, 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
+ from receiptLink a, invoices b 
+ where a.invoiceId = b.id and a.receiptId = @receiptId
+
+ -- calculate the balance due, update AR and Contra account id
+ select @currTaxId = accountId, @currTaxCode=code from glAccounts where accountCode = 'CURTAX'
+ select @backTaxId = accountId from glAccounts where accountCode = 'BACKTAX'
+ update @wt set
+  due = (select due from dbo.invoiceCheck(invoiceId)),
+  arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
+  contraAccountId = case when taxYear = @currTaxCode then @currTaxId else @backTaxId end
+
+ --get all the payments linked to this receipt
+ insert @glSuspense
+ select @receiptSlink, b.accountId, sum(a.amount)
+  from paid a, paycodes b 
+  where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId
+ select @paidTotal = sum(amount) from @glSuspense
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1 @idToken = linkId, @dueToken = due * methodRate from @wt where processFlag = 0 order by methodRate desc, linkId
+  if @paidTotal > 0
+  begin
+   if @dueToken <= @paidTotal
+    update @wt set applyAmount = @dueToken where linkId = @idToken
+   else
+    update @wt set applyAmount = @paidTotal where linkId = @idToken
+   set @paidTotal = @paidTotal - @dueToken
+  end
+  update @wt set processFlag = 1 where linkId = @idToken
+ end
+
+ -- add the debit to funds accounts from the invoice detail
+ insert @glFundDebits
+ select
+  a.slink, b.accountId, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
+ from receiptDetail a, glAccounts b, @wt c 
+ where a.slink = c.slink
+  and a.fundCode = b.accountCode
+ group by a.slink, b.accountId
+
+ -- add the credit to the Treasures Sales Account
+ insert @glSalesCredits 
+ select b.slink, a.contraAccountId, sum(b.payAmount)*-1 
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink
+ group by b.slink, a.contraAccountId
+
+ -- add the credit to AR Accounts
+ insert @glSalesCredits 
+ select @receiptSlink, a.arAccountId, sum(b.payAmount)*-1 
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink
+ group by b.slink, a.arAccountId
+
+ insert @glStage
+  select slink,accountId,payAmount from @glFundDebits
+ union
+  select * from @glSalesCredits
+ union 
+  select * from @glSuspense
+
+-- select slink,count(accountId),sum(amount) from @glStage group by slink
+-- select * from @glStage
+
+ -- remove 
+ delete glDetailStage where slink in (select slink from @glStage)
+
+ -- insert
+ insert gldetailstage (slink,accountId,amount) select slink, accountId, amount from @glStage
+ 
+ update a set
+  a.accountCode = b.accountCode,
+  a.accountDesc = b.accountDesc
+ from glDetailStage a, glAccounts b
+ where a.accountId = b.accountId
+  and a.slink in (select slink from @glStage)
+
 
 end
+
 
 
