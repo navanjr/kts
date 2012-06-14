@@ -1,4 +1,4 @@
-CREATE function [dbo].[taxrollCheck](@id int) returns
+CREATE function [dbo].[subInvoiceCheck](@id int) returns
 @rettable table(
  code int,
  message varchar(500),
@@ -30,32 +30,14 @@ begin
   set @fpid=0
 
   begin 
-   -- TODO: allow for an "as of" date for importing and posting of tax rolls
    select 
-    @taxyear = [REALTAXYEAR],
-    @district = case when [SCHOOLDISTRICTMAIN] > ' 0' then [SCHOOLDISTRICTMAIN] else [ORGSCHOOLDISTRICTMAIN] end,
-    @rateName = case when [SCHOOLDISTRICTTAXRATE] > ' 0' then [SCHOOLDISTRICTTAXRATE] else [ORGSCHOOLDISTRICTTAXRATE] end,
-    @amount = case when [TOTALDUE]>0.00 then [TOTALDUE] else [ORIGINALTOTALDUE] end,
-    @cdate = dbo.clariondate(getdate())
-   from adtax where id = @id
+    @taxyear = [TAXYEAR],
+    @district = '',
+    @rateName = '',
+    @amount = 0.00,
+    @cdate = [POSTDATE]
+   from invoices where id = @id
   end 
-
- -- check for invoice
- if not exists(select * from invoices where taxrollid = @id)
- begin
-  insert @rettable 
-   select 1,'there is no invoice for this taxroll item',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
-  return
- end
- select @slink = @styp + cast(id as varchar) from invoices where taxrollid = @id
-
- -- check for status of Posted
- if exists(select * from glDetail where slink = @slink)
- begin
-  insert @rettable 
-   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
-  return
- end
 
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
@@ -92,10 +74,4 @@ begin
  return
 
 end
-
-
-
-
-
-
 
