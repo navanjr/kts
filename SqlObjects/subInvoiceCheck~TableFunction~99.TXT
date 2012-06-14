@@ -1,0 +1,77 @@
+CREATE function [dbo].[subInvoiceCheck](@id int) returns
+@rettable table(
+ code int,
+ message varchar(500),
+ slink varchar(15),
+ taxyear varchar(4),
+ district varchar(15),
+ rateName varchar(15),
+ amount money,
+ fpid int,
+ debitId int,
+ status varchar(50)
+)
+
+begin
+ declare @styp char(1) = 't'
+ 
+ declare
+  @slink varchar(15),
+  @cdate int,
+  @fpid int,
+  @status varchar(50),
+  @taxyear varchar(4),
+  @district varchar(15),
+  @rateName varchar(15),
+  @amount money,
+  @debitCode varchar(50),
+  @debitId int
+
+  set @fpid=0
+
+  begin 
+   select 
+    @taxyear = [TAXYEAR],
+    @district = '',
+    @rateName = '',
+    @amount = 0.00,
+    @cdate = [POSTDATE]
+   from invoices where id = @id
+  end 
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
+ if @fpid = 0
+ begin
+  insert @rettable 
+   select 1,'Fiscal Period is locked or does not exist.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ -- check for valid tax Year
+ if @taxYear < '  0'
+ begin
+  insert @rettable 
+   select 1,'Tax Year invalid',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ -- check for debit account
+ set @debitCode = @taxYear+'_ADVALOREM_AR'
+ select @debitId = accountId from glAccounts where accountCode = @debitCode and accountType = 'RECEIVABLE'
+ if isnull(@debitId,0) = 0
+ begin
+  insert @rettable 
+   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ if dbo.isPosted(@slink) = 'TRUE'
+  set @status = 'Posted'
+ 
+ insert @rettable
+  select 0,'OK',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+ return
+
+end
+
