@@ -1,5 +1,6 @@
 create function dbo.invoiceTotalAR(@invoiceId int) returns money as
 begin
+
  declare @sources table (slink varchar(15))
 
  declare
@@ -7,11 +8,11 @@ begin
   @glAmtStage money,
   @amount money
 
- -- tax invoices
- insert @sources select 't'+cast(invoiceId as varchar) from taxReceiptDetail where receiptId = @receiptId
+ -- get the slink for invoices AR +
+ insert @sources select 't'+cast(@invoiceId as varchar)
  
- -- receipt stuff
- insert @sources select 'o'+cast(@receiptId as varchar)
+ -- get the slink for any receiptlinks
+ insert @sources select 'l'+cast(id as varchar) from receiptLink where invoiceId = @invoiceId
 
  select @glAmt = sum(a.amount) 
  from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @sources)
