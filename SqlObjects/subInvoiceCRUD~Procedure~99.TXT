@@ -1,0 +1,84 @@
+CREATE procedure [dbo].[subInvoiceCRUD](
+ @mainInvoiceId int,
+ @invoiceDate varchar(10),
+ @description varchar(50),
+ @sourceCode varchar(50),
+ @fundCode varchar(50),
+ @amount money
+) as
+begin
+
+ declare 
+  @invoiceId int,
+  @styp char(1) = 't',
+  @slink varchar(15),
+  @fpid int,
+  @smode int = 0
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@invoiceDate) 
+ if @fpid = 0
+ begin
+  select '@code=1; Fiscal Period is locked or does not exist.'
+  return
+ end
+
+ begin transaction
+
+  --run fund payable account verification
+  exec dbo.receiptDetailFundPayableVerification @fundCode
+
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS])
+     select 
+      'F',
+      @invoiceDate,
+      @mainInvoiceId,
+      [taxyear],
+      0,
+      '' as [PARCEL],
+      0.0 as [ITEM],
+      '' as [NAME],
+      '' as [BUSINESSNAME],
+      '' as [STATUS]
+      from invoices where id=@mainInvoiceId
+      
+   set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
+   set @slink='t'+cast(@invoiceId as varchar)
+   
+   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
+    select
+     @slink,
+     @description,
+     rtrim(@sourceCode) + '/' + rtrim(@fundCode),
+     @sourceCode,
+     @fundCode,
+     cast(@amount as varchar(50))
+
+  -- add to the gl stage
+  exec dbo.subInvoiceStageGL @invoiceId
+
+ if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
+  rollback transaction
+ else
+  
+  -- post to the gl
+  declare @test int = substring(@slink,2,14)
+  exec dbo.glPost @test, @styp, @smode
+  
+  -- Check glDetail for good data
+  if (select dbo.glPostCheck(@slink)) = 1 
+  begin
+   rollback transaction
+   if @smode = 0
+    begin
+     select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
+    end
+   return
+  end
+
+  commit transaction
+
+end
+
+
+
