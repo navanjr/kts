@@ -1,0 +1,18 @@
+create function dbo.invoiceCheck(@invoiceId int) returns @rt table(
+ due money,
+ arAccountId int
+)
+begin
+
+ insert @rt
+ select 
+  dbo.invoiceTotalAR(@invoiceId),
+  a.accountId 
+ from glDetail a, glAccounts b
+ where a.accountId = b.accountId 
+  and a.slink = 't'+cast(@invoiceId as varchar)
+  and b.accountType = 'RECEIVABLE'
+ 
+ return
+end
+

@@ -16,38 +16,37 @@ begin
 
  if lower(@method) = 'tax'
  begin
-  if exists(select * from taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId)
-   delete taxReceiptDetail where receiptId = @receiptId and invoiceId = @invoiceId
+  if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+   delete receiptlink where receiptId = @receiptId and invoiceId = @invoiceId
   else
-   insert taxReceiptDetail (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
+   insert receiptlink (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
  end
 
  if lower(@method) = 'name'
  begin
   -- TODO: we need to limit this to update to only available invoices
-  insert taxReceiptDetail (receiptId, invoiceId, methodRate) 
+  insert receiptlink (receiptId, invoiceId, methodRate) 
   select @receiptId, id, @methodRate from invoices 
   where name = (select name from dbo.invoices where id = @invoiceId)
-   and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+   and id not in (select invoiceId from receiptlink where receiptId = @receiptId)
  end
 
  if lower(@method) = 'parcel'
  begin
   -- TODO: we need to limit this to update to only available invoices
-  insert taxReceiptDetail (receiptId, invoiceId, methodRate) 
+  insert receiptlink (receiptId, invoiceId, methodRate) 
   select @receiptId, id, @methodRate from invoices 
   where parcel = (select parcel from dbo.invoices where id = @invoiceId)
-   and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+   and id not in (select invoiceId from receiptlink where receiptId = @receiptId)
  end
 
  if lower(@part) = 'full' and lower(@method) = 'reset'
  begin
-  delete taxReceiptDetail where receiptId = @receiptId
+  delete receiptlink where receiptId = @receiptId
  end
 
 
 end
-
 
 
 

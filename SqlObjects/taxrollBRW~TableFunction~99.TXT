@@ -8,14 +8,16 @@ create function dbo.taxrollBRW(
  name nvarchar(30),
  parcel nvarchar(24),
  taxYear numeric(5,0),
- item numeric(7,1),
+ item numeric(12,1),
  taxType nvarchar(1),
  amount money,
  due money,
  slink varchar(15),
  selectedFlag char(4),
  methodRate money,
- ord varchar(50)
+ ord varchar(50),
+ fees money,
+ penalty money
 )
 Begin
 
@@ -29,29 +31,37 @@ Begin
   if @searchString > '  0'
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_' 
+    id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_',0.00,0.00 
    from dbo.invoices
    where name+' '+parcel like '%'+@searchString+'%'
     and cast(taxYear as varchar) in (select yr from @taxYears)
-    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+    and invoiceId = 0
+    and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
 
   else
    insert @rt
-   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_'
+   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_',0.00,0.00
    from dbo.invoices
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
-    and id not in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+    and invoiceId = 0
+    and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
 
   insert @rt
   select 
-    a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,0,0,'t'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_'
-  from dbo.invoices a, taxReceiptDetail b where a.id = b.invoiceId and b.receiptId = @receiptId
+    a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,0,0,'t'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',0.00,0.00
+  from dbo.invoices a, receiptLink b where a.id = b.invoiceId and b.receiptId = @receiptId
 
   if @orderString = '10'
    update @rt set ord = isnull(ord,'')+name
   else
    update @rt set ord = isnull(ord,'')+parcel
+
+  declare @slinks table(slink varchar(15))
+  insert @slinks
+   select slink from @rt
+  insert @slinks
+   select 't'+cast(id as varchar) from invoices where invoiceId in (select invoiceId*-1 from @rt)
 
   declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
   insert @glsum
@@ -59,23 +69,32 @@ Begin
    sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
    sum(case when b.accountType != 'RECEIVABLE' then a.amount else 0.0 end)
   from glDetail a, glAccounts b 
-  where a.accountId = b.accountId and a.slink in (select slink from @rt) 
+  where a.accountId = b.accountId and a.slink in (select slink from @slinks) 
   group by a.slink
 
   update a set
-   a.due = b.arAmount,
+   a.due = b.arAmount*methodRate,
    a.amount = b.srcAmount 
   from @rt a, @glSum b where a.slink = b.slink
 
-  if exists(select * from taxReceiptDetail where receiptId = @receiptId)
+  if exists(select * from receiptLink where receiptId = @receiptId)
   begin
-   insert @rt (invoiceId,name,ord,amount,due) select 0,'--Selected--',' _',sum(amount),sum(due*methodRate) from @rt where selectedFlag > '  0'
+   update a set
+    fees = isnull((select sum(arAmount) from @glsum where slink in (select 't'+cast(id as varchar) from invoices where invoiceId=a.invoiceId*-1)),0.00)
+   from @rt a where selectedFlag in (char(189),'x')
+
+   update a set 
+    penalty = due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100
+   from @rt a where selectedFlag in (char(189),'x')
+
+   insert @rt (invoiceId,name,ord,amount,due,fees,penalty) select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty) from @rt where selectedFlag > '  0'
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
   end
 
  return
 
 end
+
 
 
 

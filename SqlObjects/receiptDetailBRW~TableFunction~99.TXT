@@ -14,14 +14,14 @@ begin
  insert @rettable
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink
 
- if exists(select * from dbo.taxReceiptDetail where receiptId = @receiptId)
+ if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
   insert @rettable
   select 'aa',0,
    max(c.NAME),
    max(c.PARCEL),
    sum(b.amount)
-  from taxReceiptDetail a, receiptDetail b, invoices c
+  from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
@@ -62,11 +62,11 @@ begin
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
 
-  if exists(select * from dbo.taxReceiptDetail where receiptId = @receiptId)
+  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
   begin
 
    declare @taxInvoices table (slink varchar(15))
-   insert @taxInvoices select 't'+cast(id as varchar) from invoices where id in (select invoiceId from taxReceiptDetail where receiptId = @receiptId)
+   insert @taxInvoices select 't'+cast(id as varchar) from invoices where id in (select invoiceId from receiptLink where receiptId = @receiptId)
 
    insert @rettable
    select 'ea',0,'','',0
@@ -87,7 +87,6 @@ begin
 
  return
 end
-
 
 
 
