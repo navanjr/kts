@@ -7,6 +7,7 @@ begin
   linkid int,
   invoiceId int,
   slink varchar(15),
+  invoiceSLink varchar(15),
   taxYear varchar(10),
   due money default 0,
   methodRate money,
@@ -20,7 +21,7 @@ begin
   accountId int,
   amount money,
   prorate decimal(19,18),
- payAmount decimal(19,10)
+  payAmount decimal(19,10)
  )
  declare @glSalesCredits table(
   slink varchar(15),
@@ -51,8 +52,8 @@ begin
  --TODO: bail if we are offered too much money
 
  -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, methodRate, taxyear)
- select a.id, a.invoiceId, 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear)
+ select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
  from receiptLink a, invoices b 
  where a.invoiceId = b.id and a.receiptId = @receiptId
 
@@ -88,11 +89,11 @@ begin
  -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  a.slink, b.accountId, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
+  c.slink, b.accountId, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
  from receiptDetail a, glAccounts b, @wt c 
- where a.slink = c.slink
+ where a.slink = c.invoiceSLink
   and a.fundCode = b.accountCode
- group by a.slink, b.accountId
+ group by c.slink, a.slink, b.accountId
 
  -- add the credit to the Treasures Sales Account
  insert @glSalesCredits 
@@ -115,9 +116,6 @@ begin
  union 
   select * from @glSuspense
 
--- select slink,count(accountId),sum(amount) from @glStage group by slink
--- select * from @glStage
-
  -- remove 
  delete glDetailStage where slink in (select slink from @glStage)
 
@@ -133,5 +131,6 @@ begin
 
 
 end
+
 
 
