@@ -1,0 +1,18 @@
+create function dbo.receiptGLDetail(@receiptId int) returns @rt table(
+ slink varchar(15),
+ fpid int,
+ accountId int,
+ amount money,
+ status varchar(10)
+)
+begin
+ 
+ insert @rt 
+ select slink,fpid,accountId,amount,'staged' from glDetailStage where slink in (select slink from dbo.receiptSLinks(@receiptId))
+
+ insert @rt 
+ select slink,fpid,accountId,amount,'posted' from glDetail where slink in (select slink from dbo.receiptSLinks(@receiptId))
+
+ return
+end
+
