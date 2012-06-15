@@ -1,0 +1,31 @@
+create function dbo.invoiceGLTotalTF(@invoiceId int) returns @rt table(
+ slink varchar(15),
+ accountId int,
+ accountDesc varchar(50),
+ accountType varchar(50),
+ amount money,
+ subAmount money,
+ status varchar(10)
+)
+begin
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSlinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSubSlinks(@invoiceId))
+
+ return
+
+end
+

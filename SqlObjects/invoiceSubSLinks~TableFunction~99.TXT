@@ -1,0 +1,23 @@
+create function [dbo].[invoiceSubSLinks](@invoiceId int) returns @rt table(
+ slink varchar(15)
+)
+begin
+ declare @idToken int
+ declare @wt table(slink varchar(15),invoiceId int)
+ declare @wt2 table(slink varchar(15))
+
+ insert @wt select 't' + cast(Id as varchar), Id from invoices where invoiceId = @invoiceId 
+ 
+
+ while exists (select * from @wt)
+  begin
+   select top 1 @idToken = invoiceId from @wt
+
+   insert @wt2 select slink from dbo.invoiceSLinks(@idToken)
+
+   delete from @wt where invoiceId=@idToken
+  end
+ insert @rt select distinct slink from @wt2 
+ return
+end
+
