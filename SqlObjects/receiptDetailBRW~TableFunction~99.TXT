@@ -17,15 +17,15 @@ begin
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
   insert @rettable
-  select 'aa',0,
-   max(c.NAME),
-   max(c.PARCEL),
+  select 'aa'+case when c.invoiceId>0 then cast(c.invoiceId as varchar)+'b' else cast(c.id as varchar)+'a' end,0,
+   max(case when c.invoiceId>0 then '   '+b.description else c.name end),
+   max(case when c.invoiceId>0 then '   '+lower(b.subDescription) else c.parcel end),
    sum(b.amount)
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
-  group by c.id
+  group by c.invoiceId, c.id
  end
 
  if exists(select * from dbo.paid where slink = @slink)
@@ -65,21 +65,57 @@ begin
   if exists(select * from dbo.receiptLink where receiptId = @receiptId)
   begin
 
-   declare @taxInvoices table (slink varchar(15))
-   insert @taxInvoices select 't'+cast(id as varchar) from invoices where id in (select invoiceId from receiptLink where receiptId = @receiptId)
+   declare @taxInvoices table (
+    slink varchar(15),
+    realslink varchar(15),
+    description varchar(50),
+    subDescription varchar(50),
+    subInvoiceId int,
+    ord char(1)
+   )
+
+  -- get the taxInvoices
+   insert @taxInvoices
+   select
+    slink,
+    realslink,
+    description,
+    subDescription,
+    invoiceId,
+    ord
+   from invoiceAll where id in (select invoiceId from receiptLink where receiptId = @receiptId)
+
+   update @taxInvoices set description = (select top 1 description from receiptDetail where slink = realslink) 
+   where description = 'sub invoice'
 
    insert @rettable
    select 'ea',0,'','',0
    insert @rettable
    select 'eb',0,'GL Detail (posted via Tax Invoice)','',0
-   insert @rettable
-   select 'ec'+a.slink+'b',0,'      '+a.accountDesc,lower(b.accountType),a.amount
-   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink in (select slink from @taxInvoices)
 
+  --Invoice Header
    insert @rettable
-   select 'ec'+a.slink+'a',0,'   '+b.name,b.parcel,0
-   from @taxInvoices a, invoices b
-   where a.slink = 't'+cast(b.id as varchar)
+   select
+    'ec' + slink + ord + realslink + 'a',
+    0,
+    '   ' + description,
+    subDescription,
+    0
+   from @taxInvoices
+
+  -- invoice GL Detail
+   insert @rettable
+   select
+    'ec' + c.slink + c.ord + c.realslink + 'b',
+    0,
+    '      '+a.accountDesc,
+    lower(b.accountType),
+    a.amount
+   from dbo.glDetail a, glaccounts b, @taxInvoices c
+   where a.accountId = b.accountId
+    and a.slink = c. realslink
+
+
  
   end
 
@@ -87,6 +123,7 @@ begin
 
  return
 end
+
 
 
 
