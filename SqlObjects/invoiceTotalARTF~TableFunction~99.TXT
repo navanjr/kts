@@ -1,0 +1,25 @@
+create function dbo.invoiceTotalARTF(@invoiceId int) returns @rt table(
+ slink varchar(15),
+ accountId int,
+ accountDesc varchar(50),
+ amount money,
+ status varchar(10)
+)
+begin
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, a.amount, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, a.amount, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from invoiceSlinks(@invoiceId))
+
+ return
+
+end
+
+
+
+
+

@@ -97,14 +97,14 @@ begin
 
  -- add the credit to the Treasures Sales Account
  insert @glSalesCredits 
- select b.slink, a.contraAccountId, sum(b.payAmount)*-1 
+ select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
  group by b.slink, a.contraAccountId
 
  -- add the credit to AR Accounts
  insert @glSalesCredits 
- select @receiptSlink, a.arAccountId, sum(b.payAmount)*-1 
+ select b.slink, a.arAccountId, sum(b.payAmount)*-1 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
  group by b.slink, a.arAccountId
@@ -116,11 +116,11 @@ begin
  union 
   select * from @glSuspense
 
- -- remove 
+  -- remove any existing stage records
  delete glDetailStage where slink in (select slink from @glStage)
 
  -- insert
- insert gldetailstage (slink,accountId,amount) select slink, accountId, amount from @glStage
+ insert gldetailstage (slink,accountId,amount) select slink, accountId, amount from @glStage where amount != 0
  
  update a set
   a.accountCode = b.accountCode,
@@ -129,8 +129,9 @@ begin
  where a.accountId = b.accountId
   and a.slink in (select slink from @glStage)
 
-
 end
+
+
 
 
 
