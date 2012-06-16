@@ -1,0 +1,53 @@
+create procedure glGetPostDateFromSlink(
+ @slink varchar(15),
+ @postDate int output,
+ @fpid int output,
+ @fpCode varchar(50) output,
+ @fpDesc varchar(50) output, 
+ @styp char(1) output,
+ @id int output
+)
+as
+begin
+
+ declare
+  @sql nvarchar(500),
+  @parm nvarchar(500)
+
+ set @styp = left(@slink,1)
+ set @id = cast(substring(@slink,2,14) as int)
+ 
+ if @styp = 'l'
+ begin
+  set @styp = 'o'
+  select @id = receiptId from receiptLink where id = @id
+ end
+
+ select
+  @sql = N'select @pOut=[' + postDatefieldName +'] from [' + tableName + '] where [' + idFieldName + ']=' + cast(@id as varchar)
+ from dbo.keyExternalTableReference(@styp)
+ 
+ set @parm = N'@pOut int OUTPUT'
+
+ execute sp_executesql @sql, @parm, @pOut=@postDate OUTPUT;
+ 
+ if isnull(@postDate,0) > 0
+  select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+ 
+ if isnull(@fpid,0) > 0
+  select @fpCode = key1, @fpDesc = key2 from object where id = @fpid
+
+ return
+
+end
+
+
+
+
+
+
+
+
+
+
+

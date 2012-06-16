@@ -46,9 +46,12 @@ begin
    select 'ca',0,'','',0
    insert @rettable
    select 'cb',0,'GL Detail (staged)','',0
+
    insert @rettable
-   select 'cc'+a.slink,0,'   '+a.accountDesc,lower(b.accountType),a.amount
+   select 'cc'+b.accountType,0,'   '+a.accountDesc,lower(b.accountType),sum(a.amount)
    from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.slink in (select slink from dbo.receiptSLinks(@receiptId))
+   group by b.accountType, a.accountDesc
+
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)
@@ -123,6 +126,7 @@ begin
 
  return
 end
+
 
 
 
