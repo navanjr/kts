@@ -1,4 +1,4 @@
-create procedure dbo.officialDepositPaymentAdd(
+create procedure dbo.receiptPaymentAdd(
  @receiptId int,
  @paycode varchar(50),
  @amount money,
@@ -19,12 +19,18 @@ begin
   @suspenseAccountId int,
   @contraId int,
   @fpId int,
-  @objectTyp int
+  @objectTyp int,
+  @balance money
   
  select 
   @code = code,
-  @message = message
- from dbo.officialDepositCheck(@receiptId,@paycode)
+  @message = message,
+  @receiptType = receiptType,
+  @suspenseAccountId = suspenseAccountId,
+  @contraId =contraId,
+  @fpId = fpId,
+  @objectTyp = objectTyp
+ from dbo.receiptCheck(@receiptId,@paycode)
 
  -- bail if we dont have enough data
  if @code = 1
@@ -42,14 +48,25 @@ begin
 
  begin transaction
 
+
   -- add row to paid
   insert paid (paycode,slink,amount,checkno,bankId)
    select @paycode,@slink,@amount,@checkNumber,@bankId
    
   -- add to the gl stage
-  exec dbo.officialDepositStageGL @receiptId
+  if @receiptType = 'TAX'
+   exec dbo.receiptTaxStageGL @receiptId
+  else 
+   exec dbo.receiptStageGL @receiptId
 
-  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
+  -- get the balance of the glStage to check your work
+
+  if @receiptType = 'TAX'
+   select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
+  else 
+   select @balance = balance from dbo.glSummary(@receiptId,'o')
+
+  if @balance != 0
   begin
    rollback transaction
    select '@code=1;@message=Payment transaction was rolled back. Contact Support.;'
@@ -71,9 +88,3 @@ end
 
 
 
-
-<<<<<<< HEAD
-
-
-=======
->>>>>>> wade
