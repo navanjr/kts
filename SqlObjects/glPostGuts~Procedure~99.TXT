@@ -1,0 +1,65 @@
+create procedure dbo.glPostGuts (
+ @slink varchar(15),
+ @result int output
+) as
+begin
+/*
+ a few things to remember..
+  this proc is to ONLY be called by glPost!!! 
+  it does not contain any internal consistancy checks or transaction processing.
+  nor does it return any errors.
+  glPostGuts only moves the staged gl data into glDetail for only a single parent slink.
+*/
+
+ set @result = 1
+
+ declare 
+  @styp char(1),
+  @id int,
+  @postDate int,
+  @fpid int,
+  @fpCode varchar(50),
+  @fpDesc varchar(50),
+   @sql varchar(500)
+
+-- make sure the fiscal period is open
+ exec dbo.glGetPostDateFromSlink @slink, @postDate output, @fpid output, @fpCode output, @fpDesc output, @styp output, @id output 
+ if isnull(@fpid,0) = 0
+  return
+
+-- make sure there is more than one record
+ if not (select count(*) from glDetailStage where slink = @slink) > 1
+  return
+
+-- make sure the records balance
+ if not (select sum(amount) from glDetailStage where slink = @slink) = 0
+  return
+
+-- insert rows into glDetail
+ insert gldetail (fpId, fpCode, fpDesc, accountId, slink, amount, date)
+  select @fpid, @fpCode, @fpDesc, accountId, slink, amount, @postDate
+  from glDetailStage where slink = @slink
+
+-- update the account Code and Description  
+ update a set
+  a.accountCode = b.accountCode,
+  a.accountDesc = b.accountDesc
+ from gldetail a, glAccounts b
+  where a.accountId = b.AccountId and a.slink = @slink
+
+-- flag source record as posted if your not a receiptlink
+ if not @styp = 'l'
+ begin
+  select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = ''Posted'' where ['+idFieldName+'] = '+cast(@id as varchar) 
+  from dbo.keyExternalTableReference(@styp)
+  exec(@sql)
+ end
+
+-- delete the staged records
+ delete glDetailStage where slink = @slink
+
+ set @result = 0
+ -- select 'made it this far', @postDate, @fpid, @fpCode
+ return
+
+end

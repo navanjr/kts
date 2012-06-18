@@ -7,7 +7,8 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
-  @fpId int
+  @fpId int,
+  @balance money
   
  select 
   @code = code,
@@ -31,9 +32,17 @@ begin
   delete paid where id = @paymentId
   
   -- add to the gl stage
-  exec dbo.receiptStageGL @receiptId
+  if @receiptType = 'TAX'
+   exec dbo.receiptTaxStageGL @receiptId
+  else
+   exec dbo.receiptStageGL @receiptId
+ 
+  if @receiptType = 'TAX'
+   select @balance = balance from dbo.glTaxSummary(@receiptId)
+  else 
+   select @balance = balance from dbo.glSummary(@receiptId,'o')
 
-  if (select balance from dbo.glSummary(@receiptId,'o')) <> 0
+  if isnull(@balance,0) != 0
    rollback transaction
   else
    commit transaction
@@ -42,6 +51,7 @@ begin
  return
 
 end
+
 
 
 

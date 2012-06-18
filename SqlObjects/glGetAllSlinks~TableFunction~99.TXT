@@ -1,0 +1,13 @@
+create function dbo.glGetAllSlinks(@slink varchar(15)) returns @rt table(
+ slink varchar(15)
+)
+begin
+  
+ insert @rt select @slink
+
+ -- if the source slink is an object records it could be a receipt, better check for receipt links
+ if left(@slink,1) = 'o'
+  insert @rt select 'l'+cast(id as varchar) from receiptLink where receiptId = cast(substring(@slink,2,14) as int)
+
+ return
+end

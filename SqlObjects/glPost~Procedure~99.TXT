@@ -1,5 +1,4 @@
-create procedure dbo.glPost (@id int, @styp char(1), @smode int = 0) 
-as 
+create procedure dbo.glPost (@id int, @styp char(1), @smode int = 0) as 
 begin
 
  declare
@@ -21,53 +20,53 @@ begin
  begin
 
   declare 
-   @fpCode varchar(50),
-   @fpDesc varchar(50),
+--   @fpCode varchar(50),
+--   @fpDesc varchar(50),
+   @balance money,
    @rowCount int,
    @absValue money,
    @rowCount2 int,
    @absValue2 money,
-   @sql varchar(500)
+   @sql varchar(500),
+   @result int,
+   @idToken int,
+   @slinkToken varchar(15)
 
+/*
   -- get fiscal code and description from the Fiscal Calendar
   select
    @fpCode = key1, 
    @fpDesc = key2 
   from object where typ = 4700 and id = @fpid
+*/
+
+  declare @slinks table(id int identity(1,1), slink varchar(15), processFlag int)
+  insert @slinks select slink, 0 from dbo.glGetAllSlinks(@slink)
 
   -- get the stats to do the final compare
+  -- TODO: we can bail here if we are missing anything, balance not 0, no stage detail, etc....
   select
+   @balance = sum(amount),
    @rowCount = count(*),
    @absValue = sum(abs(amount)) 
   from glDetailStage 
-  where slink = @slink
+  where slink in (select slink from @slinks)
 
   begin transaction
-
-   -- insert rows into glDetail
-   insert gldetail (fpId, fpCode, fpDesc, accountId, slink, amount, date)
-    select @fpid, @fpCode, @fpDesc, accountId, slink, amount, @postDate
-     from glDetailStage where slink = @slink
    
-   update a set
-    a.accountCode = b.accountCode,
-    a.accountDesc = b.accountDesc
-   from gldetail a, glAccounts b
-    where a.accountId = b.AccountId and a.slink = @slink
+   while exists(select * from @slinks where processFlag = 0)
+   begin
+    select top 1 @idToken = id, @slinkToken = slink from @slinks where processFlag = 0
+    exec dbo.glPostGuts @slinkToken, @result output
+    update @slinks set processFlag = 1 where id = @idToken
+   end
 
-   -- flag source record as posted
-   select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = ''Posted'' where ['+idFieldName+'] = '+cast(@id as varchar)
-   from dbo.keyExternalTableReference(@styp)
-   exec(@sql)
-
-   delete glDetailStage where slink = @slink
- 
    -- check to see if the post was successful
    select
     @rowCount2 = count(*),
     @absValue2 = sum(abs(amount)) 
    from glDetail 
-   where slink = @slink
+   where slink in (select slink from @slinks)
    
    if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
    begin
@@ -91,6 +90,8 @@ begin
 
  return
 end
+
+
 
 
 
