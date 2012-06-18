@@ -57,28 +57,44 @@ Begin
   else
    update @rt set ord = isnull(ord,'')+parcel
 
+  declare @slinks table(slink varchar(15))
+  insert @slinks
+   select slink from @rt
+  insert @slinks
+   select 't'+cast(id as varchar) from invoices where invoiceId in (select invoiceId*-1 from @rt)
+
+  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
+  insert @glsum
+  select a.slink,
+   sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
+   sum(case when b.accountType != 'RECEIVABLE' then a.amount else 0.0 end)
+  from glDetail a, glAccounts b 
+  where a.accountId = b.accountId and a.slink in (select slink from @slinks) 
+  group by a.slink
+
   update a set
-   a.due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE' and status='Posted'),0)*methodRate,  -- b.arAmount*methodRate,
-   a.amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE' and status='Posted'),0)
-  from @rt a
+   a.due = b.arAmount*methodRate,
+   a.amount = b.srcAmount 
+  from @rt a, @glSum b where a.slink = b.slink
 
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
    update a set
-    fees = isnull((select sum(subamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE' and status='Posted'),0)
+    fees = isnull((select sum(arAmount) from @glsum where slink in (select 't'+cast(id as varchar) from invoices where invoiceId=a.invoiceId*-1)),0.00)
    from @rt a where selectedFlag in (char(189),'x')
 
    update a set 
-    penalty = due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100/methodRate
+    penalty = due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100
    from @rt a where selectedFlag in (char(189),'x')
 
-   insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel) select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty),' Grand Total: '+cast(sum(due)+sum(fees)+sum(penalty) as varchar) from @rt where selectedFlag > '  0'
+   insert @rt (invoiceId,name,ord,amount,due,fees,penalty) select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty) from @rt where selectedFlag > '  0'
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
   end
 
  return
 
 end
+
 
 
 

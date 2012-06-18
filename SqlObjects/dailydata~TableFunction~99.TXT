@@ -7,6 +7,7 @@ CREATE function dbo.dailydata(@theDate int, @days int) returns
 begin
  declare @showDetail table(id int)
  insert @showDetail select 4522
+
  declare @rawData table(
   amount money,
   tname varchar(50),
@@ -15,6 +16,7 @@ begin
   slink varchar(15),
   ord char(1)
  )
+
  insert @rawData
  select
   a.amount,
@@ -33,7 +35,7 @@ begin
 
  insert @rt
  select
-  typ * -1, 
+  cast('9'+cast(typ as varchar) as int) * -1, 
   ord+'C',
   '   ' + dbo.padRight(tname,' ',30)
   + dbo.padLeft(cast(min(num) as varchar),0,5)
@@ -51,18 +53,16 @@ begin
  insert @rt select 0,'BA','  Deposits by Officers'
  insert @rt select 0,'BB',replicate('-',70)
 
- declare @paycodes table(id int)
- insert @paycodes select link1 from object where typ = 4505 and link1 > 0
-
  insert @rt
  select
-  0, 
+  cast('8'+cast(a.accountId as varchar) as int) * -1, 
   'CC',
-  '   ' + dbo.padRight(accountDesc,' ',48)
-  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
- from glDetail where accountId in (select id from @paycodes)
- group by accountDesc
- having sum(amount) != 0
+  '   ' + dbo.padRight(b.POSTerminal,' ',48)
+  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
+ from glDetail a, paycodes b
+ where a.accountId = b.accountId
+ group by a.accountId,a.accountDesc,b.POSTerminal
+ having sum(a.amount) != 0
 
  insert @rt select 0,'C ',''
  insert @rt select 0,'CA','  Suspense Accounts'
@@ -71,6 +71,7 @@ begin
  return
 
 end
+
 
 
 
