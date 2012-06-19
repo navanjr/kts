@@ -2,19 +2,24 @@ create procedure dbo.depositLinkAllPayments(@depositId int) as
 begin
 
  declare
+  @receiptType varchar(50),
   @tally int,
   @curPaymentId int,
   @code int,
   @message varchar(500)
 
-  set @tally = 0
+  select
+   @tally = 0,
+   @receiptType = key3 
+  from object where typ = 4513 and id = @depositId
 
  declare @linkCanidates table(
   depositId int,
   paymentId int
  )
-  insert @linkCanidates
-  select @depositId, id from dbo.depositAvailablePayments where isnull(depositId,0) = 0
+
+ insert @linkCanidates
+ select @depositId, id from dbo.depositPaidUnPosted() where receiptType = @receiptType
 
  while (select count(*) from @linkCanidates) > 0
  begin
@@ -36,6 +41,7 @@ begin
  return
  
 end
+
 
 
 

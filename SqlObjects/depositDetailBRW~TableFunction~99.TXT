@@ -1,5 +1,5 @@
 create function dbo.depositDetailBRW(@depositId int, @showGL int) returns 
-@rettable table(
+@rt table(
  ord varchar(50),
  id int,
  description varchar(50), 
@@ -10,49 +10,57 @@ begin
  declare @styp char(1) = 'o'
  declare @slink varchar(15) = @styp + cast(@depositId as varchar)
 
- if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = 0)
+ if exists(select * from dbo.depositPaidUnPosted() where isnull(depositId,0) = 0)
  begin
-  insert @rettable
-  select 'aa',0,'Un-linked Payment(s)','',0
-  insert @rettable
-  select 'ac',id*-1,'   '+paycode,checkno,amount from dbo.depositAvailablePayments where isnull(depositId,0) = 0
+  insert @rt
+  select 'c ',0,'','',0
+
+  insert @rt
+  select 'ca',0,'Un-linked Payment(s)','',0
+
+  insert @rt
+  select 'cb'+receiptType,0,'   ' + receiptType,'',0 from dbo.depositPaidUnPosted() where isnull(depositId,0) = 0 group by receiptType
+
+  insert @rt
+  select 'cb'+receiptType+slink,0,'',lower(paycode),amount from dbo.depositPaidUnPosted() where isnull(depositId,0) = 0
+
  end
 
  if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId)
  begin
-  insert @rettable
-  select 'ba',0,'','',0
-  insert @rettable
-  select 'bb',0,'linked Payment(s)','',0
-  insert @rettable
-  select 'bc',id*-1,'   '+paycode,checkno,amount from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+  insert @rt
+  select 'ab',0,'linked Payment(s)','',0
+  insert @rt
+  select 'ac',id*-1,'   '+paycode,checkno,amount from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
  end
 
  if @showGL = 1
  begin
   if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
-   insert @rettable
-   select 'ca',0,'','',0
-   insert @rettable
-   select 'cb',0,'GL Detail (staged)','',0
-   insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where slink = @slink
+   insert @rt
+   select 'ba',0,'','',0
+   insert @rt
+   select 'bb',0,'GL Detail (staged)','',0
+   insert @rt
+   select 'bc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where slink = @slink
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)
   begin
-   insert @rettable
-   select 'ca',0,'','',0
-   insert @rettable
-   select 'cb',0,'GL Detail (posted)','',0
-   insert @rettable
-   select 'cc',0,'   '+accountDesc,'',amount from dbo.glDetail where slink = @slink
+   insert @rt
+   select 'ba',0,'','',0
+   insert @rt
+   select 'bb',0,'GL Detail (posted)','',0
+   insert @rt
+   select 'bc',0,'   '+accountDesc,'',amount from dbo.glDetail where slink = @slink
   end
  end
 
+
  return
 end
+
 
 
 
