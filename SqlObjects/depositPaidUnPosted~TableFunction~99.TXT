@@ -1,0 +1,30 @@
+create function dbo.depositPaidUnPosted() returns @rt table(
+ id int,
+ slink varchar(15),
+ objLinkId int,
+ receiptType varchar(50),
+ paycode varchar(10),
+ checkno varchar(50),
+ amount money,
+ depositId int
+)
+begin
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId 
+ from paid 
+ where isnull(depositId,0) = 0
+  and slink is not null
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId
+ from paid
+ where depositId in (select id from object where typ=4513 and a17 != 'Posted')
+  and slink is not null
+
+ update a set a.receiptType = b.key3
+ from @rt a, object b
+ where a.objLinkId = b.id
+
+ return
+end

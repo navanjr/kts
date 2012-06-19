@@ -57,16 +57,33 @@ begin
  select
   cast('8'+cast(a.accountId as varchar) as int) * -1, 
   'CC',
-  '   ' + dbo.padRight(b.POSTerminal,' ',48)
+  '   ' + dbo.padRight(a.accountDesc,' ',48)
   + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
- from glDetail a, paycodes b
- where a.accountId = b.accountId
- group by a.accountId,a.accountDesc,b.POSTerminal
+ from glDetail a
+ where a.accountId in (select accountId from paycodes)
+ group by a.accountId,a.accountDesc
  having sum(a.amount) != 0
 
  insert @rt select 0,'C ',''
  insert @rt select 0,'CA','  Suspense Accounts'
  insert @rt select 0,'CB',replicate('-',70)
+
+ insert @rt
+ select 
+  cast('7'+cast(b.id as varchar) as int) * -1, 
+  'DC',
+  '   ' + dbo.padRight(receiptType + '      '
+   + case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,' ',48)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from dbo.depositPaidUnPosted() a, object b
+ where a.receiptType = b.key1 and b.typ = 4503
+ group by receiptType, b.id
+
+ insert @rt select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16) from dbo.depositPaidUnPosted()
+
+ insert @rt select 0,'D ',''
+ insert @rt select 0,'DA','  Pending Deposits'
+ insert @rt select 0,'DB',replicate('-',70)
 
  return
 
