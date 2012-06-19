@@ -1,0 +1,25 @@
+CREATE procedure [dbo].[tableFields](@taxrollId int, @tableName varchar(20)) 
+as
+begin
+declare @sqlc varchar(200)
+declare @sql table(sql varchar(200))
+
+IF OBJECT_ID('tempdb..##tableFields') IS NOT NULL 
+begin 
+ drop table ##tableFields
+end
+
+create table ##tableFields (label varchar(30), value varchar(40),position numeric(10,1))
+
+insert @sql
+select 'select '''+column_name+''' as label,'+case when data_type<>'nvarchar' then 'cast(' else '' end+column_name+case when data_type<>'nvarchar' then ' as nvarchar)' else '' end+' as value,'+cast(ordinal_position as varchar)+' as position from '+@tableName+' where id='+cast(@taxrollId as varchar) from INFORMATION_SCHEMA.COLUMNS where table_name=@tableName
+
+
+while exists(select * from @sql)
+begin
+ set @sqlc=(select top 1  'insert ##tableFields '+[sql] from @sql)
+ exec( @sqlc )
+ delete from @sql where @sqlc like '%'+[sql]
+end
+end
+
