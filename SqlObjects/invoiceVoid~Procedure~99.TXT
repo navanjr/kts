@@ -1,0 +1,41 @@
+create procedure dbo.invoiceVoid(@invoiceId int, @postDate int) as
+-- this proc will create a Journal Entry and journalLink to an invoice
+begin
+
+ declare
+  @fpId int,
+  @resultCode int,
+  @newId int,
+  @invoiceSlink varchar(15) = 't' + cast(@invoiceId as varchar),
+  @description varchar(50) = 'Credit/Void Invoice id:' + cast(@invoiceId as varchar)
+ 
+ select @fpId = dbo.glGetFiscalPeriodid(@postDate)
+
+ -- bail if the period is closed
+ if isnull(@fpId,0) < 1
+  return
+
+ -- TODO: bail if there is any receipts or other contra gl activity
+
+ -- create JE with Staged GL Detail and link it to the invoice and then post it
+ exec dbo.journalEntryCRUD 0,
+  @description = @description,
+  @jeType = 'CREDITINVOICE',
+  @postDate = @postDate,
+  @resultCode = @resultCode output,
+  @newId = @newId output
+
+ insert glDetailStage (accountId,accountCode,accountDesc,amount,slink) 
+ select accountId, accountCode, accountDesc, amount * -1, 'o' + cast(@newId as varchar) from glDetail where slink = @invoiceSlink
+
+ insert journalLink select @newId, @invoiceId, 1
+
+ -- post
+ exec dbo.glPost @newId, 'o'
+
+ -- update
+ exec dbo.journalEntryCRUD 2, @id = @newId
+ 
+ return
+
+end

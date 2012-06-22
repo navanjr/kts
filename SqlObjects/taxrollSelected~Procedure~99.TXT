@@ -6,7 +6,13 @@ create procedure dbo.taxrollSelected(
 ) as 
 begin
  
- -- TODO: bail if the id is not an invoice
+ -- bail if the id is not an invoice
+ if not exists(select * from invoices where id = @invoiceId)
+  return
+
+ -- bail if the invoiceDue is zero
+ if dbo.invoiceTotalAR(@invoiceId) = 0
+  return
 
  declare @methodRate money
  if lower(@part) = 'half'
@@ -40,10 +46,18 @@ begin
    and id not in (select invoiceId from receiptlink where receiptId = @receiptId)
  end
 
+ if lower(@method) = 'toggle'
+ begin
+  if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+  begin
+   update receiptLink set methodRate = case when methodRate = 1 then .5 else 1 end
+   where receiptId = @receiptId and invoiceId = @invoiceId   
+  end
+ end
+
  if lower(@part) = 'full' and lower(@method) = 'reset'
  begin
   delete receiptlink where receiptId = @receiptId
  end
-
 
 end

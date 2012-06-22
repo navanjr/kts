@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077223.7653;
+@lastedit=0077243.5718;
 
 ###---###---###---###---###
 @format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
@@ -20,7 +20,7 @@
 @altDelete=
  m('Are you sure you wish to delete this Journal Entry?','Delete...',,6,4),
  break(gcretval<>2),
- sql('exec glDeleteObjectSource '&obj:id);
+ sql('exec dbo.journalEntryCRUD 3, @id='&obj:id);
 
 @loadwindow=
  brwstuff=;
@@ -28,8 +28,8 @@
  gcToggleDb=14474460,
  gcToggleCr=21759,
  gcToggle=gcToggleDb,
- create(151,9,263,20,'Credi&t'),
- prop(151,7cfah,gcToggle),
+ create(351,9,330,40,'Credi&t'),
+ prop(351,7cfah,gcToggle),
  refreshbrw=;
 
 @select=choose(obj:key3>'0',008,006);
@@ -39,11 +39,12 @@
 \t005Description; \w006175; \d006obj:a17='Posted';
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Journal Type; \w04255; \p0427cfah,13499135; \p0427c13h,700; \d042;
 
 \t007&Account Code; \l0084701,1;r008002010004; 
 \t009Description; \d010;
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
- \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h151obj:a17='Posted';
+ \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h351obj:a17='Posted';
 
 \t073ABSValue; \h073074;r \s074+'select absAmount from glSummary('&obj:id&',''o'')';
 
@@ -106,6 +107,6 @@
  d1select('dbo.glPost '&obj:id&', ''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
-@acc151=
+@acc351=
  if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
- prop(151,7cfah,gcToggle);
+ prop(351,7cfah,gcToggle);

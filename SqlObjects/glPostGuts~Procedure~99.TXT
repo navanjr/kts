@@ -9,6 +9,8 @@ begin
   it does not contain any internal consistancy checks or transaction processing.
   nor does it return any errors.
   glPostGuts only moves the staged gl data into glDetail for only a single parent slink.
+  update: (nate) this routine also updates object records status
+  update: (nate) this routine also updates invoices sub totals
 */
 
  set @result = 1
@@ -20,7 +22,7 @@ begin
   @fpid int,
   @fpCode varchar(50),
   @fpDesc varchar(50),
-   @sql varchar(500)
+  @sql varchar(500)
 
 -- make sure the fiscal period is open
  exec dbo.glGetPostDateFromSlink @slink, @postDate output, @fpid output, @fpCode output, @fpDesc output, @styp output, @id output 
@@ -53,6 +55,12 @@ begin
   select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = ''Posted'' where ['+idFieldName+'] = '+cast(@id as varchar) 
   from dbo.keyExternalTableReference(@styp)
   exec(@sql)
+ end
+
+-- if your an invoice, then update the sub totals on the invoice
+ if @styp = 't'
+ begin
+  exec dbo.invoiceUpdate @id
  end
 
 -- delete the staged records

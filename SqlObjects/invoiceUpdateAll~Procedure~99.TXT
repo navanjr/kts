@@ -1,0 +1,18 @@
+create procedure dbo.invoiceUpdateAll as
+-- dont use this too often please. :)  it was written to be used to update all invoice subtotals as a maintenance routine
+-- it has not been optimized for general use.
+begin
+
+ declare @idToken int
+
+ declare @wt table(invoiceId int)
+ insert @wt select id from invoices
+
+ while exists(select * from @wt)
+ begin
+  select top 1 @idToken = invoiceId from @wt 
+  exec dbo.invoiceUpdate @idToken
+  delete @wt where invoiceId = @idToken
+ end
+
+end

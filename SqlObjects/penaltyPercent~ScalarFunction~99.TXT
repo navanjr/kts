@@ -5,8 +5,6 @@ declare @grace int,
         @months int,
         @days int,
         @rate int,
-        @workdate int,
-        @workdate2 int,
         @begindate varchar (10),
         @enddate varchar (10),
         @typ varchar (1),
@@ -21,16 +19,7 @@ set @rate  = (select top 1 cast(b1 as int) from object where typ=40)
 
 if @typ in ('P','R','B','I')
  begin
-  set @workdate = (select dbo.clariondate('12/31/'+cast(taxyear as varchar)) from invoices where id=@invoiceId)
-  set @workdate2 = isnull((select min(firstDate) from dbo.invoiceFirstPayment(@invoiceId) where percentUnpaid<60),dbo.clariondate(getdate()+10))
-  if @workdate2>=@workdate
-   begin
-    set @begindate = (select '12/31/'+cast(taxyear as varchar) from invoices where id=@invoiceId)
-   end
-  else
-   begin
-    set @begindate = (select '03/31/'+cast(taxyear+1 as varchar) from invoices where id=@invoiceId)
-   end
+  set @begindate = (select '12/31/'+cast(taxyear as varchar) from invoices where id=@invoiceId)
  end 
 else
  begin
@@ -63,11 +52,6 @@ else
  begin
   set @interestpercent = @days*@rate/365.0
  end 
-
-if @interestpercent < 0.00
- begin
-  set @interestpercent = 0.00000
- end
 
 return @interestpercent
 end

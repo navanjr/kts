@@ -137,6 +137,12 @@ begin
  begin
    alter table invoices add invoiceId int not null default 0
  end
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'invoiceAmount')
+ begin
+   alter table invoices add invoiceAmount money not null default 0
+   alter table invoices add invoiceDue money not null default 0
+   alter table invoices add subInvoiceDue money not null default 0
+ end
  
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[receiptlink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[receiptlink](
@@ -145,6 +151,15 @@ begin
    invoiceId int,
    methodRate money not null default 1.0
   )        
+
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[journalLink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table [dbo].[journalLink](
+   id int identity(1,1),
+   jeId int,
+   invoiceId int,
+   methodRate money not null default 1.0
+  )        
+
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[AdTax](
