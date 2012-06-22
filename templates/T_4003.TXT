@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077242.7354;
+@lastedit=0077243.7695;
 
 ###---###---###---###---###
 @menuprocess=
@@ -58,9 +58,10 @@
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
  break(lcId<1),
- m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|Void Invoice|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
- if(gcretval=2,selectedRateToggle=);
+ if(gcretval=2,selectedRateToggle=),
+ if(gcretval=3,sql('exec dbo.invoiceVoid '&lcId&','&today()));
 
 @selectedRateToggle=
  sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
@@ -106,7 +107,10 @@
  @acc078=createbrw=,focus(160);
 
 \t108New &Receipt;
-@acc108=new(4502,3,-14='TAX',-68=obj:id);
+@acc108=
+ lcChk=kp('select count(*) from receiptLink where receiptId = '&obj:id),
+ break(lcChk+0<1),
+ new(4502,3,-14='TAX',-68=obj:id);
 
 \t109Add Comment;
   @acc109=lcSearchId=kpbrwid(1)*-1,
