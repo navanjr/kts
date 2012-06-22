@@ -4,7 +4,16 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077235.6359;
+@lastedit=0077242.5774;
+
+###---###---###---###---###
+@id=4506;
+@template=Reports;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077240.5925;
 
 ###---###---###---###---###
 @bb1=&Print; @bbproc1=taxStatment=;
@@ -16,17 +25,64 @@ loadbrowse=
  gcCity=readstring(gcSiteBlob,'@city='),
  gcCounty=readstring(gcSiteBlob,'@county='),
  gcFState=readstring(gcSiteBlob,'@fullState='),
- gcOfficial=readstring(gcSiteBlob,'@officialName=');
+ gcOfficial=readstring(gcSiteBlob,'@officialName='),
+ gcPhone=readstring(gcSiteBlob,'@phone='),
+ gcOfficeAdd=kp('select dbo.parseAddress('''&gcSiteBlob&''')');
+
 
 @taxStatment=
- gcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob(8237)'),
+ getSiteInfo=,
+ gcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
  gcName=readstring(gcInvoiceBlob,'@NAME='),
  gcAdd=kp('select dbo.parseAddress('''&gcInvoiceBlob&''')'),
+ gcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
+ lcMil=0,
+ lcTot=0,
  tr(
-img('C:\Client\Key\kts\taxStatement.jpg',0,0,8500,11000),
-txt(gcName&chr(13)&chr(10)&gcAdd,1000,1000,3000,1000,1),
-
+ lcy=1000,
+ lcx=1000,
+ img(kpexepath()&'\kts\statement.gif',0,-50,8500,8502),
+ prn(gcOfficial,lcx+4500,lcy-500,12,bold),
+ prn(,,,12,regular),
+ txt(gcCounty&' COUNTY TREASURER'&chr(13)&chr(10)&gcOfficeAdd&chr(13)&chr(10)&'TELEPHONE '&gcPhone,lcx+4000,lcy-300,4000,1000,1),
+ prn(readstring(gcInvoiceBlob,'@TAXYEAR=')&readstring(gcInvoiceBlob,'@ITEM='),lcx,lcy-750,14,,'IDAutomationHC39M'),
+ prn(,,,12,,'Arial'),
+ txt(gcName&chr(13)&chr(10)&gcAdd,lcx,lcy,3000,1000,1),
+ lcy=lcy+1150,
+ prn(,lcx-550,lcy,11),
+ bnd(,readstring(gcInvoiceBlob,'@ITEM='),1300C,readstring(gcInvoiceBlob,'@PARCEL='),3050C,readstring(gcInvoiceBlob,'@TAXYEAR='),500,choose(readstring(gcInvoiceBlob,'@TYP=')='R','	REAL ESTATE','PERSONAL'),1350C),
+ lcy=lcy+750,
+ prn(,,lcy),
+ bnd(,readstring(gcInvoiceBlob,'@GROSSASSESSED='),1850C,readstring(gcInvoiceBlob,'@EXEMPTION3='),1200C,readstring(gcInvoiceBlob,'@NETASSESSEDVALUE='),1800C,readstring(gcInvoiceBlob,'@ORGSCHOOLDISTRICTMAIN='),650C),
+ lcy=lcy+800,
+ prn(,,lcy),
+ txt(readstring(gcInvoiceBlob,'@LEGALDESCRIPTION='),lcx,lcy,3600,1000,1),
+ prn(,lcx+3075,lcy+250),
+ det(gcSql),
+ bnd(,obj5:a1,1400,format(obj5:a2,@n-14.2),1150C,format(obj5:a3,@n-14.2),1150R),
+ lcMil=lcMil+obj5:a2,
+ lcTot=lcTot+obj5:a3,
+ edt,
+ prn(,lcx+4600,lcy,12),
+ bnd(,format(lcMil,@n-14.4),1150C),
+ lcy=lcy+3050,
+ prn(,lcx+5725,lcy,12), 
+ bnd(,format(readstring(gcInvoiceBlob,'@TOTALDUE='),@n-14.2),1150R),
+ lcy=lcy+775,
+ prn(,lcx-550,lcy),
+ bnd(,readstring(gcInvoiceBlob,'@PARCEL='),3050,readstring(gcInvoiceBlob,'@TYP='),550C,readstring(gcInvoiceBlob,'@ACRES='),550C,readstring(gcInvoiceBlob,'@ORGSCHOOLDISTRICTMAIN='),750C,readstring(gcInvoiceBlob,'@TAXYEAR='),500C,readstring(gcInvoiceBlob,'@ITEM='),1300C),
+ lcy=lcy+950,
+ prn(,,,7),
+ txt(gcOfficial&chr(13)&chr(10)&gcCounty&' COUNTY TREASURER'&chr(13)&chr(10)&gcOfficeAdd,lcx+3300,lcy-700,4000,1000,1),
+ prn(,lcx+3500,lcy,12),
+ bnd(,readstring(gcInvoiceBlob,'@TAXYEAR=')&' FULL AMOUNT DUE   '&format(readstring(gcInvoiceBlob,'@TOTALDUE='),@n$-14.2),2500),
+ bnd(,readstring(gcInvoiceBlob,'@TAXYEAR=')&' HALF AMOUNT DUE   '&format(readstring(gcInvoiceBlob,'@TOTALDUE=')/2,@n$-14.2),2500),
+ lcy=lcy+1050,
+ prn(,,lcy,12),
+ txt(readstring(gcInvoiceBlob,'@PARCEL=')&chr(13)&chr(10)&gcName&chr(13)&chr(10)&gcAdd,lcx,lcy,3000,1000,1),
 );
+
+
 offDeposit=
  get(gcDepId),
  gcDepNo=obj7:key1,
@@ -267,6 +323,4 @@ offDeposit=
   prn(,,lcRp3),
   bnd('D',obj7:a18,lcCw),
 );
-
- 
 

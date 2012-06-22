@@ -1,0 +1,57 @@
+@id=4006;
+@template=Taxroll Address;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077241.3633;
+
+###---###---###---###---###
+@dk1;@nolock;
+
+@menuprocess=
+ lcId=kp('select id from object where typ=4006 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''''),
+ if(lcId+0>0,change(lcId),new(4006));
+
+@loadwindow=
+ sql('dbo.taxRollAddressCheck '&gcInvoiceId),
+ gcAddBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
+ set(002,readstring(gcAddBlob,'@PARCEL='),1),
+ set(004,readstring(gcAddBlob,'@NAME='),1),
+ set(006,readstring(gcAddBlob,'@ITEM='),1),
+ set(008,readstring(gcAddBlob,'@TAXYEAR='),1),
+ set(010,readstring(gcAddBlob,'@address1='),1),
+ set(012,readstring(gcAddBlob,'@address2='),1),
+ set(014,readstring(gcAddBlob,'@address3='),1),
+ set(016,readstring(gcAddBlob,'@city='),1),
+ set(018,readstring(gcAddBlob,'@state='),1),
+ set(020,readstring(gcAddBlob,'@zip1='),1),
+ set(022,readstring(gcAddBlob,'@zip2='),1),
+ set(046,readstring(gcAddBlob,'@Stamp='),1;
+
+@nolock;
+
+\t001Parcel;
+\t003Name;
+\t005Item Number;
+\t007Tax Year; \t008@s4; \w00825;
+\t009Address1;
+\t011Address2;
+\t013Address3; \w010014+50;r2
+\t015City; \w016100; \u016;
+\t017State; 
+	\w01815; \y017018-13;r \h017; \x018+102; \u018;
+\t019Zip; 
+	\t020@s5; \w02027; \y019020-26;r \h019; \x020+119;
+\t021Zip2; 
+	\t022@s4; \w02219; \y021022-39;r \h021; \x022+149;
+
+
+\t045Time Stamp; \w04690; \x045-85; \x046-105; \f046=format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini; \d046;
+
+\t108&Update(F10); 
+ @acc108=
+ set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
+ update,
+ sql('exec dbo.taxRollAddressUpdate '&obj:id),
+ close('ok');
