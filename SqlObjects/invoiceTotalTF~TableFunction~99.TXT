@@ -1,14 +1,24 @@
-create function dbo.invoiceGLTotalTF(@invoiceId int) returns @rt table(
+create function dbo.invoiceTotalTF(@invoiceId int) returns @rt table(
  slink varchar(15),
  accountId int,
  accountDesc varchar(50),
  accountType varchar(50),
  amount money,
- subAmount money,
+-- subAmount money,
  status varchar(10)
 )
+
+-- TODO: not sure about this one... it appears that there would be duplicates in @rt as invoiceSlinks will grab all invoice, receipts and receiptLink
+--   I think the only place matt is using this one is in taxroll BRW
+
 begin
 
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount, 'Posted'
+ from glDetail a, glAccounts b
+ where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+
+/*
  insert @rt
  select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00, 'Posted'
  from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
@@ -24,6 +34,7 @@ begin
  insert @rt
  select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount, 'Staged'
  from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSubSlinks(@invoiceId))
+*/
 
  return
 

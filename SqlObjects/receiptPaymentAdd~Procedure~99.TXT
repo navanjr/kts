@@ -11,8 +11,8 @@ as
 begin
 
  declare @styp char(1) = 'o'
- 
- declare 
+
+ declare
   @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @code int,
   @message varchar(100),
@@ -22,8 +22,8 @@ begin
   @fpId int,
   @objectTyp int,
   @balance money
-  
- select 
+
+ select
   @code = code,
   @message = message,
   @receiptType = receiptType,
@@ -53,18 +53,18 @@ begin
   -- add row to paid
   insert paid (paycode,slink,amount,checkno,bankId)
    select @paycode,@slink,@amount,@checkNumber,@bankId
-   
+
   -- add to the gl stage
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId
-  else 
+  else
    exec dbo.receiptStageGL @receiptId
 
   -- get the balance of the glStage to check your work
 
   if @receiptType = 'TAX'
    select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
-  else 
+  else
    select @balance = balance from dbo.glSummary(@receiptId,'o')
 
   if @balance != 0

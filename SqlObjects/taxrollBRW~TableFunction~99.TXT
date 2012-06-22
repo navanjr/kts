@@ -17,77 +17,68 @@ create function dbo.taxrollBRW(
  methodRate money,
  ord varchar(50),
  fees money,
- penalty money
+ penalty money,
+ toPay money
 )
 Begin
 
+--get the tax years we will return
   declare @taxYears table(yr varchar(4))
-
   if lower(@taxYear) = 'all'
    insert @taxYears select cast(taxyear as varchar (4)) from invoices group by taxyear
   else
    insert @taxYears select @taxYear
 
+  declare @showPaidFlag char(1) = substring(@orderString,3,1)
+
+-- get the first 1000 rows that match the search string. IF we have a search string
   if @searchString > '  0'
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_',0.00,0.00 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',subInvoiceDue,0,0 
    from dbo.invoices
    where name+' '+parcel like '%'+@searchString+'%'
     and cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
+    and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
-
+-- get the first 1000 rows with out using a search string.  why would you ever do this?
   else
    insert @rt
-   select top 1000 id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),'',0,'b_',0.00,0.00
+   select top 1000 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',subInvoiceDue,0,0 
    from dbo.invoices
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
+    and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
 
+-- get the already selected items
   insert @rt
   select 
-    a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,0,0,'t'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',0.00,0.00
-  from dbo.invoices a, receiptLink b where a.id = b.invoiceId and b.receiptId = @receiptId
+   a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,invoiceAmount,invoiceDue,
+   't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',subInvoiceDue,0,0
+  from dbo.invoices a, receiptLink b 
+  where a.id = b.invoiceId and b.receiptId = @receiptId
 
-  if @orderString = '10'
+-- order the result set by name or by parcel
+  if left(@orderString,2) = '10'
    update @rt set ord = isnull(ord,'')+name
   else
    update @rt set ord = isnull(ord,'')+parcel
 
-  declare @slinks table(slink varchar(15))
-  insert @slinks
-   select slink from @rt
-  insert @slinks
-   select 't'+cast(id as varchar) from invoices where invoiceId in (select invoiceId*-1 from @rt)
-
-  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
-  insert @glsum
-  select a.slink,
-   sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
-   sum(case when b.accountType != 'RECEIVABLE' then a.amount else 0.0 end)
-  from glDetail a, glAccounts b 
-  where a.accountId = b.accountId and a.slink in (select slink from @slinks) 
-  group by a.slink
-
-  update a set
-   a.due = b.arAmount*methodRate,
-   a.amount = b.srcAmount 
-  from @rt a, @glSum b where a.slink = b.slink
-
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
-   update a set
-    fees = isnull((select sum(arAmount) from @glsum where slink in (select 't'+cast(id as varchar) from invoices where invoiceId=a.invoiceId*-1)),0.00)
-   from @rt a where selectedFlag in (char(189),'x')
-
    update a set 
-    penalty = due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100
+    penalty = (due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100) * methodRate,
+    toPay = due * methodRate
    from @rt a where selectedFlag in (char(189),'x')
 
-   insert @rt (invoiceId,name,ord,amount,due,fees,penalty) select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty) from @rt where selectedFlag > '  0'
+   insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel) 
+   select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty),'--Grand Total: '+cast(sum((due+fees+penalty) * methodRate) as varchar)
+   from @rt where selectedFlag > '  0'
+
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
   end
 
