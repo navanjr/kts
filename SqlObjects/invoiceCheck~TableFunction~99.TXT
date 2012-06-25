@@ -1,16 +1,21 @@
 create function dbo.invoiceCheck(@invoiceId int) returns @rt table(
  due money,
- arAccountId int
+ arAccountId int,
+ postDate int
 )
 begin
+ 
+ declare @slink varchar(15) = 't' + cast(@invoiceId as varchar)
 
  insert @rt
  select 
   dbo.invoiceTotalAR(@invoiceId),
-  a.accountId 
- from glDetail a, glAccounts b
- where a.accountId = b.accountId 
-  and a.slink = 't'+cast(@invoiceId as varchar)
+  a.accountId,
+  c.postDate 
+ from glDetail a, glAccounts b, invoices c
+ where a.accountId = b.accountId
+  and a.slink = 't'+cast(c.id as varchar)
+  and c.id = @invoiceId
   and b.accountType = 'RECEIVABLE'
  
  return

@@ -4,10 +4,10 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077223.7653;
+@lastedit=0077244.3424;
 
 ###---###---###---###---###
-@format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
+@format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M50L(3)~Type~#30#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 @ordername=Number,Date;
@@ -15,12 +15,17 @@
 
 @bb6=&Print; @bbproc6=acc109=;
 
+@browseinsert=
+ m('When creating a new Journal Entry,| Please Choose one of the following TYPEs of Journal Entry to create...','Journal Entry...',,'&Manual|Co&rrection|&Cancel'),
+ break(gcretval=3),
+ new(4512,1,042=choose(gcretval,'MANUAL','CORRECTION'));
+
 @browsedelete=
  if(obj:a17='Posted',m('This record has been posted and can not be deleted.','Oops..'),altDelete=);
 @altDelete=
  m('Are you sure you wish to delete this Journal Entry?','Delete...',,6,4),
  break(gcretval<>2),
- sql('exec glDeleteObjectSource '&obj:id);
+ sql('exec dbo.journalEntryCRUD 3, @id='&obj:id);
 
 @loadwindow=
  brwstuff=;
@@ -28,8 +33,8 @@
  gcToggleDb=14474460,
  gcToggleCr=21759,
  gcToggle=gcToggleDb,
- create(151,9,263,20,'Credi&t'),
- prop(151,7cfah,gcToggle),
+ create(351,9,330,40,'Credi&t'),
+ prop(351,7cfah,gcToggle),
  refreshbrw=;
 
 @select=choose(obj:key3>'0',008,006);
@@ -39,17 +44,20 @@
 \t005Description; \w006175; \d006obj:a17='Posted';
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Journal Type; \w04255; \p0427cfah,13499135; \p0427c13h,700; \p0427c06h,1; \p0427c10h,Arial; \p0427c11h,7; \d042;
 
 \t007&Account Code; \l0084701,1;r008002010004; 
 \t009Description; \d010;
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
- \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h151obj:a17='Posted';
+ \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h351obj:a17='Posted';
 
 \t073ABSValue; \h073074;r \s074+'select absAmount from glSummary('&obj:id&',''o'')';
 
 \t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700; \d076;
  \s076+'select balance from glSummary('&obj:id&',''o'')';
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
+
+\t101Comments; \q102obj:a18='CORRECTION';
 
 \t109&Print; @acc109=gcJEReportWhere='where slink=''o'&obj:id&'''',trreport('glJournalEntryReport=');
 \t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0; \h110obj:a17='Posted';
@@ -106,6 +114,6 @@
  d1select('dbo.glPost '&obj:id&', ''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
-@acc151=
+@acc351=
  if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
- prop(151,7cfah,gcToggle);
+ prop(351,7cfah,gcToggle);

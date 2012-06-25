@@ -10,6 +10,12 @@ begin
  if not exists(select * from invoices where id = @invoiceId)
   return
 
+ if lower(@part) = 'full' and lower(@method) = 'reset'
+ begin
+  delete receiptlink where receiptId = @receiptId
+  return
+ end
+
  -- bail if the invoiceDue is zero
  if dbo.invoiceTotalAR(@invoiceId) = 0
   return
@@ -53,11 +59,6 @@ begin
    update receiptLink set methodRate = case when methodRate = 1 then .5 else 1 end
    where receiptId = @receiptId and invoiceId = @invoiceId   
   end
- end
-
- if lower(@part) = 'full' and lower(@method) = 'reset'
- begin
-  delete receiptlink where receiptId = @receiptId
  end
 
 end
