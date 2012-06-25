@@ -1,4 +1,4 @@
-CREATE function [dbo].[taxrollCheck](@id int, @invoiceType varchar(1) = '') returns
+CREATE function [dbo].[taxrollCheck](@id int) returns
 @rettable table(
  code int,
  message varchar(500),
@@ -29,27 +29,16 @@ begin
 
   set @fpid=0
 
-  if @invoiceType='S'
-   begin 
-    select 
-     @taxyear = a18,
-     @district = a19,
-     @rateName = 'MUNI',
-     @amount = b1,
-     @cdate = key2
-    from object where id = @id
-   end
-  else
-   begin
+  begin 
    -- TODO: allow for an "as of" date for importing and posting of tax rolls
-    select 
-     @taxyear = [REALTAXYEAR],
-     @district = case when [SCHOOLDISTRICTMAIN] > ' 0' then [SCHOOLDISTRICTMAIN] else [ORGSCHOOLDISTRICTMAIN] end,
-      @rateName = case when [SCHOOLDISTRICTTAXRATE] > ' 0' then [SCHOOLDISTRICTTAXRATE] else [ORGSCHOOLDISTRICTTAXRATE] end,
-     @amount = case when [TOTALDUE]>0.00 then [TOTALDUE] else [ORIGINALTOTALDUE] end,
-     @cdate = dbo.clariondate(getdate())
-    from adtax where id = @id
-   end 
+   select 
+    @taxyear = [REALTAXYEAR],
+    @district = case when [SCHOOLDISTRICTMAIN] > ' 0' then [SCHOOLDISTRICTMAIN] else [ORGSCHOOLDISTRICTMAIN] end,
+    @rateName = case when [SCHOOLDISTRICTTAXRATE] > ' 0' then [SCHOOLDISTRICTTAXRATE] else [ORGSCHOOLDISTRICTTAXRATE] end,
+    @amount = case when [TOTALDUE]>0.00 then [TOTALDUE] else [ORIGINALTOTALDUE] end,
+    @cdate = dbo.clariondate(getdate())
+   from adtax where id = @id
+  end 
 
  -- check for invoice
  if not exists(select * from invoices where taxrollid = @id)
