@@ -4,16 +4,15 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077241.4378;
+@lastedit=0077247.3680;
 
 ###---###---###---###---###
-@noupdate;
 @noinsert;
 @nomodify;
 
-@loadwindow=createbrw=;
+@loadwindow=gcfieldnum='',gclabel='',gcoriginal='',gctype='',gcinvoice=0,createbrw=;
 
-@createbrw=gcsql='select Id,key2,key3,case when a3 = ''@d2;'' then dbo.date1(a1) else a1 end as original,case when a3 = ''@d2;'' then dbo.date1(a2) else a2 end as corrected from object where typ=4005 and link1='&obj:link1&' order by key1 desc',
+@createbrw=break(tier=2),gcsql='select Id,key2,key3,case when a3 = ''@d2;'' then dbo.date1(a1) else a1 end as original,case when a3 = ''@d2;'' then dbo.date1(a2) else a2 end as corrected from object where typ=4005 and link1='&obj:link1&' order by key1 desc',
   brw(160,1,gcsql,305,145,195,100,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M');
 
 @lbrwclick160=
@@ -23,8 +22,14 @@
  if(gcretval=1,change(lcId)),
  if(gcretval=2,fastmodify(lcId,-02=-4005)),
  brwreload(1);
+@acc106=if(tier=2,doadd=);
 
- lcBlob=kp('select dbo.taxrollCorrectionDetailBlob('&kpbrwid(1)&')'),
+@doadd=update,d1select('exec dbo.taxrollAddOmitted '&obj:id&', '''&cur:ini&''','&today()&''),
+ if(readstring(obj7:d1,'@code=1')>0,m(obj7:d1)),set(-02,-4001),update;
+@closewindow=gcfieldnum='',gclabel='',gcoriginal='',gctype='',gcinvoice=0;
+@nox=tier=2 and (obj:a18<' 0' or obj:a20<' 0' or obj:key2+0<2 or obj:a1+0<2.0 or obj:key1<' 0' or obj:a2<'0' or obj:b15+0<2);
+@noexit=m('You must have the following information entered before exiting: Name, Taxyear, Item Number, Type, Original School District, Original Rate and Tax Due');
+
 
 \m160Right Click for more options...;
 
@@ -78,12 +83,12 @@
 @sel102=gcfieldnum='102',gclabel='Legal',gcoriginal=obj:e1,gctype='memo',gcinvoice=0;
 
 
-\r002102;r
+\r002102tier<>2;r
 @dk1;
 \t001Name;
 \t003Tax Year; \t004@s4; \w00425;
 \t005Parcel #;
-\t007Item #; \t008@n7.1;
+\t007Item #; \t008@n8.1;
 \t009Type; \u010; @choose010:IBROC; \w01013;
 \t011Business Name;
 \t013Mail Add1;
@@ -100,9 +105,9 @@
 \t035Owner Number; \t036@n9.2; \w03650;
 \t037Acres; \t038@n7.2; \w03850;
 \t039Status;
-\t041Orig School;
+\t041Orig School; \l0424010;@acc042=calcrecord();
 \t043School;\s044-'select isnull((select top 1 a2 from object where typ=4005 and key1=''044'' and link1='&obj:link1&' order by key2 desc),'''&obj:a18&''')';
-\t045Orig Rate;
+\t045Orig Rate; \l0464011;@acc046=calcrecord();
 \t047Tax Rate;\s048-'select isnull((select top 1 a2 from object where typ=4005 and key1=''048'' and link1='&obj:link1&' order by key2 desc),'''&obj:a20&''') ';
 \t049Lots; \t050@n5.2; \w05050;
 \t051Assessed; \h052; \x051=052;
@@ -117,7 +122,7 @@
 \t069Exemption 3; \t070@n9; \w07050;
 \t071Net Assessed; \t072@n9; \w07250;
 \t073Millage; \t074@n14.7; \w07450;
-\t075Tax Due; \t076@n14.2; \w07650;
+\t075Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord();
 \t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select isnull((select top 1 a2 from object where typ=4005 and key1=''078'' and link1='&obj:link1&' order by key2 desc),'''&obj:b15&''') ';
 \t079Unpaid; \t080@n14.2; \w08050;
 \t081Certificate #;
@@ -133,6 +138,7 @@
 
 \t101Legal;
 
+\h105tier=2;
 \t105Correct Info;
  @acc105=case(gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.')),refreshBRW=;
 
@@ -142,5 +148,3 @@
 @correctMemo=iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),update,tsc; \t103New Value; \w104200;'),
   fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=left(gcoriginal,49),010=left(obj7:e2,49),102=gcoriginal,104=obj7:e2,012=gctype);
 
-@loadwindow=gcfieldnum='',gclabel='',gcoriginal='',gctype='',gcinvoice=0;
-@closewindow=gcfieldnum='',gclabel='',gcoriginal='',gctype='',gcinvoice=0;
