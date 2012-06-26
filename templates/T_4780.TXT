@@ -1,0 +1,71 @@
+@id=4780;
+@template=Bank Statements;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+@lastedit=0077247.4636;
+
+###---###---###---###---###
+@dk1;
+@format=55R(2)~Statement Date~@d2@#5#|M150L(2)~Account~#2#|M70R(2)~Beginning Balance~@n-14.2@#32#|M70R(2)~Ending Balance~@n-14.2@#33#|M50R(2)~Bank Variance~@n-12.2@#22#|M;
+@key2=obj:a1;
+@defaultbrowsekey=2;
+
+\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1=''BANK''',2;
+\t003Description;  \d004;
+
+\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=;
+\t009through;  \w01050;  \t010@d2;
+
+\t045Begin Balance; \w04660;
+\t047Ending Balance; \w04860;
+ \p0460487cfah,13499135;r2 \p0460487c13h,700;r2 \d046048;r2 \p0460487c0ch,1;r2 \t046048@n14.2;r2
+
+\t077ShowLinksFlag; \h077078;r
+
+\t083Deposits; \w08460;
+\t085Credits; \w08660;
+ \p0840867cfah,13499135;r2 \p0840867c13h,700;r2 \d084086;r2 \p0840867c0ch,1;r2 \t08486@n14.2;r2
+
+@loadwindow=
+ create(550,12,510,88,'&Show Links',78),
+ brwstuff=,
+ sums=;
+
+@acc550=refreshBRW=;
+@gfwindow=refreshBRW=;
+
+@sums=
+ lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
+ set(046,readstring(lcBlob,'@bBalance=')),
+ set(048,readstring(lcBlob,'@eBalance=')),
+ set(084,readstring(lcBlob,'@deposits=')),
+ set(086,readstring(lcBlob,'@credits='));
+
+@gcvars=
+ lcShowFlag=obj:c1,
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag from dbo.bankStatementBRW('&obj:id&','&obj:link1&','''&lcShowFlag&''') order by ord';
+
+@brw1=
+ lcid=kpbrwid(1)*-1,
+ break(lcid+0<1),
+ sql('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id),
+ refreshBRW=;
+
+@brwstuff=
+ gcvars=,
+ brw(150,1,gcsql,65,81,425,200,
+  '138L(2)~~#3#M
+138L(2)~~#4#M|
+50R(2)~debit~@n-14.2b@#5#M|
+50R(2)~credit~@n-14.2b@#6#M|
+50R(2)~~#7#M',7,1),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10<0,255;
+@lbrw1color=obj7:c10='X',1959605; 2350115;
+
+@refreshBRW=
+ sums=,
+ gcvars=,
+ brwreload(1,gcsql);
