@@ -1,0 +1,23 @@
+create function dbo.invoiceFirstPayment(@invoiceId int) returns @rt table(firstDate int, percentUnpaid numeric(5,0))
+as
+begin
+ insert @rt
+ select cast(r.key2 as int) as datepaid
+ ,round(isnull((select sum(amount) from dbo.invoiceGLTotalTF(@invoiceId) where accountType='RECEIVABLE'),0)
+ /isnull((select sum(amount) from dbo.invoiceGLTotalTF(@invoiceId) where accountType='SOURCE'),0),3)*-100 as percentUnpaid
+ from receiptlink rl, paid p, object r 
+ where r.typ=4502
+ and rl.receiptId = r.id
+ and rl.invoiceId=@invoiceId 
+ and 'o'+cast(rl.receiptId as varchar)=p.slink
+ and p.amount>0.00
+
+ declare @cnt int
+ set @cnt = (select count(*) from @rt)
+ if @cnt<1
+ begin
+  insert @rt
+  select dbo.clariondate(getdate())+10,100
+ end
+ return
+end
