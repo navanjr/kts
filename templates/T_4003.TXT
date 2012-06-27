@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077243.9048;
+@lastedit=0077246.5560;
 
 ###---###---###---###---###
 @menuprocess=
@@ -17,7 +17,9 @@
  create(152,12,210,3,'Name',32),
  create(153,12,250,3,'Parcel',34),
  halfToggle=,
- createbrw=;
+ createbrw=,
+ create(352,9,478,300,'&Print(F9)'),
+ create(353,9,478,316,'&Address(F10)');
 
 @halfToggle=
  gcTaxToggleF=14474460,
@@ -30,15 +32,27 @@
  if(gcTaxToggle=gcTaxToggleF,gcTaxToggle=gcTaxToggleH,gcTaxToggle=gcTaxToggleF),
  prop(351,7cfah,gcTaxToggle);
 
+\v352120; \w352=119; 
+ @acc352=
+  gcInvoiceId=kpbrwid(1)*-1,
+  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
+  trreport('TaxStatement');
+
+\v353121; \w353=119;
+ @acc353=
+  gcInvoiceId=kpbrwid(1)*-1,
+  do(4006,menuprocess=);
+
+
 @dk1;
 @createbrw=
   kpmo('Selecting Taxroll Data...'),
   gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&obj:a11&''') order by ord',
   brw(160,1,gcsql,3,15,470,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M35C(2)~Sel~#9#|M',7,1),
   gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollSearchBRW('&obj:id&',0)',
-  brw(161,2,gcsql2,3,145,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35C(2)~Sel~#9#|M',7,1),
+  brw(161,2,gcsql2,3,145,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35L(2)~Sel~#9#|M',7,1),
   gcsql3='select Id,notedate,comment from dbo.taxrollSearchCommentBRW(0)',
-  brw(162,3,gcsql3,3,279,400,60,'45L(2)~Date~@d2@#2#|M400L(2)~Comment~#3#|M',,,),
+  brw(162,3,gcsql3,3,279,400,60,'45L(2)~Date~#2#|M400L(2)~Comment~#3#|M',,,),
   kpmc();
 
 @brw1=
@@ -58,17 +72,9 @@
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
  break(lcId<1),
- m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|Void Invoice|invoiceUpdate|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
- if(gcretval=2,selectedRateToggle=),
- if(gcretval=3,sql('exec dbo.invoiceVoid '&lcId&','&today())),
- if(gcretval=4,sql('exec dbo.invoiceUpdate '&lcId));
-
-@selectedRateToggle=
- sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
- refreshBRW=;
-
-@gfwindow=
+ if(gcretval=2,sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''&lcPart&''',''toggle''')),
  refreshBRW=;
 
 @brw3=
@@ -111,10 +117,7 @@
  @acc078=createbrw=,focus(160);
 
 \t108New &Receipt;
-@acc108=
- lcChk=kp('select count(*) from receiptLink where receiptId = '&obj:id),
- break(lcChk+0<1),
- new(4502,3,-14='TAX',-68=obj:id);
+@acc108=new(4502,3,-14='TAX',-68=obj:id);
 
 \t109Add Comment;
   @acc109=lcSearchId=kpbrwid(1)*-1,

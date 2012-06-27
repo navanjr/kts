@@ -1,4 +1,4 @@
-create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0, @invoiceType varchar (1) = '') as
+create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0) as
 begin
 
  declare @styp char(1) = 't'
@@ -13,7 +13,7 @@ begin
   @message = message,
   @arAccountId = debitId,
   @slink = slink
- from dbo.taxrollCheck(@id,@invoiceType)
+ from dbo.taxrollCheck(@id)
  if @code = 1 
  begin
   if @smode=0
@@ -34,7 +34,7 @@ begin
   amount money
  )
  insert @invd
- select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@id,@invoiceType)
+ select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@id)
 
  if not exists(select * from @invd)
  begin
@@ -69,7 +69,7 @@ begin
   end
 
   -- run verification on each missing fund account Id
-  while exists(select * from @invd where fundId = 0 and @invoiceType<>'S') 
+  while exists(select * from @invd where fundId = 0) 
   begin
 
    select top 1
@@ -92,7 +92,7 @@ begin
     end
    return
   end
-  if exists(select * from @invd where isnull(fundId,0) = 0 and @invoiceType<>'S')
+  if exists(select * from @invd where isnull(fundId,0) = 0)
   begin
    rollback transaction
    if @smode = 0
@@ -178,4 +178,3 @@ begin
  commit transaction
 
 end
-
