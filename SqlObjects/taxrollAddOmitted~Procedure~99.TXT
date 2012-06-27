@@ -1,0 +1,73 @@
+CREATE procedure [dbo].[taxrollAddOmitted] (@objectId int,@initials varchar(5),@entrydate int)
+as
+begin
+
+declare @taxrollId int, @slink varchar(15)
+if len(@initials)>3
+begin
+ set @initials=left(@initials,3)
+end
+
+insert into adtax ([OWNERNAME],[REALTAXYEAR],[FULLPIDNUMBER],[ITEMNUMBER],[RECORDTYPE],[BUSINESSNAME],[ADDRESS1],[address2],[address3]
+      ,[city],[state],[zip1],[zip2],[zip3],[country],[MORTGAGECODE],[FIREDISTRICT],[OWNERNUMBER],[acres],[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN]
+      ,[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE],[lots],[MFGHOMEASSESSED],[GROSSASSESSED],[FREEPORTEXEMPTION],[BASEEXEMPTION]
+      ,[DBLEXEMPTION],[exemption1],[exemption2],[exemption3],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1],[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2]
+      ,[flag1],[flag2],[flag3],[LEGALDESCRIPTION],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS]      ,[ADDITIONNUMBER]
+      ,[TOWNSHIPBLOCK]
+      ,[RANGELOT]
+      ,[SECTIONNUMBER]
+      ,[QTRSECTIONNUMBER]
+      ,[PARCELNUMBER]
+      ,[PROPERTYSPLIT]
+      ,[PIDSORTNUMBER]      ,[LASTTRANDATE]
+)
+SELECT
+  key1,case when isnumeric(key2)=1 then cast(key2 as numeric(5,0)) else 0 end
+  ,key3,case when isnumeric(a1)=1 then cast(a1 as numeric(7,1)) else 0.0 end
+  ,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,case when isnumeric(a13)=1 then cast(a13 as [numeric](7, 0)) else 0 end
+  ,a14,case when isnumeric(a15)=1 then cast(a15 as [numeric](11, 2)) else 0.00 end
+  ,case when isnumeric(a16)=1 then cast(a16 as [numeric](7, 2)) else 0.00 end
+  ,a18,a19,a20,b1,case when isnumeric(b2)=1 then cast(b2 as [numeric](5, 2)) else 0.00 end
+  ,case when isnumeric(b4)=1 then cast(b4 as [numeric](7,0)) else 0 end
+  ,case when isnumeric(b5)=1 then cast(b5 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b7)=1 then cast(b7 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b8)=1 then cast(b8 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b9)=1 then cast(b9 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b10)=1 then cast(b10 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b11)=1 then cast(b11 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b12)=1 then cast(b12 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b13)=1 then cast(b13 as [numeric](9,0)) else 0 end
+  ,case when isnumeric(b14)=1 then cast(b14 as [numeric](9, 7)) else 0.0000000 end
+  ,case when isnumeric(b15)=1 then cast(b15 as [numeric](11, 2)) else 0.00 end
+  ,case when isnumeric(c1)=1 then cast(c1 as [numeric](11, 2)) else 0.00 end
+  ,case when isnumeric(c2)=1 then cast(c2 as [numeric](11, 2)) else 0.00 end
+  ,c3,case when isnumeric(c4)=1 then cast(c4 as [int]) else 0 end
+  ,c5,case when isnumeric(c6)=1 then cast(c6 as [numeric](7, 2)) else 0.00 end
+  ,c7,case when isnumeric(c8)=1 then cast(c8 as [numeric](7, 2)) else 0.00 end
+  ,c9,c10,d1,e1,@entrydate,@initials,'','','','','','','','',0
+  FROM object
+  WHERE id=@objectId
+ 
+ set @taxrollId = isnull((select top 1 id from adtax where TAXCORRECTIONINITIALS=@initials and TAXCORRECTIONDATE=@entrydate order by id desc),0)
+  begin transaction
+   exec dbo.taxReferenceCRUD @taxrollId
+   exec dbo.taxrollInvoiceCRUD @taxrollId, 1, ''
+   exec dbo.taxRollAddressInsert @taxrollId
+  
+  select @slink = slink from dbo.taxrollCheck(@taxrollId,'')
+
+  if dbo.glPostCheck(@slink) = 0
+   begin
+    commit transaction
+    select '@code=0;@message=OK;'
+   end
+  else
+   begin 
+    rollback transaction
+    select '@code=1;@message=Assessment failed to process correctly, Contact Support. (as.inv);'
+   end
+
+ 
+end
+
