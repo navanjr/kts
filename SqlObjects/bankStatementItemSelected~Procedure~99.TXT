@@ -1,0 +1,24 @@
+create procedure dbo.bankStatementItemSelected( @id int, @bsId int ) as
+begin
+
+ declare @accountId int
+ select @accountId = link1 from object where id = @bsId
+
+ -- if the item is already linked to THIS bank statement then unlink it
+ if exists(select * from dbo.glDetail where id = @id and accountId = @accountId and bsId = @bsId)
+ begin
+  update dbo.glDetail set bsId = Null where id = @id and accountId = @accountId and bsId = @bsId
+  return
+ end
+
+
+ -- link the item to the BankStatement only if it is not linked already
+ if exists(select * from dbo.glDetail where id = @id and accountId = @accountId and isnull(bsId,0) = 0)
+ begin
+  update dbo.glDetail set bsId = @bsId where accountId = @accountId and id = @id
+  return
+ end
+  
+
+ return
+end

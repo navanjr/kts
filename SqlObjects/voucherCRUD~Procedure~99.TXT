@@ -1,0 +1,76 @@
+create proc dbo.voucherCRUD(
+ @mode int,
+ @voucherDate int = null,
+ @voucherNumber varchar(50) = null,
+ @payee varchar(50) = null,
+ @amount money = null,
+ @debitAcct varchar(50) = null,
+ @creditAcct varchar(50) = null,
+ @id int = 0 
+) as 
+begin
+ 
+ declare @slink varchar(15) = 'o' + cast(@id as varchar)
+
+ if @mode = 3
+ begin
+  -- bail if we are already posted
+  if dbo.isPosted(@slink) = 'TRUE'
+   return 
+
+  -- bail if id is not greater than 0
+  if @id < 1
+   return
+
+  begin transaction
+  delete dbo.glDetailStage where slink = @slink
+  update object set typ = -4771 where id = @id
+  commit transaction
+
+ end
+
+ if @mode = 0
+ begin
+
+  -- TODO: add gl check here
+
+  begin transaction
+
+  insert object (
+   typ,
+   key1, key2, key3,
+   a1, a2, a4, b3, a5, b4
+  )
+  select 
+   4771,
+   dbo.nextObjectAutoNumber(4771),
+   @voucherDate,
+   @voucherNumber,
+   @payee,
+   @amount,
+   d.accountCode,d.accountDesc,
+   c.accountCode,c.accountDesc
+   from glAccounts d, glAccounts c
+   where d.accountCode = @debitAcct 
+    and c.accountCode = @creditAcct
+ 
+  declare @newId int = @@identity
+  declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
+
+  -- stage glDetail
+  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
+  select accountId, accountCode, accountDesc, @voucherDate, @amount, @newslink
+   from glAccounts where accountCode = @debitAcct 
+
+  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
+  select accountId, accountCode, accountDesc, @voucherDate, @amount * -1, @newslink
+   from glAccounts where accountCode = @creditAcct
+ 
+  -- post gl
+  exec dbo.glPost @newId, 'o'
+
+  commit transaction    
+ end
+
+ return
+end
