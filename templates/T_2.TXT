@@ -4,7 +4,6 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077246.6511;
 
 ###---###---###---###---###
 @noupdate;
@@ -13,10 +12,10 @@
 @lmode=2;
 
 @loadwindow=
- gitCreateIni=,
- gcBranchName=getini('gitInfo','BRANCHNAME','unknown','c:\client\key\gitInfo.ini'),
  gcBat='gitcmd_temp.bat',
  gcBatIni='gitcmdIni_temp.bat',
+ gitCreateIni=,
+ gcBranchName=getini('gitInfo','BRANCHNAME','unknown','c:\client\key\gitInfo.ini'),
  create(150,34,64,3,'',002),
  prop(150,'From','jeff|matt|nate|steve|wade|master'),
  prop(150,'Width',80),
@@ -43,30 +42,58 @@
 
  gitFetchAll=,
 
+@gfwindow=
+ gitCreateIni=,
+ gitStatus=;
+
+
 \t001Current Branch; \h002; \f002=gcBranchName;
 \t003Git Status; \h004;
 
 \t105E&xport;
 @acc105=
- dumpTemplates=,
- dumpUsers=,
- exportObjects=,
+ m('please select on of the following EXPORT options...','Export to local repo...',,'&Objects|&Templates|&Users|&One Template|&Everything|&Cancel'),
+ break(gcretval=6),
+ if(gcretval=1,exportObjects=),
+ if(gcretval=2,exportTemplates=),
+ if(gcretval=3,dumpUsers=),
+ if(gcretval=4,export1Template=),
+ if(gcretval=5,exportEverything=),
  gitCreateIni=,
  gitStatus=;
+
+@exportEverything=
+ exportObjects=,
+ exportTemplates=,
+ dumpUsers=;
+
+@export1=
+@exportTemplates=
+ exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0'),
+ send(gcBat,'pushd \client\key\kts'),
+ sqlloop('select id from template where id > 0',exportloop=),
+ send(gcBat,'popd',1),
+ runw(gcBat,,0),
+@exportloop=
+ lcTemplateId=obj5:a1,
 
 \t108Import;
 @acc108=
- m('Are you sure you wish to import objects?','Import from local git repo...',,6,4),
- break(gcretval<>2),
- templateImport=,
- userImport=,
- importObjects=,
+ m('please select on of the following IMPORT options...','Import from local repo...',,'&One Template|&Everything|&Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,import1Template=),
+ if(gcretval=2,importEverything=),
  gitCreateIni=,
  gitStatus=;
 
+@importEverything=
+ templateImport=,
+ userImport=,
+ importObjects=,
+
 \t110Git Reset;
 @acc110=
- gcGitCmd='call git reset --hard HEAD',
+ gcGitCmd='git reset --hard HEAD',
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
@@ -105,6 +132,22 @@
 @acc115=
  do(454,exportCsv1=);
 
+@export1Template=
+ iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
+ break(gcretval<>'OK'),
+ lcTemplateId=obj7:key1,
+ dump1Template=,
+ gitCreateIni=,
+ gitStatus=;
+
+@import1Template=
+ iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
+ break(gcretval<>'OK'),
+ lcTemplateId=obj7:key1,
+ importtexttemplate(kpexepath()&'\kts\templates','RTEM:ID='&lcTemplateId),
+ gitCreateIni=,
+ gitStatus=;
+
 @acc150=
  break(obj:key1<'  0'),
  gitFetchAll=,
@@ -119,23 +162,23 @@
 @userImport=
  lcpath=kpexepath(),
  lcpath1=kpexepath()&'\kts',
- gcGitCmd='del '&lcpath&'\kts.usr',
- gitCommand=,
- gcGitCmd='copy '&lcpath1&'\kts.usr '&lcpath&'\kts.usr',
- gitCommand=,
+ delfile(lcpath&'\kts.usr'),
+ filecopy(lcpath1&'\kts.usr',lcpath&'\kts.usr'),
  importusers('kts.usr');
 
 @dumpTemplates=
  exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0');
 
+@dump1Template=
+ exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID='&lcTemplateId),
+ gitCommand=;
+
 @dumpUsers=
  lcpath=kpexepath(),
  lcpath1=kpexepath()&'\kts',
- gcGitCmd='del '&lcpath&'\kts.usr',
- gitCommand=,
+ delfile(lcpath&'\kts.usr'),
  exportusers('kts.usr'),
- gcGitCmd='copy '&lcpath&'\kts.usr '&lcpath1&'\kts.usr',
- gitCommand=;
+ filecopy(lcpath&'\kts.usr',lcpath1&'\kts.usr');
 
 @exportObjects=
  if(kpexists(kpexepath()&'\kts\SqlObjects')<>1,createFolder=,cleanOutFolder=),
@@ -232,7 +275,7 @@
  send(gcBat,'pushd \client\key\kts'),
  send(gcBat,'call '&gcGitCmd,1),
  send(gcBat,'popd',1),
- runw(gcBat,'Git Command...');
+ runw(gcBat,,0);
 
 @gitCreateIni=
  send(gcBatIni,'@echo off'),
@@ -243,4 +286,4 @@
  send(gcBatIni,'call git status > ..\gitStatus.txt',1),
  send(gcBatIni,'call git log -n10 > ..\gitLog.txt',1),
  send(gcBatIni,'popd',1),
- runw(gcBatIni,'Git Command...');
+ runw(gcBatIni,,0);
