@@ -1,0 +1,50 @@
+create procedure dbo.receiptCRUD( @mode int, @receiptId int ) as
+/*
+ remember
+  C = 0
+  R = 1
+  U = 2
+  D = 3
+*/
+begin
+ 
+ declare 
+  @slink varchar(15) = 'o' + cast(@receiptId as varchar) 
+
+-- Delete
+ if @mode = 3
+ begin
+
+  -- bail if posted
+  if dbo.isPosted(@slink) = 'TRUE'
+   return
+
+  declare
+   @receiptLinkId int,
+   @invoiceToken int
+
+  -- remove receipt and receiptDetail
+  update object set typ = -4502 where typ = 4502 and id = @receiptId
+  delete receiptDetail where slink = @slink
+ 
+  -- remove penalty Invoices
+  while exists(select * from receiptLink where receiptId = @receiptId)
+  begin
+
+   select top 1
+    @receiptLinkId = id,
+    @invoiceToken = invoiceId
+   from receiptLink
+   where receiptId = @receiptId
+
+   if (select isnull(invoiceId,0) from invoices where id = @invoiceToken) > 0
+    exec invoiceCRUD 3, @invoiceId = @invoiceToken, @postCheckOverride = 0
+  
+   delete receiptLink where id = @receiptLinkId
+
+  end
+  
+ end
+
+ return
+end

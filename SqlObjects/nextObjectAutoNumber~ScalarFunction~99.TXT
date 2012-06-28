@@ -1,0 +1,19 @@
+create function dbo.nextObjectAutoNumber( @typ int ) returns varchar(50) as
+begin
+ declare
+  @padLength int,
+  @suffixLength int,
+  @keyCodeOptions varchar(50),
+  @retval varchar(50)
+
+  select @keyCodeOptions = dbo.readKeyCode(@typ,'\0002')
+  select 
+   @padLength = cast(substring(@keyCodeOptions,1,2) as int),
+   @suffixLength = cast(substring(@keyCodeOptions,3,2) as int)
+
+  -- TODO: autonumber with Suffix will not be compatible with this... fix it later
+  select @retval =  cast(cast(max(case when isnumeric(key1) = 1 then key1 else '0' end) as int) + 1 as varchar) from object where abs(typ) = @typ
+  select @retval = dbo.padLeft(@retval,'0',@padLength)
+
+ return @retval
+end

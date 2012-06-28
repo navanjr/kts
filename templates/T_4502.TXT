@@ -4,7 +4,7 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077235.7733;
+@lastedit=0077243.7977;
 
 ###---###---###---###---###
 @wbgcolor=12701121;
@@ -15,6 +15,13 @@
 @format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#53#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
+
+@browsedelete=
+ if(obj:a17='Posted',m('This record has been posted and can not be deleted.','Oops..'),altDelete=);
+@altDelete=
+ m('Are you sure you wish to delete this Receipt?','Delete...',,6,4),
+ break(gcretval<>2),
+ sql('exec dbo.receiptCRUD 3, @receiptId='&obj:id);
 
 @loadwindow=
  if(tier=3,procTier3=),
@@ -110,9 +117,9 @@
  m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
  break(gcretval<>2);
 
-\t120receiptCheck=; @acc120=receiptCheck=; \h120gcadmin=0;
-@receiptCheck=
- rsql('select * from receiptCheck('&obj:id&',null)');
+\t120TestCheck=; @acc120=testCheck=; \h120gcadmin=0;
+@testCheck=
+ m('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0');
 
 @setMiscReceiptAcct=
  break(obj:key3>'  0'),

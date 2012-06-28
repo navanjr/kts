@@ -1,0 +1,39 @@
+create procedure dbo.invoiceCRUD( @mode int, @invoiceId int, @postCheckOverride int = 1 ) as
+/*
+ remember
+  C = 0
+  R = 1
+  U = 2
+  D = 3
+*/
+begin
+ 
+ declare 
+  @slink varchar(15) = 't' + cast(@invoiceId as varchar),
+  @fpId int 
+ 
+ exec dbo.glGetPostDateFromSlink @slink, @fpId = @fpId output
+
+-- Delete
+ if @mode = 3
+ begin
+  -- bail if period is closed
+  if isnull(@fpId,0) < 1
+   return
+
+  -- bail if posted unless postCheckOverride = 0
+  if @postCheckOverride = 1 and dbo.isPosted(@slink) = 'TRUE'
+    return
+  
+  -- delete invoice, stage and gl
+  begin transaction
+  delete glDetailStage where slink = @slink
+  delete glDetail where slink = @slink
+  delete invoices where id = @invoiceId
+  commit transaction
+    
+
+  return
+ end
+
+end

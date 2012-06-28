@@ -1,12 +1,15 @@
-create procedure dbo.invoiceUpdateAll as
--- dont use this too often please. :)  it was written to be used to update all invoice subtotals as a maintenance routine
--- it has not been optimized for general use.
+create procedure dbo.invoiceUpdateAll( @receiptId int = null ) as
 begin
 
  declare @idToken int
 
  declare @wt table(invoiceId int)
- insert @wt select id from invoices
+
+ if @receiptId = 0
+  insert @wt select id from invoices
+
+ if isnull(@receiptId,0) > 0
+  insert @wt select invoiceId from receiptLink where receiptId = @receiptId  
 
  while exists(select * from @wt)
  begin
