@@ -64,11 +64,11 @@
 
 @exportEverything=
  exportObjects=,
- exportTemplates=,
+ lcExportFilter='RTEM:ID>0',exportTemplates=,
  dumpUsers=;
 
 @exportTemplates=
- exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0'),
+ exporttexttemplate(kpexepath()&'\kts\templates',lcExportFilter),
  send(gcBat,'pushd \client\key\kts'),
  sqlloop('select id from template where id > 0',exportloop=),
  send(gcBat,'del sed*',1),
@@ -76,6 +76,14 @@
  runw(gcBat,,0),
 @exportloop=
  lcTemplateId=obj5:a1,
+ send(gcBat,'sed -i "/^@lastedit=/d" templates\T_'&lcTemplateId&'.TXT',1);
+
+@export1Template=
+ iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
+ break(gcretval<>'OK'),
+ lcExportFilter='RTEM:ID='&obj7:key1,exportTemplates=,
+ gitCreateIni=,
+ gitStatus=;
 
 \t108Import;
 @acc108=
@@ -89,7 +97,7 @@
 @importEverything=
  templateImport=,
  userImport=,
- importObjects=,
+ importObjects=;
 
 \t110Git Reset;
 @acc110=
@@ -132,14 +140,6 @@
 @acc115=
  do(454,exportCsv1=);
 
-@export1Template=
- iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
- break(gcretval<>'OK'),
- lcTemplateId=obj7:key1,
- dump1Template=,
- gitCreateIni=,
- gitStatus=;
-
 @import1Template=
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
  break(gcretval<>'OK'),
@@ -165,13 +165,6 @@
  delfile(lcpath&'\kts.usr'),
  filecopy(lcpath1&'\kts.usr',lcpath&'\kts.usr'),
  importusers('kts.usr');
-
-@dumpTemplates=
- exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0');
-
-@dump1Template=
- exporttexttemplate(kpexepath()&'\kts\templates','RTEM:ID='&lcTemplateId),
- gitCommand=;
 
 @dumpUsers=
  lcpath=kpexepath(),
