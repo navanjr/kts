@@ -1,0 +1,38 @@
+create procedure dbo.nextObjectAutoNumber( @typ int, @seriesString varchar(50), @retval nvarchar(max) output ) as
+-- this function looks for \0002 in the template code to know what format to return the next number as
+--  also, looks for @seriesField= to know what object column to find the series data
+
+begin
+
+ declare
+  @padLength int,
+  @suffixLength int,
+  @keyCodeOptions varchar(50),
+  @seriesField varchar(50)
+
+  select @keyCodeOptions = dbo.readKeyCode(@typ,'\0002')
+  select @seriesField = dbo.readKeyCode(@typ,'@seriesField=')
+
+  select 
+   @padLength = cast(substring(@keyCodeOptions,1,2) as int),
+   @suffixLength = cast(substring(@keyCodeOptions,3,2) as int)
+
+  declare
+    @sql    nvarchar(4000),
+    @params nvarchar(4000)
+
+  select @sql = 
+  N' select @returnThis =  cast(cast(max(case when isnumeric(key1) = 1 then key1 else ''0'' end) as int) + 1 as varchar) ' + 
+  N' from object where abs(typ) = ' + cast(@typ as varchar) 
+
+  if isNull(@seriesString,'') > '  0'
+   select @sql = @sql + N'  and ' + @seriesField + ' = ''' + @seriesString + ''''
+
+  select @params = N'@returnThis varchar(50) output'
+
+  exec sp_executesql @sql, @params, @returnThis = @retval output
+
+  select @retval = dbo.padLeft(isnull(@retval,'1'),'0',@padLength)
+
+ return
+end
