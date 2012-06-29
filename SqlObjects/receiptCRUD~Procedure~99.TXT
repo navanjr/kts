@@ -1,4 +1,4 @@
-create procedure dbo.receiptCRUD( @mode int, @receiptId int ) as
+create procedure dbo.receiptCRUD( @mode int, @receiptId int = 0, @series varchar(50) = '', @newReceiptId int = 0 output) as
 /*
  remember
   C = 0
@@ -10,6 +10,27 @@ begin
  
  declare 
   @slink varchar(15) = 'o' + cast(@receiptId as varchar) 
+
+-- Create
+ if @mode = 0
+ begin
+
+  -- bail if no series
+  if len(@series)<2
+   return
+
+  declare 
+    @retval nvarchar(max)
+   
+  exec dbo.nextObjectAutoNumber 4502, @series, @retval output
+
+  insert object (typ,key1,key3,olink1) select 4502,@retval,@series,'newReceipt'
+  
+  set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)
+  
+  update object set olink1 = '' where typ=4502 and id = @newReceiptId
+
+ end
 
 -- Delete
  if @mode = 3
