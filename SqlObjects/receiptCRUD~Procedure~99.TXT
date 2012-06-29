@@ -1,4 +1,4 @@
-create procedure dbo.receiptCRUD( @mode int, @receiptId int ) as
+create procedure dbo.receiptCRUD( @mode int, @receiptId int = 0, @series varchar(50) = '', @newReceiptId int = 0 output) as
 /*
  remember
   C = 0
@@ -15,29 +15,21 @@ begin
  if @mode = 0
  begin
 
-  -- bail if posted
-  if dbo.isPosted(@slink) = 'TRUE'
-   return
-
-  -- bail if number exists
-  if (select case when key1>'00000' then 'abort' else 'continue' end from object where id=@receiptId)='abort'
-   return
-
-  -- Set Number 
-  declare 
-    @retval nvarchar(max),
-    @series varchar(50)
-
-  select @series=key3 from object where typ=4502 and id=@receiptId
-  
   -- bail if no series
-  if len(@series)<3
+  if len(@series)<2
    return
-  
+
+  declare 
+    @retval nvarchar(max)
    
   exec dbo.nextObjectAutoNumber 4502, @series, @retval output
 
-  update object set key1=@retval where typ=4502 and id=@receiptId
+  insert object (typ,key1,key3,olink1) select 4502,@retval,@series,'newReceipt'
+  
+  set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)
+  
+  update object set olink1 = '' where typ=4502 and id = @newReceiptId
+
  end
 
 -- Delete
