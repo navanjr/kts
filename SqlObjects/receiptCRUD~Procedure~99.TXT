@@ -11,6 +11,35 @@ begin
  declare 
   @slink varchar(15) = 'o' + cast(@receiptId as varchar) 
 
+-- Create
+ if @mode = 0
+ begin
+
+  -- bail if posted
+  if dbo.isPosted(@slink) = 'TRUE'
+   return
+
+  -- bail if number exists
+  if (select case when key1>'00000' then 'abort' else 'continue' end from object where id=@receiptId)='abort'
+   return
+
+  -- Set Number 
+  declare 
+    @retval nvarchar(max),
+    @series varchar(50)
+
+  select @series=key3 from object where typ=4502 and id=@receiptId
+  
+  -- bail if no series
+  if len(@series)<3
+   return
+  
+   
+  exec dbo.nextObjectAutoNumber 4502, @series, @retval output
+
+  update object set key1=@retval where typ=4502 and id=@receiptId
+ end
+
 -- Delete
  if @mode = 3
  begin
