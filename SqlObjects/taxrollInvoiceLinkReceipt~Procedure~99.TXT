@@ -10,7 +10,8 @@ begin
   return
 
  -- bail if receiptId is not a receipt object record typ 4502
- 
+ if not exists(select * from object where typ = 4502 and id = @receiptId)
+  return
 
  update receiptlink set receiptId = @receiptId where receiptId = @taxInquiryId  
 
@@ -18,5 +19,15 @@ begin
 
  insert receiptLink (receiptId,invoiceId,methodRate)
   select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId)
+
+ -- TODO: assign receipt numbers to the receipt links
+ declare @idToken int
+ while exists(select * from receiptLink where receiptId = @receiptId and isnull(receiptNumber,'') < '  0')
+ begin
+  select top 1 @idToken = id from receiptLink where receiptId = @receiptId and isnull(receiptNumber,'') < '  0' order by id
+  update a set a.receiptNumber = dbo.nextTaxReceiptAutoNumber(b.taxYear)
+  from receiptLink a, invoices b
+  where a.invoiceId = b.id and a.id = @idToken
+ end
 
 end

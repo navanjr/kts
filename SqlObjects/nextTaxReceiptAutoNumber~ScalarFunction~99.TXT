@@ -1,0 +1,23 @@
+create function dbo.nextTaxReceiptAutoNumber(
+ @taxYear varchar(50) 
+) returns varchar(50) as 
+begin
+ declare
+  @retval varchar(50),
+  @padLength int,
+  @keyCodeOptions varchar(50)
+
+ select @keyCodeOptions = dbo.readKeyCode(4502,'\0002')
+
+ select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
+  from receiptLink a, invoices b
+  where a.invoiceId = b.id
+   and b.taxYear = @taxYear 
+
+ select 
+  @padLength = cast(substring(@keyCodeOptions,1,2) as int)
+
+ select @retval = dbo.padLeft(isnull(@retval,'1'),'0',@padLength)
+
+ return @retval 
+end
