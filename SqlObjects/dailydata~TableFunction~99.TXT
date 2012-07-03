@@ -2,7 +2,8 @@ CREATE function dbo.dailydata(@theDate int, @days int) returns
 @rt table (
  id int,
  ord varchar(10),
- rowstring varchar(250)
+ rowstring varchar(250),
+ glBalanceString varchar(50)
 )
 begin
  declare @showDetail table(id int)
@@ -17,27 +18,27 @@ begin
   ord char(1)
  )
 
-
  -- TODO: wow this is really ulgy. it works but we can do better when we have more time.
  -- get the raw data from glDetail, this yields receipts, vouchers, deposits
 
  insert @rt
- select id,ord,rowString from dbo.dailyDataCollections(@theDate, @days, 'AC')
+ select cast('94502' as int)*-1,ord,rowString,glBalanceString from dbo.dailyDataCollections(@theDate, @days, 'AC')
 
  insert @rt
  select
-  cast('8'+cast(a.accountId as varchar) as int) * -1, 
+  cast('9'+cast(a.accountId as varchar) as int) * -1, 
   'CC',
   '   ' + dbo.padRight(a.accountDesc,' ',48)
-  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
+  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16),
+  ''
  from glDetail a
  where a.accountId in (select accountId from paycodes)
  group by a.accountId,a.accountDesc
  having sum(a.amount) != 0
 
- insert @rt select 0,'C ',''
- insert @rt select 0,'CA','  Suspense Accounts'
- insert @rt select 0,'CB',' ' + replicate('-',69)
+ insert @rt select 0,'C ','',''
+ insert @rt select 0,'CA','  Suspense Accounts',''
+ insert @rt select 0,'CB',' ' + replicate('-',69),''
 
  insert @rt
  select 
@@ -45,16 +46,17 @@ begin
   'DC',
   '   ' + dbo.padRight(receiptType + '      '
    + case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,' ',48)
-  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
+  ''
  from dbo.depositPaidUnPosted() a, object b
  where a.receiptType = b.key1 and b.typ = 4503
  group by receiptType, b.id
 
- insert @rt select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16) from dbo.depositPaidUnPosted()
+ insert @rt select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'' from dbo.depositPaidUnPosted()
 
- insert @rt select 0,'D ',''
- insert @rt select 0,'DA','  Pending Deposits'
- insert @rt select 0,'DB',' ' + replicate('-',69)
+ insert @rt select 0,'D ','',''
+ insert @rt select 0,'DA','  Pending Deposits',''
+ insert @rt select 0,'DB',' ' + replicate('-',69),''
 
  return
 
