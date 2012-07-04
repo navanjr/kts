@@ -1,0 +1,140 @@
+CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50)) returns 
+@rt table (
+ id int,
+ ord varchar(10),
+ rowstring varchar(250),
+ glBalanceString varchar(50)
+)
+begin
+
+ declare @wt table(
+  id int,
+  ord varchar(50),
+  description varchar(50),
+  subDescription varchar(50),
+  minControlNumber varchar(50),
+  maxControlNumber varchar(50),
+  rowCnt int,
+  amount money,
+  glBalance money
+ )
+ declare @wtRaw table(
+  id int,
+  ord varchar(50),
+  description varchar(50),
+  subDescription varchar(50),
+  receiptNumber varchar(50),
+  amount money,
+  slink2 varchar(15)
+ )
+-- insert all raw data
+ insert @wtRaw
+ select
+  b.accountId,
+  a.reportOrder,
+  a.collectionDescription,
+  b.accountDesc,
+  c.key1,
+  abs(b.amount),
+  b.slink2
+ from dbo.glCollectionAccount a, glDetail b, object c
+ where a.accountId = b.accountId
+  and substring(b.slink,2,14) = c.id
+  and b.date between @theDate and @theDate + @days
+
+-- update receiptNumber for tax receipts
+ update a set a.receiptNumber = b.receiptNumber 
+ from @wtRaw a, receiptLink b
+ where a.slink2 = 'l' + cast(b.id as varchar)
+
+ insert @wt
+ select
+  id,
+  ord,
+  description,
+  subDescription,
+  min(receiptNumber),
+  max(receiptNumber),
+  COUNT(receiptNumber),
+  abs(SUM(amount)),
+  0
+ from @wtRaw
+ group by
+  id,
+  ord,
+  description,
+  subDescription
+ order by
+  ord
+
+ update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
+
+--insert main data
+ insert @rt
+ select
+  id,
+  @ordSeed + ord + 'b',
+  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount),
+  dbo.padLeft(convert(varchar,glBalance,1),' ',16)
+ from @wt
+
+-- insert subtotals
+ insert @rt
+ select
+  0,
+  @ordSeed + ord + 'c',
+  ' ' + replicate('-',79),
+  replicate('-',16)
+ from @wt 
+ group by ord,description
+
+ insert @rt
+ select
+  0,
+  @ordSeed + ord + 'd',
+  dbo.padRight('      Total ' + description, ' ', 60)
+  + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  ''
+ from @wt 
+ group by ord,description
+
+ insert @rt
+ select
+  0,
+  @ordSeed + ord + 'e',
+  replicate(' ',80),
+  ''
+ from @wt 
+ group by ord,description
+
+ -- headers
+ insert @rt select 0,@ordSeed+'00a','',''
+ insert @rt select 0,@ordSeed+'00aa','  Collections',''
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16)
+
+ if exists(select * from @wt where description = 'Depository')
+ begin
+  declare @reportSub varchar(50)
+  select @reportSub = max(ord) from @wt where description = 'Depository'
+  insert @rt select 0,@ordSeed+@reportSub+'a','',''
+  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers',''
+  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16)
+ end
+
+-- insert grand total
+ if exists(select * from @wt)
+ begin
+  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16)
+  insert @rt
+  select
+   0,
+   @ordSeed + 'db',
+   dbo.padLeft('Total Collections  ', ' ', 60)
+   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16)
+  from @wt 
+ end
+ return
+end
