@@ -17,14 +17,19 @@
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 
 @insertSelections=
- m('Please select one of the following...','New Receipt...',,'Misc|Cancel'),
- if(gcretval=1,newMisc=);
+ m('Please select one of the following...','New Receipt...',,'Misc|Mortgage|Cancel'),
+ if(gcretval=1,newMisc=),
+ if(gcretval=2,newMort=);
 
 @browseinsert=
  newMisc=;
 
 @newMisc=
  d1select('exec dbo.receiptNew ''MISC'''),
+ change(obj7:d1);
+
+@newMort=
+ d1select('exec dbo.receiptNew ''MTG'''),
  change(obj7:d1);
 
 @browsedelete=
@@ -62,6 +67,8 @@
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=;
 
+@mortDetailCreate=neww(4508,,-03=obj:id);
+
 \t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
 @seriesField=key3;
 \t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
@@ -78,7 +85,7 @@
  \x014184; \y014=012; \w01449; n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
- \h012018obj:a17='Posted';r2
+ \h012018obj:a17='Posted' or obj:key3='MTG';r2
 
 \t019Paycode; \l0204505; \w02050;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
@@ -165,8 +172,9 @@
  focus(012);
 
 @acc160=
- miscDetail=,
- focus(012);
+ if(obj:key3<>'MTG',miscDetail=,mortDetailCreate=),
+ if(obj:key3<>'MTG',focus(012)),
+ refreshDetail=;
 
 @acc161=
  lcid=kpbrwid(1)*-1,
