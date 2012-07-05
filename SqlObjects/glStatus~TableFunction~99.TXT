@@ -1,0 +1,68 @@
+create function dbo.glStatus( @slink varchar(15) ) returns @rt table(
+ status varchar(10), -- missing, staged, posted, damaged, bad slink
+ rows int,
+ balance money,
+ debitAmount money,
+ fpCode varchar(50),
+ fpStatus varchar(10) -- locked, unlocked 
+)
+begin
+ 
+-- check to see if this exists in object if object slink
+ if left(@slink,1) = 'o' 
+ begin
+  if not exists(select * from object where id = cast(substring(@slink,2,14) as int))
+  begin
+   insert @rt (status) select 'bad slink'
+  end 
+ end
+
+-- get posted gldetail
+ if exists(select * from gldetail where slink = @slink)
+  insert @rt 
+  select
+   'Posted',
+   count(id),
+   sum(amount),
+   sum(case when amount > 0 then amount else 0 end),
+   min(fpCode),
+   ''
+  from dbo.glDetail where slink = @slink
+
+-- get staged gldetail
+ if exists(select * from gldetailStage where slink = @slink)
+  insert @rt 
+  select
+   'Staged',
+   count(id),
+   sum(amount),
+   sum(case when amount > 0 then amount else 0 end),
+   '',
+   ''
+  from dbo.glDetailStage where slink = @slink
+
+-- get the fp status
+ update a set a.fpStatus = case when b.a17 = '1' then 'Locked' else 'unlocked' end
+ from @rt a, object b
+ where a.fpCode = b.key1 and b.typ = 4700
+
+-- check to see if there were no gl details
+ if not exists(select * from @rt)
+ begin
+  insert @rt (status) select 'missing'
+  return
+ end 
+
+-- check for damaged data gl data
+ if (select count(*) from @rt) > 1
+ begin
+  delete @rt where status = 'Staged'
+  update @rt set status = 'damaged' where status = 'Posted'
+  return
+ end
+
+ update @rt set status = 'damaged' where status = 'Posted' and balance != 0
+
+ return
+end
+
