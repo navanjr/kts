@@ -1,0 +1,36 @@
+create procedure dbo.pilotFundPayableVerification (@year varchar(4), @district varchar(50), @rate varchar(50), @pilottable varchar(50)) as
+begin
+ 
+   declare
+    @typeDesc varchar(50),
+    @reportCode varchar(50)
+
+   if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='M' and apyear=@year and apdistrict=@district and aprate=@rate)
+    begin
+
+     select 
+      @typeDesc = key2,
+      @reportCode = key3
+     from object where typ = 4702 and key1 = 'PAYABLE'
+
+     insert object (typ,key1,key2,a1,a2,a3,a9,a11,a12,a13) 
+     select 4701,@district+'_'+@rate+'_'+@year+'_AP',@district+'_'+@rate+'_'+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'M',@year,@district,@rate
+
+
+    end
+
+   if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='L' and apyear=@year and appilottable=@pilottable)
+    begin
+
+     select 
+      @typeDesc = key2,
+      @reportCode = key3
+     from object where typ = 4702 and key1 = 'PAYABLE'
+
+     insert object (typ,key1,key2,a1,a2,a3,a9,a10,a11) 
+     select 4701,@pilottable+'_'+@year+'_AP',@pilottable+'_'+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'L',@pilottable,@year
+
+
+    end
+
+end
