@@ -1,4 +1,4 @@
-CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50)) returns 
+CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
 @rt table (
  id int,
  ord varchar(10),
@@ -33,6 +33,7 @@ begin
   reportOrder varchar(50)
  )
  insert @accounts select accountId,collectionDescription,reportOrder from dbo.glCollectionAccount
+if substring(@filterFlag,2,1) = '1'
  insert @accounts select accountId, 'Apportionment Payable', '02z' 
   from dbo.glAccounts where accountType = 'PAYABLE' and accountId not in (select accountId from paycodes)
 
@@ -45,17 +46,40 @@ begin
   b.accountDesc,
   c.key1,
   b.amount,
-  b.slink2
+  b.slink
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
+  and dbo.slinkType(b.slink) = 'o'
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
+
+-- insert all raw receipt data
+ insert @wtRaw
+ select
+  b.accountId,
+  a.reportOrder,
+  a.collectionDescription,
+  b.accountDesc,
+  c.receiptNumber,
+  b.amount,
+  b.slink
+ from @accounts a, glDetail b, receiptLink c
+ where a.accountId = b.accountId
+  and dbo.slinkType(b.slink) = 'l'
+  and substring(b.slink,2,14) = c.id
+  and b.date between @theDate and @theDate + @days
+
+/*
+-- update receiptNumber for object receipts
+ update a set a.receiptNumber = b.key1 
+ from @wtRaw a, object b
+ where a.slink2 = 'o' + cast(b.id as varchar)
 
 -- update receiptNumber for tax receipts
  update a set a.receiptNumber = b.receiptNumber 
  from @wtRaw a, receiptLink b
  where a.slink2 = 'l' + cast(b.id as varchar)
-
+*/
  insert @wt
  select
   id,
