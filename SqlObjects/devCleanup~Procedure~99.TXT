@@ -1,0 +1,40 @@
+create procedure dbo.devCleanup( @talkMode int ) as
+begin
+
+ declare @rt table(
+  code varchar(50),
+  result int,
+  message varchar(150)
+ )
+
+ declare @wt table(
+  objid int,
+  typ int
+ )
+
+-- Orphaned JE
+ insert @wt select id, typ from object where typ = 4512 and a17 = 'Posted' and 'o'+cast(id as varchar) not in (select slink from glDetail)
+
+ insert @rt 
+ select 'JE Orphans', count(*), '' 
+ from @wt where typ = 4512
+
+-- Orphaned Receipts
+ insert @wt select id, typ from object where typ = 4502 and a17 = 'Posted' and 'o'+cast(id as varchar) not in (select slink from glDetail)
+
+ insert @rt 
+ select 'Receipt Orphans', count(*), '' 
+ from @wt where typ = 4502
+
+
+-- Orphaned GLDetail Stage
+ 
+
+
+ if @talkMode = 1
+  delete object where id in (select objid from @wt)
+
+ if @talkMode = 0
+  select * from @rt
+ 
+end

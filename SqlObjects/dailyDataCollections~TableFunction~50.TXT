@@ -27,7 +27,16 @@ begin
   amount money,
   slink2 varchar(15)
  )
--- insert all raw data
+  declare @accounts table(
+  accountId int,
+  collectionDescription varchar(50),
+  reportOrder varchar(50)
+ )
+ insert @accounts select accountId,collectionDescription,reportOrder from dbo.glCollectionAccount
+ insert @accounts select accountId, 'Apportionment Payable', '02z' 
+  from dbo.glAccounts where accountType = 'PAYABLE' and accountId not in (select accountId from paycodes)
+
+-- insert all raw receipt data
  insert @wtRaw
  select
   b.accountId,
@@ -35,9 +44,9 @@ begin
   a.collectionDescription,
   b.accountDesc,
   c.key1,
-  abs(b.amount),
+  b.amount,
   b.slink2
- from dbo.glCollectionAccount a, glDetail b, object c
+ from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
