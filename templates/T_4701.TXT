@@ -9,6 +9,7 @@
 
 
 
+
 @fastinsert;
 @save;
 @loadbrowse=if(tier=-3,dbrowse=),
@@ -46,9 +47,6 @@
 \t009Description;  \d010;
 \t011Report Code;  \d012;  \w01225;  \w01250;
 \t013Collection Description; \w013100; \x01475; \l0144703;
-\t015Fiscal Period;  \w01630;  \l0164700,5;r016002018004;  @acc016=calcrecord;
-\t017Period Total;  \w01850;    \t018@n$-12.2;  \s018+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and link3='&obj:link5;
-\t019Running Total;  \t020@n$-12.2;  \w02050;  \s020+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and a3<='&obj:a5;
 
 \t021Account Payable to; \w021150; \l0224701,1; \w02270; \x02270;
 
@@ -60,7 +58,26 @@
 @p039y=d1select('select count(*) from object where typ=204 and link2='&obj:id),m('There are '&obj7:d1&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&format(obj:a17,'P#####Pb')&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
 @p039y2=sql('update object set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
 
-\t023Report Order; \w02450;
+\h023024obj:a1<>'PAYABLE' or a8>' 0';r
+\t023Table Type; \u024; \w02412; @choose024:APLM;\m024[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
+@accr022032r2=tsc;
+\h025026obj:a9<>'L' or a8>' 0';r
+\t025PILOT Table; 
+ \l0264009;r026004028002; @lf026='id in (select max(id) from object where typ=4009 and key2=a.key2 and key1=a.key1)';
+ \q026obj:a9='L';
+\t027Year;
+ \t028@n4;
+ \w02830;
+ \q028obj:a9='A' or obj:a9='P' or obj:a9='L' or obj:a9='M';
+ \h027028a8>' 0';r
+\h029032obj:a9<>'M' or a8>' 0';r
+\t029District;
+ \l0304010;
+ \q030obj:a9='M';
+\t031Rate;
+ \l0324011;
+ \q032obj:a9='M';
+
 
 
 \t108&Print Account;  @acc108=bbproc6=;

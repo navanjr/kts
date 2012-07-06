@@ -1,0 +1,22 @@
+create procedure dbo.populationFundPayableVerification (@year varchar(4)) as
+begin
+ 
+   declare
+    @typeDesc varchar(50),
+    @reportCode varchar(50)
+
+   if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='P' and apyear=@year)
+    begin
+
+     select 
+      @typeDesc = key2,
+      @reportCode = key3
+     from object where typ = 4702 and key1 = 'PAYABLE'
+
+     insert object (typ,key1,key2,a1,a2,a3,a9,a11) 
+     select 4701,'POPULATION_'+@year+'_AP','Population '+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'P',@year
+
+
+    end
+
+end
