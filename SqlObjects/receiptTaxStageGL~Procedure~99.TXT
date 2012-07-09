@@ -26,7 +26,8 @@ begin
  declare @glSalesCredits table(
   slink varchar(15),
   accountId int,
-  amount money
+  amount money,
+  slink2 varchar(15)
  )
  declare @glSuspense table(
   slink varchar(15),
@@ -36,7 +37,8 @@ begin
  declare @glStage table(
   slink varchar(15),
   accountId int,
-  amount money
+  amount money,
+  slink2 varchar(15)
  )
 
  declare
@@ -95,32 +97,32 @@ begin
   and a.fundCode = b.accountCode
  group by c.slink, a.slink, b.accountId
 
- -- add the credit to the Treasures Sales Account
+ -- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
  insert @glSalesCredits 
- select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1 
+ select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1, a.slink
  from @wt a, @glFundDebits b
  where a.slink = b.slink
- group by b.slink, a.contraAccountId
+ group by b.slink, a.contraAccountId, a.slink
 
  -- add the credit to AR Accounts
  insert @glSalesCredits 
- select b.slink, a.arAccountId, sum(b.payAmount)*-1 
+ select b.slink, a.arAccountId, sum(b.payAmount)*-1, null 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
  group by b.slink, a.arAccountId
 
  insert @glStage
-  select slink,accountId,payAmount from @glFundDebits
+  select slink,accountId,payAmount,null from @glFundDebits
  union
   select * from @glSalesCredits
  union 
-  select * from @glSuspense
+  select *,null from @glSuspense
 
   -- remove any existing stage records
  delete glDetailStage where slink in (select slink from @glStage)
 
  -- insert
- insert gldetailstage (slink,accountId,amount) select slink, accountId, amount from @glStage where amount != 0
+ insert gldetailstage (slink,accountId,amount,slink2) select slink, accountId, amount, slink2 from @glStage where amount != 0
  
  update a set
   a.accountCode = b.accountCode,

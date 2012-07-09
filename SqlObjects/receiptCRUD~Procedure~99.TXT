@@ -1,4 +1,10 @@
-create procedure dbo.receiptCRUD( @mode int, @receiptId int = 0, @series varchar(50) = '', @newReceiptId int = 0 output) as
+create procedure dbo.receiptCRUD(
+ @mode int,
+ @receiptId int = 0,
+ @series varchar(50) = '',
+ @deletePosted varchar(10) = 'False',
+ @newReceiptId int = 0 output
+) as
 /*
  remember
   C = 0
@@ -35,36 +41,84 @@ begin
 -- Delete
  if @mode = 3
  begin
-
-  -- bail if posted
-  if dbo.isPosted(@slink) = 'TRUE'
+-- bail if posted and @deletePosted = 'False'
+  if dbo.isPosted(@slink) = 'TRUE' and @deletePosted = 'False'
    return
 
-  declare
-   @receiptLinkId int,
-   @invoiceToken int
-
-  -- remove receipt and receiptDetail
-  update object set typ = -4502 where typ = 4502 and id = @receiptId
-  delete receiptDetail where slink = @slink
- 
-  -- remove penalty Invoices
-  while exists(select * from receiptLink where receiptId = @receiptId)
+-- bail if period is locked
+  if (select fpStatus from dbo.glStatus(@slink)) = 'locked'
   begin
-
-   select top 1
-    @receiptLinkId = id,
-    @invoiceToken = invoiceId
-   from receiptLink
-   where receiptId = @receiptId
-
-   if (select isnull(invoiceId,0) from invoices where id = @invoiceToken) > 0
-    exec invoiceCRUD 3, @invoiceId = @invoiceToken, @postCheckOverride = 0
-  
-   delete receiptLink where id = @receiptLinkId
-
+   select 'bailed cause period is locked'
+   return
   end
-  
+
+  declare
+   @tokenSlink varchar(15),
+   @token int,
+   @tokenInt int
+--   @tokenReceiptLink int
+
+-- get all the slinks effected by this invoice
+ -- invoices
+  declare @slinks table(
+   id int identity(1,1),
+   slink varchar(15),
+   parentInvoiceId int,
+   invoiceType varchar(50),
+   processFlag int default 0
+  )
+  insert @slinks (slink) select slink from receiptSLinks(@receiptId)
+  -- get the parent InvoiceId and typ to know what invoice are fee/penalty invoices
+  update a set a.parentInvoiceId = b.invoiceId, a.invoiceType = b.typ 
+   from @slinks a, invoices b where dbo.slinkId(a.slink) = b.id and dbo.slinkType(a.slink) = 't'
+
+-- remove fee/penalty invoices and their GL
+  while exists(select * from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0)
+  begin 
+   select top 1 @token = id, @tokenSlink = slink, @tokenInt = dbo.slinkId(slink)
+    from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0
+   if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
+   begin
+    exec invoiceCRUD 3, @invoiceId = @tokenInt, @postCheckOverride = 0
+   end
+   update @slinks set processFlag = 1 where id = @token
+  end
+
+--remove receiptLinks and their GL
+  while exists(select * from @slinks where dbo.slinkType(slink) = 'l' and processFlag = 0)
+  begin 
+   select top 1 @token = id, @tokenSlink = slink from @slinks where dbo.slinkType(slink) = 'l' and processFlag = 0
+   if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
+   begin
+    delete glDetail where slink = @tokenSlink
+    delete glDetailStage where slink = @tokenSlink
+    delete receiptLink where receiptId = @receiptId and id = dbo.slinkId(@tokenSlink)
+   end
+   update @slinks set processFlag = 1 where id = @token
+  end
+
+--remove receipt(object) and gl
+  while exists(select * from @slinks where dbo.slinkType(slink) = 'o' and processFlag = 0)
+  begin 
+   select top 1 @token = id, @tokenSlink = slink from @slinks where dbo.slinkType(slink) = 'o' and processFlag = 0
+   if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
+   begin
+    update object set typ = -4502 where typ = 4502 and id = dbo.slinkId(@tokenSlink)
+    delete receiptDetail where slink = @tokenSlink
+    delete glDetail where slink = @tokenSlink
+    delete glDetailStage where slink = @tokenSlink
+   end
+   update @slinks set processFlag = 1 where id = @token
+  end
+
+--recalc Tax invoices
+  while exists(select * from @slinks where dbo.slinkType(slink) = 't' and processFlag = 0)
+  begin 
+   select top 1 @token = id, @tokenInt = dbo.slinkId(slink) from @slinks where dbo.slinkType(slink) = 't' and processFlag = 0
+   exec dbo.invoiceUpdate @tokenInt
+   update @slinks set processFlag = 1 where id = @token
+  end
+
  end
 
  return

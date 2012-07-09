@@ -7,8 +7,8 @@
 
 ###---###---###---###---###
 @noupdate;
-@menuprocess=new(4501);
-@afterloadbrowse=new(4501);
+@menuprocess=new(4501,,080=1);
+@afterloadbrowse=new(4501,,080=1);
 @select=150;
 
 \t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1;
@@ -17,25 +17,58 @@
 
 \t077End Date; \t078@d2; \w07845; \f078=c; @acc078=changeDate=; @selected078=gcdr1=3;
 
-\t109&Print;
+\t118&Print;
+
+\t120Apportionment;
+@acc120=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ change(lcid);
 
 @changeDate=
  if(gcdr1=1,set(78,obj:key1+obj:a17)),
  if(gcdr1=3,set(40,obj:c1-obj:key1)),
  gfwindow=,
- if(gcdr1=1,focus(078));
+ if(gcdr1=1,focus(040));
 
 @loadwindow=
+ gcDDBRWWidth=520,
+ gcDDChkBoxX=gcDDBRWWidth+10,
+ checkboxes=,
  brwstuff=;
 
+@afterloadwindow=
+ gcvar=,
+ brwreload(1,gcsql);
+
+@acc550=afterloadwindow=;
+@acc551=afterloadwindow=;
+@acc552=afterloadwindow=;
+@acc553=afterloadwindow=;
+@acc554=resetOptions=,afterloadwindow=;
+
+@resetOptions=
+ set(80,1),
+ set(82,1),
+ calcfld(076);
+
+@checkboxes=
+ set(080,1),
+ create(551,12,gcDDChkBoxX,61,'CO&LLECTIONS',80),
+ create(552,12,gcDDChkBoxX,74,'&APPORTIONMENT',82),
+ reate(553,12,gcDDChkBoxX,87,'Hide &Zero',84),
+ create(554,9,gcDDChkBoxX-4,100,'&View All');
+
 @gcvar=
- gcsql='select id,ord,rowstring from dbo.dailydata('&choose(obj:key1>'  0',obj:key1,'0')&','&choose(obj:a17>'  0',obj:a17,0)&') order by ord',
+ lcFilterString=obj:c2&obj:c3,
+ gcsql='select id,ord,rowstring,glBalanceString from dbo.dailydata('&choose(obj:key1>'  0',obj:key1,'0')&','&choose(obj:a17>'  0',obj:a17,0)&','''&lcFilterString&''') order by ord',
 
 @brwstuff=
  gcvar=,
  lcbrwheight=mh-120,
- brw(150,1,gcsql,1,15,610,lcbrwheight,
-  '4000L~~#3#|M'
+ brw(150,1,gcsql,1,15,gcDDBRWWidth,lcbrwheight,
+  '430L~~#3#M50L~   G/L Balance~#4#M'
   ,6),
  prop(150,7cfah,13499135),
  prop(150,7c10h,'Courier'),
@@ -52,8 +85,9 @@
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9,openType=),
- if(lcTyp=8,openGLDetail=),
- if(lcTyp=7,openDeposit=);
+ if(lcTyp=8,openGLAccount=),
+ if(lcTyp=7,openDeposit=),
+ if(lcTyp=6,openGLDetail=);
 
 @lbrwclick150=
  lcid=kpbrwid(1)*-1,
@@ -63,8 +97,13 @@
 
 @openType=
  break(lcid<1),
- browse(1,lcid,'key2 between '&obj:key1&' and '&obj:c1);
+ browse(1,4502,'key2 between '&obj:key1&' and '&obj:c1);
  if(lcid > 0,m(kpbrwid(1)));
+
+@openGLAccount=
+ break(lcid<1),
+ gcAcctId=lcid,
+ change(gcAcctId);
 
 @openGLDetail=
  break(lcid<1),

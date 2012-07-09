@@ -49,7 +49,8 @@ begin
 
    insert @rettable
    select 'cc'+b.accountType,0,'   '+a.accountDesc,lower(b.accountType),sum(a.amount)
-   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.slink in (select slink from dbo.receiptSLinks(@receiptId))
+   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId
+    and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
    group by b.accountType, a.accountDesc
 
   end
@@ -61,8 +62,10 @@ begin
    insert @rettable
    select 'cb',0,'GL Detail (posted)','',0
    insert @rettable
-   select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount
-   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink in (select slink from dbo.receiptSLinks(@receiptId))
+   select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount)
+   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
+    and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
+   group by b.subord,a.accountDesc,lower(b.accountType)
   end
 
   if exists(select * from dbo.receiptLink where receiptId = @receiptId)

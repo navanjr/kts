@@ -1,0 +1,43 @@
+CREATE function dbo.dailyDataAccural( @ordSeed varchar(50) ) returns 
+@rt table (
+ id int,
+ ord varchar(10),
+ rowstring varchar(250),
+ glBalanceString varchar(50)
+)
+begin
+
+ declare @accounts table(id int)
+ insert @accounts select accountId from dbo.glAccounts where accountType = 'PAYABLE' and accountId not in (select accountId from paycodes)
+
+ declare @wt table(
+  accountId int,
+  description varchar(50),
+  amount money
+ )
+
+ insert @wt
+ select accountId, accountDesc, sum(amount)
+ from dbo.glDetail where accountId in (select id from @accounts)
+ group by accountId, accountDesc
+
+ insert @rt
+ select accountId,@ordSeed+'b','    ' + description, dbo.padLeft(convert(varchar,amount,1), ' ', 16) from @wt
+
+-- insert grand total
+ if exists(select * from @wt)
+ begin
+  insert @rt select 0,@ordSeed+'ca',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16)
+  insert @rt
+  select 0,@ordSeed+'cb',dbo.padLeft('Total Apportionment ',' ',60), dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16) from @wt
+ end
+
+ -- headers
+ insert @rt select 0,@ordSeed+'00a','',''
+ insert @rt select 0,@ordSeed+'00aa','  Apportionment',''
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16)
+
+
+
+ return
+end
