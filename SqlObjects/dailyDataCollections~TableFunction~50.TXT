@@ -39,7 +39,9 @@ begin
 -- get the apportionment account, maybe :)
 if substring(@filterFlag,2,1) = '1'
  insert @accounts select accountId, 'Apportionment Payable', '02z' 
-  from dbo.glAccounts where accountType = 'PAYABLE' and accountId not in (select accountId from paycodes)
+  from dbo.glAccounts where accountId not in (select accountId from paycodes)
+  and accountType in ('PAYABLE','FUND') 
+  and accountId not in (select accountId from @accounts)
 
 -- insert all raw receipt data
  insert @wtRaw
@@ -53,6 +55,7 @@ if substring(@filterFlag,2,1) = '1'
   b.slink
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
+  and c.typ = 4502
   and dbo.slinkType(b.slink) = 'o'
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
@@ -113,7 +116,7 @@ if substring(@filterFlag,2,1) = '1'
   cast(case when description = 'Apportionment Payable' then '8' else '9' end + cast(id as varchar) as int),
   @ordSeed + ord + 'b',
   case when description = 'Apportionment Payable' 
-   then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft(convert(varchar,amount,1),' ',16)
+   then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft('',' ',16)
    else dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount)
   end,  
   dbo.padLeft(convert(varchar,glBalance,1),' ',16)
@@ -179,3 +182,4 @@ if substring(@filterFlag,2,1) = '1'
  end
  return
 end
+
