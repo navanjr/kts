@@ -32,7 +32,11 @@ begin
   collectionDescription varchar(50),
   reportOrder varchar(50)
  )
+
+-- get the collection accounts 
  insert @accounts select accountId,collectionDescription,reportOrder from dbo.glCollectionAccount
+
+-- get the apportionment account, maybe :)
 if substring(@filterFlag,2,1) = '1'
  insert @accounts select accountId, 'Apportionment Payable', '02z' 
   from dbo.glAccounts where accountType = 'PAYABLE' and accountId not in (select accountId from paycodes)
@@ -69,7 +73,7 @@ if substring(@filterFlag,2,1) = '1'
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
 
-/*
+/* removed - too slow
 -- update receiptNumber for object receipts
  update a set a.receiptNumber = b.key1 
  from @wtRaw a, object b
@@ -80,6 +84,7 @@ if substring(@filterFlag,2,1) = '1'
  from @wtRaw a, receiptLink b
  where a.slink2 = 'l' + cast(b.id as varchar)
 */
+
  insert @wt
  select
   id,
@@ -107,7 +112,10 @@ if substring(@filterFlag,2,1) = '1'
  select
   id,
   @ordSeed + ord + 'b',
-  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount),
+  case when description = 'Apportionment Payable' 
+   then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft(convert(varchar,amount,1),' ',16)
+   else dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount)
+  end,  
   dbo.padLeft(convert(varchar,glBalance,1),' ',16)
  from @wt
 
