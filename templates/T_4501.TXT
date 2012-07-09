@@ -21,15 +21,26 @@
 
 \t120Apportionment;
 @acc120=
+ m(kpbrwid(1));
+
+@lbrwclick150=
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
- change(lcid);
+ if(lcTyp=9,menu9=),
+ if(lcTyp=7,menu7=);
+
+@menu9=
+ m('Accounts|    Please choose one of the following options...','Right Click Menu...','question.ico','Open &Account|&Stage Apportionment|sho&w|&Cancel'),
+ break(gcretval=4),
+ if(gcretval=1,openGLAccount=),
+ if(gcretval=2,createDeposit=),
+ if(gcretval=3,m(lcTyp&'-'&lcid));
 
 @changeDate=
  if(gcdr1=1,set(78,obj:key1+obj:a17)),
  if(gcdr1=3,set(40,obj:c1-obj:key1)),
- gfwindow=,
+ refreshBRW=,
  if(gcdr1=1,focus(040));
 
 @loadwindow=
@@ -62,7 +73,7 @@
 
 @gcvar=
  lcFilterString=obj:c2&obj:c3,
- gcsql='select id,ord,rowstring,glBalanceString from dbo.dailydata('&choose(obj:key1>'  0',obj:key1,'0')&','&choose(obj:a17>'  0',obj:a17,0)&','''&lcFilterString&''') order by ord',
+ gcsql='select id,ord,rowstring,glBalanceString from dbo.dailydata('&choose(obj:key1>'  0',obj:key1,'0')&','&choose(obj:a17>'  0',obj:a17,0)&','''&lcFilterString&''') order by ord';
 
 @brwstuff=
  gcvar=,
@@ -76,7 +87,7 @@
  prop(0,7cfbh,0),
  prop(0,7cfch,BEBEEEH);
 
-@gfwindow=
+@refreshBRW=
  gcvar=,
  brwreload(1,gcsql);
 
@@ -88,12 +99,6 @@
  if(lcTyp=8,openGLAccount=),
  if(lcTyp=7,openDeposit=),
  if(lcTyp=6,openGLDetail=);
-
-@lbrwclick150=
- lcid=kpbrwid(1)*-1,
- lcTyp=left(lcid,1),
- lcid=sub(lcid,2,25),
- if(lcTyp=7,createDeposit=);
 
 @openType=
  break(lcid<1),
@@ -115,11 +120,12 @@
  change(obj1:id);
 
 @openDeposit=;
-@createDeposit=
+
+@menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),
  lcExistingDepositId=kp('select id from object where typ = 4513 and a17 != ''Posted'' and key3 = '''&lcDepositType&''''),
  lcButtons=choose(lcExistingDepositId>0,'Edit Existing|','')&'Create New|Cancel',
- m(lcDepositType&' Deposit|   Please choose one of the following options.','Deposit...','question.ico',lcButtons,2),
+ m(lcDepositType&' Deposit|   Please choose one of the following options.','Right Click Menu...,'question.ico',lcButtons,2),
  lcPicked=gcretval+choose(lcExistingDepositId>0,0,1),
  if(lcPicked=1,change(lcExistingDepositId)),
  if(lcPicked=2,new(4513,3,004=today(),006=lcDepositType));
