@@ -23,6 +23,9 @@ begin
 
  exec( @sql )
 
+ exec dbo.createAdtaxMillageSources
+ exec dbo.createAdtaxMillagePayables
+
  declare @rt table(id int, resultInt int) 
 
  while exists(select * from temp_taxrollInvoice)
@@ -30,7 +33,7 @@ begin
   select top 1 @idToken = id from temp_taxrollInvoice
   begin transaction
    exec dbo.taxReferenceCRUD @idToken
-   exec dbo.taxrollInvoiceCRUD @idToken, 1, ''
+   exec dbo.taxrollInvoiceCRUD @idToken, 1, 'B'
    exec dbo.taxRollAddressInsert @idToken
   
    select @slink = slink from dbo.taxrollCheck(@idToken,'')
