@@ -5,6 +5,27 @@ begin
     @typeDesc varchar(50),
     @reportCode varchar(50)
 
+  if @district<='0' and @rate>'0' and @year>'0'
+  begin
+   if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='S' and apyear=@year and aprate=@rate)
+    begin
+
+     select 
+      @typeDesc = key2,
+      @reportCode = key3
+     from object where typ = 4702 and key1 = 'PAYABLE'
+
+     insert object (typ,key1,key2,a1,a2,a3,a9,a11,a13) 
+     select 4701,@rate+'_'+@year+'_AP',@rate+' '+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'S',@year,@rate
+
+
+    end
+  end
+
+
+
+  if @district>'0' and @rate>'0' and @year>'0'
+  begin
    if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='M' and apyear=@year and apdistrict=@district and aprate=@rate)
     begin
 
@@ -14,11 +35,14 @@ begin
      from object where typ = 4702 and key1 = 'PAYABLE'
 
      insert object (typ,key1,key2,a1,a2,a3,a9,a11,a12,a13) 
-     select 4701,@district+'_'+@rate+'_'+@year+'_AP',@district+'_'+@rate+'_'+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'M',@year,@district,@rate
+     select 4701,@district+'_'+@rate+'_'+@year+'_AP',@district+' '+@rate+' '+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'M',@year,@district,@rate
 
 
     end
+  end
 
+  if @pilottable>'0' and @year>'0'
+  begin
    if not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AP' and aptabletyp='L' and apyear=@year and appilottable=@pilottable)
     begin
 
@@ -28,9 +52,10 @@ begin
      from object where typ = 4702 and key1 = 'PAYABLE'
 
      insert object (typ,key1,key2,a1,a2,a3,a9,a10,a11) 
-     select 4701,@pilottable+'_'+@year+'_AP',@pilottable+'_'+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'L',@pilottable,@year
+     select 4701,@pilottable+'_'+@year+'_AP',@pilottable+' '+@year+' Payable','PAYABLE',@typeDesc,@reportCode,'L',@pilottable,@year
 
 
     end
+  end
 
 end

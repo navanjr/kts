@@ -31,7 +31,10 @@ Begin
 
   declare @showPaidFlag char(1) = substring(@orderString,3,1)
 
--- get the first 1000 rows that match the search string. IF we have a search string
+-- get the first 1000 rows that match the search string. IF we have a search string ordered by name
+
+  if left(@orderString,2) = '10'
+  begin
   if @searchString > '  0'
    insert @rt
    select top 1000 
@@ -42,7 +45,8 @@ Begin
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
--- get the first 1000 rows with out using a search string.  why would you ever do this?
+   order by name
+-- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
   else
    insert @rt
    select top 1000 
@@ -53,7 +57,35 @@ Begin
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
-
+   order by name
+  end
+  else
+  begin
+-- get the first 1000 rows that match the search string. IF we have a search string ordered by parcel
+  if @searchString > '  0'
+   insert @rt
+   select top 1000 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',subInvoiceDue,0,0 
+   from dbo.invoices
+   where name+' '+parcel like '%'+@searchString+'%'
+    and cast(taxYear as varchar) in (select yr from @taxYears)
+    and invoiceId = 0
+    and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
+   order by parcel
+-- get the first 1000 rows with out using a search string.  ordered by parcel  why would you ever do this?
+  else
+   insert @rt
+   select top 1000 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',subInvoiceDue,0,0 
+   from dbo.invoices
+   where
+    cast(taxYear as varchar) in (select yr from @taxYears)
+    and invoiceId = 0
+    and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
+   order by parcel
+  end
 -- get the already selected items
   insert @rt
   select 

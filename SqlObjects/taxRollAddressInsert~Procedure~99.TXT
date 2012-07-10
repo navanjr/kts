@@ -1,6 +1,52 @@
-create procedure [dbo].[taxRollAddressInsert] @aId int
+create procedure [dbo].[taxRollAddressInsert] @aId int, @invoiceType varchar (1)
 	as begin
 
+
+if @invoiceType = 'S'
+begin
+insert into 
+	taxRollDetail(
+	    [adTaxId],
+	    [parcelNumber],
+	    [name],
+	    [itemNumber],
+	    [taxYear],
+	    [Stamp],
+	    [businessName],
+	    [ADDRESS1],
+		[ADDRESS2],
+		[ADDRESS3],
+		[CITY],
+		[STATE],
+		[ZIP1],
+		[ZIP2],
+		[ZIP3],
+                [Dtype],
+		[Comments]
+	 	)	
+select
+	ID,
+	key1,
+	a1,
+	case when isnumeric(key3)=1 then cast(key3 as numeric(7,1)) else 0.0 end,
+	case when isnumeric(a18)=1 then cast(a18 as numeric(5)) else 0 end,
+	convert(varchar(10),GETDATE(),101)+' Assessment',
+	'',
+	a2,
+	a3,
+	a4,
+	a5,
+	a6,
+	a7,
+	'',
+	'',
+        'S',
+	''
+
+ from object where id=@aId 
+end
+else
+begin
 insert into 
 	taxRollDetail(
 	    [adTaxId],
@@ -41,5 +87,8 @@ select
 	''
 
  from AdTax where id=@aId and (len(FULLPIDNUMBER)>0 or LEN(ownername)>0)
+end 
+
+
 
 end
