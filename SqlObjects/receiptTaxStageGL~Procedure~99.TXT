@@ -1,4 +1,4 @@
-create procedure dbo.receiptTaxStageGL (@receiptId int) as
+create procedure dbo.receiptTaxStageGL (@receiptId int, @mode int = 0) as
 begin
 
  declare @receiptSlink varchar(15) = 'o' + cast(@receiptId as varchar)
@@ -38,7 +38,8 @@ begin
   slink varchar(15),
   accountId int,
   amount money,
-  slink2 varchar(15)
+  slink2 varchar(15),
+  processType varchar(50)
  )
 
  declare
@@ -50,16 +51,16 @@ begin
   @backTaxId int,
   @currTaxCode varchar(10)
 
- --TODO: bail if there is already gldetail for these receiptLinks 
- --TODO: bail if we are offered too much money
+--TODO: bail if there is already gldetail for these receiptLinks 
+--TODO: bail if we are offered too much money
 
- -- get the invoices linked to this receipt
+-- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear)
  select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
  from receiptLink a, invoices b 
  where a.invoiceId = b.id and a.receiptId = @receiptId
 
- -- calculate the balance due, update AR and Contra account id
+-- calculate the balance due, update AR and Contra account id
  select @currTaxId = accountId, @currTaxCode=code from glAccounts where accountCode = 'CURTAX'
  select @backTaxId = accountId from glAccounts where accountCode = 'BACKTAX'
  update @wt set
@@ -67,7 +68,8 @@ begin
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
   contraAccountId = case when taxYear = @currTaxCode then @currTaxId else @backTaxId end
 
- --get all the payments linked to this receipt
+-- populate Suspense
+--get all the payments linked to this receipt
  insert @glSuspense
  select @receiptSlink, b.accountId, sum(a.amount)
   from paid a, paycodes b 
@@ -88,7 +90,8 @@ begin
   update @wt set processFlag = 1 where linkId = @idToken
  end
 
- -- add the debit to funds accounts from the invoice detail
+-- populate fundDebits
+-- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
   c.slink, b.accountId, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
@@ -97,14 +100,14 @@ begin
   and a.fundCode = b.accountCode
  group by c.slink, a.slink, b.accountId
 
- -- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
+-- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
  insert @glSalesCredits 
  select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1, a.slink
  from @wt a, @glFundDebits b
  where a.slink = b.slink
  group by b.slink, a.contraAccountId, a.slink
 
- -- add the credit to AR Accounts
+-- add the credit to AR Accounts
  insert @glSalesCredits 
  select b.slink, a.arAccountId, sum(b.payAmount)*-1, null 
  from @wt a, @glFundDebits b
@@ -112,16 +115,23 @@ begin
  group by b.slink, a.arAccountId
 
  insert @glStage
-  select slink,accountId,payAmount,null from @glFundDebits
+  select slink,accountId,payAmount,null,'fundDebit' from @glFundDebits
  union
-  select * from @glSalesCredits
+  select *,'salesCredit' from @glSalesCredits
  union 
-  select *,null from @glSuspense
+  select *,null,'suspense' from @glSuspense
 
-  -- remove any existing stage records
+-- echo the guts of this proc and bail if you are in test mode
+ if @mode = 1
+ begin
+  select a.*,b.accountDesc,b.accountType from @glStage a, glAccounts b where a.accountId = b.accountId order by a.processType
+  return
+ end
+
+-- remove any existing stage records
  delete glDetailStage where slink in (select slink from @glStage)
 
- -- insert
+-- insert
  insert gldetailstage (slink,accountId,amount,slink2) select slink, accountId, amount, slink2 from @glStage where amount != 0
  
  update a set
