@@ -24,12 +24,12 @@ begin
   insert @rt
   select id,a2,a3,e1
   from dbo.object
-  where typ=4002 and (key3=@name or len(key3)<1) and (key2=@parcel or len(key2)<1) and (case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end=@item or len(key1)<2) and (case when isnumeric(a1)=1 then cast(a1 as numeric (5,0)) else 0 end =@taxyear or len(a1)<2)
+  where typ=4002 and (key3=left(@name,len(key3)) or len(key3)<1) and (key2=left(@parcel,len(key2)) or len(key2)<1) and (case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end=@item or case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end<1) and (case when isnumeric(a1)=1 then cast(a1 as numeric (5,0)) else 0 end =@taxyear or len(a1)<2)
 
 insert @rt
 	select 
 		id*-1,
-		Stamp,
+		dbo.clariondate(left(Stamp,10)),
 		'',
 		case when name>'  0' then name+' ' else '' end
 		+case when businessName>'  0' then businessName+' ' else '' end
