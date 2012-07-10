@@ -18,6 +18,7 @@ begin
  )
  declare @glFundDebits table(
   slink varchar(15),
+  fundCode varchar(50),
   accountId int,
   amount money,
   prorate decimal(19,18),
@@ -56,9 +57,9 @@ begin
 
 -- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear)
- select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
- from receiptLink a, invoices b 
- where a.invoiceId = b.id and a.receiptId = @receiptId
+  select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
+  from receiptLink a, invoices b 
+  where a.invoiceId = b.id and a.receiptId = @receiptId
 
 -- calculate the balance due, update AR and Contra account id
  select @currTaxId = accountId, @currTaxCode=code from glAccounts where accountCode = 'CURTAX'
@@ -69,7 +70,7 @@ begin
   contraAccountId = case when taxYear = @currTaxCode then @currTaxId else @backTaxId end
 
 -- populate Suspense
---get all the payments linked to this receipt
+-- get all the payments linked to this receipt
  insert @glSuspense
  select @receiptSlink, b.accountId, sum(a.amount)
   from paid a, paycodes b 
@@ -94,11 +95,19 @@ begin
 -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  c.slink, b.accountId, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
- from receiptDetail a, glAccounts b, @wt c 
+  c.slink, a.fundCode, 0, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
+ from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink
-  and a.fundCode = b.accountCode
- group by c.slink, a.slink, b.accountId
+ group by c.slink, a.slink, a.fundCode
+
+-- update the fundDebits with the proper accountId
+ update a set a.accountId = b.accountId 
+  from @glFundDebits a, glAccounts b
+  where a.fundCode = b.fundCode
+ update a set a.accountId = b.accountId 
+  from @glFundDebits a, glAccounts b
+  where a.fundCode = b.accountCode and a.accountId = 0
+
 
 -- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
  insert @glSalesCredits 
