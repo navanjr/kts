@@ -1,8 +1,9 @@
-CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50)) returns 
+CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
 @rt table (
  id int,
  ord varchar(10),
- rowstring varchar(250)
+ rowstring varchar(250),
+ glBalanceString varchar(50)
 )
 begin
 
@@ -14,42 +15,120 @@ begin
   minControlNumber varchar(50),
   maxControlNumber varchar(50),
   rowCnt int,
-  amount money
+  amount money,
+  glBalance money
+ )
+ declare @wtRaw table(
+  id int,
+  ord varchar(50),
+  description varchar(50),
+  subDescription varchar(50),
+  receiptNumber varchar(50),
+  amount money,
+  slink2 varchar(15)
+ )
+  declare @accounts table(
+  accountId int,
+  collectionDescription varchar(50),
+  reportOrder varchar(50)
  )
 
- insert @wt
+-- get the collection accounts 
+ insert @accounts select accountId,collectionDescription,reportOrder from dbo.glCollectionAccount
+
+-- get the apportionment account, maybe :)
+if substring(@filterFlag,2,1) = '1'
+ insert @accounts select accountId, 'Apportionment Payable', '02z' 
+  from dbo.glAccounts where accountId not in (select accountId from paycodes)
+  and accountType in ('PAYABLE','FUND') 
+  and accountId not in (select accountId from @accounts)
+
+-- insert all raw receipt data
+ insert @wtRaw
  select
-  0,
+  b.accountId,
   a.reportOrder,
   a.collectionDescription,
   b.accountDesc,
-  min(c.key1),
-  max(c.key1),
-  COUNT(c.id),
-  abs(SUM(b.amount))
- from dbo.glCollectionAccount a, glDetail b, object c
+  c.key1,
+  b.amount,
+  b.slink
+ from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
+  and c.typ in (4502) --,4512,4522
+  and dbo.slinkType(b.slink) = 'o'
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
- group by
+
+-- insert all raw receipt data
+ insert @wtRaw
+ select
+  b.accountId,
   a.reportOrder,
   a.collectionDescription,
-  b.accountDesc
- order by
-  a.reportOrder
+  b.accountDesc,
+  c.receiptNumber,
+  b.amount,
+  b.slink
+ from @accounts a, glDetail b, receiptLink c
+ where a.accountId = b.accountId
+  and dbo.slinkType(b.slink) = 'l'
+  and substring(b.slink,2,14) = c.id
+  and b.date between @theDate and @theDate + @days
 
- insert @rt
+/* removed - too slow
+-- update receiptNumber for object receipts
+ update a set a.receiptNumber = b.key1 
+ from @wtRaw a, object b
+ where a.slink2 = 'o' + cast(b.id as varchar)
+
+-- update receiptNumber for tax receipts
+ update a set a.receiptNumber = b.receiptNumber 
+ from @wtRaw a, receiptLink b
+ where a.slink2 = 'l' + cast(b.id as varchar)
+*/
+
+ insert @wt
  select
   id,
+  ord,
+  description,
+  subDescription,
+  min(receiptNumber),
+  max(receiptNumber),
+  COUNT(receiptNumber),
+  abs(SUM(amount)),
+  0
+ from @wtRaw
+ group by
+  id,
+  ord,
+  description,
+  subDescription
+ order by
+  ord
+
+ update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
+
+--insert main data
+ insert @rt
+ select
+  cast(case when description = 'Apportionment Payable' then '8' else '9' end + cast(id as varchar) as int),
   @ordSeed + ord + 'b',
-  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount)
+  case when description = 'Apportionment Payable' 
+   then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft('',' ',16)
+   else dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount)
+  end,  
+  dbo.padLeft(convert(varchar,glBalance,1),' ',16)
  from @wt
 
+-- insert subtotals
  insert @rt
  select
   0,
   @ordSeed + ord + 'c',
-  ' ' + replicate('-',79)
+  ' ' + replicate('-',79),
+  replicate('-',16)
  from @wt 
  group by ord,description
 
@@ -59,7 +138,8 @@ begin
   @ordSeed + ord + 'd',
   dbo.padRight('      Total ' + description, ' ', 60)
   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16)
+  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  ''
  from @wt 
  group by ord,description
 
@@ -67,22 +147,38 @@ begin
  select
   0,
   @ordSeed + ord + 'e',
-  replicate(' ',80)
+  replicate(' ',80),
+  ''
  from @wt 
  group by ord,description
 
- insert @rt select 0,@ordSeed+'00a',''
- insert @rt select 0,@ordSeed+'00aa','  Collections'
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79)
+ -- headers
+ insert @rt select 0,@ordSeed+'00a','',''
+ insert @rt select 0,@ordSeed+'00aa','  Collections',''
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16)
 
  if exists(select * from @wt where description = 'Depository')
  begin
   declare @reportSub varchar(50)
   select @reportSub = max(ord) from @wt where description = 'Depository'
-  insert @rt select 0,@ordSeed+@reportSub+'a',''
-  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers'
-  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79)
+  insert @rt select 0,@ordSeed+@reportSub+'a','',''
+  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers',''
+  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16)
  end
 
+-- insert grand total
+ if exists(select * from @wt)
+ begin
+  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16)
+  insert @rt
+  select
+   0,
+   @ordSeed + 'db',
+   dbo.padLeft('Total Collections  ', ' ', 60)
+   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16)
+  from @wt 
+ end
  return
 end
