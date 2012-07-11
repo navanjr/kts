@@ -8,10 +8,6 @@
 ###---###---###---###---###
 
 
-
-
-
-
 @fastinsert;
 @save;
 @loadbrowse=if(tier=-3,dbrowse=),
@@ -40,7 +36,18 @@
 @key2=obj:key2;
 @key3=obj:a9;
 
-@loadwindow=create(39,9),set(40,'',1);
+@loadwindow=create(39,9),set(40,'',1),if(obj:a9>'0' and obj:a9<>'S',brwstuff=);
+
+@brwstuff=
+ gcbrw1sql='select id,name,number,fund from dbo.accountPayableTableBRW('&obj:id&') order by name',
+ brw(150,1,gcbrw1sql,190,94,220,100,
+'120L(2)~Name~#2#M|
+50R(2)~Number~@n19.2b@#3#M|
+50L(2)~Fund~#4#M
+',7,1);
+
+@refreshDetail=brwreload(1);
+
 
 \t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
 \t003Description;  \c004;  \e004;
@@ -62,7 +69,7 @@
 
 \h023024obj:a1<>'PAYABLE' or obj:a8>' 0';r
 \t023Table Type; \u024; \w02412; @choose024:SAPLM;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
-@accr022032r2=tsc;
+@accr022032r2=refreshDetail=,tsc;
 \h025026obj:a1<>'PAYABLE' or obj:a9<>'L' or obj:a8>' 0';r
 \t025PILOT Table; 
  \l0264009;r026004028002; @lf026='id in (select max(id) from object where typ=4009 and key2=a.key2 and key1=a.key1)';
@@ -86,6 +93,12 @@
  \h033034obj:a9<>'P' or obj:a1<>'PAYABLE' or obj:a8>' 0' ;r
 
 
+\t105Add Detail;
+ \h105obj:a9<'A';
+ @acc105=case(obj:a9='A',addada=,obj:a9='P',addpop=,obj:a9='L',addpilot=),refreshDetail=;
+ @addada=neww(4013,,002=obj:a11);
+ @addpop=neww(4014,,002=obj:a11,010=obj:a14);
+ @addpilot=neww(4009,,002=obj:a11,004=obj:a10);
 
 \t108&Print Account;  @acc108=bbproc6=;
 \t109&View G/L Detail;  
