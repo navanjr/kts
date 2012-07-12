@@ -22,13 +22,14 @@ begin
   accountId int,
   amount money,
   prorate decimal(19,18),
-  payAmount decimal(19,10)
+  payAmount decimal(19,10),
+  contraId int
  )
  declare @glSalesCredits table(
   slink varchar(15),
   accountId int,
   amount money,
-  slink2 varchar(15)
+  contraId int
  )
  declare @glSuspense table(
   slink varchar(15),
@@ -39,7 +40,7 @@ begin
   slink varchar(15),
   accountId int,
   amount money,
-  slink2 varchar(15),
+  contraId int,
   processType varchar(50)
  )
 
@@ -95,10 +96,10 @@ begin
 -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  c.slink, a.fundCode, 0, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount)
+  c.slink, a.fundCode, 0, sum(a.amount),max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId
  from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink
- group by c.slink, a.slink, a.fundCode
+ group by c.slink, a.slink, a.fundCode, c.contraAccountId
 
 -- update the fundDebits with the proper accountId
  update a set a.accountId = b.accountId 
@@ -111,7 +112,7 @@ begin
 
 -- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
  insert @glSalesCredits 
- select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1, a.slink
+ select @receiptSlink, a.contraAccountId, sum(b.payAmount)*-1, null
  from @wt a, @glFundDebits b
  where a.slink = b.slink
  group by b.slink, a.contraAccountId, a.slink
@@ -124,7 +125,7 @@ begin
  group by b.slink, a.arAccountId
 
  insert @glStage
-  select slink,accountId,payAmount,null,'fundDebit' from @glFundDebits
+  select slink,accountId,payAmount,contraId,'fundDebit' from @glFundDebits
  union
   select *,'salesCredit' from @glSalesCredits
  union 
@@ -141,7 +142,7 @@ begin
  delete glDetailStage where slink in (select slink from @glStage)
 
 -- insert
- insert gldetailstage (slink,accountId,amount,slink2) select slink, accountId, amount, slink2 from @glStage where amount != 0
+ insert gldetailstage (slink,accountId,amount,contraId) select slink, accountId, amount, contraId from @glStage where amount != 0
  
  update a set
   a.accountCode = b.accountCode,
@@ -151,3 +152,4 @@ begin
   and a.slink in (select slink from @glStage)
 
 end
+

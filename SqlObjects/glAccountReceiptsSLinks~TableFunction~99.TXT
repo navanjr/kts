@@ -1,0 +1,16 @@
+create function dbo.glAccountReceiptsSLinks(@accountId int) returns @rt table(
+ slink varchar(15)
+)
+begin
+
+ declare @receiptIds table(id int)
+
+ insert @receiptIds select dbo.slinkId(slink) from glDetail where accountId = @accountId and slink in
+  (select 'o' + cast(id as varchar) from object where typ = 4502)
+
+ insert @rt select 'o' + cast(id as varchar) from @receiptIds
+ insert @rt select 't' + cast(invoiceId as varchar) from receiptLink where receiptId in (select id from @receiptIds)
+ insert @rt select 'l' + cast(id as varchar) from receiptLink where receiptId in (select id from @receiptIds)
+
+ return
+end
