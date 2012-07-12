@@ -1,0 +1,15 @@
+create function dbo.latestPayableAccount(@fundcode varchar(50)) returns int
+begin
+ declare @accountId int
+ 
+set @accountId=(select top 1 accountId from glAccounts, object 
+ where object.typ=4701 
+ and object.key1=@fundcode 
+ and accountId in (select id from dbo.latestPayables())
+ and aptabletyp=a9
+ and appilottable=a10
+ and apdistrict=a12
+ and aprate=a13
+ and appoptype=a14)
+ return @accountId
+ end
