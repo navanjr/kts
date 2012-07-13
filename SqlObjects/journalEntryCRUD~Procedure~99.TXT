@@ -21,8 +21,12 @@ begin
  -- Delete
  if @mode = 3
  begin
+  begin transaction
   exec dbo.glDeleteObjectSource @id, @deletePosted = 'True'
   delete journalLink where jeId = @id
+  -- remove the bsId link on glDetail
+  update glDetail set bsId = null where bsId = @id
+  commit transaction
  end
 
  -- Update
