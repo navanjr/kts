@@ -1,0 +1,43 @@
+create procedure dbo.apportionCollections(
+ @accountId int
+) as
+begin
+
+ declare
+  @accountDesc varchar(50),
+  @resultCode int,
+  @resultMessage varchar(50),
+  @newId int,
+  @slink varchar(15)
+
+ select @accountDesc = accountDesc from dbo.glAccounts where accountId = @accountId
+
+-- create new JE
+ exec dbo.journalEntryCRUD
+  @mode = 0,
+  @description = @accountDesc,
+  @jeType = 'APPORTIONMENT',
+  @resultCode = @resultCode output,
+  @resultMessage = @resultMessage output,
+  @newId = @newId output
+
+ select @slink = 'o' + cast(@newId as varchar)
+
+-- create stage 
+ insert glDetailStage ( accountId, accountCode, accountDesc, amount, slink)
+ select accountId, accountCode, accountDesc, amount, @slink
+  from dbo.apportionCollectionsBRW( @accountId )
+
+-- post to the gl
+ exec dbo.glPost @newId, 'o'
+ exec dbo.journalEntryUpdate @newId
+ 
+
+-- link origional apportion postngs to this JE
+ update glDetail set bsId = @newId
+ where 
+   contraId = @accountId
+   and ISNULL(bsId,0) = 0
+ 
+ return
+end

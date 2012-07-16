@@ -21,8 +21,12 @@ begin
  -- Delete
  if @mode = 3
  begin
+  begin transaction
   exec dbo.glDeleteObjectSource @id, @deletePosted = 'True'
   delete journalLink where jeId = @id
+  -- remove the bsId link on glDetail
+  update glDetail set bsId = null where bsId = @id
+  commit transaction
  end
 
  -- Update
@@ -44,7 +48,7 @@ begin
  -- Create
  if @mode = 0
  begin
-  -- bail if missing description
+  -- bail if missing description or Journal Type
   if @description < '  0' or @jeType < '  0'
   begin 
    select @resultCode = 1, @resultMessage = 'this method requires Description and Journal Type'
