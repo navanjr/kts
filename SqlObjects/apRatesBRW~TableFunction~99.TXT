@@ -1,0 +1,40 @@
+create function dbo.apRatesBRW(@accountId int) returns @rt table(
+ seedId int identity(1,1),
+ id int,
+ rateName varchar(50),
+ selectedFlag varchar(5)
+)
+as
+begin
+ 
+ declare
+  @rateData varchar(max) = ''
+
+ declare @thisAccountsRates table(
+  id int,
+  rateName varchar(50)
+ )
+
+
+ insert @rt
+ select distinct null, a1, null from object where typ = 4012 order by a1
+
+ select
+  @rateData = rateData 
+ from dbo.glAccounts 
+ where accountId = @accountId
+
+ insert @thisAccountsRates
+ select id, data from dbo.split(@rateData,'|')
+
+ update a set
+  selectedFlag = 'X'
+ from @rt a, @thisAccountsRates b
+ where a.rateName = b.rateName
+
+ update @rt set
+  id = seedId * -1
+
+ return 
+end
+
