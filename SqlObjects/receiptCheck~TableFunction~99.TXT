@@ -20,13 +20,15 @@ begin
   @arAccountId int,
   @fpid int,
   @status varchar(50),
-  @objectTyp int
+  @objectTyp int,
+  @officialfund varchar(50)
 
  select
   @cdate = cast(key2 as int),
   @receiptType = key3,
   @status = a17,
-  @objectTyp = typ
+  @objectTyp = typ,
+  @officialfund = a5
  from object where id = @sourceId
 
  -- check for status of Posted
@@ -49,7 +51,15 @@ begin
  -- check for contra account id if we are not a tax receipt
  if @receiptType != 'TAX'
  begin
-  select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+  if @receiptType = 'OFFICIAL'
+   begin
+    select @contraId = id from object where typ = 4701 and key1 = @officialfund
+   end
+  else
+   begin
+    select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+   end
+ 
   if isnull(@contraId,0) = 0
   begin
    insert @rettable
@@ -84,3 +94,4 @@ begin
  return
 
 end
+
