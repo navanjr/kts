@@ -20,20 +20,25 @@ begin
   @arAccountId int,
   @tokenId int,
   @tokenContraId int,
-  @tokenAmount money
+  @tokenAmount money,
+  @receiptType varchar(50)
  
  select 
   @code = code,
   @contraId = contraId ,
-  @arAccountId = arAccountId
+  @arAccountId = arAccountId,
+  @receiptType = receiptType
  from dbo.receiptCheck(@receiptId,null)
 
  -- credit Source and Debit AR
- insert @accountsWorking
-  select b.accountId, null, sum(a.amount)*-1 
-  from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
- select @tokenAmount = abs(sum(amount)) from @accountsWorking
- insert @accountsWorking select @arAccountId, null, @tokenAmount
+ if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+ begin
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount)*-1 
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
+  select @tokenAmount = abs(sum(amount)) from @accountsWorking
+  insert @accountsWorking select @arAccountId, null, @tokenAmount
+ end
 
  if exists(select * from paid where slink = @slink)
  begin
@@ -42,7 +47,10 @@ begin
 
   -- credit AR
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
-  insert @accountsWorking select @arAccountId, null, @paidTotal
+  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  begin
+   insert @accountsWorking select @arAccountId, null, @paidTotal
+  end
 
   -- debit suspense accounts
   -- TODO: replace this query and use the new paycodes view instead of object
@@ -53,15 +61,17 @@ begin
 
   -- debit tresurers receipt fund and credit fund payables
   insert @accountsWorking select @contraId, null, @paidTotal
-  insert @ap
-   select b.accountId, null, sum(a.amount)*-1, 0, 0
-   from receiptDetail a, dbo.glAccounts b
-   where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AP' group by b.accountId
-
-  insert @ap
-   select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
-   from receiptDetail a, dbo.glAccounts b
-   where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AP' group by b.accountId
+  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  begin
+   insert @ap
+    select b.accountId, null, sum(a.amount)*-1, 0, 0
+    from receiptDetail a, dbo.glAccounts b
+    where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AP' group by b.accountId
+   insert @ap
+    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
+    from receiptDetail a, dbo.glAccounts b
+    where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AP' group by b.accountId
+  end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
