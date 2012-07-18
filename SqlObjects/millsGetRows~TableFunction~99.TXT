@@ -1,0 +1,46 @@
+create function dbo.millsGetRows(
+ @typ int,
+ @year varchar(50),
+ @amount money
+) returns @rt table(
+ id int identity(1,1),
+ description varchar(50),
+ millamount decimal(19,9),
+ millRate decimal(16,14),
+ amount money
+) as
+begin
+
+ declare
+  @millTotal money,
+  @totalFigured money
+
+ insert @rt (description, millAmount)
+ select key2,cast(key3 as decimal(19,9)) from object where typ = @typ and key1 = @year
+
+ select @millTotal = sum(millAmount) from @rt
+
+ update @rt set 
+  millRate = millAmount / @millTotal
+
+ update @rt set 
+  amount = round(@Amount * millRate,2)
+
+-- fix any rounding issues
+ select @totalFigured = sum(amount) from @rt
+ if @totalFigured != @amount
+ begin
+  declare
+   @fudgeAmount money,
+   @fudgeToken int
+
+  select top 1 
+   @fudgeAmount = @totalFigured - @amount,
+   @fudgeToken = id
+  from @rt order by amount desc
+
+  update @rt set amount = amount - @fudgeAmount where id = @fudgeToken
+ end
+
+ return
+end

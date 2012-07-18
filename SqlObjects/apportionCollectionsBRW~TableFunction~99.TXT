@@ -1,72 +1,20 @@
 create function dbo.apportionCollectionsBRW( @accountId int ) returns @rt table(
- id int identity(1,1),
  accountId int,
  accountCode varchar(50),
  accountDesc varchar(50),
- fundCode varchar(50),
  amount money
 )
 begin
 
- declare
-  @tokenId int,
-  @tokenAmount money
-
- declare @wt table( accountId int, amount money)
- insert @wt
- select a.accountId, SUM(a.amount)
-  from gldetail a, glAccounts b
-  where a.accountId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
-   and b.apTableTyp = 'M'
-  group by a.accountId
-
-
--- credit Apportionment Accounts
+-- debits
  insert @rt
- select a.accountId, b.accountCode, b.accountDesc, b.fundCode, SUM(a.amount * -1)
-  from gldetail a, glAccounts b
-  where a.accountId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
-  group by a.accountId, b.accountCode, b.accountDesc, b.fundCode, b.apTableTyp
-
--- debit Fund accounts
- while exists(select * from @wt)
- begin
-  select top 1 @tokenId = accountId, @tokenAmount = amount from @wt
-  insert @rt
-  select a.sourceId, b.accountCode, b.accountDesc, null, a.amount
-   from dbo.getRates('apportionment',@tokenId,@tokenAmount,null,null) a, dbo.glAccounts b
-   where a.sourceId = b.accountId
-  delete @wt where accountId = @tokenId
- end
-
+ select b.accountId, b.accountCode, b.accountDesc, a.amount 
+ from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
+ 
+-- credits
  insert @rt
- select b.accountId, b.accountCode, b.accountDesc, null, SUM(a.amount * -1)
-  from @rt a, glAccounts b
-  where a.fundCode = b.accountCode
-  group by b.accountId, b.accountCode, b.accountDesc
-
--- debit Collection Account
- insert @rt
- select a.contraId, b.accountCode, b.accountDesc, null, SUM(a.amount)
-  from gldetail a, glAccounts b
-  where a.contraId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
-  group by a.contraId, b.accountCode, b.accountDesc
-
--- credit Expense accounts
- insert @rt
- select b.accountId, b.accountCode, b.accountDesc, null, SUM(a.amount * -1)
-  from gldetail a, glAccounts b
-  where b.accountType = 'EXPENSE'
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
-  group by b.accountId, b.accountCode, b.accountDesc
-
+ select b.accountId, b.accountCode, b.accountDesc, a.amount * -1 
+ from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
 
  return
 end
