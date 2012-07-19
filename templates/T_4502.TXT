@@ -22,7 +22,7 @@
 @settype=select(1,4503),writecurdata(@receiptType=,PIC:KEY1);
 
 @insertSelections=
- m('Please select one of the following...','New Receipt...',,'Misc|Mortgage|Trust|Official|Tax|Cancel'),
+ m('Please select one of the following...','New Receipt...',,'&Misc|Mort&gage|&Trust|&Official|Ta&x|Cancel'),
  if(gcretval=1,newMisc=),
  if(gcretval=2,newMort=),
  if(gcretval=3,newTrust=),
@@ -134,6 +134,28 @@
  \y023306; \x023175; \y024317; \x024175;
  \y025306; \x025230; \y026317; \x026230;
  \y027306; \x027285; \y028317; \x028285;
+
+\t029Mortgage Date; \t030@d2; \q030; 
+\t031Maturity Date; \t032@d2; @acc032=set(034,int((obj:a13+0-obj:a12+0)/36.5)/10),mortCalcRate=;
+\t033Term; \t034@n10.1; @acc034=set(032,obj:a14*365+obj:a12),mortCalcRate=;
+\t035Amount;
+\t037Rate;
+\t047Tax Amount;
+@mortCalcRate=lcRate=int(obj:a14)*.02,
+ if(lcrate+0.00>.1,lcrate=.1),
+ if(lcrate+0.00<.02,lcrate=.02),
+ if(obj:a15+0.00>0.001 and obj:a15+0<100,lcrate=.1),
+ set(038,lcrate),
+ update,
+ mortCalcTax=;
+@mortCalcTax=lcamount=int(obj:a15/100),
+ if(lcamount=obj:a15/100,lctax=lcamount*obj:a16,lctax=(lcamount+1)*obj:a16),
+ set(048,lctax);
+
+\h029038obj:key3<>'MTG';r
+\w03003855;r2 \w04855;
+\x029038+340;r \x047048+157;r
+\y029038-182;r \y047048+13;r
 
 @acc165=update,
  lcBreak=0,
@@ -262,9 +284,6 @@
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
-
- m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
- break(gcretval<>2),
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)
