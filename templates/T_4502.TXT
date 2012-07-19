@@ -29,7 +29,9 @@
  if(gcretval=4,newOfficial=),
  if(gcretval=5,goTax=);
 
-@browseinsert=gcreceiptType=readstring(cur:data,'@receiptType='),
+@browseinsert=
+ insertSelections=;
+ gcreceiptType=readstring(cur:data,'@receiptType='),
  case(gcreceiptType='MTG',newMort=,gcreceiptType='TRUST',newTrust=,gcreceiptType='OFFICIAL',newOfficial=,else,newMisc=);
 
 @newMisc=
@@ -135,12 +137,20 @@
  \y025306; \x025230; \y026317; \x026230;
  \y027306; \x027285; \y028317; \x028285;
 
-\t029Mortgage Date; \t030@d2; \q030; 
-\t031Maturity Date; \t032@d2; @acc032=set(034,int((obj:a13+0-obj:a12+0)/36.5)/10),mortCalcRate=;
-\t033Term; \t034@n10.1; @acc034=set(032,obj:a14*365+obj:a12),mortCalcRate=;
+\t029Mortgage Date; \t030@d2; \q030; @acc030=lcBranch=1,mortCalc=;
+\t031Maturity Date; \t032@d2; @acc032=lcBranch=2,mortCalc=; set(034,int((obj:a13+0-obj:a12+0)/36.5)/10),mortCalcRate=;
+\t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=; set(032,obj:a14*365+obj:a12),mortCalcRate=;
 \t035Amount;
 \t037Rate;
 \t047Tax Amount;
+@mortCalc=
+ lcOptions=choose(lcBranch,obj:a12&','&obj:a13&','&obj:a14&','&obj:a15,obj:a12&','&obj:a13&',0,'&obj:a15,obj:a12&',0,'&obj:a14&','&obj:a15),
+ d1select('select blob from dbo.mortgageTaxCalculator('&lcOptions&')'),
+ set(32,readstring(obj7:d1,'@endDate=')),
+ set(34,readstring(obj7:d1,'@termYears=')),
+ set(38,readstring(obj7:d1,'@taxRate=')),
+ set(48,readstring(obj7:d1,'@taxTotal='));
+
 @mortCalcRate=lcRate=int(obj:a14)*.02,
  if(lcrate+0.00>.1,lcrate=.1),
  if(lcrate+0.00<.02,lcrate=.02),
@@ -151,8 +161,7 @@
 @mortCalcTax=lcamount=int(obj:a15/100),
  if(lcamount=obj:a15/100,lctax=lcamount*obj:a16,lctax=(lcamount+1)*obj:a16),
  set(048,lctax);
-
-\h029038obj:key3<>'MTG';r
+\h029038obj:key3<>'MTG';r \h047048obj:key3<>'MTG';r
 \w03003855;r2 \w04855;
 \x029038+340;r \x047048+157;r
 \y029038-182;r \y047048+13;r
