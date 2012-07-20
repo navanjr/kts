@@ -36,6 +36,10 @@ begin
   from dbo.invoices
   where parcel = @parcel and id != @selectedId and id not in (select invoiceId*-1 from @rt)
 
+ if @parcel > '  0'
+  insert @rt (name, parcel)
+   select 'Certificate: '+rtrim(a4), key1 from object where typ=4100 and key2='A' and key1=@parcel
+
   declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
   insert @glsum
   select a.slink,
@@ -49,8 +53,6 @@ begin
    a.due = b.arAmount,
    a.amount = b.srcAmount 
   from @rt a, @glSum b where a.slink = b.slink
-
-
-
+  
  return
 end

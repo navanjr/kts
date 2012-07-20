@@ -22,12 +22,13 @@
 @settype=select(1,4503),writecurdata(@receiptType=,PIC:KEY1);
 
 @insertSelections=
- m('Please select one of the following...','New Receipt...',,'&Misc|Mort&gage|&Trust|&Official|Ta&x|Cancel'),
+ m('Please select one of the following...','New Receipt...',,'&Misc|Mort&gage|&Trust|&Official|Ta&x|Individual &Redemption|Cancel'),
  if(gcretval=1,newMisc=),
  if(gcretval=2,newMort=),
  if(gcretval=3,newTrust=),
  if(gcretval=4,newOfficial=),
- if(gcretval=5,goTax=);
+ if(gcretval=5,goTax=),
+ if(gcretval=6,newIndiv=);
 
 @browseinsert=gcreceiptType=readstring(cur:data,'@receiptType='),
  case(gcreceiptType='MTG',newMort=,gcreceiptType='TRUST',newTrust=,gcreceiptType='OFFICIAL',newOfficial=,else,newMisc=);
@@ -56,6 +57,18 @@
 
 @addtaxcode=neww(4504,,002='MORTGAGE TAX',008='MTG');
 @addfeecode=neww(4504,,002='MORTGAGE CERTIFICATION FEE',008='MTG');
+
+@newIndiv=
+ lccheck=kp('select id from object where typ = 4504 and a1=''INDIV'' and key1 not like ''%FEE%'''),
+ if(lccheck+0=0,addindivcode=),
+ lccheck=kp('select id from object where typ = 4504 and a1=''INDIV'' and key1 like ''%FEE%'''),
+ if(lccheck+0=0,addindivfeecode=),
+ d1select('exec dbo.receiptNew ''INDIV'''),
+ change(obj7:d1);
+
+@addindivcode=neww(4504,,002='INDIVIDUAL REDEMPTION',008='INDIV');
+@addindivfeecode=neww(4504,,002='INDIVIDUAL REDEMPTION FEE',008='INDIV');
+
 
 @browsedelete=
  if(obj:a17='Posted',lcDeleteMessage='This record has been posted and can only be deleted if the fiscal period is not locked.|Do you wish to continue with this attempt to delete this Receipt?',lcDeleteMessage='Are you sure you wish to delete this Receipt?'),
