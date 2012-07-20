@@ -1,6 +1,7 @@
 create function dbo.mortgageDetailBRW( @receiptId int ) returns @rt table(
   id int,
   displayString varchar(100),
+  color int,
   ord varchar(50)
 ) as
 begin
@@ -17,10 +18,18 @@ begin
 */
 
  insert @rt
+ select 0,
+  dbo.padRight('Mortgagor',' ',25) 
+  + dbo.padRight('Mortgagee',' ',25), 
+  9,
+  dbo.padLeft(cast(0 as varchar),'0',10) + 'a' 
+
+ insert @rt
  select
   id,
-  dbo.padRight(key1,' ',20) 
-  + dbo.padRight(key1,' ',20), 
+  dbo.padRight(key1,' ',25) 
+  + dbo.padRight(key1,' ',25), 
+  1,
   dbo.padLeft(cast(id as varchar),'0',10) + 'a' 
  from object
  where typ=4507
@@ -30,20 +39,36 @@ begin
  insert @rt
  select
   id,
-  '   ' + d1,
+  '  Desc: ' + d1,
+  0,
   dbo.padLeft(cast(id as varchar),'0',10) + 'b' 
  from object
  where typ=4507
   and link1 = @receiptId 
  order by id
 
-/*
-  key3,
-  a1,
-  a2,
-  a3,
-*/
+ insert @rt
+ select
+  id,
+  replace('   STR: ' + key3 + '/' + a1 + '/' + a2,'//','/'),
+  0,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'c' 
+ from object
+ where typ=4507
+  and link1 = @receiptId 
+  and (len(key3+a1+a2)>0)
+ order by id
 
+ insert @rt
+ select
+  id,
+  '  Lend: ' + a3,
+  0,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'd' 
+ from object
+ where typ=4507
+  and link1 = @receiptId 
+ order by id
 
  return
 end
