@@ -1,18 +1,17 @@
 create procedure dbo.receiptDetailCRUD(
  @receiptId int,
- @receiptTyp int
-
+ @receiptTyp int,
+ @receiptDetailId int = 0,
+ @description varchar(50) = '',
+ @sourceCode varchar(50) = '',
+ @fundCode varchar(50) = '',
+ @amount money = 0.00
 ) as
 begin
 
  declare @styp char(1) = 'o'
  declare 
   @slink varchar(15) = @styp + cast(@receiptId as varchar),
-  @receiptDetailId int,
-  @description varchar(50),
-  @sourceCode varchar(50),
-  @fundCode varchar(50),
-  @amount money,
   @code int,
   @message varchar(500)
 
@@ -24,13 +23,21 @@ begin
  end
 
  -- retrieve the specifics from the receipt in object
- select
-  @receiptDetailId = link5,
-  @description = a3,
-  @sourceCode = a4,
-  @fundCode = a5,
-  @amount = case when isnumeric(a6) = 1 then cast(a6 as money) else 0 end
- from object where typ = @receiptTyp and id = @receiptId
+ if len(@description)<2 or len(@sourceCode)<2 or len(@fundCode)<2 or @amount<0.01
+ begin 
+  select
+   @receiptDetailId = link5,
+   @description = a3,
+   @sourceCode = a4,
+   @fundCode = a5,
+   @amount = case when isnumeric(a6) = 1 then cast(a6 as money) else 0 end
+  from object where typ = @receiptTyp and id = @receiptId
+ end
+
+ if right(rtrim(@fundcode),3)='_AP'
+ begin
+  set @fundcode=isnull((select accountCode from glaccounts where accountId=dbo.latestPayableAccount(@fundcode)),@fundcode)
+ end
 
  begin transaction
 

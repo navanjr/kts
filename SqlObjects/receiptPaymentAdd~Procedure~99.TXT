@@ -4,7 +4,10 @@ create procedure dbo.receiptPaymentAdd(
  @amount money,
  @checkNumber varchar(50) = '',
  @bankId int = 0,
- @paymentId int = 0
+ @paymentId int = 0,
+ @mode int = 0,
+ @drawnon varchar(50) = '',
+ @location varchar(50) = ''
 )
 as
 begin
@@ -49,12 +52,12 @@ begin
  begin transaction
 
   -- add row to paid
-  insert paid (paycode,slink,amount,checkno,bankId)
-   select @paycode,@slink,@amount,@checkNumber,@bankId
+  insert paid (paycode,slink,amount,checkno,bankId,drawnon,location)
+   select @paycode,@slink,@amount,@checkNumber,@bankId,@drawnon,@location
 
   -- add to the gl stage
   if @receiptType = 'TAX'
-   exec dbo.receiptTaxStageGL @receiptId
+   exec dbo.receiptTaxStageGL @receiptId, @mode
   else
    exec dbo.receiptStageGL @receiptId
 
@@ -64,6 +67,13 @@ begin
    select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
   else
    select @balance = balance from dbo.glSummary(@receiptId,'o')
+
+-- TEST Mode we bail
+  if @mode = 1
+  begin
+   rollback transaction
+   return
+  end
 
   if @balance != 0
   begin

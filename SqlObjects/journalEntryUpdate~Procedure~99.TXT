@@ -1,0 +1,22 @@
+create procedure dbo.journalEntryUpdate(@jeId int) as
+-- this proc is used by post routines to keep journalEntry sub totals accurate
+begin
+
+ if exists(select * from object where id = @jeId)
+ begin
+
+  declare 
+   @amount money = 0
+
+
+  select @amount = absAmount from glSummary(@jeId,'o')
+
+  update object set
+   b14 = isnull(@amount,0)
+  where id = @jeId
+   and typ = 4512
+ end
+
+ return
+
+end

@@ -4,13 +4,14 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077232.4823;
+@lastedit=;
 
 ###---###---###---###---###
 @dk1;
+@closewindow=sql('update object set typ=-4015 where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&'''');
 \t001Parcel #;
 \t003Date; \t004@d2; \w00450;
-\t005Item #; \t006@n7; auto assign
+\t005Item #; \t006@n9.1;
 \t007Name;
 \t009Add1;
 \t011Add2;
@@ -20,9 +21,15 @@
 \t019Zip; \h019; \y020=016; \x020+86; \w02050;
 \t039Status;
 \t041Tax Year; \t042@n4;
-\t043City; \l0444701; @lf046='typ=4701 and a1=''SOURCE''';
-\t045Fund; \l0464701; @lf046='typ=4701 and a1=''FUND''';
+\t043Assess Type; \l0444701; @lf044='typ=4701 and a1=''SOURCE''';
+\t045City; \l0464011; 
 \t047Amount; \t048@n14.2; \w04850;
-\t049MortCD; \t050@n7; \w05050;
-\t051Certificate #; \w0250;
-\t101Legal;
+\t049Fee Amount; \t050@n14.2; \w05050; \f0505;
+
+@acc106=update,
+  lccheck=kp('select id from object where typ = 4504 and a1=''ASSESSMENT'' and key1 like ''%FEE%'''),
+  if(lccheck+0=0,addfeecode=),
+  d1select('exec dbo.assessmentInvoice '&obj:id),
+  if(readstring(obj7:d1,'@code=1')>0,m(obj7:d1));
+
+@addfeecode=neww(4504,,002='TREASURERS FEES',008='ASSESSMENT');

@@ -1,0 +1,64 @@
+create function dbo.assessmentDetailCheck(@sourceId int) returns
+@rettable table(message varchar(500),
+ status varchar(50),
+ feeAmount money,
+ feedescription varchar(50),
+ feesourceCode varchar(50),
+ feefundCode varchar(50)
+)
+begin
+ 
+ declare
+  @status varchar(50),
+  @feeAmount money,
+  @feedescription varchar(50),
+  @feesourceCode varchar(50),
+  @feefundCode varchar(50)
+
+
+ select
+  @feedescription = key1,
+  @feesourceCode = key2,
+  @feefundCode = key3
+ from object where typ = 4504 and a1='ASSESSMENT' and key1 like '%FEE%'
+
+ select
+  @feeAmount = cast(b2 as money),
+  @status = a17
+ from object where id = @sourceId
+
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable (message)
+   select '@code=1;Assessment Detail has already been posted.'
+  return
+ end
+
+ -- check for fee description
+ if len(@feedescription)<2 or len(@feesourceCode)<2 or len(@feefundCode)<2
+ begin
+  insert @rettable (message)
+   select '@code=1;Special Assessment Fee Description does not exist or is incorrect.'
+  return
+ end
+
+ -- check for fee amount
+ if @feeAmount < 0.01
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Tax Amount is less than a penny.'
+  return
+ end
+
+ insert @rettable
+  select '@code=0;OK',
+  @status,
+  @feeAmount,
+  @feedescription,
+  @feesourceCode,
+  @feefundCode 
+ return
+
+end

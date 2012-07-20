@@ -1,0 +1,20 @@
+create function dbo.apportionCollectionsBRW( @accountId int ) returns @rt table(
+ accountId int,
+ accountCode varchar(50),
+ accountDesc varchar(50),
+ amount money
+)
+begin
+
+-- debits
+ insert @rt
+ select b.accountId, b.accountCode, b.accountDesc, a.amount 
+ from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
+ 
+-- credits
+ insert @rt
+ select b.accountId, b.accountCode, b.accountDesc, a.amount * -1 
+ from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
+
+ return
+end

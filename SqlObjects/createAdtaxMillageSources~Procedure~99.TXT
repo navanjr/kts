@@ -1,0 +1,22 @@
+create procedure dbo.createAdtaxMillageSources
+as 
+begin
+ declare @year varchar(4), @district varchar(50), @rate varchar(50), @sourcecode varchar(50), @newAccountId int 
+
+ declare @pt table(realtaxyear varchar(4), ORGSCHOOLDISTRICTMAIN varchar(50), ORGSCHOOLDISTRICTTAXRATE varchar(50), sourcecode varchar(50))
+
+ insert @pt 
+ select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE],[ORGSCHOOLDISTRICTMAIN] + '_' + [ORGSCHOOLDISTRICTTAXRATE] + '_' + cast([realtaxyear] as varchar(4)) from adtax 
+ where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
+  not exists(select * from glAccounts where accountType = 'SOURCE' and accountcode=[ORGSCHOOLDISTRICTMAIN] + '_' + [ORGSCHOOLDISTRICTTAXRATE] + '_' + cast([realtaxyear] as varchar(4)))   
+
+
+ while exists(select sourcecode from @pt)
+ begin
+  select top 1 @sourcecode=sourcecode from @pt
+   
+  exec dbo.glAccountVerification @sourcecode, 'SOURCE', 'CREATE', @newAccountId OUTPUT
+ 
+  delete from @pt where sourcecode=@sourcecode
+ end
+end

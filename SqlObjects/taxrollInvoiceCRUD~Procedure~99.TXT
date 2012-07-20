@@ -6,13 +6,19 @@ begin
   @slink varchar(15),
   @code int,
   @arAccountId int,
-  @message varchar(500)
+  @message varchar(500),
+  @taxyear varchar(4),
+  @district varchar(15),
+  @rateName varchar(15)
 
  select
   @code = code,
   @message = message,
   @arAccountId = debitId,
-  @slink = slink
+  @slink = slink,
+  @taxYear = taxYear,
+  @district = district,
+  @rateName = rateName
  from dbo.taxrollCheck(@id,@invoiceType)
  if @code = 1 
  begin
@@ -22,6 +28,22 @@ begin
    end
   return
  end
+
+ if @invoiceType='S'
+  begin
+   exec dbo.pilotFundPayableVerification @taxyear,'',@rateName,''
+  end
+ else
+  begin
+
+   if @invoiceType<>'B'
+    begin
+     exec dbo.pilotFundPayableVerification @taxyear,@district,@rateName,''
+    end
+
+  end
+
+
 
  declare @invd table(
   id int,
@@ -35,6 +57,7 @@ begin
  )
  insert @invd
  select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.taxrollGetRates(@id,@invoiceType)
+
 
  if not exists(select * from @invd)
  begin
@@ -51,9 +74,6 @@ begin
    @newAccountId int,
    @acctCodeToken varchar(50)
   
-  -- run verification on each missing source account Id
-  -- TODO: streamline Fund and Source Account verification. no reason to do this inline, batch it before hand.
-
   while exists(select * from @invd where sourceId = 0) 
   begin
 
@@ -68,15 +88,14 @@ begin
 
   end
 
-  -- run verification on each missing fund account Id
   while exists(select * from @invd where fundId = 0 and @invoiceType<>'S') 
   begin
 
-   select top 1
-    @idToken = id,
-    @acctCodeToken = fundCode 
-   from @invd where fundId = 0 
-   
+  select top 1
+   @idToken = id,
+   @acctCodeToken = fundCode 
+  from @invd where fundId = 0 
+
    exec dbo.glAccountVerification @acctCodeToken, 'PAYABLE', 'CREATE', @newAccountId OUTPUT
 
    update @invd set fundId = @newAccountId where id = @idToken   
@@ -178,5 +197,3 @@ begin
  commit transaction
 
 end
-
-

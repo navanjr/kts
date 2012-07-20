@@ -1,12 +1,14 @@
-create procedure dbo.receiptStageGL (@receiptId int) as
+create procedure dbo.receiptStageGL (@receiptId int, @mode int = 0) as
 begin
  
  declare @accountsWorking table(
   accountId int,
+  contraId int,
   amount money
  )
  declare @accounts table(
   accountId int,
+  contraId int,
   amount money
  )
  
@@ -17,51 +19,74 @@ begin
   @contraId int,
   @arAccountId int,
   @tokenId int,
-  @tokenAmount money
+  @tokenContraId int,
+  @tokenAmount money,
+  @receiptType varchar(50)
  
  select 
   @code = code,
   @contraId = contraId ,
-  @arAccountId = arAccountId
+  @arAccountId = arAccountId,
+  @receiptType = receiptType
  from dbo.receiptCheck(@receiptId,null)
 
  -- credit Source and Debit AR
- insert @accountsWorking
-  select b.accountId, sum(a.amount)*-1 
-  from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
- select @tokenAmount = abs(sum(amount)) from @accountsWorking
- insert @accountsWorking select @arAccountId, @tokenAmount
+ if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+ begin
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount)*-1 
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
+  select @tokenAmount = abs(sum(amount)) from @accountsWorking
+  insert @accountsWorking select @arAccountId, null, @tokenAmount
+ end
 
  if exists(select * from paid where slink = @slink)
  begin
-  declare @ap table(accountId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
+  declare @ap table(accountId int, contraId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
   declare @paidTotal money
 
   -- credit AR
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
-  insert @accountsWorking select @arAccountId, @paidTotal
+  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  begin
+   insert @accountsWorking select @arAccountId, null, @paidTotal
+  end
 
   -- debit suspense accounts
   -- TODO: replace this query and use the new paycodes view instead of object
   insert @accountsWorking
-  select b.link1, sum(a.amount)
+  select b.link1, null, sum(a.amount)
   from paid a, object b 
   where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
 
   -- debit tresurers receipt fund and credit fund payables
-  insert @accountsWorking select @contraId, @paidTotal
-  insert @ap
-   select b.accountId,sum(a.amount)*-1, 0, 0
-   from receiptDetail a, dbo.glAccounts b
-   where a.slink = @slink and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
+  insert @accountsWorking select @contraId, null, @paidTotal
+  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  begin
+   insert @ap
+    select b.accountId, null, sum(a.amount)*-1, 0, 0
+    from receiptDetail a, dbo.glAccounts b
+    where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AP' group by b.accountId
+   insert @ap
+    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
+    from receiptDetail a, dbo.glAccounts b
+    where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AP' group by b.accountId
+  end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
  end 
  
- insert @accountsWorking select accountId, payAmount from @ap
+ insert @accountsWorking select accountId, contraId, payAmount from @ap
 
- insert @accounts select accountId, sum(isnull(amount,0)) from @accountsWorking group by accountId having sum(isnull(amount,0)) != 0
+ insert @accounts select accountId, contraId, sum(isnull(amount,0)) from @accountsWorking group by accountId, contraId having sum(isnull(amount,0)) != 0
+
+-- echo the guts of this proc and bail if you are in test mode
+ if @mode = 1
+ begin
+  select a.*,b.accountType,b.accountDesc from @accounts a, glAccounts b where a.accountId = b.accountId order by b.accountType
+  return
+ end
 
  -- remove 
  delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
@@ -75,10 +100,14 @@ begin
  delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
 
  -- insert
- while (select count(*) from @accounts) > 0
+ while exists(select * from @accounts)
  begin
-  select top 1 @tokenId = accountId, @tokenAmount = amount from @accounts
-  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@contraId
+  select top 1
+   @tokenId = accountId,
+   @tokenContraId = contraId,
+   @tokenAmount = amount
+  from @accounts
+  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@tokenContraId
   delete @accounts where accountId = @tokenId
  end
  

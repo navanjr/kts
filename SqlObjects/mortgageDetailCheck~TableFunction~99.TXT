@@ -1,0 +1,99 @@
+create function dbo.mortgageDetailCheck(@sourceId int) returns
+@rettable table(message varchar(500),
+ status varchar(50),
+ taxAmount money,
+ feeAmount money,
+ taxdescription varchar(50),
+ taxsourceCode varchar(50),
+ taxfundCode varchar(50),
+ feedescription varchar(50),
+ feesourceCode varchar(50),
+ feefundCode varchar(50)
+)
+begin
+ 
+ declare
+  @status varchar(50),
+  @taxAmount money,
+  @feeAmount money,
+  @taxdescription varchar(50),
+  @taxsourceCode varchar(50),
+  @taxfundCode varchar(50),
+  @feedescription varchar(50),
+  @feesourceCode varchar(50),
+  @feefundCode varchar(50)
+
+
+ select
+  @taxdescription = key1,
+  @taxsourceCode = key2,
+  @taxfundCode = key3
+ from object where typ = 4504 and a1='MTG' and key1 like '%TAX%'
+
+ select
+  @feedescription = key1,
+  @feesourceCode = key2,
+  @feefundCode = key3
+ from object where typ = 4504 and a1='MTG' and key1 like '%FEE%'
+
+ select
+  @taxAmount = cast(a20 as money),
+  @feeAmount = cast(b1 as money),
+  @status = a17
+ from object where id = @sourceId
+
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Detail has already been posted.'
+  return
+ end
+
+ -- check for tax description
+ if len(@taxdescription)<2 or len(@taxsourceCode)<2 or len(@taxfundCode)<2
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Tax Description does not exist or is incorrect.'
+  return
+ end
+
+ -- check for fee description
+ if len(@feedescription)<2 or len(@feesourceCode)<2 or len(@feefundCode)<2
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Certification Fee Description does not exist or is incorrect.'
+  return
+ end
+
+ -- check for tax amount
+ if @taxAmount < 0.01
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Tax Amount is less than a penny.'
+  return
+ end
+
+ -- check for fee amount
+ if @feeAmount < 0.01
+ begin
+  insert @rettable (message)
+   select '@code=1;Mortgage Tax Amount is less than a penny.'
+  return
+ end
+
+ insert @rettable
+  select '@code=0;OK',
+  @status,
+  @taxAmount,
+  @feeAmount,
+  @taxdescription,
+  @taxsourceCode,
+  @taxfundCode,
+  @feedescription,
+  @feesourceCode,
+  @feefundCode 
+ return
+
+end

@@ -4,15 +4,9 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=0077235.6603;
+@lastedit=0077269.3489;
 
 ###---###---###---###---###
-
-
-
-
-
-
 
 
 
@@ -38,13 +32,30 @@
  gcPeriod=obj7:key1,
  trreport('glreport');
 
-@filtername=All,Bank Accounts,Source Accounts,Fund Accounts,Accural Accounts;
-@filter='1=1','a1=''BANK''','a1=''SOURCE''','a1=''FUND''','a1 in (''PAYABLE'',''RECEIVABLE'')';
+@filtername=All,Bank Accounts,Source Accounts,Fund Accounts,Accural Accounts,Official Accounts;
+@filter='1=1','a1=''BANK''','a1=''SOURCE''','a1=''FUND''','a1 in (''PAYABLE'',''RECEIVABLE'')','a1=''OFFICIAL''';
 @ordername=Account #,Description,Report Order;
 @key2=obj:key2;
 @key3=obj:a9;
 
-@loadwindow=create(39,9),set(40,'',1);
+@loadwindow=
+ create(39,9),
+ set(40,'',1),
+ if(obj:a1<>'FUND' and obj:a9>'0' and obj:a9<>'S',brwPayables=);
+
+@brwPayables=
+ gcbrw1sql='select id,name,number,fund from dbo.accountPayableTableBRW('&obj:id&') order by name',
+ brw(150,1,gcbrw1sql,190,94,220,100,
+'120L(2)~Name~#2#M|
+50R(2)~Number~@n19.2b@#3#M|
+50L(2)~Fund~#4#M
+',7,1);
+
+@brw1=
+ d1select('exec dbo.apRatesSelected '&obj:id&','&kpbrwid(1)),update,refreshDetail=;
+
+@refreshDetail=brwreload(1);
+
 
 \t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
 \t003Description;  \c004;  \e004;
@@ -52,10 +63,7 @@
 \t007Type; \l0084702;r008002010004012006;  \q008;  \w00850;
 \t009Description;  \d010;
 \t011Report Code;  \d012;  \w01225;  \w01250;
-\t013BS Summary;
-\t015Fiscal Period;  \w01630;  \l0164700,5;r016002018004;  @acc016=calcrecord;
-\t017Period Total;  \w01850;    \t018@n$-12.2;  \s018+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and link3='&obj:link5;
-\t019Running Total;  \t020@n$-12.2;  \w02050;  \s020+'select sum(cast(key3 as money))-sum(cast(a1 as money)) from object where typ=204 and link2='&obj:id&' and a3<='&obj:a5;
+\t013Collection Description; \w013100; \x01475; \l0144703;
 
 \t021Account Payable to; \w021150; \l0224701,1; \w02270; \x02270;
 
@@ -67,10 +75,50 @@
 @p039y=d1select('select count(*) from object where typ=204 and link2='&obj:id),m('There are '&obj7:d1&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&format(obj:a17,'P#####Pb')&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
 @p039y2=sql('update object set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
 
-\t023Report Order; \w02450;
+\h023024obj:a1<>'PAYABLE' or obj:a8>' 0';r
+\t023Table Type; \u024; \w02412; @choose024:SAPLM;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
+@accr022032r2=refreshDetail=,tsc;
+\h025026obj:a1<>'PAYABLE' or obj:a9<>'L' or obj:a8>' 0';r
+\t025PILOT Table; 
+ \l0264009;r026004028002; @lf026='id in (select max(id) from object where typ=4009 and key2=a.key2 and key1=a.key1)';
+ \q026obj:a9='L';
+\t027Year;
+ \t028@n4;
+ \w02830;
+ \q028obj:a9='S' or obj:a9='A' or obj:a9='P' or obj:a9='L' or obj:a9='M';
+ \h027028obj:a1<>'PAYABLE' or obj:a8>' 0';r
+\h029030obj:a9<>'M' or obj:a1<>'PAYABLE' or obj:a8>' 0';r
+\t029District;
+ \l0304010;
+ \q030obj:a9='M';
+\h031032(obj:a9<>'M' and obj:a9<>'S') or obj:a1<>'PAYABLE' or obj:a8>' 0';r
+\t031Rate;
+ \l0324011;
+ \q032obj:a9='M' or obj:a9='S';
+\t033Population Type;
+ \t034@s1;
+ \w03413;
+ \h033034obj:a9<>'P' or obj:a1<>'PAYABLE' or obj:a8>' 0' ;r
 
+\t101rateData; \h101102;r
+
+\t105Add Detail;
+ \h105obj:a9<'A';
+ @acc105=case(obj:a9='A',addada=,obj:a9='P',addpop=,obj:a9='L',addpilot=),refreshDetail=;
+ @addada=neww(4013,,002=obj:a11);
+ @addpop=neww(4014,,002=obj:a11,010=obj:a14);
+ @addpilot=neww(4009,,002=obj:a11,004=obj:a10);
 
 \t108&Print Account;  @acc108=bbproc6=;
+\t109&View G/L Detail;  
+@acc109=
+ gcFpId=0,
+ gcAcctId=obj:id,
+ lcBrwId=kp('select top 1 id from object where typ=4792'),
+ if(lcBrwId+0>'  0',change(lcBrwId),newOne=);
+@newOne=
+ insert(-02=4792,002=today()),
+ change(obj1:id);
 
 @bb4=Import Funds,,,gcadmin=1;
 @bbproc4=

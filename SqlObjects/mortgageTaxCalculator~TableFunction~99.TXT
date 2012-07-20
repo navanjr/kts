@@ -1,0 +1,70 @@
+create function dbo.mortgageTaxCalculator(
+ @startDate int,
+ @endDate int,
+ @termYears decimal(19,2),
+ @loanAmount money
+) returns @rt table(
+ startDate int,
+ endDate int,
+ termYears int,
+ loanAmount money,
+ taxAmount money
+) as 
+begin
+
+/*
+Rate of Tax on each $100 or major fraction thereof :
+5 years Of more .10
+4 years and less than 5 Years .08
+3 years and less than 4 years .06
+2 years and less than 3 years .04
+Less than 2 years .02 
+Mortgage for less than $100 .10
+Certification Fee per Mortgage $5.00
+*/
+
+ declare @taxAmount money
+
+-- sent endDate if empty
+ if isnull(@endDate,0) < 1 and isnull(@termYears,0) > 0
+  set @endDate = @startDate + (@termYears * 365)
+
+-- sent term if empty
+ if isnull(@endDate,0) > 0 and isnull(@termYears,0) < 1
+  set @termYears = cast(@endDate - @startDate as decimal(19,9)) / 365
+
+ insert @rt
+ select @startDate, @endDate, @termYears, @loanAmount, @taxAmount
+
+ return
+end
+
+
+
+
+
+
+
+/*
+
+Maturity Date
+@acc032=
+ set(034,int((obj:a13+0-obj:a12+0)/36.5)/10)
+
+Term 
+@acc034=
+ set(032,obj:a14*365+obj:a12)
+
+
+@mortCalcRate=lcRate=int(obj:a14)*.02,
+ if(lcrate+0.00>.1,lcrate=.1),
+ if(lcrate+0.00<.02,lcrate=.02),
+ if(obj:a15+0.00>0.001 and obj:a15+0<100,lcrate=.1),
+ set(038,lcrate),
+ update,
+ mortCalcTax=;
+@mortCalcTax=lcamount=int(obj:a15/100),
+ if(lcamount=obj:a15/100,lctax=lcamount*obj:a16,lctax=(lcamount+1)*obj:a16),
+ set(048,lctax);
+
+*/

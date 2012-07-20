@@ -1,0 +1,19 @@
+create procedure dbo.apRatesSelected( @accountId int, @rateId int )
+as
+begin
+
+ declare @wt table(id int, rateName varchar(50), selectedFlag varchar(5))
+ insert @wt select id, rateName, selectedFlag from dbo.apRatesBRW(@accountId)
+
+ update @wt set 
+  selectedFlag = case when selectedFlag = 'X' then '' else 'X' end
+ where id = @rateId
+
+
+ declare @rateData varchar(max) = ''
+ select @rateData = @rateData + rateName + '|' from @wt where selectedFlag = 'X'
+
+ update object set e1 = @rateData where typ = 4701 and id = @accountId
+ 
+ return
+end

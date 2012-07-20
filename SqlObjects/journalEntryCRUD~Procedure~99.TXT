@@ -10,6 +10,9 @@ create procedure dbo.journalEntryCRUD(
 ) as 
 begin
 
+ declare
+  @slink varchar(15) = 'o' + cast(@id as varchar)
+
  select @resultCode = 0, @resultMessage = 'Success'
 
  if @postDate is null
@@ -18,8 +21,12 @@ begin
  -- Delete
  if @mode = 3
  begin
-  exec dbo.glDeleteObjectSource @id
+  begin transaction
+  exec dbo.glDeleteObjectSource @id, @deletePosted = 'True'
   delete journalLink where jeId = @id
+  -- remove the bsId link on glDetail
+  update glDetail set bsId = null where bsId = @id
+  commit transaction
  end
 
  -- Update
@@ -41,7 +48,7 @@ begin
  -- Create
  if @mode = 0
  begin
-  -- bail if missing description
+  -- bail if missing description or Journal Type
   if @description < '  0' or @jeType < '  0'
   begin 
    select @resultCode = 1, @resultMessage = 'this method requires Description and Journal Type'
@@ -51,7 +58,7 @@ begin
   declare
    @jeNumber varchar(50)
  
-  select @jeNumber =  dbo.nextObjectAutoNumber(4512)
+  exec dbo.nextObjectAutoNumber 4512, null, @jeNumber output
 
   insert object (typ,key1,key2,key3,a18)
   select 4512, @jeNumber, @postDate, @description, @jeType

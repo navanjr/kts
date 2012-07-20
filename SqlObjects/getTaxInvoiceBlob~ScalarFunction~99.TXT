@@ -1,7 +1,8 @@
 create function [dbo].[getTaxInvoiceBlob](@InvId int) returns varchar(4000) as
 begin
 
- declare @retval varchar(500)
+ declare @retval varchar(500), @invoiceType varchar(1)
+ 
 
  select 
   @retval = 
@@ -11,7 +12,8 @@ begin
   + '@ITEM=' + rtrim(ITEM) + ';'
   + '@TAXYEAR=' + rtrim(TAXYEAR) + ';'
   + '@POSTDATE=' + rtrim(POSTDATE) + ';'
-  + '@STATUS=' + rtrim(STATUS) + ';'
+  + '@STATUS=' + rtrim(STATUS) + ';',
+  @invoiceType = rtrim(typ)
  from invoices where ID=@InvId
 
  select top 1 @retval = @retval
@@ -30,6 +32,8 @@ begin
 	from taxRollDetail where cast(TAXYEAR as varchar(30))=dbo.readstring('@TAXYEAR=',@retval)and cast(itemNumber as varchar(30))=dbo.readstring('@Item=',@retval)
 	order by ID desc 
 
+if @invoiceType<>'S'
+begin
 select @retval = @retval
  
  + '@GROSSASSESSED=' + rtrim(GROSSASSESSED) + ';'
@@ -40,7 +44,7 @@ select @retval = @retval
  + '@TOTALDUE=' + rtrim(TOTALDUE) + ';'
  + '@LEGALDESCRIPTION=' + rtrim(replace(cast(LEGALDESCRIPTION as varchar(4000)),'''','')) + ';'
  from AdTax where ID = dbo.readstring('@taxrollid=',@retval)
-
+end
  return @retval
 
 end
