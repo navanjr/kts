@@ -31,7 +31,7 @@
  if(gcretval=6,newIndiv=);
 
 @browseinsert=gcreceiptType=readstring(cur:data,'@receiptType='),
- case(gcreceiptType='MTG',newMort=,gcreceiptType='TRUST',newTrust=,gcreceiptType='OFFICIAL',newOfficial=,else,newMisc=);
+ case(gcreceiptType='MTG',newMort=,gcreceiptType='TRUST',newTrust=,gcreceiptType='OFFICIAL',newOfficial=,gcreceiptType='INDIV',newIndiv=,else,newMisc=);
 
 @newMisc=
  d1select('exec dbo.receiptNew ''MISC'''),
@@ -64,7 +64,13 @@
  lccheck=kp('select id from object where typ = 4504 and a1=''INDIV'' and key1 like ''%FEE%'''),
  if(lccheck+0=0,addindivfeecode=),
  d1select('exec dbo.receiptNew ''INDIV'''),
- change(obj7:d1);
+ gcnewreceId=obj7:d1,
+ if(gccertId+0>0,dohavecert=),
+ change(gcnewreceId),
+ gcnewreceId=0;
+
+@dohavecert=get(gccertId),
+  fastmodify(gcnewreceId,052=obj7:a4,054=obj7:key1);
 
 @addindivcode=neww(4504,,002='INDIVIDUAL REDEMPTION',008='INDIV');
 @addindivfeecode=neww(4504,,002='INDIVIDUAL REDEMPTION FEE',008='INDIV');
@@ -103,7 +109,8 @@
  create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=,
- if(obj:key3='OFFICIAL',doofficial=);
+ if(obj:key3='OFFICIAL',doofficial=),
+ if(obj:key3='INDIV' and obj:b3>' 0',acc113=);
 
 @doofficial=prop(016,7C02H,64),
   prop(016,7C04H,80);
@@ -169,6 +176,15 @@
 \w03003855;r2 \w04855;
 \x029038+340;r \x047048+157;r
 \y029038-182;r \y047048+13;r
+
+\h051054obj:key3<>'INDIV';r
+\t051Cert#; \w05260; \l0524100;r052014054002; @lf052='typ=4100 and key2=''A''';
+\t053Parcel#; \w054100; \r054;
+\x051053+157;r2 \x052054+127;r2
+\t113Redemption Amount;
+ @acc113=update,d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id),
+ if(readstring(obj7:d1,'@code=1;')>0,m(obj7:d1)),refreshDetail=;
+
 
 @acc165=update,
  lcBreak=0,
@@ -280,7 +296,9 @@
 @postAndPrint=
  getRecNum=,
  printRec=,
- postGL=;
+ postGL=,
+ checkCert=,
+ gccertId=0;
 
 @getRecNum=break(obj:key1>'00000'),
  sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&'''');
@@ -297,6 +315,23 @@
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+
+@checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 
+  and subdescription in (select key1 from object where typ=4100 and key2=''A'')'),
+ if(gcparcel>' 0',docert=);
+
+@docert=m('Parcel# '&gcparcel&' has a certificate.  Would you like to endorse it now?','Endorse Certificate?',,6),
+ break(gcretval<>2),
+ lccertid=kp('select top 1 id from object where typ=4100 and key2=''A'' and key1='''&gcparcel&''''),
+ lcinvoiceId=kp('select substring(ord,3,len(ord)-3) from receiptDetailBRW('&obj:id&',0) where subdescription='''&gcparcel&''''),
+ lctaxamount=kp('select amount from receiptDetailBRW('&obj:id&',0) where subdescription='''&gcparcel&''''),
+ lctaxyear=kp('select taxyear from invoices where id='&lcinvoiceId),
+ lcitem=kp('select item from invoices where id='&lcinvoiceId),
+ lcname=kp('select name from invoices where id='&lcinvoiceId),
+ lctyp=kp('select typ from invoices where id='&lcinvoiceId),
+ neww(4101,,-03=lccertid,002=lctaxyear,004=lcitem,008=lcname,010=lctyp,012=lctaxamount,020='E',022=today()),
+ calcrecord(lccertid),
+ change(lccertid);
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)

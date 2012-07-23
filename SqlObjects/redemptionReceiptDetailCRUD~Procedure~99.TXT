@@ -1,0 +1,33 @@
+create procedure dbo.redemptionReceiptDetailCRUD(
+ @receiptId int
+) as
+begin
+
+ declare 
+  @taxAmount money,
+  @feeAmount money,
+  @taxdescription varchar(50),
+  @taxsourceCode varchar(50),
+  @taxfundCode varchar(50),
+  @feedescription varchar(50),
+  @feesourceCode varchar(50),
+  @feefundCode varchar(50)
+
+
+ -- retrieve the specifics from the redemptionDetailCheck function
+ select
+  @taxAmount = taxAmount,
+  @feeAmount = feeAmount,
+  @taxdescription = taxdescription,
+  @taxsourceCode = taxsourceCode,
+  @taxfundCode = taxfundCode,
+  @feedescription = feedescription,
+  @feesourceCode = feesourceCode,
+  @feefundCode = feefundCode 
+ from (select top 1 * from dbo.redemptionDetailCheck(@receiptId)) data
+
+ exec dbo.receiptDetailCRUD @receiptId,4502,0,@taxdescription,@taxsourceCode,@taxfundCode,@taxAmount
+
+ exec dbo.receiptDetailCRUD @receiptId,4502,0,@feedescription,@feesourceCode,@feefundCode,@feeAmount
+
+end
