@@ -1,0 +1,29 @@
+@id=4704;
+@template=Clerks Fund List;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+
+###---###---###---###---###
+\t001Fund Name;
+\t003Fund Code;
+
+\t009Treasurers Acct; \l0104701;r010002048004; @lf010='a1=''FUND''';
+ \t047AccountDesc; \h047; \d048; \x048184; \w048151;
+
+@bb2=Imp KPO Data,,,gcadmin=1;
+@bbproc2=
+ fileDialog('Locate KPO Fund List...','CSV|*.csv|All Files|*.*'),
+ lcCsvFile=gcretval,
+ break(lcCsvFile<'  0'),
+ kpmo('Ok this message needs to be real long so i dont miss anything...','importing clerks fund list...'),
+ gcCount=0,
+ scancsv(lcCsvFile,'loaddata=','Loading new data.'),
+ kpmc(),
+ m('Number of records processed: '&gcCount,lcCsvFile);
+
+@loaddata=
+ gcCount=gcCount+1,
+ kpmm(IMP:FLD01&', '&imp:fld02&', '&imp:fld05&', '&imp:fld05),
+ insert(-02=4704,002=imp:fld05,004=imp:fld06);
