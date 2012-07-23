@@ -1,14 +1,18 @@
 create function dbo.mortgageTaxCalculator(
  @startDate int,
  @endDate int,
- @termYears int,
+ @termYears decimal(19,9),
  @loanAmount money
 ) returns @rt table(
  startDate int,
  endDate int,
- termYears int,
+ termYears decimal(19,9),
  loanAmount money,
- taxAmount money
+ taxRate money,
+ taxAmount money,
+ feeAmount money,
+ taxTotal money,
+ blob varchar(max)
 ) as 
 begin
 
@@ -23,6 +27,47 @@ Mortgage for less than $100 .10
 Certification Fee per Mortgage $5.00
 */
 
+ declare
+  @taxRate money,
+  @taxAmount money,
+  @feeAmount money = 5.0,
+  @taxTotal money
+
+-- sent endDate if empty
+ if isnull(@endDate,0) < 1 and isnull(@termYears,0) > 0
+  set @endDate = @startDate + (@termYears * 365)
+
+-- sent term if empty
+ if isnull(@endDate,0) > 0 and isnull(@termYears,0) < 1
+  set @termYears = (@endDate - @startDate) / 365.0
+
+ if floor(@termYears) < 6
+  select @taxRate = case floor(@termYears)
+   when 5 then .1
+   when 4 then .08
+   when 3 then .06
+   when 2 then .04
+   else .02
+  end
+ else
+  select @taxRate = .1
+
+ if @loanAmount < 100.00
+  set @taxRate = .1
+
+ select @taxAmount = floor(@loanAmount/100.0) * @taxRate
+ select @taxTotal = @taxAmount + @feeAmount
+
+ insert @rt
+ select @startDate, @endDate, @termYears, @loanAmount, @taxRate, @taxAmount, @feeAmount, @taxTotal,
+  '@startDate=' + cast(@startDate as varchar) + 
+  ';@endDate=' + cast(@endDate as varchar) + 
+  ';@termYears=' + cast(round(@termYears,2) as varchar) +
+  ';@loanAmount=' + cast(@loanAmount as varchar) + 
+  ';@taxRate=' + cast(@taxRate as varchar) + 
+  ';@taxAmount=' + cast(@taxAmount as varchar) + 
+  ';@feeAmount=' + cast(@feeAmount as varchar) + 
+  ';@taxTotal=' + cast(@TaxTotal as varchar) + ';'
 
  return
 end
