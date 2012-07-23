@@ -1,0 +1,63 @@
+create function dbo.warrantImportBRW( @id int ) returns @rt table(
+ id int identity(1,1),
+ fiscalYear varchar(50),
+ clerksFund varchar(50),
+ warrantNumber varchar(50),
+ warrantDate varchar(50),
+ accountNumber varchar(50),
+ amount varchar(50),
+ vendorCode varchar(50)
+)
+begin
+
+ declare
+  @idToken int,
+  @dataToken nvarchar(max),
+  @csv nvarchar(max),
+  @debitAcct varchar(50),
+  @creditAcct varchar(50),
+  @officalLink int
+
+ select
+  @officalLink = link2,
+  @debitAcct = key2,
+  @csv = e1
+ from object where typ = 4770 and id = @id
+
+ -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
+ select 
+  @creditAcct = a4 from object where id = @officalLink and typ = 4601
+
+ -- take the csv data and run with it
+ declare @rows table(
+  id int identity(1,1),
+  rowData varchar(1000)
+ )
+
+ -- TODO: this seems to work well. however we might have an issue with char(13)'s getting left in the data.
+ insert @rows 
+ select replace(data,'"','') from dbo.split( @csv, char(10))
+
+ while exists(select * from @rows)
+ begin
+  select top 1
+   @idToken = id,
+   @dataToken = rowData
+  from @rows order by id
+
+  if (select data from dbo.split(@dataToken,',') where id = 4) > '  0'
+   insert @rt select 
+    (select data from dbo.split(@dataToken,',') where id = 1),
+    (select data from dbo.split(@dataToken,',') where id = 2),
+    (select data from dbo.split(@dataToken,',') where id = 3),
+--    (select data from dbo.split(@dataToken,',') where id = 4),
+    (select dbo.clarionDate(data) from dbo.split(@dataToken,',') where id = 4),
+    (select data from dbo.split(@dataToken,',') where id = 5),
+    (select data from dbo.split(@dataToken,',') where id = 6),
+    (select data from dbo.split(@dataToken,',') where id = 7)
+
+  delete @rows where id = @idToken
+ end
+
+ return 
+end

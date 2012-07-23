@@ -1,57 +1,63 @@
 @id=4770;
-@template=Vouchers Import;
+@template=Official Importer ;
 @shortcut=;
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=;
 
 ###---###---###---###---###
+
 @menuprocess=displayWindow=;
 @loadbrowse=displayWindow=;
 @displayWindow=
  lcid=kp('select top 1 id from object where typ=4770'),if(lcid+0>0,change(lcid),new(4770));
 
 @loadwindow=
+ set(78,1),set(80,0),
+ create(550,12,500,248,'&Vouchers',78),
+ create(551,12,500,260,'&Warrants',80),
  set(102,''),
  update,
- gcvars=,
  brwstuff=;
+
+@acc550=set(78,1),set(80,0),refreshBRW=; 
+@acc551=set(78,0),set(80,1),refreshBRW=; 
 
 @brwstuff=
  gcvars=,
- brw(150,1,gcsql,3,42,250,200,
-  '50L(2)~Voucher #~#2#M|
-50R(2)~Date~@d2@#3#M|
-100L(2)~Payable To~#4#M|
-50R(2)~Amount~@n-14.2b@#5#M|
-',7,1),
+ brw(150,1,gcsql4770,3,42,480,160,gcformat4770,7,1),
  prop(150,7CFAH,13499135);
 
 @gcvars=
- gcsql='select id,voucherNumber,voucherDate,payee,amount from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by id';
-
+ if(obj:c1+0=1,gcvarsVouchers=,gcvarsWarrants=),
+@gcvarsVouchers=
+ gcsql4770='select id,voucherNumber,voucherDate,payee,amount from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by id';
+@gcvarsWarrants=
+ gcsql4770='select id,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode from dbo.warrantImportBRW('&obj:id&') order by id';
 @refreshBRW=
  gcvars=,
- brwreload(1);
-
+ if(obj:c1+0=1,
+  brwreload(1,gcsql4770,'50L(2)~Voucher #~#2#M|50R(2)~Date~@d2@#3#M|100L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|'),
+  brwreload(1,gcsql4770,'50L(2)~FiscalYear~#2#M|50L(2)~ClerksFund~#3#M|50L(2)~Warrant #~#4#M|50R(2)~Date~@d2@#5#M|100L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M')
+ ),
+ ;
 
 \t001Received From;  \l0024601,2;r002002004012042050; 
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL''';
  \t041OfficialAccountDesc; \h041; \d042; \x042184; \w042151;
 
-\t101Raw Import Data; \x101260; \y10132; @acc102=update,refreshBRW=;
+\t101Raw Import Data; \x1013; \y101205; @acc102=update,refreshBRW=;
  \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
- \x102255; \y10242; \w102230; \z102200; 
+ \x1023; \y102215; \w102480; \z102100; 
 
-\t112&Load Raw Data; 
-@acc112=
+\t120&Load Raw Data; 
+@acc120=
  filedialog('Locate CSV file...'),
  readdos(gcretval),
  set(102,workmemo),
  acc102=;
 
-\t114&Insert Vouchers;
+\t114&Import;
 @acc114=
  lcCount=kp('select count(*) from dbo.voucherImport('&obj:id&') where amount > ''  0'''),
  break(lcCount+0<1),

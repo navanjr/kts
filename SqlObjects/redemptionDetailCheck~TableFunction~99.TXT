@@ -1,0 +1,109 @@
+create function dbo.redemptionDetailCheck(@sourceId int) returns
+@rettable table(message varchar(500),
+ status varchar(50),
+ taxAmount money,
+ feeAmount money,
+ taxdescription varchar(50),
+ taxsourceCode varchar(50),
+ taxfundCode varchar(50),
+ feedescription varchar(50),
+ feesourceCode varchar(50),
+ feefundCode varchar(50)
+)
+begin
+ 
+ declare
+  @status varchar(50),
+  @taxAmount money,
+  @feeAmount money,
+  @taxdescription varchar(50),
+  @taxsourceCode varchar(50),
+  @taxfundCode varchar(50),
+  @feedescription varchar(50),
+  @feesourceCode varchar(50),
+  @feefundCode varchar(50),
+  @certno varchar(50),
+  @certid int
+
+
+ select
+  @taxdescription = key1,
+  @taxsourceCode = key2,
+  @taxfundCode = key3
+ from object where typ = 4504 and a1='INDIV' and key1 not like '%FEE%'
+
+ select
+  @feedescription = key1,
+  @feesourceCode = key2,
+  @feefundCode = key3
+ from object where typ = 4504 and a1='INDIV' and key1 like '%FEE%'
+
+ select
+  @certno = b3,
+  @feeAmount = 5.00,
+  @status = a17
+ from object where id = @sourceId
+
+ set @certid=isnull((select id from object where typ=4100 and a4=@certno),0)
+
+ set @taxamount=isnull((select 
+  (select sum(cast(a9 as money)) from object where typ=4101 and link1=@certid)+
+  (select sum(dbo.interestCalc(8.00, cast(a8 as int), dbo.clariondate(getdate()), cast(a9 as money))) from object where typ=4101 and link1=@certid)
+  ),0.00) --TODO allow entry of an interest to date and interest percentage
+
+
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable (message)
+   select '@code=1;Receipt has already been posted.'
+  return
+ end
+
+ -- check for tax description
+ if len(@taxdescription)<2 or len(@taxsourceCode)<2 or len(@taxfundCode)<2
+ begin
+  insert @rettable (message)
+   select '@code=1;Redemption Description does not exist or is incorrect.'
+  return
+ end
+
+ -- check for fee description
+ if len(@feedescription)<2 or len(@feesourceCode)<2 or len(@feefundCode)<2
+ begin
+  insert @rettable (message)
+   select '@code=1;Redemption Fee Description does not exist or is incorrect.'
+  return
+ end
+
+ -- check for tax amount
+ if @taxAmount < 0.01
+ begin
+  insert @rettable (message)
+   select '@code=1;Redemption Amount is less than a penny.'
+  return
+ end
+
+ -- check for fee amount
+ if @feeAmount < 0.01
+ begin
+  insert @rettable (message)
+   select '@code=1;Redemption Fee Amount is less than a penny.'
+  return
+ end
+
+ insert @rettable
+  select '@code=0;OK',
+  @status,
+  @taxAmount,
+  @feeAmount,
+  @taxdescription,
+  @taxsourceCode,
+  @taxfundCode,
+  @feedescription,
+  @feesourceCode,
+  @feefundCode 
+ return
+
+end
