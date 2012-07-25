@@ -1,0 +1,16 @@
+create function dbo.searchPipe(
+ @needle nvarchar(100),
+ @hayStack nvarchar(max)
+) returns int as
+begin
+
+ declare @needles table(id int, data nvarchar(100),found int)
+ insert @needles select id, data, 0 from dbo.split(@needle,'|')
+
+ update @needles set found = 1 where @hayStack like '%' + data + '%'
+
+ if not exists(select * from @needles where found = 0)
+  return 1
+
+ return 0
+end
