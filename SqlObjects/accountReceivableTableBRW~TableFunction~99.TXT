@@ -1,0 +1,69 @@
+create function accountReceivableTableBRW(@accountId int) returns @rt table(
+ id int,
+ Name varchar(80),
+ Number numeric(19,2),
+ Fund varchar(20)
+)
+begin
+
+-- ADA Table (4013)
+ insert @rt
+  select
+   a.id,
+   a.key2 as Name,
+   case when isnumeric(a.key3)=1 then cast(a.key3 as numeric(19,2)) else 0.00 end as Number,
+   a.a1 as Fund 
+  from object a, glAccounts acc
+  where
+   a.typ=4013
+   and acc.accountId = @accountId
+   and acc.apTableType = 'A'
+   and a.key1 = acc.apYear
+
+-- Population Table (4014)
+ insert @rt
+  select
+   p.id,
+   p.key2 as Name,
+   case when isnumeric(p.key3)=1 then cast(p.key3 as numeric(19,2)) else 0.00 end as Number,
+   p.a1 as Fund 
+  from object p, glAccounts acc 
+  where
+   p.typ=4014
+   and acc.accountId = @accountId
+   and acc.apTableType = 'P'
+   and p.key1 = acc.apYear
+   and p.a2 = acc.appoptype 
+
+-- Pilot Table (4009)
+ insert @rt
+  select
+   p.id,left(rtrim(p.a1)+' '+rtrim(p.a2)+' '+rtrim(p.key1),79) as Name,
+   case when isnumeric(p.key3)=1 then cast(p.key3 as numeric(19,2)) else 0.00 end as Number,
+   '' as Fund 
+  from object p, glAccounts acc 
+  where
+   p.typ=4009
+   and acc.accountId = @accountId
+   and acc.apTableType = 'L'
+   and p.key1 = acc.apYear
+   and p.key2 = acc.apPilotTable 
+
+-- Tax Rates (4012)
+ insert @rt
+  select
+   0,
+   left(rtrim(m.a1),79) as Name,
+   case when isnumeric(m.a2)=1 then cast(m.a2 as numeric(19,2)) else 0.00 end as Number, 
+   case when left(m.a1,4)='CITY' then left(m.key2,19) when left(m.a1,3)='SCH' then left(m.key1,19) else '' end as Fund 
+  from object m, glAccounts acc 
+  where
+   m.typ=4012
+   and acc.accountId = @accountId
+   and acc.apTableType = 'M'
+   and m.key3 = acc.apYear
+   and m.key1 = acc.apDistrict
+   and m.key2 = acc.apRate
+
+ return
+end

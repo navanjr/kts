@@ -1,11 +1,21 @@
 create procedure dbo.glAccountVerification (
+-- this routine should be the only place we insert accural glaccounts 
+-- TODO: this needs to be enhanced to handle pilot, ada, population, etc...
+-- so we expect an accural accountCode (with the _XX) and accountType and if its not found we create it
  @accountCode varchar(50),
  @accountType varchar(50),
  @mode varchar(50),
- @accountId int OUTPUT
+ @tableType varchar(50) = '',
+ @pilotTable varchar(50) = '',
+ @year varchar(50) = '',
+ @district varchar(50) = '',
+ @rate varchar(50) = '',
+ @populationType varchar(50) = '',
+ @accountId int = null OUTPUT
 ) as
 begin
  
+-- first we check for this account if we have it we get the id and bail
  if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType))
  begin
   select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
@@ -17,6 +27,7 @@ begin
   @typeDesc varchar(50),
   @reportCode varchar(50)
 
+-- create SOURCE accounts
  if upper(@mode) = 'CREATE' and upper(@accountType) = 'SOURCE'
  begin
 
@@ -27,8 +38,8 @@ begin
    @reportCode = key3
   from object where typ = 4702 and key1 = upper(@accountType)
 
-  insert object (typ,key1,key2,a1,a2,a3) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+  insert object (typ,key1,key2,a1,a2,a3,a16) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,'KTS' 
 
   select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
 
@@ -36,6 +47,7 @@ begin
 
  end
 
+-- create PAYABLE accounts
  if upper(@mode) = 'CREATE' and upper(@accountType) = 'PAYABLE'
  begin
 
@@ -46,8 +58,8 @@ begin
    @reportCode = key3
   from object where typ = 4702 and key1 = upper(@accountType)
 
-  insert object (typ,key1,key2,a1,a2,a3) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+  insert object (typ,key1,key2,a1,a2,a3,a16) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,'KTS' 
 
   select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
 
@@ -55,6 +67,7 @@ begin
 
  end
 
+-- create RECEIVABLE accounts
  if upper(@mode) = 'CREATE' and upper(@accountType) = 'RECEIVABLE'
  begin
 
@@ -65,8 +78,8 @@ begin
    @reportCode = key3
   from object where typ = 4702 and key1 = upper(@accountType)
 
-  insert object (typ,key1,key2,a1,a2,a3) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode 
+  insert object (typ,key1,key2,a1,a2,a3,a9,a10,a11,a12,a13,a14,a16) 
+  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,@tableType,@pilotTable,@year,@district,@rate,@populationType,'KTS' 
 
   select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
 

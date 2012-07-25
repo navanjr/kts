@@ -1,0 +1,52 @@
+create procedure dbo.devPurgeData( @mode int ) as
+begin
+
+ if not @mode = 1
+  return
+
+ declare @types table(id int)
+ 
+-- glData
+ truncate table glDetail
+ truncate table glDetailStage
+
+-- invoices
+ truncate table invoices
+ truncate table taxRollDetail
+ insert @types select 4001
+
+-- receipts
+ insert @types select 4502
+ truncate table receiptDetail
+ truncate table receiptLink
+ truncate table paid
+
+-- Journal Entries
+ insert @types select 4512
+ truncate table journalLink 
+
+-- vouchers
+ insert @types select 4771
+ 
+ insert @types select 4780
+ insert @types select 4704
+ insert @types select 4509
+ insert @types select 4513
+-- insert @types select 4700 -- lets save the fiscal calendar for now :)
+ insert @types select 4101
+ insert @types select 4100
+ insert @types select 4508
+ insert @types select 4507
+ insert @types select 4522
+ insert @types select 4524
+
+ insert @types
+  select typ from object where typ < 0 group by typ
+
+ delete object where typ in (select id from @types)
+
+-- remove glAccounts 
+ delete object where typ = 4701 and a16 = 'KTS'
+
+ return
+end

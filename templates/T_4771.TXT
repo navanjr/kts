@@ -6,7 +6,7 @@
 @securitylevel=1;
 
 ###---###---###---###---###
-@format=50L(2)~Register #~#1#|M50R(2)~Voucher Date~@d2@#2#|M50R(2)~Voucher #~#3#|M150L(2)~Payee~#5#|M50R(2)~Amount~@n-14.2@#6#|M50C~Status~#29#|M;
+@format=50L(2)~Register #~#1#|M50R(2)~Voucher Date~@d2@#2#|M50R(2)~Voucher #~#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 
@@ -17,18 +17,16 @@
  break(gcretval<>2),
  sql('exec dbo.voucherCRUD @mode=3, @id='&obj:id);
 
-
 @loadwindow=
  create(45,9);
 
 \t001Register Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
-
 \t003Voucher Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
  \w00200455;r2
-\t005Voucher Number;
-\t007Payee;
-\t009Amount;
-
+\t005Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\t007Voucher Number;
+\t009Payee;
+\t011Amount;
 \t013Debit Account; \l0144701;r014002052004;
 \t015Credit Account; \l0164701;r016002054004; 
  \w01401670;r2
@@ -41,5 +39,3 @@
 \t045&Print; @acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
   if(gcretval=2,postAndPrint=);\d046;
 \w04655;
-
-\t019glDetailStage; \s020+'select count(*) from dbo.glDetailStage where slink = ''o'&obj:id&'''';

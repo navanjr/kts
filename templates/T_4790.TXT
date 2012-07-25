@@ -7,7 +7,7 @@
 
 ###---###---###---###---###
 @afterloadbrowse=
- glreport=;
+ glAnalysis=;
 
 
 @glJournalEntryReport=
@@ -68,7 +68,7 @@
    lctOut=0,
    lcBal=0,
     bnd('HO',,lcAw+2000),
-    bnd('H',obj5:a2&' Accounts',2000,'Beginning Balance',lcCw*-1,'Transfer In',lcCw*-1,'Transfer Out',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('H',obj5:a2&' Accounts',2000,'Beginning Balance',lcCw*-1,'Debits',lcCw*-1,'Credits',lcCw*-1,'Ending Balance',lcCw*-1),
     bnd('HU',,lcAw+2000),
     nl,
    ),
@@ -87,5 +87,85 @@
    lctIn=lctIn+obj5:a4,
    lctOut=lctOut+obj5:a5,
    lcBal=lcBal+obj5:a6,
+   edt, 
+);
+
+@glDaily=
+ do(4506,getSiteInfo=),
+ lcRm=1200,
+ lcCw=750,
+ lcAw=(lcCw*4)+400,
+ lcFont='courier new',
+ lcHeaderFontSize=12,
+ gcSql4790='select rowstring1,sourceNo,recordCnt,sourceAmt,glBalanceString from dbo.dailydata('&gcStartDate&','&gcDays&','''&gcFilterString&''') order by ord',
+ tr(
+  landscape,
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,lcRm,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER DAILY REPORT',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,format(gcStartDate,@d2)&' - '&format(gcStartDate+gcDays,@d2),8500C),
+  prn(,lcRm,1500,,,lcFont),
+   det(gcSql4790),
+   bnd('D',obj5:a1,lcCw*4.88,obj5:a2,lcCw*2.08,obj5:a3,lcCw,obj5:a4,lcCw*-1.6,obj5:a5,lcCw*-1.47)
+   edt, 
+);
+
+@glAnalysis=
+ do(4506,getSiteInfo=),
+ lcPeriod=kp('select key1+'' - ''+key2 from object where typ=4700 and key1='&gcPeriod),
+ lcRm=250,
+ lcCw=1160,
+ lcAw=(lcCw*4)+1100,
+ lcbBal=0,
+ lctIn=0,
+ lctOut=0,
+ lcBal=0,
+ lcCnt=0,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcSql4790='select accountDesc,accountType,beginningBalance,debits,credits,endingBalance,recCount from dbo.glAnalysis('&gcPeriod&','''&gcFilter&''') where id<>0 order by ord',
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER`S LEDGER',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Period: '&gcPeriodName,8500C),
+  prn(,lcRm,1500,,,lcFont),
+  grp(1,obj5:a2,
+   do(
+   lcbBal=0,
+   lctIn=0,
+   lctOut=0,
+   lcBal=0,
+    bnd('HO',,lcAw+(lcCw*2)),
+    bnd('H',obj5:a2&' Accounts',lcCw*2,'Cnt',lcCw-700,'Beginning Balance',lcCw*-1,'Debits',lcCw*-1,'Credits',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('HU',,lcAw+(lcCw*2)),
+    nl,
+   ),
+   do(
+    prn(,lcRm*10),
+    bnd('HO',,lcAw),
+    prn(,lcRm),
+    bnd('H',,lcCw*2,lcCnt,lcCw-700,format(lcbBal,@n$-16.2b),lcCw*-1,format(lctIn,@n$-16.2b),lcCw*-1,format(lctOut,@n$-16.2b),lcCw*-1,format(lcBal,@n$-16.2b),lcCw*-1),
+    prn(,lcRm),
+    nl,nl,nl
+   )
+  ),
+  det(gcSql4790),
+   bnd('D',obj5:a1,lcCw*2,obj5:a7,lcCw-700,format(obj5:a3,@n$-14.2b),lcCw*-1,format(obj5:a4,@n$-14.2b),lcCw*-1,format(obj5:a5,@n$-14.2b),lcCw*-1,format(obj5:a6,@n$-14.2b),lcCw*-1),
+   lcbBal=lcbBal+obj5:a3,
+   lctIn=lctIn+obj5:a4,
+   lctOut=lctOut+obj5:a5,
+   lcBal=lcBal+obj5:a6,
+   lcCnt=lcCnt+obj5:a7,
    edt, 
 );

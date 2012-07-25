@@ -31,19 +31,17 @@ begin
 
  if @invoiceType='S'
   begin
-   exec dbo.pilotFundPayableVerification @taxyear,'',@rateName,''
+   exec dbo.pilotFundReceivableVerification @taxyear,'',@rateName,''
   end
  else
   begin
 
    if @invoiceType<>'B'
     begin
-     exec dbo.pilotFundPayableVerification @taxyear,@district,@rateName,''
+     exec dbo.pilotFundReceivableVerification @taxyear,@district,@rateName,''
     end
 
   end
-
-
 
  declare @invd table(
   id int,
@@ -82,7 +80,7 @@ begin
     @acctCodeToken = sourceCode 
    from @invd where sourceId = 0 
    
-   exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @newAccountId OUTPUT
+   exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @accountId = @newAccountId OUTPUT
 
    update @invd set sourceId = @newAccountId where id = @idToken   
 
@@ -96,7 +94,7 @@ begin
    @acctCodeToken = fundCode 
   from @invd where fundId = 0 
 
-   exec dbo.glAccountVerification @acctCodeToken, 'PAYABLE', 'CREATE', @newAccountId OUTPUT
+   exec dbo.glAccountVerification @acctCodeToken, 'RECEIVABLE', 'CREATE', @accountId = @newAccountId OUTPUT
 
    update @invd set fundId = @newAccountId where id = @idToken   
 
@@ -166,15 +164,6 @@ begin
   from glDetailStage a, glAccounts b
   where a.accountId = b.accountId
    and a.slink = @slink 
-
--- TODO: glCheck is not a tf anymore
---  select @code = code, @message = message from dbo.glCheck(@id,@styp)
---  if @code = 1
---  begin
---   rollback transaction
---   select '@code=1;@message=' + @message + ';'
---   return
---  end
 
   -- post to the gl
   declare @test int = substring(@slink,2,14)
