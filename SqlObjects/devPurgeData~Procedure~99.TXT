@@ -1,33 +1,50 @@
-create procedure dbo.devPurgeData( @mode int ) as
+create procedure dbo.devPurgeData( @mode int, @focusString varchar(50) = '') as
 begin
 
- if not @mode = 1
-  return
-
  declare @types table(id int)
- 
--- glData
- truncate table glDetail
- truncate table glDetailStage
+ declare @slinks table(slink varchar(15))
+ declare @trunks table(tablename varchar(15))
+ declare @tableNameToken varchar(50)
 
 -- invoices
- truncate table invoices
- truncate table taxRollDetail
+if isnull(@focusString,'') in ('','invoices')
+begin
+ insert @slinks select 't'+cast(id as varchar) from invoices 
+ insert @trunks select 'invoices'
+ insert @trunks select 'taxRollDetail'
  insert @types select 4001
+end
 
 -- receipts
+if isnull(@focusString,'') in ('','receipts')
+begin
  insert @types select 4502
- truncate table receiptDetail
- truncate table receiptLink
- truncate table paid
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4502
+ insert @slinks select 'l'+cast(id as varchar) from receiptLink
+ insert @trunks select 'receiptDetail'
+ insert @trunks select 'receiptLink'
+ insert @trunks select 'paid'
+end
 
 -- Journal Entries
+if isnull(@focusString,'') in ('','journalEntries')
+begin
  insert @types select 4512
- truncate table journalLink 
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4512
+ insert @slinks select 'j'+cast(id as varchar) from journalLink
+ insert @trunks select 'journalLink'
+end
 
 -- vouchers
+if isnull(@focusString,'') in ('','payments')
+begin
  insert @types select 4771
- 
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4771
+end
+
+
+if isnull(@focusString,'') in ('')
+begin
  insert @types select 4780
  insert @types select 4704
  insert @types select 4509
@@ -42,11 +59,35 @@ begin
 
  insert @types
   select typ from object where typ < 0 group by typ
-
- delete object where typ in (select id from @types)
-
 -- remove glAccounts 
- delete object where typ = 4701 and a16 = 'KTS'
+ if @mode = 1
+  delete object where typ = 4701 and a16 = 'KTS'
+
+end
+
+if @mode = 1
+begin
+ delete object where typ in (select id from @types)
+ delete gldetail where slink in (select slink from @slinks)
+ delete gldetailStage where slink in (select slink from @slinks)
+-- purge orphan gldetail for object parents
+ delete glDetailStage where left(slink,1) = 'o' and slink not in (select 'o'+cast(id as varchar) from object where typ > 0)
+ delete glDetailStage where slink is null
+ delete glDetail where left(slink,1) = 'o' and slink not in (select 'o'+cast(id as varchar) from object where typ > 0)
+ delete glDetail where slink is null
+ while exists(select * from @trunks)
+ begin
+  select top 1 @tableNameToken = tablename from @trunks order by tableName
+  execute('truncate table ' + @tableNameToken)
+  delete @trunks where tableName = @tableNameToken
+ end
+end
+else
+begin
+ select * from @types
+ select * from @slinks
+ select * from @trunks
+end
 
  return
 end

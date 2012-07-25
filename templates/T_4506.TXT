@@ -14,7 +14,7 @@
 @securitylevel=1;
 
 ###---###---###---###---###
-@bb1=&Print; @bbproc1=taxStatment=;
+@bb1=&Print; @bbproc1=voucher=;
 
 loadbrowse=
  receipt=;
@@ -22,6 +22,7 @@ loadbrowse=
 @getSiteInfo=
  gcCity=readstring(gcSiteBlob,'@city='),
  gcCounty=readstring(gcSiteBlob,'@county='),
+ gcState=readstring(gcSiteBlob,'@state='),
  gcFState=readstring(gcSiteBlob,'@fullState='),
  gcOfficial=readstring(gcSiteBlob,'@officialName='),
  gcPhone=readstring(gcSiteBlob,'@phone='),
@@ -249,8 +250,6 @@ offDeposit=
   prn(gcCounty&' COUNTY TREASURER',1500,lcy,lcHeaderFontSize-2,,lcFont),
   lcy=lcy+200,
   prn(gcOfficial,1500,lcy),
-  prn(printed),
-  prn(page),
   lcy=lcy+400,
   prn(,,lcy,lcHeaderFontSize+2,bold,lcFont),
   bnd(,'MISCELLANEOUS RECEIPTS',8500C),
@@ -296,7 +295,7 @@ offDeposit=
   lcy=lcy+250,
   lcRp3=lcy,
   box(lcLm,lcy-100,(lcM*3)+550,lcy+100),
-  box(lcLm+4000,lcy-100,lcCw+100+4000,lcy+100),
+  SITEbox(lcLm+4000,lcy-100,lcCw+100+4000,lcy+100),
   box(lcLm+4000,lcy+100,lcCw+100+4000,lcy+300),
   lcLS=lcy-100,
   bnd('H','Paycode',lcM,'Reference',lcM,'Amount',lcM),
@@ -322,3 +321,73 @@ offDeposit=
   bnd('D',obj7:a18,lcCw),
 );
 
+@voucher=
+ getSiteInfo=,
+ lcy=700,
+ lcLm=600,
+ lcCw=1000,
+ lcFont='Courier New',
+ lcFontSize=11,
+ lcFontStyle='bold',
+ get(gcVouchId),
+ lcASpell=N2W(obj7:a2,1),
+ tr(
+  prn('TREASURER''S COPY',lcLm,lcy,lcFontSize,lcFontStyle,lcFont),
+  lcy=lcy+125,
+  bnd(,gcCounty&' COUNTY '&gcFState,8000C),  
+  prn('DEPOSITORY VOUCHER',lcLm,lcy,lcFontSize,,lcFont),
+  lcy=lcy+125,
+  bnd(,'OFFICE OF THE COUNTY TREASURER',8000C),
+  prn(,lcLm,lcy,,,),
+  lcy=lcy+125, 
+  bnd(,'REGISTERED NO. '&obj7:key1,lcCw),
+  
+  nl,nl,nl,
+  lcy=lcy+250,
+  bnd(,,lcCw*2,,lcCw*3,'VOUCHER NO:',lcCw*-1,obj7:key3,lcCw),
+  lcy=lcy+125,
+  bnd(,gcOfficial,lcCw*2,'Pay to The',lcCw*3,'DATE:',lcCw*-1,format(obj7:key2,@d2),lcCw),
+  lcy=lcy+125,
+  bnd(,'COUNTY TREASURER',lcCw*2,'Order Of: '&obj7:a1,lcCw*3,'AMOUNT:',lcCw*-1,format(obj7:a2,@n$-12.2),1000C),
+  lcy=lcy+125,
+  bnd(,'by __________________',lcCw*4),
+  lcy=lcy+125,
+  bnd(,'Deputy',lcCw*2,'In The Sum Of:',lcCw*4),
+  lcy=lcy+125,
+  bnd(,,lcCw*2,lcASpell,lcCw*4),
+  lcy=lcy+125,
+  nl,
+  lcy=lcy+125,
+  bnd(,,lcCw*2,'Drawn For: ______________________________',lcCw*4),
+  nl,
+  lcy=lcy+125,
+  bnd(,,(lcCw*2)+500,'BY: ______________________________',lcCw*4),
+  nl,
+  lcy=lcy+125,
+  bnd(,,lcCw*3.75,'DEPUTY',lcCw),
+  lcy=lcy+2150,
+  prn(,,lcy),
+  bnd(,'DRAWN FOR',lcCw*4,'VOUCHER NO:',lcCw*-1,obj7:key3,lcCw),
+  lcy=lcy+3250,
+  prn(,lcLm+50,lcy),
+  bnd(,gcCounty&' COUNTY '&gcFState,8000C),
+  bnd(,'DEPOSITORY VOUCHER',lcCw*2,'OFFICE OF THE COUNTY TREASURER',4000C),
+  bnd(,'REGISTERED NO. '&obj7:key1,lcCw*2), 
+  nl,
+  bnd(,gcOfficial,lcCw*2.5,'TO THE COUNTY TREASURER',lcCw*3,'VOUCHER NO:',lcCw*-1,obj7:key3,lcCw), 
+  bnd(,'COUNTY TREASURER',lcCw*2.5,'AS OFFICIAL DEPOSITORY',lcCw*2),
+  bnd(,'by __________________',lcCw,gcCity&', '&gcState&' '&format(obj7:key2,@d2),lcCw*-6.5),  
+  bnd(,'Deputy',lcCw*2.5,'Pay to The:',lcCw*4),
+  bnd(,,lcCw*2.5,'Order Of: '&obj7:a1,lcCw*3.5,format(obj7:a2,@n$-14.2),lcCw*-1),
+  bnd(,'PAYABLE THROUGH',lcCw*2.5),
+  nl,
+  bnd(,,lcCw*2.5,'In the Sum Of: ',lcCw*4),
+  bnd(,,lcCw*2.5,lcASpell,lcCw*4),
+  bnd(,,lcCw*3.5,'--PLEASE CASH IMMEDIATELY--',lcCw*4),
+  bnd(,,lcCw*4,gcOfficial,lcCw*4),
+  nl,
+  bnd(,,lcCw*3.75,'BY: __________________',lcCw),
+  nl,
+  bnd(,,lcCw*4.5,'DEPUTY',lcCw),
+
+);
