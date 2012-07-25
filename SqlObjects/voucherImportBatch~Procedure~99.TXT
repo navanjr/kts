@@ -1,5 +1,7 @@
-create procedure dbo.voucherImportBatch( @batchId int ) as 
+create procedure dbo.voucherImportBatch( @batchId int, @mode varchar(50) = null ) as 
 begin
+
+ -- TODO: this needs to warn about missing account info for the officals 
 
   declare
    @idToken int,
@@ -28,6 +30,9 @@ begin
    debitAcct,
    creditAcct
   from dbo.voucherImportBRW(@batchId)
+
+  if isnull(@mode,'') = 'debug'
+   select * from @wt
  
   while exists(select * from @wt)
   begin
@@ -40,6 +45,7 @@ begin
      @creditAcct = creditAcct
     from @wt order by id
 
+   if not isnull(@mode,'') = 'debug'
     exec dbo.voucherCRUD 0,  
      @voucherDate = @voucherDate,
      @voucherNumber = @voucherNumber,
