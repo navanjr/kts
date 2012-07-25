@@ -59,18 +59,18 @@ begin
   from paid a, object b 
   where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
 
-  -- debit tresurers receipt fund and credit fund payables
+  -- debit tresurers receipt fund and credit fund receivables
   insert @accountsWorking select @contraId, null, @paidTotal
   if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
   begin
    insert @ap
     select b.accountId, null, sum(a.amount)*-1, 0, 0
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AP' group by b.accountId
+    where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AR' group by b.accountId
    insert @ap
     select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AP' group by b.accountId
+    where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AR' group by b.accountId
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
