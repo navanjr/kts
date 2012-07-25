@@ -27,64 +27,26 @@ begin
   @typeDesc varchar(50),
   @reportCode varchar(50)
 
--- create SOURCE accounts
- if upper(@mode) = 'CREATE' and upper(@accountType) = 'SOURCE'
- begin
-
-  select @accountDesc = replace(@accountCode,'_',' ')
-
   select 
    @typeDesc = key2,
    @reportCode = key3
   from object where typ = 4702 and key1 = upper(@accountType)
 
-  insert object (typ,key1,key2,a1,a2,a3,a16) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,'KTS' 
+  declare @accountTypes table(accountType varchar(50), accountDesc varchar(50))
+  insert @accountTypes select 'SOURCE', replace(@accountCode,'_',' ')
+  insert @accountTypes select 'PAYABLE', replace(replace(@accountCode,'_AP',' Payable'),'_',' ')
+  insert @accountTypes select 'RECEIVABLE', replace(replace(@accountCode,'_AR',' Receivable'),'_',' ')
+  insert @accountTypes select 'ACCRUAL', replace(replace(@accountCode,'_AC',' Accrual'),'_',' ')
 
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
-
-  return
-
- end
-
--- create PAYABLE accounts
- if upper(@mode) = 'CREATE' and upper(@accountType) = 'PAYABLE'
- begin
-
-  select @accountDesc = replace(replace(@accountCode,'_AP',' Payable'),'_',' ')
-
-  select 
-   @typeDesc = key2,
-   @reportCode = key3
-  from object where typ = 4702 and key1 = upper(@accountType)
-
-  insert object (typ,key1,key2,a1,a2,a3,a16) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,'KTS' 
-
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+  if upper(@mode) = 'CREATE' and upper(@accountType) in (select accountType from @accountTypes)
+  begin
+   select @accountDesc = accountDesc from @accountTypes where accountType = @accountType
+   select @accountId = @@identity
+   insert object (typ,key1,key2,a1,a2,a3,a9,a10,a11,a12,a13,a14,a16) 
+    select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,@tableType,@pilotTable,@year,@district,@rate,@populationType,'KTS' 
+  end
 
   return
 
- end
+end 
 
--- create RECEIVABLE accounts
- if upper(@mode) = 'CREATE' and upper(@accountType) = 'RECEIVABLE'
- begin
-
-  select @accountDesc = replace(replace(@accountCode,'_AR',' Receivable'),'_',' ')
-
-  select 
-   @typeDesc = key2,
-   @reportCode = key3
-  from object where typ = 4702 and key1 = upper(@accountType)
-
-  insert object (typ,key1,key2,a1,a2,a3,a9,a10,a11,a12,a13,a14,a16) 
-  select 4701,upper(@accountCode),@accountDesc,upper(@accountType),@typeDesc,@reportCode,@tableType,@pilotTable,@year,@district,@rate,@populationType,'KTS' 
-
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
-
-  return
-
- end
-
-end
