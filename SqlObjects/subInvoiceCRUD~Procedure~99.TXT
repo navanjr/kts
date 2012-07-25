@@ -4,6 +4,7 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @description varchar(50),
  @sourceCode varchar(50),
  @fundCode varchar(50),
+ @subInvoiceType varchar(1) = 'F',
  @amount money
 ) as
 begin
@@ -25,12 +26,12 @@ begin
 
  begin transaction
 
-  --run fund payable account verification
-  exec dbo.receiptDetailFundPayableVerification @fundCode
+  --run fund accrual account verification
+  exec dbo.glAccountVerification @fundCode, 'RECEIVABLE', 'CREATE'
 
    insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS])
      select 
-      'F',
+      @subInvoiceType,
       @invoiceDate,
       @mainInvoiceId,
       [taxyear],
