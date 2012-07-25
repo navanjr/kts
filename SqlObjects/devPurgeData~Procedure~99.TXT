@@ -1,33 +1,56 @@
-create procedure dbo.devPurgeData( @mode int ) as
+create procedure dbo.devPurgeData( @mode int, @focusString varchar(50) = '') as
 begin
 
- if not @mode = 1
-  return
-
  declare @types table(id int)
+ declare @slinks table(slink varchar(15))
  
+
 -- glData
- truncate table glDetail
- truncate table glDetailStage
+--if isnull(@focusString,'') in ('','glDetail')
+--begin
+-- truncate table glDetail
+-- truncate table glDetailStage
+--end
 
 -- invoices
+if isnull(@focusString,'') in ('','invoices')
+begin
+ insert @slinks select 't'+cast(id as varchar) from invoices 
  truncate table invoices
  truncate table taxRollDetail
  insert @types select 4001
+end
 
 -- receipts
+if isnull(@focusString,'') in ('','receipts')
+begin
  insert @types select 4502
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4502
+ insert @slinks select 'l'+cast(id as varchar) from receiptLink
  truncate table receiptDetail
  truncate table receiptLink
  truncate table paid
+end
 
 -- Journal Entries
+if isnull(@focusString,'') in ('','journalEntries')
+begin
  insert @types select 4512
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4512
+ insert @slinks select 'j'+cast(id as varchar) from journalLink
  truncate table journalLink 
+end
 
 -- vouchers
+if isnull(@focusString,'') in ('','payments')
+begin
  insert @types select 4771
- 
+ insert @slinks select 'o'+cast(id as varchar) from object where typ = 4771
+end
+
+
+if isnull(@focusString,'') in ('')
+begin
  insert @types select 4780
  insert @types select 4704
  insert @types select 4509
@@ -42,12 +65,22 @@ begin
 
  insert @types
   select typ from object where typ < 0 group by typ
-
- delete object where typ in (select id from @types)
-
 -- remove glAccounts 
  delete object where typ = 4701 and a16 = 'KTS'
 
- return
 end
 
+if @mode = 1
+begin
+ delete object where typ in (select id from @types)
+ delete gldetail where slink in (select slink from @slinks)
+ delete gldetailStage where slink in (select slink from @slinks)
+end
+else
+begin
+ select * from @types
+ select * from @slinks
+end
+
+ return
+end
