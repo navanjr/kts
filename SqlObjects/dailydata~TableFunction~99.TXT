@@ -3,7 +3,11 @@ CREATE function dbo.dailydata(@theDate int, @days int, @filterString varchar(50)
  id int,
  ord varchar(10),
  rowstring varchar(250),
- glBalanceString varchar(50)
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50)
 )
 begin
  declare @showDetail table(id int)
@@ -22,47 +26,56 @@ begin
 
 -- Collections
  if substring(@filterString,1,1) = '1'
-  insert @rt
-  select id*-1,ord,rowString,glBalanceString from dbo.dailyDataCollections(@theDate, @days, 'A', @filterString)
+  insert @rt 
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt from dbo.dailyDataCollections(@theDate, @days, 'A', @filterString)
 
 -- Accural
 -- if substring(@filterString,2,1) = '1'
 --  insert @rt
 --  select cast('8'+cast(id as varchar ) as int)*-1,ord,rowString,glBalanceString from dbo.dailyDataAccural('B')
 
- insert @rt
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt)
  select
   cast('8'+cast(a.accountId as varchar) as int) * -1, 
   'CC',
   '   ' + dbo.padRight(a.accountDesc,' ',48)
   + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16),
-  ''
+  '',
+  '   ' + dbo.padRight(a.accountDesc,' ',48),
+  dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
  from glDetail a
  where a.accountId in (select accountId from paycodes)
  group by a.accountId,a.accountDesc
  having sum(a.amount) != 0
 
- insert @rt select 0,'C ','',''
- insert @rt select 0,'CA','  Suspense Accounts',''
- insert @rt select 0,'CB',' ' + replicate('-',69),''
+ insert @rt (id,ord,rowstring,glBalanceString) select 0,'C ','',''
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'CA','  Suspense Accounts','','  Suspense Accounts'
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'CB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
 
- insert @rt
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt)
  select 
   cast('7'+cast(b.id as varchar) as int) * -1, 
   'DC',
   '   ' + dbo.padRight(receiptType + '      '
    + case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,' ',48)
   + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
-  ''
+  '',
+  '   ' + dbo.padRight(receiptType + '      ',' ',48),
+  case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,
+  '',
+  dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+  
  from dbo.depositPaidUnPosted() a, object b
  where a.receiptType = b.key1 and b.typ = 4503
  group by receiptType, b.id
 
- insert @rt select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'' from dbo.depositPaidUnPosted()
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt) 
+     select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'',dbo.padLeft('Total',' ',50),dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+     from dbo.depositPaidUnPosted()
 
- insert @rt select 0,'D ','',''
- insert @rt select 0,'DA','  Pending Deposits',''
- insert @rt select 0,'DB',' ' + replicate('-',69),''
+ insert @rt (id,ord,rowstring,glBalanceString) select 0,'D ','',''
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'DA','  Pending Deposits','','  Pending Deposits'
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'DB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
 
  return
 
