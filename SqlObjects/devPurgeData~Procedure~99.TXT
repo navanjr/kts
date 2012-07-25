@@ -3,21 +3,15 @@ begin
 
  declare @types table(id int)
  declare @slinks table(slink varchar(15))
- 
-
--- glData
---if isnull(@focusString,'') in ('','glDetail')
---begin
--- truncate table glDetail
--- truncate table glDetailStage
---end
+ declare @trunks table(tablename varchar(15))
+ declare @tableNameToken varchar(50)
 
 -- invoices
 if isnull(@focusString,'') in ('','invoices')
 begin
  insert @slinks select 't'+cast(id as varchar) from invoices 
- truncate table invoices
- truncate table taxRollDetail
+ insert @trunks select 'invoices'
+ insert @trunks select 'taxRollDetail'
  insert @types select 4001
 end
 
@@ -27,9 +21,9 @@ begin
  insert @types select 4502
  insert @slinks select 'o'+cast(id as varchar) from object where typ = 4502
  insert @slinks select 'l'+cast(id as varchar) from receiptLink
- truncate table receiptDetail
- truncate table receiptLink
- truncate table paid
+ insert @trunks select 'receiptDetail'
+ insert @trunks select 'receiptLink'
+ insert @trunks select 'paid'
 end
 
 -- Journal Entries
@@ -38,7 +32,7 @@ begin
  insert @types select 4512
  insert @slinks select 'o'+cast(id as varchar) from object where typ = 4512
  insert @slinks select 'j'+cast(id as varchar) from journalLink
- truncate table journalLink 
+ insert @trunks select 'journalLink'
 end
 
 -- vouchers
@@ -66,7 +60,8 @@ begin
  insert @types
   select typ from object where typ < 0 group by typ
 -- remove glAccounts 
- delete object where typ = 4701 and a16 = 'KTS'
+ if @mode = 1
+  delete object where typ = 4701 and a16 = 'KTS'
 
 end
 
@@ -75,11 +70,23 @@ begin
  delete object where typ in (select id from @types)
  delete gldetail where slink in (select slink from @slinks)
  delete gldetailStage where slink in (select slink from @slinks)
+-- purge orphan gldetail for object parents
+ delete glDetailStage where slink not in (select 'o'+cast(id as varchar) from object where typ > 0)
+ delete glDetailStage where slink is null
+ delete glDetail where slink not in (select 'o'+cast(id as varchar) from object where typ > 0)
+ delete glDetail where slink is null
+ while exists(select * from @trunks)
+ begin
+  select top 1 @tableNameToken = tablename from @trunks order by tableName
+  execute('truncate table ' + @tableNameToken)
+  delete @trunks where tableName = @tableNameToken
+ end
 end
 else
 begin
  select * from @types
  select * from @slinks
+ select * from @trunks
 end
 
  return
