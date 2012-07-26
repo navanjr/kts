@@ -14,13 +14,18 @@ create procedure dbo.glAccountVerification (
 ) as
 begin
  
--- first we check for this account if we have it we get the id and bail
- if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType))
+-- first we check this account to see if it is a fund and our type is accrual 
+ if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = 'FUND') and @accountType='ACCRUAL'
  begin
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
-  return
+   set @accountCode=upper(rtrim(@accountCode))+'_AC'
  end
 
+-- then we check for this account if we have it we get the id and bail
+ if exists(select * from glAccounts where accountCode = upper(@accountCode))
+ begin
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode)
+  return
+ end
  declare
   @accountDesc varchar(50),
   @typeDesc varchar(50),

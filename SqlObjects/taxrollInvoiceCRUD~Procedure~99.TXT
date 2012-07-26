@@ -82,17 +82,18 @@ begin
    
    exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @accountId = @newAccountId OUTPUT
 
-   update @invd set sourceId = @newAccountId where id = @idToken   
+   update @invd set sourceId = isnull((select accountid from glaccounts where accountType='SOURCE' and accountCode=@acctCodeToken),0)
+     where id = @idToken   
 
   end
 
   while exists(select * from @invd where fundId = 0 and @invoiceType<>'S') 
   begin
 
-  select top 1
-   @idToken = id,
-   @acctCodeToken = fundCode 
-  from @invd where fundId = 0 
+   select top 1
+    @idToken = id,
+    @acctCodeToken = fundCode 
+   from @invd where fundId = 0 
 
    exec dbo.glAccountVerification @acctCodeToken, 'ACCRUAL', 'CREATE', @accountId = @newAccountId OUTPUT
 
