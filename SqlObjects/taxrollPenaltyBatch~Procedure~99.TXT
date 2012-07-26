@@ -9,7 +9,8 @@ begin
   @description varchar(50),
   @sourceCode varchar(50),
   @fundCode varchar(50), 
-  @amount money
+  @amount money,
+  @existingpenaltyId int
 
  select top 1 @invoiceDate = dbo.clariondate(getdate()),
   @description = b2,
@@ -41,8 +42,13 @@ begin
  while exists(select * from @pt)
  begin
   select top 1 @idToken = invoiceId, @amount = amount from @pt
-
-  exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount
+  
+  -- Issue penalty invoice for this tax item or update an existing one
+  set @existingpenaltyId = isnull((select id from invoices where typ='P' and invoiceId=@idToken),0)
+  if @existingpenaltyId=0
+  begin
+   exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount
+  end
 
   delete @pt where invoiceId = @idToken
  end
