@@ -13,7 +13,9 @@ begin
  declare 
   @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @code int,
-  @message varchar(500)
+  @message varchar(500),
+  @targetcode varchar(50) = '',
+  @accrualcode varchar(50) = ''
 
  select @code = code, @message = message from dbo.receiptCheck(@receiptId,null)
  if @code = 1
@@ -41,8 +43,13 @@ begin
 
  begin transaction
 
-  --run fund accural account verification to see if we have all the glAccounts we will need
-  exec dbo.glAccountVerification @fundCode, 'ACCRUED RECEIVABLE', 'CREATE'
+  --run fund accrued receivable account verification to see if we have all the glAccounts we will need
+  select 
+   @accrualcode=accrualcode,
+   @targetcode=fundcode
+   from dbo.glAccountGetFundAccrualCode(@fundcode)
+
+  exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
 
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
