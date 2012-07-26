@@ -1,6 +1,5 @@
 create procedure dbo.glAccountVerification (
 -- this routine should be the only place we insert accural glaccounts 
--- TODO: this needs to be enhanced to handle pilot, ada, population, etc...
 -- so we expect an accural accountCode (with the _XX) and accountType and if its not found we create it
  @accountCode varchar(50),
  @accountType varchar(50),
@@ -15,12 +14,20 @@ create procedure dbo.glAccountVerification (
 ) as
 begin
  
--- first we check for this account if we have it we get the id and bail
- if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType))
+-- first we check this account to see if it is a fund and our type is accrual 
+ if exists(select * from glAccounts where accountCode = upper(@accountCode) and accountType = 'FUND') and @accountType='ACCRUAL'
  begin
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode) and accountType = upper(@accountType)
+   set @accountCode=upper(rtrim(@accountCode))+'_AC'
+ end
+
+
+-- then we check for this account if we have it we get the id and bail
+ if exists(select * from glAccounts where accountCode = upper(@accountCode))
+ begin
+  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode)
   return
  end
+
 
  declare
   @accountDesc varchar(50),
