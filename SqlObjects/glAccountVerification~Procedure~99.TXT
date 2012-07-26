@@ -10,17 +10,18 @@ create procedure dbo.glAccountVerification (
  @district varchar(50) = '',
  @rate varchar(50) = '',
  @populationType varchar(50) = '',
- @accountId int = null OUTPUT,
- @targetAccountCode varchar(50) = ''
+ @targetAccountCode varchar(50) = '',
+ @accountId int = null OUTPUT
 ) as
 begin
  
--- first we check for this account if we have it we get the id and bail
+-- check for this account if we have it we get the id and bail
  if exists(select * from glAccounts where accountCode = upper(@accountCode))
  begin
   select @accountId = accountId from glAccounts where accountCode = upper(@accountCode)
   return
  end
+
  declare
   @accountDesc varchar(50),
   @typeDesc varchar(50),
@@ -35,14 +36,29 @@ begin
   insert @accountTypes select 'SOURCE', replace(@accountCode,'_',' ')
   insert @accountTypes select 'PAYABLE', replace(replace(@accountCode,'_AP',' Payable'),'_',' ')
   insert @accountTypes select 'RECEIVABLE', replace(replace(@accountCode,'_AR',' Receivable'),'_',' ')
-  insert @accountTypes select 'ACCRUAL', replace(replace(@accountCode,'_AC',' Accrual'),'_',' ')
+  insert @accountTypes select 'ACCRUED RECEIVABLE', replace(replace(@accountCode,'_ACR',' Accrued Receivable'),'_',' ')
+  insert @accountTypes select 'ACCRUED PAYABLE', replace(replace(@accountCode,'_ACP',' Accrued Payable'),'_',' ')
 
   if upper(@mode) = 'CREATE' and upper(@accountType) in (select accountType from @accountTypes)
   begin
    select @accountDesc = accountDesc from @accountTypes where accountType = @accountType
    select @accountId = @@identity
    insert object (typ,key1,key2,a1,a2,a3,a8,a9,a10,a11,a12,a13,a14,a16) 
-    select 4701, upper(@accountCode), @accountDesc, upper(@accountType), @typeDesc, @reportCode, upper(@targetAccountCode), @tableType, @pilotTable, @year, @district, @rate, @populationType,'KTS' 
+    select 
+     4701,
+     upper(@accountCode),
+     @accountDesc,
+     upper(@accountType),
+     @typeDesc,
+     @reportCode,
+     upper(@targetAccountCode),
+     @tableType,
+     @pilotTable,
+     @year,
+     @district,
+     @rate,
+     @populationType,
+     'KTS' 
   end
 
   return

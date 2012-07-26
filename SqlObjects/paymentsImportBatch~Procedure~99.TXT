@@ -1,0 +1,105 @@
+create procedure dbo.paymentsImportBatch( @paymentType varchar(50), @batchId int, @debugMode varchar(10) = 'false' ) as 
+begin
+
+  declare
+   @idToken int,
+   @voucherDate int,
+   @voucherNumber varchar(50),
+   @payee varchar(50),
+   @amount varchar(50),
+   @debitAcct varchar(50),
+   @creditAcct varchar(50),
+   @officialsFundCode varchar(50)
+
+  declare @wt table (
+   id int,
+   voucherDate int,
+   voucherNumber varchar(50),
+   payee varchar(50),
+   amount money,
+   debitAcct varchar(50),
+   creditAcct varchar(50),
+   officialsFundCode varchar(50)
+  )
+
+-- insert Official Vouchers
+ if @paymentType = 'official voucher'
+  insert @wt select 
+   id,
+   cast(voucherDate as int),
+   voucherNumber,
+   payee,
+   cast(amount as money),
+   debitAcct,
+   creditAcct,
+   null
+  from dbo.voucherImportBRW(@batchId)
+
+-- insert Official Warrants
+ if @paymentType = 'Official Warrant'
+ begin
+  insert @wt select 
+   id,
+   cast(warrantDate as int),
+   warrantNumber,
+   vendorCode,
+   cast(amount as money),
+   '' as debitAcct,
+   '' as creditAcct,
+   clerksFund
+  from dbo.warrantImportBRW(@batchId)
+
+-- gather up the accounts to hit
+ -- credit fund accrued payable
+ -- debit outstanding warrant
+ update @wt set debitAcct = @
+
+
+ end
+
+  if @debugMode = 'true'
+   select * from @wt
+
+-- check them out
+  if not exists(select * from @wt)
+  begin
+   select '@code=1;@message=No rows found to process for import;'
+   return
+  end
+
+  if exists(select * from @wt where debitAcct < '  0' or creditAcct < '  0')
+  begin
+   select '@code=1;@message=some items are missing needed account information;'
+   return
+  end
+ 
+  while exists(select * from @wt)
+  begin
+    select top 1 @idToken = id, 
+     @voucherDate = voucherDate,
+     @voucherNumber = voucherNumber,
+     @payee = payee,
+     @amount = amount,
+     @debitAcct = debitAcct,
+     @creditAcct = creditAcct
+    from @wt order by id
+
+   if @debugMode = 'false'
+    exec dbo.voucherCRUD 0,  
+     @voucherDate = @voucherDate,
+     @voucherNumber = @voucherNumber,
+     @payee = @payee,
+     @amount = @amount,
+     @debitAcct = @debitAcct,
+     @creditAcct = @creditAcct
+
+    delete @wt where id = @idToken
+  end
+
+ if @debugMode = 'true'  
+  select '@code=0;@message=Finished in Debug Mode without errors;'
+ else
+  select '@code=0;@message=Finished without errors;'
+ 
+ return
+end

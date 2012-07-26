@@ -35,12 +35,13 @@
 @gcvarsWarrants=
  gcsql4770='select id,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode from dbo.warrantImportBRW('&obj:id&') order by id';
 @refreshBRW=
+ kpmo('Reloading import data','Please Wait...'),
  gcvars=,
  if(obj:c1+0=1,
   brwreload(1,gcsql4770,'50L(2)~Voucher #~#2#M|50R(2)~Date~@d2@#3#M|100L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|'),
   brwreload(1,gcsql4770,'50L(2)~FiscalYear~#2#M|50L(2)~ClerksFund~#3#M|50L(2)~Warrant #~#4#M|50R(2)~Date~@d2@#5#M|100L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M')
  ),
- ;
+ kpmc();
 
 \t001Received From;  \l0024601,2;r002002004012042050; 
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL''';
@@ -58,9 +59,13 @@
  acc102=;
 
 \t114&Import;
-@acc114=
+@acc114=if(obj:c1+0=1,importVouchers=,importWarrants=);
+
+@importVouchers=
+ update,
  lcCount=kp('select count(*) from dbo.voucherImport('&obj:id&') where amount > ''  0'''),
  break(lcCount+0<1),
  m('Do you wish to insert these '&lcCount&' vouchers into the '&obj:a18&' register?','Insert Vouchers...',,6,2),
  break(gcretval<>2),
- sql('exec dbo.voucherImportBatch '&obj:id);
+ d1select('exec dbo.paymentsImportBatch '&choose(obj:c1+0=1,'official voucher','official warrant')&','&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Oops...'));
