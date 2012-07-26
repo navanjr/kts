@@ -1,38 +1,41 @@
 create procedure dbo.mortgageReceiptDetailCRUD(
- @mortgageDetailId int
+ @receiptId int,
+ @taxAmount money,
+ @feeAmount money
 ) as
 begin
 
  declare 
-  @receiptId int,
-  @taxAmount money,
-  @feeAmount money,
   @taxdescription varchar(50),
   @taxsourceCode varchar(50),
   @taxfundCode varchar(50),
   @feedescription varchar(50),
   @feesourceCode varchar(50),
-  @feefundCode varchar(50)
+  @feefundCode varchar(50),
+  @taxdetailId int,
+  @feedetailId int
 
- select 
-  @receiptId = link1
-  from object where id=@mortgageDetailId
 
 
  -- retrieve the specifics from the mortagageDetailCheck function
  select
-  @taxAmount = taxAmount,
-  @feeAmount = feeAmount,
   @taxdescription = taxdescription,
   @taxsourceCode = taxsourceCode,
   @taxfundCode = taxfundCode,
   @feedescription = feedescription,
   @feesourceCode = feesourceCode,
-  @feefundCode = feefundCode 
- from (select top 1 * from dbo.mortgageDetailCheck(@mortgageDetailId)) data
+  @feefundCode = feefundCode,
+  @taxdetailId = taxdetailId,
+  @feedetailId = feedetailId 
+ from (select top 1 * from dbo.mortgageDetailCheck(@receiptId)) data
+ 
+ if @taxamount>0.01
+ begin
+  exec dbo.receiptDetailCRUD @receiptId,4502,@taxdetailId,@taxdescription,@taxsourceCode,@taxfundCode,@taxAmount
+ end
 
- exec dbo.receiptDetailCRUD @receiptId,4502,0,@taxdescription,@taxsourceCode,@taxfundCode,@taxAmount
-
- exec dbo.receiptDetailCRUD @receiptId,4502,0,@feedescription,@feesourceCode,@feefundCode,@feeAmount
-
+ if @feeamount>0.01
+ begin
+  exec dbo.receiptDetailCRUD @receiptId,4502,@feedetailId,@feedescription,@feesourceCode,@feefundCode,@feeAmount
+ end
 end

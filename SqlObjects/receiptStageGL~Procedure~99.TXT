@@ -66,11 +66,11 @@ begin
    insert @ap
     select b.accountId, null, sum(a.amount)*-1, 0, 0
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and right(rtrim(a.fundCode),3)='_AR' group by b.accountId
+    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType='ACCRUED RECEIVABLE' group by b.accountId
    insert @ap
     select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
-    from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.fundCode and right(rtrim(a.fundCode),3)<>'_AR' group by b.accountId
+    from receiptDetail a, dbo.glAccounts b 
+    where a.slink = @slink and (select top 1 accrualcode from dbo.glAccountGetFundAccrualCode(a.fundcode)) = b.accountCode and b.accountcode<>a.fundcode group by b.accountId
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))

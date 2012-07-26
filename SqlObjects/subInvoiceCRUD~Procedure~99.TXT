@@ -14,7 +14,9 @@ begin
   @styp char(1) = 't',
   @slink varchar(15),
   @fpid int,
-  @smode int = 0
+  @smode int = 0,
+  @targetcode varchar(50) = '',
+  @accrualcode varchar(50) = ''
 
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@invoiceDate) 
@@ -27,7 +29,12 @@ begin
  begin transaction
 
   --run fund accrual account verification
-  exec dbo.glAccountVerification @fundCode, 'ACCRUED RECEIVABLE', 'CREATE'
+  select 
+   @accrualcode=accrualcode,
+   @targetcode=fundcode
+   from dbo.glAccountGetFundAccrualCode(@fundcode)
+
+  exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
 
    insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS])
      select 
@@ -52,7 +59,7 @@ begin
      @description,
      rtrim(@sourceCode) + '/' + rtrim(@fundCode),
      @sourceCode,
-     @fundCode,
+     @accrualcode,
      cast(@amount as varchar(50))
 
   -- add to the gl stage

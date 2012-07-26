@@ -160,9 +160,9 @@
 \t029Mortgage Date; \t030@d2; \q030; @acc030=lcBranch=1,mortCalc=;
 \t031Maturity Date; \t032@d2; @acc032=lcBranch=2,mortCalc=;
 \t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=;
-\t035Amount;
+\t035Amount;@acc036=lcBranch=3,mortCalc=;
 \t037Rate;
-\t047Tax Amount;
+\t047Total Amount;
 \h029038obj:key3<>'MTG';r \h047048obj:key3<>'MTG';r
 \w03003855;r2 \w04855;
 \x029038+340;r \x047048+157;r
@@ -208,12 +208,18 @@ w078090100;r2
  focus(078);
 
 @mortCalc=
- lcOptions=choose(lcBranch,obj:a12&','&obj:a13&','&obj:a14&','&obj:a15,obj:a12&','&obj:a13&',0,'&obj:a15,obj:a12&',0,'&obj:a14&','&obj:a15),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
+ reak(obj:a12+0<1 or obj:a13+0<1 or obj:a14+0<0.1 or obj:a15+0<0.01),
  d1select('select blob from dbo.mortgageTaxCalculator('&lcOptions&')'),
  set(32,readstring(obj7:d1,'@endDate=')),
  set(34,readstring(obj7:d1,'@termYears=')),
  set(38,readstring(obj7:d1,'@taxRate=')),
- set(48,readstring(obj7:d1,'@taxTotal='));
+ set(48,readstring(obj7:d1,'@taxTotal=')),
+ lctaxamount=readstring(obj7:d1,'@taxAmount='),
+ lcfeeamount=readstring(obj7:d1,'@feeAmount='),
+ sql('exec dbo.mortgageReceiptDetailCRUD '&obj:id&','&lctaxamount+0&','&lcfeeamount+0),
+ refreshDetail=;
+
 @brwstuffMort=
  break(obj:key3<>'MTG'),
  gcbrw2sql='select id,key1,key2,d1,key3,a1,a2,a3 from object where typ=4507 and link1='&obj:id&' order by id',
