@@ -59,14 +59,17 @@ begin
      @description,
      rtrim(@sourceCode) + '/' + rtrim(@fundCode),
      @sourceCode,
-     @accrualcode,
+     @fundcode,
      cast(@amount as varchar(50))
 
   -- add to the gl stage
   exec dbo.subInvoiceStageGL @invoiceId
 
  if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
-  rollback transaction
+  begin
+   rollback transaction
+   return
+  end
  else
   
   -- post to the gl

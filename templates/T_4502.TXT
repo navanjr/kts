@@ -135,7 +135,7 @@
  @acc016=if(obj:key3='OFFICIAL',update);
 \t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL';
 
-\t017Amount; \t018@n14.2; @acc018=miscDetail=;
+\t017Amount; \t018@n-14.2; @acc018=miscDetail=;
  \h011017;r2
  \x014184; \y014=012; \w01449; n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
@@ -313,6 +313,7 @@ w078090100;r2
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
+ if(lcTyp+0=7,donewinvoice=),
  break(lcTyp<>9),
  set(-07,lcid,1),
  gcblob=kp('select dbo.getMiscDetail('&lcid&')'),
@@ -321,6 +322,17 @@ w078090100;r2
  set(016,readstring(gcblob,'@fund=')),
  set(018,readstring(gcblob,'@amount=')),
  focus(012);
+
+@donewinvoice=gcid=lcid,lcmaininvoiceId=kp('select invoiceId from invoices where id='&lcid),
+  break(lcmaininvoiceId+0=0),
+  lcinvoicetype=kp('select top 1 description from receiptDetail where slink=''t'&gcid&''''),
+  m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
+  break(gcretval<>2),
+  iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
+  break(gcretval='esc'),
+  lcnewamount=obj7:key1,
+  sql('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&','&obj:id),
+  refreshDetail=;
 
 @acc160=
  if(obj:key3<>'MTG',miscDetail=,mortDetailCreate=),
