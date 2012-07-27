@@ -344,7 +344,9 @@ w078090100;r2
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9,deleteReceiptDetail=),
- if(lcTyp=8,deletePayment=);
+ if(lcTyp=8,deletePayment=),
+ if(lcTyp=6,removeInvoice=),
+;
 
 @deleteReceiptDetail=
  m('exec receiptDetailRemove '&lcid&', '&obj:id);,
@@ -360,6 +362,13 @@ w078090100;r2
  d1select('exec receiptPaymentRemove '&lcid&', '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  refreshDetail=;
+
+@removeInvoice=
+ m('Are you sure you wish to remove this Tax Item?','Remove Tax Item...',,6,4),
+ break(gcretval<>2),
+ sql('delete from receiptLink where receiptId='&obj:id&' and (invoiceId='&lcid&' or ''t''+cast(invoiceId as varchar(15)) in (select slink from dbo.invoiceSubSLinks('&lcid&')))'),
+ refreshDetail=;
+;
 
 @postAndPrint=
  getRecNum=,
