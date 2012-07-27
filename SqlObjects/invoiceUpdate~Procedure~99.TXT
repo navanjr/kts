@@ -7,20 +7,18 @@ begin
   declare 
    @amount money = 0,
    @due money = 0,
-   @subDue money = 0
+   @feeDue money = 0
 
   select 
    @amount = sum(case when accountType = 'SOURCE' then amount * -1 else 0 end),
-   @due = sum(case when accountType = 'RECEIVABLE' then amount else 0 end)
-  from dbo.invoiceTotalTF(@invoiceId)
+   @due = sum(case when accountType = 'RECEIVABLE' then amount else 0 end),
+   @feeDue = sum(case when accountType = 'RECEIVABLE' then feeamount else 0 end)
+   from dbo.invoiceGLTotalTF(@invoiceId)
 
-  select @subDue = sum(dbo.invoiceTotalAR(id)) 
-  from invoices where invoiceId = @invoiceId
-   
   update invoices set
    invoiceAmount = isnull(@amount,0),
    invoiceDue = isnull(@due,0),
-   subInvoiceDue = isnull(@subDue,0)
+   subInvoiceDue = isnull(@feeDue,0)
   where id = @invoiceId
  end
 
