@@ -15,7 +15,8 @@ begin
   @code int,
   @message varchar(500),
   @targetcode varchar(50) = '',
-  @accrualcode varchar(50) = ''
+  @accrualcode varchar(50) = '',
+  @accountBlob varchar(1000)
 
  select @code = code, @message = message from dbo.receiptCheck(@receiptId,null)
  if @code = 1
@@ -44,10 +45,10 @@ begin
  begin transaction
 
   --run fund accrued receivable account verification to see if we have all the glAccounts we will need
+  select @accountBlob = dbo.glAccountGetFundAccrualCode(@fundcode, 'ACCRUED RECEIVABLE')
   select 
-   @accrualcode=accrualcode,
-   @targetcode=fundcode
-   from dbo.glAccountGetFundAccrualCode(@fundcode)
+   @accrualcode = dbo.readString('@accrualcode=', @accountBlob),
+   @targetcode = dbo.readString('@fundcode=', @accountBlob)
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
 
