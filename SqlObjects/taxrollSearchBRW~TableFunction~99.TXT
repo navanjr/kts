@@ -40,7 +40,7 @@ begin
   insert @rt (name, parcel)
    select 'Certificate: '+rtrim(a4), key1 from object where typ=4100 and key2='A' and key1=@parcel
 
-  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
+/*  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
   insert @glsum
   select a.slink,
    sum(case when b.accountType = 'RECEIVABLE' then a.amount else 0.0 end),
@@ -53,6 +53,12 @@ begin
    a.due = b.arAmount,
    a.amount = b.srcAmount 
   from @rt a, @glSum b where a.slink = b.slink
+*/  
+  update @rt set
+   due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0),
+   amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE'),0)
+  
+ delete from @rt where due < 0.01
   
  return
 end

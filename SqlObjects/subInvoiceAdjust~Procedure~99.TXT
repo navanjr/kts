@@ -1,0 +1,33 @@
+create procedure subInvoiceAdjust(@subInvoiceId int, @newAmount money, @receiptId int) as 
+begin
+ declare  @mainInvoiceId int,
+  @invoiceDate varchar(10),
+  @description varchar(50),
+  @sourceCode varchar(50),
+  @fundCode varchar(50),
+  @subInvoiceType varchar(1),
+  @amount money
+
+ select top 1 
+  @mainInvoiceId = i.invoiceId,
+  @invoiceDate = dbo.clariondate(getdate()),
+  @description = r.description,
+  @sourceCode = r.sourcecode,
+  @fundCode = r.fundcode,
+  @subInvoiceType = i.typ
+ from invoices i, receiptDetail r where i.id=@subInvoiceId and r.slink='t'+cast(i.id as varchar(15))
+
+
+ set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
+
+
+ exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount
+
+ if @receiptId>0
+ begin
+   insert receiptLink (receiptId,invoiceId,methodRate)
+  select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId) 
+   and id not in (select invoiceId from receiptLink)
+ end
+
+end

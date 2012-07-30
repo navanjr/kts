@@ -29,28 +29,8 @@ begin
  insert @accountsWorking
   select b.accountId, sum(a.amount)*-1 
   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
- select @tokenAmount = abs(sum(amount)) from @accountsWorking
+ select @tokenAmount = sum(amount)*-1 from @accountsWorking
  insert @accountsWorking select @arAccountId, @tokenAmount
-
- if exists(select * from paid where slink = @slink)
- begin
-  declare @ap table(accountId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
-  declare @paidTotal money
-
-  -- credit AR
-  select @paidTotal = sum(amount)*-1 from paid where slink = @slink
-  insert @accountsWorking select @arAccountId, @paidTotal
-
-  -- debit suspense accounts
-  insert @accountsWorking
-  select b.link1, sum(a.amount)
-  from paid a, object b 
-  where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
-
- end 
- 
- insert @accountsWorking select accountId, payAmount from @ap
-
 
  insert @accounts select accountId, sum(isnull(amount,0)) from @accountsWorking group by accountId having sum(isnull(amount,0)) != 0
 

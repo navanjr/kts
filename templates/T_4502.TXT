@@ -135,7 +135,7 @@
  @acc016=if(obj:key3='OFFICIAL',update);
 \t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL';
 
-\t017Amount; \t018@n14.2; @acc018=miscDetail=;
+\t017Amount; \t018@n-14.2; @acc018=miscDetail=;
  \h011017;r2
  \x014184; \y014=012; \w01449; n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
@@ -237,9 +237,11 @@ w078090100;r2
 \t051Cert#; \w05260; \l0524100;r052014054002; @lf052='typ=4100 and key2=''A''';
 \t053Parcel#; \w054100; \r054;
 \x051053+157;r2 \x052054+127;r2
-\t113Redemption Amount;
+
+\h113obj:key3<>'INDIV';r
+\t113Redeem Amount;
  @acc113=update,d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id),
- if(readstring(obj7:d1,'@code=1;')>0,m(obj7:d1)),refreshDetail=;
+ if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
 
 @acc165=update,
  lcBreak=0,
@@ -313,6 +315,7 @@ w078090100;r2
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
+ if(lcTyp+0=7,donewinvoice=),
  break(lcTyp<>9),
  set(-07,lcid,1),
  gcblob=kp('select dbo.getMiscDetail('&lcid&')'),
@@ -321,6 +324,17 @@ w078090100;r2
  set(016,readstring(gcblob,'@fund=')),
  set(018,readstring(gcblob,'@amount=')),
  focus(012);
+
+@donewinvoice=gcid=lcid,lcmaininvoiceId=kp('select invoiceId from invoices where id='&lcid),
+  break(lcmaininvoiceId+0=0),
+  lcinvoicetype=kp('select top 1 description from receiptDetail where slink=''t'&gcid&''''),
+  m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
+  break(gcretval<>2),
+  iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
+  break(gcretval='esc'),
+  lcnewamount=obj7:key1,
+  sql('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&','&obj:id),
+  refreshDetail=;
 
 @acc160=
  if(obj:key3<>'MTG',miscDetail=,mortDetailCreate=),
@@ -332,7 +346,9 @@ w078090100;r2
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9,deleteReceiptDetail=),
- if(lcTyp=8,deletePayment=);
+ if(lcTyp=8,deletePayment=),
+ if(lcTyp=6,removeInvoice=),
+;
 
 @deleteReceiptDetail=
  m('exec receiptDetailRemove '&lcid&', '&obj:id);,
@@ -348,6 +364,13 @@ w078090100;r2
  d1select('exec receiptPaymentRemove '&lcid&', '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  refreshDetail=;
+
+@removeInvoice=
+ m('Are you sure you wish to remove this Tax Item?','Remove Tax Item...',,6,4),
+ break(gcretval<>2),
+ sql('delete from receiptLink where receiptId='&obj:id&' and (invoiceId='&lcid&' or ''t''+cast(invoiceId as varchar(15)) in (select slink from dbo.invoiceSubSLinks('&lcid&')))'),
+ refreshDetail=;
+;
 
 @postAndPrint=
  getRecNum=,
