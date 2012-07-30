@@ -1,0 +1,31 @@
+create function dbo.glAccountGetFundAccrualBlob(
+-- this function takes a fund code and returns a blob with accurual code and fund code
+ @fundcode varchar(50),
+ @accountType varchar(50) 
+) 
+returns varchar(1000) as 
+begin
+
+ declare @retVar varchar(1000)
+
+-- first check to see if we were given a real fund code...
+--  if not found in funds we just assume it is a request accrual and it will get passed to glAccountVerification
+ if not exists(select * from glaccounts where accountType = 'FUND' and accountcode = @fundcode)
+ begin
+  set @retVar = '@accrualCode=' + @fundcode + ';@fundcode=;'
+  return @retvar
+ end 
+
+
+-- if we find the accrual account we return it
+ if exists(select * from glaccounts where accountType = @accountType and targetaccountcode = @fundcode)
+ begin
+  select @retVar = '@accrualCode=' + accountcode + ';@fundcode=' + targetaccountcode + ';'
+  from glaccounts
+  where accountType = @accountType and targetaccountcode = @fundcode
+  return @retvar
+ end
+
+ select @retVar = '@accrualCode=' + upper(rtrim(@fundcode))+'_ACR' + ';@fundcode=' + @fundcode + ';'
+ return @retvar
+end
