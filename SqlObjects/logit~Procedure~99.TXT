@@ -1,0 +1,36 @@
+create procedure dbo.logit(
+ @label varchar(max) = null,
+ @value varchar(max) = null,
+ @procId int = null,
+ @control varchar(10) = null
+) as
+begin
+
+ declare @procName varchar(50) = isnull(object_name(@procId),'')
+
+ if @control in ('start','stop')
+ begin
+  update object set b15 = case when @control = 'start' then 'logging on' else 'logging off' end where typ = 0 and link1 = -1
+  insert keyLog (message) select 'Log Control:' + @control
+  return
+ end
+
+ if @control = 'status'
+ begin
+  select b15 as logging_status from object where typ = 0 and link1 = -1
+  return
+ end
+
+ if @control = 'list'
+ begin
+  select top 100 * from keyLog order by time desc
+  return
+ end
+
+-- we bail if logging is not turned on
+ if not (select b15 from object where typ = 0 and link1 = -1) = 'logging on'
+  return
+
+ insert keyLog (procName, message) select @procName, @label + ':' + @value
+
+end

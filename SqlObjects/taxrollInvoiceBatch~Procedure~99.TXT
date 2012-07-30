@@ -23,7 +23,7 @@ begin
 
  exec( @sql )
 
--- exec dbo.createAdtaxMillageSources
+ exec dbo.createAdtaxMillageSources
  exec dbo.createAdtaxMillageReceivables
 
  declare @rt table(id int, resultInt int) 
@@ -31,7 +31,7 @@ begin
  while exists(select * from temp_taxrollInvoice)
  begin
   select top 1 @idToken = id from temp_taxrollInvoice
---  begin transaction
+  begin transaction
    exec dbo.taxReferenceCRUD @idToken
    exec dbo.taxrollInvoiceCRUD @idToken, 1, 'B'
    exec dbo.taxRollAddressInsert @idToken, ''
@@ -40,12 +40,12 @@ begin
    if dbo.glPostCheck(@slink) = 0
    begin
     insert @rt select @idToken, 0
---    commit transaction
+    commit transaction
    end
    else
    begin 
     insert @rt select @idToken, 1
---    rollback transaction
+    rollback transaction
    end
 
    delete temp_taxrollInvoice where id = @idToken
