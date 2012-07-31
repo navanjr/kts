@@ -6,26 +6,47 @@ create function dbo.glAccountGetFundAccrualBlob(
 returns varchar(1000) as 
 begin
 
- declare @retVar varchar(1000)
+ declare
+  @retVar varchar(1000),
+  @codeSuffix varchar(10)
 
--- first check to see if we were given a real fund code...
+-- if clerks fund...
+ if @accountType = 'Clerks Fund'
+ begin
+  select
+   @fundcode = isnull(a2,'Fund_not_Found'),
+   @accountType = 'ACCRUED PAYABLE' 
+  from object 
+  where typ = 4704 and key2 = @fundcode
+ end
+
+-- check to see if we were given a real fund code...
 --  if not found in funds we just assume it is a request accrual and it will get passed to glAccountVerification
  if not exists(select * from glaccounts where accountType = 'FUND' and accountcode = @fundcode)
  begin
-  set @retVar = '@accrualCode=' + @fundcode + ';@fundcode=;'
+  set @retVar = '@status=fund not found;@accrualCode=' + @fundcode + ';@fundcode=;'
   return @retvar
  end 
-
 
 -- if we find the accrual account we return it
  if exists(select * from glaccounts where accountType = @accountType and targetaccountcode = @fundcode)
  begin
-  select @retVar = '@accrualCode=' + accountcode + ';@fundcode=' + targetaccountcode + ';'
+  select @retVar = '@status=fund found;@accrualCode=' + rtrim(accountcode) + ';@fundcode=' + rtrim(targetaccountcode) + ';'
   from glaccounts
   where accountType = @accountType and targetaccountcode = @fundcode
   return @retvar
  end
 
- select @retVar = '@accrualCode=' + upper(rtrim(@fundcode))+'_ACR' + ';@fundcode=' + @fundcode + ';'
+ select @codeSuffix = case @accountType
+  when 'ACCRUED PAYABLE' then '_ACP'
+  when 'ACCRUED RECEIVABLE' then '_ACR'
+ end
+
+ select @retVar = '@status=fund needed;@accrualCode=' + upper(rtrim(@fundcode)) + @codeSuffix + ';@fundcode=' + rtrim(@fundcode) + ';'
+
+-- if this is a Payable request lets tack on the expense account 
+ select @retVar = @retVar + '@expenseCode=' + rtrim(@fundCode) + '_EXP;'
+
  return @retvar
 end
+
