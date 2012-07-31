@@ -14,8 +14,11 @@
 @loadwindow=
  gcBat='gitcmd_temp.bat',
  gcBatIni='gitcmdIni_temp.bat',
+ gcRepoPath=getini('git','path','','c:\kellpro.ini'),
+ gcAppInitials=getini('git','appinitials','','c:\kellpro.ini'),
+ gcAppPath=kpexepath(),
  gitCreateIni=,
- gcBranchName=getini('gitInfo','BRANCHNAME','unknown','c:\client\key\gitInfo.ini'),
+ gcBranchName=getini('gitInfo','BRANCHNAME','unknown',gcAppPath&'\gitInfo.ini'),
  create(150,34,64,3,'',002),
  prop(150,'From','jeff|matt|nate|steve|wade|master'),
  prop(150,'Width',80),
@@ -67,8 +70,8 @@
  dumpUsers=;
 
 @exportTemplates=
- exporttexttemplate(kpexepath()&'\kts\templates',lcExportFilter),
- send(gcBat,'pushd \client\key\kts'),
+ exporttexttemplate(gcRepoPath&'\templates',lcExportFilter),
+ send(gcBat,'pushd '&gcRepoPath),
  sqlloop('select id from template where id > 0',exportloop=),
  send(gcBat,'del sed*',1),
  send(gcBat,'popd',1),
@@ -133,7 +136,7 @@
 
 \t114Backup Data;
 @acc114=
- sql('backup database '&kp('database')&' to disk=''c:\client\key\kts\kts.dat'' with retaindays=0,INIT');
+ sql('backup database '&kp('database')&' to disk='''&gcAppPath&'\kts.dat'' with retaindays=0,INIT');
 
 \t115CSV Stuff;
 @acc115=
@@ -143,7 +146,7 @@
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
  break(gcretval<>'OK'),
  lcTemplateId=obj7:key1,
- importtexttemplate(kpexepath()&'\kts\templates','RTEM:ID='&lcTemplateId),
+ importtexttemplate(gcRepoPath&'\templates','RTEM:ID='&lcTemplateId),
  gitCreateIni=,
  gitStatus=;
 
@@ -156,32 +159,32 @@
  gitStatus=;
 
 @templateImport=
- importtexttemplate(kpexepath()&'\kts\templates','RTEM:ID>0');.
+ importtexttemplate(gcRepoPath&'\templates','RTEM:ID>0');.
 
 @userImport=
- lcpath=kpexepath(),
- lcpath1=kpexepath()&'\kts',
+ lcpath=gcAppPath,
+ lcpath1=gcRepoPath,
  delfile(lcpath&'\kts.usr'),
  filecopy(lcpath1&'\kts.usr',lcpath&'\kts.usr'),
  importusers('kts.usr');
 
 @dumpUsers=
- lcpath=kpexepath(),
- lcpath1=kpexepath()&'\kts',
+ lcpath=gcAppPath,
+ lcpath1=gcRepoPath,
  delfile(lcpath&'\kts.usr'),
  exportusers('kts.usr'),
  filecopy(lcpath&'\kts.usr',lcpath1&'\kts.usr');
 
 @exportObjects=
- if(kpexists(kpexepath()&'\kts\SqlObjects')<>1,createFolder=,cleanOutFolder=),
+ if(kpexists(gcRepoPath&'\SqlObjects')<>1,createFolder=,cleanOutFolder=),
  sqlloop('select id,key1,key2,a17,a18 from object where typ=451',exportObject1=);
 
 @createFolder=
- gcGitCmd='mkdir c:\client\key\kts\SqlObjects',
+ gcGitCmd='mkdir '&gcRepoPath&'\SqlObjects',
  gitCommand=;
 
 @cleanOutFolder=
-  gcGitCmd='del '&kpexepath()&'\kts\sqlobjects\*.* /q',
+  gcGitCmd='del '&gcRepoPath&'\sqlobjects\*.* /q',
   gitCommand=;
 
 @exportObject1=
@@ -192,27 +195,21 @@
  gcSQLObjA5=obj5:a5,
  exportBlackBox=;
 
- fastmodify(obj5:a1,044=''),
- lcFile=obj5:a2&'~'&obj5:a3&'~'&obj5:a4&'.TXT',
- e1select('select e1 from object where id='&obj5:a1),
- lcE1=clip(obj7:e1),
- send('kts\SqlObjects\'&lcFile,lcE1);
-
 @exportBlackBox=
  fastmodify(gcSQLObjId,044=''),
  lcFile=gcSQLObjA2&'~'&gcSQLObjA3&'~'&gcSQLObjA4&'.TXT',
  e1select('select e1 from object where id='&gcSQLObjId),
  lcE1=clip(obj7:e1),
- send('kts\SqlObjects\'&lcFile,lcE1);
+ send(gcRepoPath&'\SqlObjects\'&lcFile,lcE1);
 
 @importObjects=
- setpath(kpexepath()&'\KTS\sqlObjects'),
+ setpath(gcRepoPath&'\sqlObjects'),
  dirObjectCheck=;
 
 @importObjectsA=
  sqlloop('select name,path from dbo.dirRead('''&kp('path')&''') where name is not null',importObjects1=),
  do(451,bbproc5=),
- setpath(kpexepath());
+ setpath(gcAppPath);
 
 @importObjects1=
  gcFile=obj5:a1,
@@ -264,7 +261,7 @@
  prop(152,text,workmemo);
 
 @gitCommand=
- send(gcBat,'pushd \client\key\kts'),
+ send(gcBat,'pushd '&gcRepoPath),
  send(gcBat,'call '&gcGitCmd,1),
  send(gcBat,'popd',1),
  runw(gcBat,,0);
@@ -272,7 +269,7 @@
 @gitCreateIni=
  send(gcBatIni,'@echo off'),
  send(gcBatIni,'set TERM=msys',1),
- send(gcBatIni,'pushd \client\key\kts',1),
+ send(gcBatIni,'pushd '&gcRepoPath,1),
  send(gcBatIni,'echo [gitInfo] > ..\gitInfo.ini',1),
  send(gcBatIni,'for /F "tokens=3 delims=/" %%i in (.git/HEAD) do echo BRANCHNAME=%%i >> ..\gitInfo.ini',1),
  send(gcBatIni,'call git status > ..\gitStatus.txt',1),

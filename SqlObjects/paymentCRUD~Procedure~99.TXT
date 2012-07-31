@@ -16,7 +16,6 @@ begin
   @slink varchar(15) = 'o' + cast(@id as varchar),
   @log varchar(max)
 
-
  if @mode = 3
  begin
   -- bail if we are already posted
@@ -43,12 +42,11 @@ begin
 
   declare @nextVoucherNumber varchar(50)
 
-  exec dbo.nextObjectAutoNumber 4771, null, @nextVoucherNumber output
+  exec dbo.nextObjectAutoNumber 4771, @paymentType, @nextVoucherNumber output
 
- exec dbo.logit 'NextVoucherNumber', @nextVoucherNumber
-
- exec dbo.logit 'debitAccount', @debitAcct
- exec dbo.logit 'creditAccount', @creditAcct, @@procid
+ exec dbo.logit @@procid, 'NextVoucherNumber', @nextVoucherNumber
+ exec dbo.logit @@procid, 'debitAccount', @debitAcct
+ exec dbo.logit @@procid, 'creditAccount', @creditAcct
 
 begin try
   insert object (
@@ -73,7 +71,7 @@ begin try
 end try
 begin catch
  set @log = error_message()
- exec dbo.logit 'sqlCatchError', @log
+ exec dbo.logit @@procid, 'sqlCatchError', @log
 end catch
  
   declare @newId int = @@identity
