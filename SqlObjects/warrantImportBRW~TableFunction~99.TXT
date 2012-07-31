@@ -6,7 +6,11 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  warrantDate varchar(50),
  accountNumber varchar(50),
  amount varchar(50),
- vendorCode varchar(50)
+ vendorCode varchar(50),
+ accountBlob varchar(100),
+ debitAcct varchar(50),
+ creditAcct varchar(50),
+ postCheck int
 )
 begin
 
@@ -54,10 +58,22 @@ begin
     (select dbo.clarionDate(data) from dbo.split(@dataToken,',') where id = 4),
     (select data from dbo.split(@dataToken,',') where id = 5),
     (select data from dbo.split(@dataToken,',') where id = 6),
-    (select data from dbo.split(@dataToken,',') where id = 7)
+    (select data from dbo.split(@dataToken,',') where id = 7),
+    null,null,null,null
 
   delete @rows where id = @idToken
  end
+    
+-- gather up the accounts to hit
+-- credit fund accrued payable
+-- debit expense account per fund
+   update @rt set accountBlob = dbo.glAccountGetFundAccrualBlob(clerksFund, 'Clerks Fund')
+   update @rt set 
+    creditAcct = dbo.readString('@accrualCode=',accountBlob),
+    debitAcct = dbo.readString('@expenseCode=',accountBlob)
+
+ update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
+ update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
 
  return 
 end

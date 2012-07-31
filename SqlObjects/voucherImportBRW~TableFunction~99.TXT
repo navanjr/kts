@@ -5,7 +5,8 @@ create function dbo.voucherImportBRW( @id int ) returns @rt table(
  payee varchar(50),
  amount varchar(50),
  debitAcct varchar(50),
- creditAcct varchar(50)
+ creditAcct varchar(50),
+ postCheck int
 )
 begin
 
@@ -51,10 +52,14 @@ begin
     (select data from dbo.split(@dataToken,',') where id = 3),
     (select data from dbo.split(@dataToken,',') where id = 4),
     @debitAcct,
-    @creditAcct
+    @creditAcct,
+    0
 
   delete @rows where id = @idToken
  end
+
+ update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
+ update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
 
  return 
 end
