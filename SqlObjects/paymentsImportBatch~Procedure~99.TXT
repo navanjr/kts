@@ -22,9 +22,10 @@ begin
    voucherNumber varchar(50),
    payee varchar(50),
    amount money,
-   debitAcct varchar(50),
-   creditAcct varchar(50),
-   officialsFundCode varchar(50)
+   debitAcct varchar(500),
+   creditAcct varchar(500),
+   officialsFundCode varchar(50),
+   accountBlob varchar(1000)
   )
 
   declare @results table( code int, message varchar(100) )
@@ -53,6 +54,7 @@ begin
    cast(amount as money),
    debitAcct,
    creditAcct,
+   null,
    null
   from dbo.voucherImportBRW(@batchId)
 
@@ -67,13 +69,17 @@ begin
    cast(amount as money),
    '' as debitAcct,
    '' as creditAcct,
-   clerksFund
+   clerksFund,
+   null
   from dbo.warrantImportBRW(@batchId)
 
 -- gather up the accounts to hit
- -- credit fund accrued payable
- -- debit expense account per fund
---  update @wt set debitAcct = @
+-- credit fund accrued payable
+-- debit expense account per fund
+   update @wt set accountBlob = dbo.glAccountGetFundAccrualBlob(officialsFundCode, 'Clerks Fund')
+   update @wt set 
+    creditAcct = dbo.readString('@accrualCode=',accountBlob),
+    debitAcct = dbo.readString('@fundCode=',accountBlob) + '_EXP'
 
  end
 
@@ -89,10 +95,13 @@ begin
 
   if exists(select * from @wt where debitAcct < '  0' or creditAcct < '  0')
   begin
-   select '@code=1;@message=some items are missing needed account information;'
+   exec dbo.logit @@procid, 'missing required account information'
+   select '@code=1;@message=some items are missing required account information;'
    return
   end
- 
+  
+-- so far so good... lets verify gl Accounts
+
   while exists(select * from @wt)
   begin
     select top 1 @idToken = id, 
@@ -106,7 +115,8 @@ begin
 
    if @debugMode = 'false'
    begin
-    exec dbo.voucherCRUD 0,  
+    exec dbo.paymentCRUD 0,  
+     @paymentType = @paymentType,
      @voucherDate = @voucherDate,
      @voucherNumber = @voucherNumber,
      @payee = @payee,
@@ -129,3 +139,4 @@ begin
  
  return
 end
+
