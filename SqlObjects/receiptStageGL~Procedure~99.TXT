@@ -4,12 +4,14 @@ begin
  declare @accountsWorking table(
   accountId int,
   contraId int,
-  amount money
+  amount money,
+  comment varchar(100)
  )
  declare @accounts table(
   accountId int,
   contraId int,
-  amount money
+  amount money,
+  comment varchar(100)
  )
  
  declare @styp char(1) = 'o'
@@ -21,7 +23,8 @@ begin
   @tokenId int,
   @tokenContraId int,
   @tokenAmount money,
-  @receiptType varchar(50)
+  @receiptType varchar(50),
+  @comment varchar(50)
  
  select 
   @code = code,
@@ -34,53 +37,53 @@ begin
  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
  begin
   insert @accountsWorking
-   select b.accountId, null, sum(a.amount)*-1 
+   select b.accountId, null, sum(a.amount)*-1,'' 
    from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
-  insert @accountsWorking select @arAccountId, null, @tokenAmount
+  insert @accountsWorking select @arAccountId, null, @tokenAmount,''
  end
 
  if exists(select * from paid where slink = @slink)
  begin
-  declare @ap table(accountId int, contraId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
+  declare @ap table(accountId int, contraId int, amount money, prorate decimal(19,18), payAmount decimal(19,10), comment varchar(100))
   declare @paidTotal money
 
   -- credit AR
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
   if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
   begin
-   insert @accountsWorking select @arAccountId, null, @paidTotal
+   insert @accountsWorking select @arAccountId, null, @paidTotal,''
   end
 
   -- debit suspense accounts
   -- TODO: replace this query and use the new paycodes view instead of object
   insert @accountsWorking
-  select b.link1, null, sum(a.amount)
+  select b.link1, null, sum(a.amount),''
   from paid a, object b 
   where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
 
   -- debit tresurers receipt fund and credit fund receivables
-  insert @accountsWorking select @contraId, null, @paidTotal
+  insert @accountsWorking select @contraId, null, @paidTotal,''
   if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
   begin
    insert @ap
-    select b.accountId, null, sum(a.amount)*-1, 0, 0
+    select b.accountId,  @contraId, sum(a.amount)*-1, 0, 0,a.description
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType='ACCRUED RECEIVABLE' group by b.accountId
+    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType='ACCRUED RECEIVABLE' group by b.accountId, a.description
    insert @ap
-    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0
+    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0,a.description
     from receiptDetail a, dbo.glAccounts b 
     where a.slink = @slink and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode and b.accountcode<>a.fundcode 
-      group by b.accountId
+      group by b.accountId, a.description
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
  end 
  
- insert @accountsWorking select accountId, contraId, payAmount from @ap
+ insert @accountsWorking select accountId, contraId, payAmount, comment from @ap
 
- insert @accounts select accountId, contraId, sum(isnull(amount,0)) from @accountsWorking group by accountId, contraId having sum(isnull(amount,0)) != 0
+ insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment from @accountsWorking group by accountId, contraId, comment having sum(isnull(amount,0)) != 0
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
@@ -90,25 +93,28 @@ begin
  end
 
  -- remove 
- delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
+ delete glDetailStage where slink = @slink 
 
- -- update
+/* -- update -- commented to allow for the contraid and comment because the accountid may appear in @accounts more than once now.
  update a set a.amount = b.amount
  from glDetailStage a, @accounts b
  where a.accountId = b.accountId
+  and a.contraId = b.contraId
+  and a.comment = b.comment
   and a.slink = @slink
  
  delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
-
+*/
  -- insert
  while exists(select * from @accounts)
  begin
   select top 1
    @tokenId = accountId,
    @tokenContraId = contraId,
-   @tokenAmount = amount
+   @tokenAmount = amount,
+   @comment = left(rtrim(comment),49)
   from @accounts
-  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@tokenContraId
+  insert gldetailstage (slink,accountId,amount,contraId,comment) select @slink,@tokenId,@tokenAmount,@tokenContraId, @comment
   delete @accounts where accountId = @tokenId
  end
  

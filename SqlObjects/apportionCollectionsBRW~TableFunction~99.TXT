@@ -2,19 +2,23 @@ create function dbo.apportionCollectionsBRW( @accountId int ) returns @rt table(
  accountId int,
  accountCode varchar(50),
  accountDesc varchar(50),
- amount money
+ amount money,
+ comment varchar(50),
+ comment2 varchar(50)
 )
 begin
 
 -- debits
  insert @rt
- select b.accountId, b.accountCode, b.accountDesc, a.amount 
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc 
  from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc
  
 -- credits
  insert @rt
- select b.accountId, b.accountCode, b.accountDesc, a.amount * -1 
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc 
  from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc
 
  return
 end

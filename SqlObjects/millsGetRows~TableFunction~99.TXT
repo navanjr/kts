@@ -1,22 +1,44 @@
 create function dbo.millsGetRows(
  @typ int,
  @year varchar(50),
- @amount money
+ @amount money,
+ @code varchar(50)=''
 ) returns @rt table(
  id int identity(1,1),
  description varchar(50),
  millamount decimal(19,9),
  millRate decimal(16,14),
- amount money
+ amount money,
+ accountId int,
+ accountCode varchar(50)
 ) as
 begin
 
  declare
   @millTotal money,
-  @totalFigured money
+  @totalFigured money,
+  @apyear varchar(50),
+  @apdistrict varchar(50),
+  @aprate varchar(50)
 
- insert @rt (description, millAmount)
- select key2,cast(key3 as decimal(19,9)) from object where typ = @typ and key1 = @year
+ if @typ=4009
+ begin
+  insert @rt (description, millAmount, accountId)
+  select b.accountcode,cast(a.key3 as decimal(19,9)),b.accountId from object a, glaccounts b where a.typ = @typ and a.key1 = @year and a.key2 = @code 
+   and a.key1=b.apyear and a.a1=b.apdistrict and a.a2=b.aprate
+ end
+
+ if @typ=4013
+ begin
+  insert @rt (description, millAmount, accountCode)
+  select key2,cast(key3 as decimal(19,9)),a1 from object where typ = @typ and key1 = @year
+ end
+
+ if @typ=4014
+ begin
+  insert @rt (description, millAmount, accountCode)
+  select key2,cast(key3 as decimal(19,9)),a1 from object where typ = @typ and key1 = @year and a2 = @code
+ end
 
  select @millTotal = sum(millAmount) from @rt
 
@@ -44,3 +66,4 @@ begin
 
  return
 end
+

@@ -1,6 +1,5 @@
-create proc dbo.paymentCRUD(
+create proc dbo.voucherCRUD(
  @mode int,
- @paymentType varchar(50),
  @voucherDate int = null,
  @voucherNumber varchar(50) = null,
  @payee varchar(50) = null,
@@ -15,6 +14,7 @@ begin
  declare
   @slink varchar(15) = 'o' + cast(@id as varchar),
   @log varchar(max)
+
 
  if @mode = 3
  begin
@@ -42,11 +42,12 @@ begin
 
   declare @nextVoucherNumber varchar(50)
 
-  exec dbo.nextObjectAutoNumber 4771, @paymentType, @nextVoucherNumber output
+  exec dbo.nextObjectAutoNumber 4771, null, @nextVoucherNumber output
 
- exec dbo.logit @@procid, 'NextVoucherNumber', @nextVoucherNumber
- exec dbo.logit @@procid, 'debitAccount', @debitAcct
- exec dbo.logit @@procid, 'creditAccount', @creditAcct
+ exec dbo.logit 'NextVoucherNumber', @nextVoucherNumber
+
+ exec dbo.logit 'debitAccount', @debitAcct
+ exec dbo.logit 'creditAccount', @creditAcct, @@procid
 
 begin try
   insert object (
@@ -64,14 +65,14 @@ begin try
    @amount,
    d.accountCode,d.accountDesc,
    c.accountCode,c.accountDesc,
-   dbo.proper(@paymentType)
+   'OFFICIALVOUCHER'
    from glAccounts d, glAccounts c
    where d.accountCode = @debitAcct 
     and c.accountCode = @creditAcct
 end try
 begin catch
  set @log = error_message()
- exec dbo.logit @@procid, 'sqlCatchError', @log
+ exec dbo.logit 'sqlCatchError', @log
 end catch
  
   declare @newId int = @@identity
