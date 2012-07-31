@@ -17,6 +17,7 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
+  @contraAccountCode varchar(50),
   @arAccountId int,
   @fpid int,
   @status varchar(50),
@@ -53,11 +54,11 @@ begin
  begin
   if @receiptType = 'OFFICIAL'
    begin
-    select @contraId = id from object where typ = 4701 and key1 = @officialfund
+    select @contraId = accountId, @contraAccountCode = accountCode from glaccounts where accountCode = @officialfund
    end
   else
    begin
-    select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+    select @contraId = accountId, @contraAccountCode = accountCode from gcaccounts where code = @receiptType 
    end
  
   if isnull(@contraId,0) = 0
@@ -68,7 +69,7 @@ begin
   end
 
   -- check for AR account
-  select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+  select @arAccountId = accountId from glAccounts where accountType = 'RECEIVABLE' and targetAccountCode = @contraAccountCode 
   if isnull(@arAccountId,0) = 0
   begin
    insert @rettable

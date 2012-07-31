@@ -60,7 +60,12 @@
 
 \t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
 \t003Description;  \c004;  \e004;
-\t005Code;  \u006;  \t006@s10;  \w00650;  @acc006=update,d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),if(obj7:d1>1,'pfcode=');  @pfcode=message('Code already in use.'),set(006,''),focus(006);
+\t005Code;  \u006;  \t006@s10;  \w00650;  
+   @acc006=update,
+     d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),
+     if(obj7:d1>1 and obj:key3>'0','pfcode='),
+     if(obj:key3>'0',d1select('exec dbo.receiptAccountsVerification '''&obj:key1&''''));  
+   @pfcode=message('Code already in use.'),set(006,''),focus(006);
 \t007Type; \l0084702;r008002010004012006;  \q008;  \w00850;
 \t009Description;  \d010;
 \t011Report Code;  \d012;  \w01225;  \w01250;
@@ -79,7 +84,7 @@
 
 \h023024obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0';r
 \t023Table Type; \u024; \w02412; @choose024:SAPLM;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
-@accr022032r2=refreshDetail=,tsc;
+@accr024032r2=refreshDetail=,tsc;
 \h025026obj:a1<>'ACCRUED RECEIVABLE' or obj:a9<>'L' or obj:a8>' 0';r
 \t025PILOT Table; 
  \l0264009;r026004028002; @lf026='id in (select max(id) from object where typ=4009 and key2=a.key2 and key1=a.key1)';

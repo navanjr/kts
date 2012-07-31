@@ -1,0 +1,20 @@
+create procedure dbo.paymentAccountsVerification( @fundCode varchar(50) ) as
+begin
+
+ declare
+  @accountBlob varchar(1000),
+  @accruedPayableCode varchar(50),
+  @expenseCode varchar(50)
+
+ select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'ACCRUED PAYABLE')
+
+-- check for accrued payable account
+ select
+  @accruedPayableCode = dbo.readString('@accrualCode=',@accountBlob),
+  @expenseCode = dbo.readString('@expenseCode=',@accountBlob)
+
+ exec dbo.glAccountVerification @accruedPayableCode, 'ACCRUED PAYABLE', 'CREATE',  @targetAccountCode = @fundCode
+ exec dbo.glAccountVerification @expenseCode, 'EXPENSE', 'CREATE',  @targetAccountCode = @fundCode
+ 
+end
+

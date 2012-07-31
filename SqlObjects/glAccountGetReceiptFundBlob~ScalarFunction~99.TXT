@@ -1,0 +1,24 @@
+create function dbo.glAccountGetReceiptFundBlob(
+-- this function takes a fund code and returns a blob with receivable code, fund code and expense code
+ @fundcode varchar(50),
+ @accountType varchar(50) 
+) 
+returns varchar(1000) as 
+begin
+
+ declare @retVar varchar(1000)
+
+-- if we find the accrual account we return it
+ if exists(select * from glaccounts where accountType = @accountType and targetaccountcode = @fundcode)
+ begin
+  select @retVar = '@accrualCode=' + accountcode + ';@fundcode=' + targetaccountcode + ';'
+  from glaccounts
+  where accountType = @accountType and targetaccountcode = @fundcode
+  return @retvar
+ end
+
+ select @retVar = '@accrualCode=' + upper(rtrim(@fundcode))+case when @accountType='RECEIVABLE' then 'AR' when @accountType='EXPENSE' then 'APP' else 'X' end+ ';@fundcode=' + @fundcode + ';'
+
+ return @retvar
+end
+
