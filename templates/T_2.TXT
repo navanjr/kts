@@ -40,6 +40,7 @@
  prop(152,fontsize,7);
 
 @afterloadwindow=
+ prop(0,text,'Git Repo: '&upper(gcRepoPath)),
  gitStatus=;
 
  gitFetchAll=,
@@ -54,23 +55,22 @@
 
 \t105E&xport;
 @acc105=
- m('please select on of the following EXPORT options...','Export to local repo...',,'&Objects|&Templates|&Users|&One Template|&Everything|&Cancel'),
+ m('please select on of the following EXPORT options...','Export to local repo...',,'&Objects|&Templates|&Users|&Everything|&Cancel'),
  break(gcretval=6),
  if(gcretval=1,exportObjects=),
  if(gcretval=2,exportTemplates=),
  if(gcretval=3,dumpUsers=),
- if(gcretval=4,export1Template=),
- if(gcretval=5,exportEverything=),
+ if(gcretval=4,exportEverything=),
  gitCreateIni=,
  gitStatus=;
 
 @exportEverything=
  exportObjects=,
- lcExportFilter='RTEM:ID > 0',exportTemplates=,
+ gcExportTemplateFilter='RTEM:ID > 0',exportTemplateGuts=,
  dumpUsers=;
 
-@exportTemplates=
- exporttexttemplate(gcRepoPath&'\templates',lcExportFilter),
+@exportTemplateGuts=
+ exporttexttemplate(gcRepoPath&'\templates',gcExportTemplateFilter),
  send(gcBat,'pushd '&gcRepoPath),
  sqlloop('select id from template where id > 0',exportloop=),
  send(gcBat,'del sed*',1),
@@ -80,10 +80,9 @@
  lcTemplateId=obj5:a1,
  send(gcBat,'sed -i "/^@lastedit=/d" templates\T_'&lcTemplateId&'.TXT',1);
 
-@export1Template=
- iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
- break(gcretval<>'OK'),
- lcExportFilter='RTEM:ID='&obj7:key1,exportTemplates=,
+@exportTemplates=
+ lcid=kp('select id from object where typ=455'),
+ if(lcid+0>0,change(lcid,,1),neww(455)),
  gitCreateIni=,
  gitStatus=;
 
