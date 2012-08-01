@@ -23,9 +23,6 @@ returns @rt table(
 as
 begin
 
--- TODO: this will need a bit more clean up to use this in place of taxrollGetRates()
--- until then we will need to use both getrate procs
-
  declare 
   @taxYear varchar(4),
   @district varchar(50),
@@ -133,8 +130,8 @@ begin
   end
 
  -- check the total and add or remove from the biggon
--- if @invoiceType!='S'
--- begin
+ if @invoiceType!='S'
+  begin
    select @totalFigured = sum(amount) from @rt
    if @totalFigured != @taxAmount
    begin
@@ -149,11 +146,8 @@ begin
     from @rt order by amount desc
 
     update @rt set amount = amount - @fudgeAmount where id = @fudgeToken
---  end
- end
-
- -- remove any zeros ?Maybe?
--- delete @rettable where amount = 0 
+   end
+  end
 
  if @mode = 'apportionment' 
  begin
@@ -163,8 +157,6 @@ begin
   from @rt a, object b
   where a.taxName = b.key1 and b.typ = 4008
  end
-
-
 
  return
 end
