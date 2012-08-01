@@ -38,8 +38,8 @@ begin
    and ISNULL(a.bsId,0) = 0
   group by a.contraId, b.accountCode, b.apTableType
 
--- credit Expense accounts
- insert @wt (accountId, creditCode,apTableType,amount)
+-- debit Expense accounts
+ insert @wt (accountId, debitCode,apTableType,amount)
  select b.accountId, b.accountCode, b.apTableType, SUM(a.amount)
   from gldetail a, glAccounts b, glaccounts c
   where b.accountType = 'EXPENSE'
@@ -49,14 +49,24 @@ begin
    and ISNULL(a.bsId,0) = 0
   group by b.accountId, b.accountCode, b.apTableType
 
- 
- insert @wt(accountId, debitCode, apTableType, apYear, creditCode, amount, appilottable, apdistrict, aprate, appoptype, comment)
- select a.accountId, b.accountCode, b.apTableType, b.apYear, b.targetAccountCode, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, a.comment
+
+-- credit accrued receivables 
+ insert @wt(accountId, creditCode, amount, comment)
+ select a.accountId, b.accountCode, SUM(a.amount), a.comment
   from gldetail a, glAccounts b
   where a.accountId = b.accountId
    and a.contraId = @accountId
    and ISNULL(a.bsId,0) = 0
-  group by a.accountId, b.accountCode, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.comment
+  group by a.accountId, b.accountCode, a.comment
+
+-- credit funds
+ insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment)
+ select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, a.comment
+  from gldetail a, glAccounts b
+  where a.accountId = b.accountId
+   and a.contraId = @accountId
+   and ISNULL(a.bsId,0) = 0
+  group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.comment
 
 -- process the L types
  update @wt set processFlag = 1 where apTableType = 'L'

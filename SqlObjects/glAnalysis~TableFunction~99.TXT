@@ -33,6 +33,7 @@ begin
  
  declare @bbal table(id int, amount money, cnt int)
  declare @cbal table(id int, amount money, cnt int)
+ declare @dbal table(id int, amount money, cnt int)
 
  insert @rettable (id,ord,accountId,accountDesc,accountType)
   select id*-1,'Az',id,ltrim(key2),a1 from object where typ = 4701 and a1 in (select glType from @glTypes)
@@ -40,7 +41,10 @@ begin
  insert @bbal
   select accountId, sum(amount), count(distinct slink) from glDetail where fpId in (select fpId from @beginFPIds) group by accountId
  insert @cbal
-  select accountId, sum(amount), count(distinct slink) from glDetail where fpId = @fpId group by accountId
+  select accountId, sum(amount), count(distinct slink) from glDetail where fpId = @fpId and amount<0 group by accountId
+ insert @dbal
+  select accountId, sum(amount), count(distinct slink) from glDetail where fpId = @fpId and amount>0 group by accountId
+
 
  update a set
   a.beginningBalance = b.amount, a.recCount = b.cnt
@@ -49,7 +53,7 @@ begin
 
  update a set
   a.debits = b.amount, a.recCount = b.cnt
- from @rettable a, @cbal b
+ from @rettable a, @dbal b
  where a.accountId = b.id and b.amount > 0
 
  update a set
