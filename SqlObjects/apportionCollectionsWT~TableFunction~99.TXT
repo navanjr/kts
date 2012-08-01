@@ -50,7 +50,7 @@ begin
   group by b.accountId, b.accountCode, b.apTableType
 
  
- insert @wt(accountId, creditCode, apTableType, apYear, debitCode, amount, appilottable, apdistrict, aprate, appoptype, comment)
+ insert @wt(accountId, debitCode, apTableType, apYear, creditCode, amount, appilottable, apdistrict, aprate, appoptype, comment)
  select a.accountId, b.accountCode, b.apTableType, b.apYear, b.targetAccountCode, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, a.comment
   from gldetail a, glAccounts b
   where a.accountId = b.accountId
@@ -66,7 +66,7 @@ begin
   insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment)
   select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment
    from dbo.millsGetRows(4009,@tokenYear,@tokenAmount,@tokenCode)
-  update @wt set processFlag = 2, debitCode = null where id = @tokenId
+  update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
 
 -- process the M types
@@ -75,7 +75,7 @@ begin
  while exists(select * from @wt where processFlag = 1)
  begin
   select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenComment = comment from @wt where processFlag = 1
-  insert @wt (accountId, apTableType, apYear, debitCode, amount, stepDesc, comment)
+  insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment)
   select @tokenAccountId, apTableType, taxYear, apportionCode, amount, sourceCode, @tokenComment
    from dbo.getRates('apportionment',@tokenAccountId,@tokenAmount,null,null)
   update @wt set processFlag = 2 where id = @tokenId
@@ -86,11 +86,11 @@ begin
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = debitCode, @tokenComment = comment+case when stepDesc like '%4MILL%' then ' 4 Mill' else '' end from @wt where processFlag = 1
-  insert @wt(accountId, apYear, debitCode, amount, stepDesc, comment)
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditCode, @tokenComment = comment+case when stepDesc like '%4MILL%' then ' 4 Mill' else '' end from @wt where processFlag = 1
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
   select @tokenAccountId, @tokenYear, accountCode, amount, description+'_'+@tokenYear, @tokenComment
    from dbo.millsGetRows(4013,@tokenYear,@tokenAmount,'')
-  update @wt set processFlag = 2, debitCode = null where id = @tokenId
+  update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
 
 -- process P types
@@ -98,15 +98,15 @@ begin
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = debitcode, @tokenappoptype = appoptype, @tokenComment = comment from @wt where processFlag = 1
-  insert @wt(accountId, apYear, debitCode, amount, stepDesc, comment)
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditcode, @tokenappoptype = appoptype, @tokenComment = comment from @wt where processFlag = 1
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
   select @tokenAccountId, @tokenYear, accountCode, amount, description+'_'+@tokenYear, @tokenComment
    from dbo.millsGetRows(4014,@tokenYear,@tokenAmount,@tokenappoptype)
-  update @wt set processFlag = 2, debitCode = null where id = @tokenId
+  update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
 
 -- process S types
- update @wt set processFlag = 2,debitCode=isnull((select key2 from object where typ=4011 and key1=aprate),'') where processFlag = 0 and apTableType = 'S' 
+ update @wt set processFlag = 2,creditCode=isnull((select key2 from object where typ=4011 and key1=aprate),'') where processFlag = 0 and apTableType = 'S' 
 
 
 

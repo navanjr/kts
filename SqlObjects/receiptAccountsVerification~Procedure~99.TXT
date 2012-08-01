@@ -1,0 +1,24 @@
+create procedure dbo.receiptAccountsVerification( @fundCode varchar(50) ) as
+begin
+
+ declare
+  @accountBlob varchar(1000),
+  @accrualCode varchar(50)
+
+ select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'RECEIVABLE')
+
+ select
+  @accrualCode = dbo.readString('@accrualCode=',@accountBlob)
+
+ exec dbo.glAccountVerification @accrualCode, 'RECEIVABLE', 'CREATE',  @targetAccountCode = @fundCode
+
+
+ select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'EXPENSE')
+
+ select
+  @accrualCode = dbo.readString('@accrualCode=',@accountBlob)
+
+ exec dbo.glAccountVerification @accrualCode, 'EXPENSE', 'CREATE',  @targetAccountCode = @fundCode
+ 
+end
+
