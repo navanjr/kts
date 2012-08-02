@@ -18,7 +18,7 @@ begin
   @fundCode = b4
  from object where typ=40 order by id 
 
-
+/*
  declare @rt table(id int, resultInt int) 
 
    declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
@@ -29,15 +29,23 @@ begin
   from glDetail a, glAccounts b 
   where a.accountId = b.accountId and a.slink in (select 't'+cast(invoiceId as varchar) from receiptLink where receiptId=@receiptId) 
   group by a.slink
-
+*/
  declare @pt table(invoiceId int, amount money)
 
  insert @pt
-  select invoiceId,
-         arAmount * dbo.penaltyPercent(a.invoiceId,dbo.date1(dbo.clariondate(getdate())))/100
+  select a.invoiceId,
+         dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(dbo.clariondate(getdate())))/100
+   from receiptLink a
+   where a.receiptId=@receiptId 
+
+
+/*  select invoiceId,
+         dbo.invoiceTotalAR(invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(dbo.clariondate(getdate())))/100
    from receiptLink a, @glsum b 
    where a.receiptId=@receiptId 
     and 't'+cast(invoiceId as varchar(15))=b.slink
+  */  
+
     
  while exists(select * from @pt)
  begin
