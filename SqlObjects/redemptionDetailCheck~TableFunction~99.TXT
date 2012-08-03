@@ -1,8 +1,9 @@
-create function dbo.redemptionDetailCheck(@sourceId int) returns
+create function dbo.redemptionDetailCheck(@sourceId int,
+ @interestDate int,
+ @interestPercent numeric(7,2)) returns
 @rettable table(message varchar(500),
  status varchar(50),
  taxAmount money,
- feeAmount money,
  taxdescription varchar(50),
  taxsourceCode varchar(50),
  taxfundCode varchar(50),
@@ -40,7 +41,6 @@ begin
 
  select
   @certno = b3,
-  @feeAmount = 5.00,
   @status = a17
  from object where id = @sourceId
 
@@ -48,10 +48,8 @@ begin
 
  set @taxamount=isnull((select 
   (select sum(cast(a9 as money)) from object where typ=4101 and link1=@certid)+
-  (select sum(dbo.interestCalc(8.00, cast(a8 as int), dbo.clariondate(getdate()), cast(a9 as money))) from object where typ=4101 and link1=@certid)
-  ),0.00) --TODO allow entry of an interest to date and interest percentage
-
-
+  (select sum(dbo.interestCalc(@interestPercent, cast(a8 as int), @interestDate, cast(a9 as money))) from object where typ=4101 and link1=@certid)
+  ),0.00) 
 
  -- check for status of Posted
  if @status = 'Posted'
@@ -97,7 +95,6 @@ begin
   select '@code=0;OK',
   @status,
   @taxAmount,
-  @feeAmount,
   @taxdescription,
   @taxsourceCode,
   @taxfundCode,

@@ -15,19 +15,20 @@ begin
 
  insert @pt 
  select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
-  not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AC' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
+ where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' 
+
+ delete from @pt where exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=[realtaxyear] 
   and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE])   
 
 
  while exists(select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE] from @pt 
  where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
-  not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AC' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
+  not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
   and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE]))
  begin
   select top 1 @year=cast([realtaxyear] as varchar(4)), @district=[ORGSCHOOLDISTRICTMAIN], @rate=[ORGSCHOOLDISTRICTTAXRATE], @pilottable='' from @pt
   where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
-   not exists(select * from glAccounts where right(rtrim(accountCode),3) = '_AC' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
+   not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
    and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE])
  
   exec dbo.pilotFundReceivableVerification @year, @district, @rate, ''

@@ -7,8 +7,9 @@ begin
 
  insert @pt 
  select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE],m.a1,[ORGSCHOOLDISTRICTMAIN] + '_' +rtrim(m.a1)+ '_' + cast([realtaxyear] as varchar(4)) from adtax, object m 
- where m.typ=4012 and m.key1=[ORGSCHOOLDISTRICTMAIN] and m.key2=[ORGSCHOOLDISTRICTTAXRATE] and m.key3=[realtaxyear] and [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
-  not exists(select * from glAccounts where accountType = 'SOURCE' and accountcode=[ORGSCHOOLDISTRICTMAIN] + '_' +rtrim(m.a1)+ '_' + cast([realtaxyear] as varchar(4)))   
+ where m.typ=4012 and m.key1=[ORGSCHOOLDISTRICTMAIN] and m.key2=[ORGSCHOOLDISTRICTTAXRATE] and m.key3=[realtaxyear] and [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0'
+  
+ delete from @pt where sourcecode in (select accountCode from glAccounts)
 
 
  while exists(select sourcecode from @pt)

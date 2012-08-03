@@ -107,7 +107,8 @@
 @afterloadwindow=
  refreshDetail=,
  break(obj:a17='Posted'),
- create(160,9,3,66,'&New Detail'),prop(160,7c04h,56),
+ if(obj:key3<>'TAX',create(160,9,3,66,'&New Detail')),
+ prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=,
  blankEmMort=,
@@ -128,8 +129,6 @@
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012; @lf012='typ=4504 and a1='''&obj:key3&'''';
-  acc012=offDetail=;
-  offDetail=if(obj:key3='TRUST',miscDetail=);
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
 \t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&'''<>''OFFICIAL'') or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&'''<>''OFFICIAL'') or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL''))';
  @acc016=if(obj:key3='OFFICIAL',update);
@@ -140,10 +139,10 @@
  \x014184; \y014=012; \w01449; n014obj:a4>'  0';
  \x016235; \y016=012; \w01648; n016obj:a5>'  0';
  \x018286; \y018=012; \w01849; \p0187c0ch,1;
- \h012obj:a17='Posted' or obj:key3='MTG' or obj:key3='OFFICIAL';r2
- \h014obj:a17='Posted' or obj:key3='MTG' or obj:key3='TRUST' or obj:key3='OFFICIAL';
- \h016obj:a17='Posted' or obj:key3='MTG' or obj:key3='TRUST';
- \h018obj:a17='Posted' or obj:key3='MTG' or obj:key3='OFFICIAL';
+ \h012obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='OFFICIAL';r2
+ \h014obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='TRUST' or obj:key3='OFFICIAL';
+ \h016obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='TRUST';
+ \h018obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='OFFICIAL';
 
 \t019Paycode; \l0204505; \w02050;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
@@ -240,8 +239,8 @@ w078090100;r2
 
 \h113obj:key3<>'INDIV';r
 \t113Redeem Amount;
- @acc113=update,d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id),
- if(readstring(obj7:d1,'@code=')>0,m(obj7:d1)),refreshDetail=;
+ @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
+ if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
 
 @acc165=update,
  lcBreak=0,
@@ -336,6 +335,7 @@ w078090100;r2
   sql('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&','&obj:id),
   refreshDetail=;
 
+\h160obj:key3='TAX';
 @acc160=
  if(obj:key3<>'MTG',miscDetail=,mortDetailCreate=),
  if(obj:key3<>'MTG',focus(012)),
