@@ -1,5 +1,9 @@
-create procedure dbo.keySQLObjectDispatcher(@id int) as
+create procedure dbo.keySQLObjectDispatcher(
+ @id int,
+ @dropFlag varchar(5) = 'FALSE'
+) as
 begin
+
 declare
   @objectName nvarchar(50),
   @objectType nvarchar(50),
@@ -15,6 +19,8 @@ declare
  
  declare @sql table
   (line int IDENTITY(1,1), sqlcode nvarchar(4000))
+
+-- Gather information about this Object
  select @loopcount=(datalength(e1)/4000)+1,
   @objectName=Key1,
   @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
@@ -27,6 +33,24 @@ declare
  set @sql_3 = ''
  set @sql_4 = ''
  set @sql_5 = ''
+
+-- Drop the Object
+ if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+  exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+
+-- Bail if dropFlag = TRUE 
+ if @dropFlag = 'TRUE'
+ begin
+  delete object where typ = 451 and id = @id
+  if not exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   and not exists(select * from object where typ = 451 and id = @id)
+   select '@code=1;@message=Object was removed... Have a nice day.;'
+  else
+   select '@code=1;@message=object was not deleted. Something went horribly wrong;'
+  return 
+ end
+
+-- Create the object
  while 1=1
   begin 
    print @looptally
@@ -52,9 +76,6 @@ declare
    continue
   end
 
- if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
-  exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
- 
   begin try
    exec(@sql_1+@sql_2+@sql_3+@sql_4+@sql_5)
   end try
@@ -64,3 +85,4 @@ declare
 
   select '@code=0;@message=OK;'
  end
+
