@@ -14,7 +14,10 @@ begin
    @debitAcct varchar(50),
    @creditAcct varchar(50),
    @officialsFundCode varchar(50),
-   @resultStringToken varchar(100)
+   @resultStringToken varchar(100),
+   @officialName varchar(50),
+   @officialDepositCode varchar(50),
+   @officialBankCode varchar(50)
 
   declare @wt table (
    id int,
@@ -35,6 +38,9 @@ begin
   exec dbo.paymentsImportCheck
    @paymentType,
    @batchId,
+   @officialName = @officialName output,
+   @officialDepositCode = @officialDepositCode output,
+   @officialBankCode = @officialBankCode output,
    @code = @code output,
    @message = @message output 
 
@@ -67,20 +73,11 @@ begin
    warrantNumber,
    vendorCode,
    cast(amount as money),
-   '' as debitAcct,
-   '' as creditAcct,
+   debitAcct,
+   creditAcct,
    clerksFund,
    null
   from dbo.warrantImportBRW(@batchId)
-
--- gather up the accounts to hit
--- credit fund accrued payable
--- debit expense account per fund
-   update @wt set accountBlob = dbo.glAccountGetFundAccrualBlob(officialsFundCode, 'Clerks Fund')
-   update @wt set 
-    creditAcct = dbo.readString('@accrualCode=',accountBlob),
-    debitAcct = dbo.readString('@fundCode=',accountBlob) + '_EXP'
-
  end
 
   if @debugMode = 'true'
@@ -117,6 +114,9 @@ begin
    begin
     exec dbo.paymentCRUD 0,  
      @paymentType = @paymentType,
+     @officialName = @officialName,
+     @officialDepositCode = @officialDepositCode,
+     @officialBankCode = @officialBankCode,
      @voucherDate = @voucherDate,
      @voucherNumber = @voucherNumber,
      @payee = @payee,

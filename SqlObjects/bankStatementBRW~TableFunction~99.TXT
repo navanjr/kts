@@ -1,4 +1,9 @@
-create function dbo.bankStatementBRW( @id int, @accountId int, @showFlag varchar(50) ) returns @rt table(
+create function dbo.bankStatementBRW(
+ @id int,
+ @accountId int,
+ @showFlag int, 
+ @warrantFlag int 
+) returns @rt table(
  id int,
  fpid int,
  slink varchar(15),
@@ -13,9 +18,10 @@ begin
 
  declare @showTable table(id int)
  insert @showTable select 0
- if left(@showFlag,1) = '1'
+ if @showFlag = 1
   insert @showTable select @id
- 
+
+-- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
  insert @rt (id,fpid,slink,dbAmount,crAmount,subDescription,selectedFlag)
  select id* -1, fpid, slink,
   case when amount > 0 then amount else 0 end,
@@ -26,17 +32,40 @@ begin
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
 
+-- populate the items with more details
  update a set
   a.description = '   ' + dbo.date1(b.key2),
-  a.subDescription = c.template + '# ' + b.key1,
+  a.subDescription = c.template + ' #' + b.key1,
   ord = cast(fpid as varchar) + 'b' 
  from @rt a, object b, template c
  where left(slink,1) = 'o' 
   and cast(substring(slink,2,14) as int) = b.id
   and b.typ = c.id
 
+-- add Period headers for the account details
  insert @rt (id,description,ord)
- select 0,'Period: ' + b.key1 + ' ' + key2,b.id from @rt a, object b where a.fpid = b.id group by b.key1,b.key2,b.id
+  select 0,'Period: ' + b.key1 + ' ' + key2,b.id 
+   from @rt a, object b
+   where a.fpid = b.id
+   group by b.key1,b.key2,b.id
+
+-- add Warrants, Maybe
+ if not @warrantFlag = 1
+  return
+ insert @rt (id,description,ord) select 0,'','w' 
+ insert @rt (id,description,ord) select 0,'Warrants: ','ww' 
+ insert @rt (id, description, subDescription, dbAmount, ord)
+  select b.id,
+   '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
+   b.a2,
+   sum(a.amount),
+   'ww' 
+  from dbo.glDetail a, object b
+  where a.slink = 'o' + cast(b.id as varchar)
+   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT')
+   and b.link1 = 0
+  group by a.accountDesc, b.key2, b.a2, b.key3, b.id
+  having sum(amount) > 0
  
  return
 end

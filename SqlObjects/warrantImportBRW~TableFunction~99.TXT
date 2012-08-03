@@ -7,12 +7,14 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  accountNumber varchar(50),
  amount varchar(50),
  vendorCode varchar(50),
- accountBlob varchar(100),
+ accountBlob varchar(1000),
  debitAcct varchar(50),
  creditAcct varchar(50),
  postCheck int
 )
 begin
+
+-- TODO: ok at some point i want to add the officials bank account to the contraid on the Debit to the _WR account this will make the bankstatment work cooler!
 
  declare
   @idToken int,
@@ -28,7 +30,7 @@ begin
   @csv = e1
  from object where typ = 4770 and id = @id
 
- -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
+-- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
  select 
   @creditAcct = a4 from object where id = @officalLink and typ = 4601
 
@@ -38,7 +40,7 @@ begin
   rowData varchar(1000)
  )
 
- -- TODO: this seems to work well. however we might have an issue with char(13)'s getting left in the data.
+-- TODO: this seems to work well. however we might have an issue with char(13)'s getting left in the data.
  insert @rows 
  select replace(data,'"','') from dbo.split( @csv, char(10))
 
@@ -63,14 +65,14 @@ begin
 
   delete @rows where id = @idToken
  end
-    
+
 -- gather up the accounts to hit
 -- credit fund accrued payable
 -- debit expense account per fund
    update @rt set accountBlob = dbo.glAccountGetFundAccrualBlob(clerksFund, 'Clerks Fund')
    update @rt set 
     creditAcct = dbo.readString('@accrualCode=',accountBlob),
-    debitAcct = dbo.readString('@expenseCode=',accountBlob)
+    debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob)
 
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)

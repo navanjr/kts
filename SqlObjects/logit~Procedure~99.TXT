@@ -2,16 +2,23 @@ create procedure dbo.logit(
  @procId int = null,
  @label varchar(max) = '',
  @value varchar(max) = '',
- @control varchar(10) = null
+ @control varchar(10) = null,
+ @level int = 1
 ) as
 begin
 
  declare @procName varchar(50) = isnull(object_name(@procId),'')
+ declare @controlArray table( id int, data varchar(50) )
+ 
+ insert @controlArray select * from dbo.split(@control,'|')
 
- if @control in ('start','stop')
+ if (select data from @controlArray where id = 1) in ('start','stop')
  begin
-  update object set b15 = case when @control = 'start' then 'logging on' else 'logging off' end where typ = 0 and link1 = -1
-  insert keyLog (message) select 'Log Control:' + @control
+  select @level = cast(data as int) from @controlArray where id = 2 
+  update object set
+   b15 = case when (select data from @controlArray where id = 1) = 'start' then 'logging on|' + cast(@level as varchar) else 'logging off' end
+  where typ = 0 and link1 = -1
+  insert keyLog (procName,message,level) select 'logit', 'Log Control:' + @control, @level
   return
  end
 
@@ -27,10 +34,18 @@ begin
   return
  end
 
+-- get the logging status and level
+ declare @loggingStatusArray table( id int, data varchar(50) )
+ insert into @loggingStatusArray select * from dbo.split((select b15 from object where typ = 0 and link1 = -1), '|')
+
 -- we bail if logging is not turned on
- if not (select b15 from object where typ = 0 and link1 = -1) = 'logging on'
+ if not (select data from @loggingStatusArray where id = 1) = 'logging on'
   return
 
- insert keyLog (procName, message) select @procName, @label + ':' + @value
+-- we bail if level is too low
+ if @level < (select cast(data as int) from @loggingStatusArray where id = 2)
+  return
+
+ insert keyLog (procName, message, level) select @procName, @label + ':' + @value, @level
 
 end

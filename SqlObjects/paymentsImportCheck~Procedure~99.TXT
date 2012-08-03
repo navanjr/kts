@@ -5,11 +5,11 @@ create procedure dbo.paymentsImportCheck(
  @message varchar(500) = null  output, 
  @fpId int = null output,
  @postDate int = null output,
- @officalBankCode varchar(50) = null output,
- @officalDepositCode varchar(50) = null output
+ @officialName varchar(50) = null output,
+ @officialBankCode varchar(50) = null output,
+ @officialDepositCode varchar(50) = null output
 ) as 
 begin
-
 
  set @postDate = dbo.clarionDate(getDate())
 
@@ -27,7 +27,8 @@ begin
  
 -- check for proper accounts
  select
-  @officalBankCode = a.accountCode
+  @officialName = b.key1,
+  @officialBankCode = a.accountCode
  from glaccounts a, object b, object c
  where a.accountCode = b.a4
   and b.key1 = c.key1
@@ -35,14 +36,14 @@ begin
   and c.typ = 4770
 
  select
-  @officalDepositCode = a.accountCode
+  @officialDepositCode = a.accountCode
  from glaccounts a, object b, object c
  where a.accountCode = b.a3
   and b.key1 = c.key1
   and b.typ = 4601
   and c.typ = 4770
 
- if @officalBankCode is null
+ if @officialBankCode is null
  begin
   select
    @code = 1, 
@@ -51,7 +52,7 @@ begin
   return 
  end
 
- if @officalDepositCode is null
+ if @officialDepositCode is null
  begin
   select
    @code = 1, 

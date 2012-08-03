@@ -5,16 +5,19 @@ begin
  declare
   @accountBlob varchar(1000),
   @accruedPayableCode varchar(50),
-  @expenseCode varchar(50)
+  @warrantRegisterCode varchar(50)
 
  select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'ACCRUED PAYABLE')
+
+-- a little logging to shed some light
+ exec dbo.logit @@procid, @accountBlob
 
 -- check for accrued payable account
  select
   @accruedPayableCode = dbo.readString('@accrualCode=',@accountBlob),
-  @expenseCode = dbo.readString('@expenseCode=',@accountBlob)
+  @warrantRegisterCode = dbo.readString('@warrantRegisterCode=',@accountBlob)
 
  exec dbo.glAccountVerification @accruedPayableCode, 'ACCRUED PAYABLE', 'CREATE',  @targetAccountCode = @fundCode
- exec dbo.glAccountVerification @expenseCode, 'EXPENSE', 'CREATE',  @targetAccountCode = @fundCode
+ exec dbo.glAccountVerification @warrantRegisterCode, 'WARRANT', 'CREATE',  @targetAccountCode = @fundCode
  
 end

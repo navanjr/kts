@@ -1,20 +1,45 @@
 create proc dbo.paymentCRUD(
  @mode int,
  @paymentType varchar(50),
+ @officialName varchar(50) = '',
+ @officialDepositCode varchar(50) = '',
+ @officialBankCode varchar(50) = '',
  @voucherDate int = null,
- @voucherNumber varchar(50) = null,
- @payee varchar(50) = null,
+ @voucherNumber varchar(50) = '',
+ @payee varchar(50) = '',
  @amount money = null,
- @debitAcct varchar(50) = null,
- @creditAcct varchar(50) = null,
+ @debitAcct varchar(50) = '',
+ @creditAcct varchar(50) = '',
  @id int = 0,
+ @bankStatementId int = 0,
  @postResult varchar(100) = null output 
 ) as 
 begin
+
+-- TODO: i have an idea for the parking lot.
+/*
+  create a mode 4 = this is a mode that returns the delete message for the user.  this would standardize all our CRUD routines from key
+  started mode 4, so far it just provides labels for the change window
+*/
  
  declare
   @slink varchar(15) = 'o' + cast(@id as varchar),
   @log varchar(max)
+
+ if @mode = 4
+ begin
+  if @paymentType = 'Official Voucher'
+   select @log = 
+    '@debitFieldLabel=Deposit Account;'
+    + '@creditFieldLabel=Bank Account;'
+
+  if @paymentType = 'Official Warrant'
+   select @log = 
+    '@debitFieldLabel=WR Fund;'
+    + '@creditFieldLabel=ACP Fund;'
+
+  select @log
+ end
 
  if @mode = 3
  begin
@@ -36,57 +61,108 @@ begin
  if @mode = 0
  begin
 
-  -- TODO: add gl check here
+  exec dbo.logit @@procid, 'start mode 0 - paymentType', @paymentType
+  exec dbo.logit @@procid, 'PaymentId', @id
 
-  begin transaction
+-- TODO: add gl check here
 
   declare @nextVoucherNumber varchar(50)
 
+  if @paymentType = 'Buy Warrant'
+  begin
+-- if you are buying a warrant with a treasurers check, payment type needs to change, among other things
+-- Notice the DB and CR accounts are swapped.
+   select
+    @paymentType = 'Treasurers Check',
+    @voucherDate = dbo.clarionDate(getDate()),
+    @amount = a3,
+    @debitAcct = a5,
+    @creditAcct = a4,
+    @officialName = a7,
+    @officialDepositCode = a8,
+    @officialBankCode = a9
+   from object where typ = 4771 and id = @id
+
+   if @bankStatementId > 0
+    select @officialBankCode = key1 from object where typ = 4780 and id = @bankStatementId
+
+   select @payee = accountDesc from dbo.glAccounts where accountCode = @officialBankCode
+
+  end
+
   exec dbo.nextObjectAutoNumber 4771, @paymentType, @nextVoucherNumber output
 
- exec dbo.logit @@procid, 'NextVoucherNumber', @nextVoucherNumber
- exec dbo.logit @@procid, 'debitAccount', @debitAcct
- exec dbo.logit @@procid, 'creditAccount', @creditAcct
+  exec dbo.logit @@procid, 'NextVoucherNumber', @nextVoucherNumber
+  exec dbo.logit @@procid, 'debitAccount', @debitAcct
+  exec dbo.logit @@procid, 'creditAccount', @creditAcct
+  exec dbo.logit @@procid, 'officialBankCode', @officialBankCode
 
-begin try
+ begin transaction
+ begin try
   insert object (
    typ,
    key1, key2, Key3, a1,
-   a2, a3, a4, b3, a5, b4, a18
+   a2, a3, a4, b3, a5, b4, a18,
+   a7, a8, a9
   )
   select 
    4771,
    @nextVoucherNumber,
    dbo.clarionDate(getDate()),
    @voucherNumber,
-   @voucherDate,
+   isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
    @amount,
    d.accountCode,d.accountDesc,
    c.accountCode,c.accountDesc,
-   dbo.proper(@paymentType)
+   dbo.proper(@paymentType),
+   @officialName,
+   @officialDepositCode,
+   @officialBankCode
    from glAccounts d, glAccounts c
    where d.accountCode = @debitAcct 
     and c.accountCode = @creditAcct
-end try
-begin catch
- set @log = error_message()
- exec dbo.logit @@procid, 'sqlCatchError', @log
-end catch
+ end try
+ begin catch
+  set @log = error_message()
+  exec dbo.logit @@procid, 'sqlCatchError', @log
+ end catch
  
   declare @newId int = @@identity
   declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
 
-  -- stage glDetail
-  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
-  select accountId, accountCode, accountDesc, @voucherDate, @amount, @newslink
-   from glAccounts where accountCode = @debitAcct 
+  declare @stageRows table(acctCode varchar(50), amount money)
+  insert @stageRows 
+    select @debitAcct, @amount
+   union
+    select @creditAcct, @amount * -1
+
+  if @paymentType in ('Treasurers Check') and @bankStatementId > 0 
+  begin
+
+-- add the extra side of this transaction we need for buying warrants
+   insert @stageRows 
+     select @officialDepositCode, @amount
+    union
+     select @officialBankCode, @amount * -1
+
+-- and mark the origional warrant as bought!
+   update object set 
+    a19 = @nextVoucherNumber,
+    link1 = @newId
+   where typ = 4771 and id = @id
+
+  end
+ 
+  select @log = cast(count(*) as varchar) from @stageRows
+  exec dbo.logit @@procid, '@stageRows record count', @log
 
   insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
-  select accountId, accountCode, accountDesc, @voucherDate, @amount * -1, @newslink
-   from glAccounts where accountCode = @creditAcct
- 
-  commit transaction    
+  select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @newslink
+   from @stageRows a, glAccounts b 
+   where a.acctCode = b.accountCode
+
+ commit transaction    
 
   -- post gl
   exec dbo.glPost @newId, 'o', @resultString = @postResult output
