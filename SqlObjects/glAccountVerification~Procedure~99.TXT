@@ -27,13 +27,14 @@ begin
   @typeDesc varchar(50),
   @reportCode varchar(50)
 
+-- Check to make sure we have the necessary glAccountTYpe in object typ 4702. if not logit level 3.
+ if not exists(select * from object where typ = 4702 and key1 = upper(@accountType))
+  exec dbo.logit @@procid, 'missing accountType', @accountType, @level = 3 
+ 
   select 
    @typeDesc = key2,
    @reportCode = key3
   from object where typ = 4702 and key1 = upper(@accountType)
-
--- TODO: we need to check to make sure we have the necessary glAccountTYpe in object typ 4702
---   if there are types missing you get an insert into object with nulls
 
   declare @accountTypes table(accountType varchar(50), accountDesc varchar(80))
   insert @accountTypes select 'SOURCE', replace(@accountCode,'_',' ')
@@ -42,6 +43,7 @@ begin
   insert @accountTypes select 'ACCRUED RECEIVABLE', replace(replace(@accountCode,'_ACR',' Accrued Receivable'),'_',' ')
   insert @accountTypes select 'ACCRUED PAYABLE', replace(replace(@accountCode,'_ACP',' Accrued Payable'),'_',' ')
   insert @accountTypes select 'EXPENSE', replace(replace(@accountCode,'_EXP',' Expense'),'_',' ')
+  insert @accountTypes select 'WARRANT', replace(replace(@accountCode,'_WR',' Warrants Registered'),'_',' ')
 
   if upper(@mode) = 'CREATE' and upper(@accountType) in (select accountType from @accountTypes)
   begin
@@ -68,4 +70,3 @@ begin
   return
 
 end
-

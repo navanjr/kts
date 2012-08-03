@@ -1,5 +1,5 @@
 create function dbo.glAccountGetFundAccrualBlob(
--- this function takes a fund code and returns a blob with accurual code and fund code
+-- this function takes a fund code and returns a blob with accurual code and fund code and maybe more...
  @fundcode varchar(50),
  @accountType varchar(50) 
 ) 
@@ -40,16 +40,16 @@ begin
  select @codeSuffix = case @accountType
   when 'ACCRUED PAYABLE' then '_ACP'
   when 'EXPENSE' then '_EXP'
+  when 'WARRANT' then '_WR'
   when 'ACCRUED RECEIVABLE' then '_ACR'
   when 'RECEIVABLE' then '_AR'
  end
 
  select @retVar = '@status=fund needed;@accrualCode=' + upper(rtrim(@fundcode)) + @codeSuffix + ';@fundcode=' + rtrim(@fundcode) + ';'
 
--- if this is a Payable request lets tack on the expense account 
+-- if this is a Payable request lets tack on the Expense account and Warrant Registered account 
  select @retVar = @retVar + '@expenseCode=' + rtrim(@fundCode) + '_EXP;'
+ select @retVar = @retVar + '@warrantRegisterCode=' + rtrim(@fundCode) + '_WR;'
 
  return @retvar
 end
-
-

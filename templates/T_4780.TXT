@@ -11,7 +11,7 @@
 @key2=obj:a1;
 @defaultbrowsekey=2;
 
-\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1=''BANK''',2;
+\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1=''BANK''',2; @acc002=refreshBRW=;
 \t003Description;  \d004;
 
 \t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=;
@@ -22,17 +22,20 @@
  \p0460487cfah,13499135;r2 \p0460487c13h,700;r2 \d046048;r2 \p0460487c0ch,1;r2 \t046048@n-14.2;r2
 
 \t077ShowLinksFlag; \h077078;r
+\t079ShowWarrantsFlag; \h079080;r
 
 \t083Deposits; \w08460;
 \t085Credits; \w08660;
  \p0840867cfah,13499135;r2 \p0840867c13h,700;r2 \d084086;r2 \p0840867c0ch,1;r2 \t08486@n-14.2;r2
 
 @loadwindow=
- create(550,12,510,88,'&Show Links',78),
+ create(550,12,500,88,'Show &Links',78),
+ create(551,12,500,100,'Show &Warrants',80),
  brwstuff=,
  sums=;
 
 @acc550=refreshBRW=;
+@acc551=refreshBRW=;
 @gfwindow=refreshBRW=;
 
 @sums=
@@ -44,11 +47,26 @@
 
 @gcvars=
  lcShowFlag=obj:c1,
- gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag from dbo.bankStatementBRW('&obj:id&','&obj:link1&','''&lcShowFlag&''') order by ord';
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1&','&obj:c2&') order by ord';
 
 @brw1=
  lcid=kpbrwid(1)*-1,
- break(lcid+0<1),
+ if(lcid+0>0,bsToggle=);
+
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ break(lcid+0>-1),
+ lcid=lcid*-1,
+ m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|&Cancel'),
+ if(gcretval=1,change(lcid)),
+ if(gcretval=2,buyWarrant=);
+
+@buyWarrant=
+ d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1)),
+ refreshBRW=;
+
+@bsToggle=
  sql('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id),
  refreshBRW=;
 
