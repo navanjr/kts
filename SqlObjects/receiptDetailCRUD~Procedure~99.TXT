@@ -11,13 +11,13 @@ begin
 
 -- added some logging. cant test it yet TODO: test this logging 
  declare @log varchar(max) = 
-  '@receiptId=' + isnull(@receiptId,'null') + ';'
-  + '@receiptTyp=' + isnull(@receiptTyp,'null') + ';'
-  + '@receiptDetailId=' + isnull(@receiptDetailId,'null') + ';'
+  '@receiptId=' + isnull(cast(@receiptId as varchar),'null') + ';'
+  + '@receiptTyp=' + isnull(cast(@receiptTyp as varchar),'null') + ';'
+  + '@receiptDetailId=' + isnull(cast(@receiptDetailId as varchar),'null') + ';'
   + '@description=' + isnull(@description,'null') + ';'
   + '@sourceCode=' + isnull(@sourceCode,'null') + ';'
   + '@fundCode=' + isnull(@fundCode,'null') + ';'
-  + '@amount=' + isnull(@amount,'null') + ';'
+  + '@amount=' + isnull(cast(@amount as varchar),'null') + ';'
  exec dbo.logit @@procid, @log
 
  declare @styp char(1) = 'o'
@@ -32,7 +32,9 @@ begin
  select @code = code, @message = message from dbo.receiptCheck(@receiptId,null)
  if @code = 1
  begin
-  select '@code=1;@message=' + @message + ';'
+  set @log = '@code=1;@message=' + @message + ';'
+  exec dbo.logit @@procid, @log, @level = 2
+  select @log
   return
  end
 
