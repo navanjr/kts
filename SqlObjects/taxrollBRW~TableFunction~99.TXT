@@ -104,12 +104,12 @@ Begin
   begin
    update a set 
     fees = isnull((select sum(feeamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0.00),
-    penalty = (due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100) * methodRate,
+    penalty = (due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100),
     toPay = due * methodRate
    from @rt a where selectedFlag in (char(189),'x')
-
+     
    insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel) 
-   select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty),'--Grand Total: '+cast(sum((due+fees+penalty) * methodRate) as varchar)
+   select 0,'--Selected--',' _',sum(amount),sum(due),sum(fees),sum(penalty),'--Grand Total: '+cast(sum((topay+fees+penalty)) as varchar)
    from @rt where selectedFlag > '  0'
 
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'

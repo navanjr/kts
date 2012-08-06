@@ -23,7 +23,8 @@ begin
   amount money,
   prorate decimal(19,18),
   payAmount decimal(19,10),
-  contraId int
+  contraId int,
+  due money
  )
  declare @glSalesCredits table(
   slink varchar(15),
@@ -72,6 +73,7 @@ begin
   due = round((select due from dbo.invoiceCheck(invoiceId)),2),
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
   contraAccountId = case when taxYear = @currTaxCode then @currTaxId when taxyear=@priorTaxCode then @priorTaxId else @backTaxId end
+   where invoiceId > 0
 
 -- populate Suspense
 -- get all the payments linked to this receipt
@@ -99,10 +101,14 @@ begin
 -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId
+  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId, c.due
  from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink and c.due<>0.00
- group by c.slink, a.slink, a.fundCode, c.contraAccountId
+ group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due
+
+ update @glFundDebits set amount=due where abs(amount)>abs(due)
+ update @glFundDebits set payamount=due where abs(payamount)>abs(due)
+
 
 -- update the fundDebits with the proper accountId
  update a set a.accountId = b.accountId 
