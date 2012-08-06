@@ -7,7 +7,8 @@ create function dbo.glAnalysisSrc(@fpId int,@AccId int) returns @rt table(
  debit money,
  credit money,
  sDesc varchar(100),
- objId int
+ objId int,
+ invoiceId int
  )
  as
 begin
@@ -29,7 +30,8 @@ else
  from glDetail
  where fpid=@fpId and accountId=@AccId 
 
- update @rt set objId = substring(sId,2,14)
+ update @rt set objId = substring(sId,2,14) where left(sId,1)='o'
+ update @rt set invoiceId = substring(sId,2,14) where left(sId,1)='t'
 
  update @rt set 
 	sNo=key1,
@@ -37,6 +39,12 @@ else
 	sDate=dbo.date1(key2),
 	sDesc=case when Typ = 4512 then ' - '+Key3 else '' end 
 	from Object where ID=objId
+
+ update @rt set 
+	sNo=cast(item as varchar(50)),
+	sDate=dbo.date1(postdate),
+	sDesc='Name:'+name+'; Parcel:'+parcel+'; Item:'+ cast(item as varchar(50))
+	from invoices, @rt a where ID=a.invoiceId
 
 update @rt set
 	sName=template,
@@ -47,4 +55,4 @@ return
 
  end
 
- --select *from dbo.glAnalysisSrc(1002,922)
+ --select * from dbo.glAnalysisSrc(1002,922)
