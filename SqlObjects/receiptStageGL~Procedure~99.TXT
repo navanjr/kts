@@ -34,7 +34,7 @@ begin
  from dbo.receiptCheck(@receiptId,null)
 
  -- credit Source and Debit AR
- if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+ if @receiptType<>'OFFICIAL'
  begin
   insert @accountsWorking
    select b.accountId, null, sum(a.amount)*-1,'' 
@@ -50,7 +50,7 @@ begin
 
   -- credit AR
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
-  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  if @receiptType<>'OFFICIAL'
   begin
    insert @accountsWorking select @arAccountId, null, @paidTotal,''
   end
@@ -63,17 +63,17 @@ begin
 
   -- debit tresurers receipt fund and credit fund receivables
   insert @accountsWorking select @contraId, null, @paidTotal,''
-  if @receiptType<>'OFFICIAL' and @receiptType<>'TRUST'
+  if @receiptType<>'OFFICIAL'
   begin
    insert @ap
-    select b.accountId,  @contraId, sum(a.amount)*-1, 0, 0,a.description
+    select b.accountId,  case when @receiptType='TRUST' then @receiptId else @contraId end, sum(a.amount)*-1, 0, 0,a.description
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType='ACCRUED RECEIVABLE' group by b.accountId, a.description
+    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description
    insert @ap
     select b.accountId, @contraId, sum(a.amount)*-1, 0, 0,a.description
     from receiptDetail a, dbo.glAccounts b 
-    where a.slink = @slink and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode and b.accountcode<>a.fundcode 
-      group by b.accountId, a.description
+    where a.slink = @slink and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode and b.accountcode<>a.fundcode and @receiptType<>'TRUST'
+     group by b.accountId, a.description
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))

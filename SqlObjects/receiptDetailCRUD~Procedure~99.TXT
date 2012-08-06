@@ -27,9 +27,10 @@ begin
   @message varchar(500),
   @targetcode varchar(50) = '',
   @accrualcode varchar(50) = '',
-  @accountBlob varchar(1000)
+  @accountBlob varchar(1000),
+  @receiptType varchar(50)
 
- select @code = code, @message = message from dbo.receiptCheck(@receiptId,null)
+ select @code = code, @message = message, @receiptType = receiptType from dbo.receiptCheck(@receiptId,null)
  if @code = 1
  begin
   select '@code=1;@message=' + @message + ';'
@@ -37,7 +38,7 @@ begin
  end
 
  -- retrieve the specifics from the receipt in object
- if len(@description)<2 or len(@sourceCode)<2 or len(@fundCode)<2 or @amount<0.01
+ if len(@description)<2 or len(@sourceCode)<2 or len(@fundCode)<2 or abs(@amount)<0.005
  begin 
   select
    @receiptDetailId = link5,
@@ -56,13 +57,24 @@ begin
  begin transaction
 
   --run fund accrued receivable account verification to see if we have all the glAccounts we will need
-  select @accountBlob = dbo.glAccountGetFundAccrualBlob(@fundcode, 'ACCRUED RECEIVABLE')
-  select 
-   @accrualcode = dbo.readString('@accrualcode=', @accountBlob),
-   @targetcode = dbo.readString('@fundcode=', @accountBlob)
+  if @receiptType = 'TRUST' 
+   begin
+    select @accountBlob = dbo.glAccountGetFundAccrualBlob(@fundcode, 'SOURCE')
+    select 
+     @sourceCode = dbo.readString('@accrualcode=', @accountBlob),
+     @targetcode = dbo.readString('@fundcode=', @accountBlob)
 
-  exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
+    exec dbo.glAccountVerification @sourceCode, 'SOURCE', 'CREATE', @targetAccountCode=@targetcode
+   end
+  else
+   begin
+    select @accountBlob = dbo.glAccountGetFundAccrualBlob(@fundcode, 'ACCRUED RECEIVABLE')
+    select 
+     @accrualcode = dbo.readString('@accrualcode=', @accountBlob),
+     @targetcode = dbo.readString('@fundcode=', @accountBlob)
 
+    exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
+   end
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
     select
