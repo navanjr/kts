@@ -134,7 +134,7 @@ begin
   declare @stageRows table(acctCode varchar(50), amount money)
   insert @stageRows 
     select @debitAcct, @amount
-   union
+   union all
     select @creditAcct, @amount * -1
 
   if @paymentType in ('Treasurers Check') and @bankStatementId > 0 
@@ -143,10 +143,10 @@ begin
 -- add the extra side of this transaction we need for buying warrants
    insert @stageRows 
      select @officialDepositCode, @amount
-    union
+    union all
      select @officialBankCode, @amount * -1
 
--- and mark the origional warrant as bought!
+-- and mark the original warrant as bought!
    update object set 
     a19 = @nextVoucherNumber,
     link1 = @newId
@@ -171,3 +171,4 @@ begin
 
  return
 end
+

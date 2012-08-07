@@ -1,0 +1,64 @@
+create procedure dbo.trustVoucherStageGL (@voucherId int, @mode int = 0) as
+begin
+ 
+ declare @accountsWorking table(
+  accountId int,
+  contraId int,
+  amount money,
+  comment varchar(100)
+ )
+ declare @accounts table(
+  accountId int,
+  contraId int,
+  amount money,
+  comment varchar(100)
+ )
+ 
+ declare @styp char(1) = 'o'
+ declare
+  @slink varchar(15) = @styp + cast(@voucherId as varchar),
+  @code int,
+  @debitAccountId int, 
+  @creditAccountId int, 
+  @purposeAccountId int, 
+  @amount money,
+  @voucherType varchar(50)
+ 
+ select 
+  @code = code,
+  @debitAccountId = debitAccountId, 
+  @creditAccountId = creditAccountId, 
+  @purposeAccountId = purposeAccountId, 
+  @voucherType = voucherType,
+  @amount = amount
+ from dbo.trustVoucherCheck(@voucherId,null)
+
+ -- credit Bank and Debit Fund
+ insert @accountsWorking select @debitAccountId, null, @amount,'' 
+ insert @accountsWorking select @creditAccountId, null, @amount*-1,''
+
+
+ insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment from @accountsWorking group by accountId, contraId, comment having sum(isnull(amount,0)) != 0
+
+-- echo the guts of this proc and bail if you are in test mode
+ if @mode = 1
+ begin
+  select a.*,b.accountType,b.accountDesc from @accounts a, glAccounts b where a.accountId = b.accountId order by b.accountType
+  return
+ end
+
+ -- remove 
+ delete glDetailStage where slink = @slink 
+
+ -- insert
+
+ insert gldetailstage (slink,accountId,amount,contraId,comment) select @slink,accountId,amount,contraId, left(rtrim(comment),49) from @accounts
+ 
+ update a set
+  a.accountCode = b.accountCode,
+  a.accountDesc = b.accountDesc
+ from glDetailStage a, glAccounts b
+ where a.accountId = b.accountId
+  and a.slink = @slink 
+
+end

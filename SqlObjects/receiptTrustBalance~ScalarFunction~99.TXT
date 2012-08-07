@@ -1,0 +1,18 @@
+CREATE function dbo.receiptTrustBalance(@receiptId int,@purpose varchar(50)='') returns money
+as 
+begin
+ declare
+  @glAmt money,
+  @glAmtStage money,
+  @amount money
+
+ select @glAmt = sum(a.amount) 
+ from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'PURPOSE' and contraId=@receiptId and b.accountCode=@purpose
+
+ select @glAmtStage = sum(a.amount) 
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'PURPOSE' and contraId=@receiptId and b.accountCode=@purpose
+
+ select @amount = isnull(@glAmt,0) + isnull(@glAmtStage,0)
+
+ return @amount
+end
