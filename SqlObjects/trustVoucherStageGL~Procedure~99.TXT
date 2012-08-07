@@ -21,6 +21,10 @@ begin
   @debitAccountId int, 
   @creditAccountId int, 
   @purposeAccountId int, 
+  @purposeAccountCode varchar(50), 
+  @expenseAccountId int, 
+  @expenseAccountCode varchar(50), 
+  @blob varchar(2000), 
   @amount money,
   @voucherType varchar(50)
  
@@ -29,14 +33,27 @@ begin
   @debitAccountId = debitAccountId, 
   @creditAccountId = creditAccountId, 
   @purposeAccountId = purposeAccountId, 
+  @purposeAccountCode = isnull((select accountCode from glAccounts where accountId=purposeAccountId),''), 
   @voucherType = voucherType,
   @amount = amount
  from dbo.trustVoucherCheck(@voucherId,null)
+
+ select @blob = dbo.glAccountGetFundAccrualBlob(@purposeAccountCode,'EXPENSE')
+
+ select @expenseAccountCode = dbo.readString('@accrualcode=', @blob)
+
+ exec dbo.glAccountVerification @expenseAccountCode, 'EXPENSE', 'CREATE'
+
+ select @expenseAccountId=isnull(accountId,0) from glAccounts where accountCode=@expenseAccountCode
 
  -- credit Bank and Debit Fund
  insert @accountsWorking select @debitAccountId, null, @amount,'' 
  insert @accountsWorking select @creditAccountId, null, @amount*-1,''
 
+ -- credit purpose and debit expense
+ insert @accountsWorking select @expenseAccountId, null, @amount,'' 
+ insert @accountsWorking 
+   select @purposeAccountId, link2, cast(key3 as money)*-1,'' from object where typ=4775 and link1=@voucherId and key2=@purposeAccountCode
 
  insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment from @accountsWorking group by accountId, contraId, comment having sum(isnull(amount,0)) != 0
 
@@ -46,7 +63,6 @@ begin
   select a.*,b.accountType,b.accountDesc from @accounts a, glAccounts b where a.accountId = b.accountId order by b.accountType
   return
  end
-
  -- remove 
  delete glDetailStage where slink = @slink 
 
@@ -60,5 +76,6 @@ begin
  from glDetailStage a, glAccounts b
  where a.accountId = b.accountId
   and a.slink = @slink 
+
 
 end

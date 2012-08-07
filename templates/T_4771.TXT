@@ -10,6 +10,7 @@
 @format=60L(2)~Payment Type~#30#|M50L(2)~Register #~#1#|M50R(2)~Register Date~@d2@#2#|M50R(2)~Payment #~#3#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M;
 @filtername=All,Vouchers,Warrants,Treasurers Checks,Posted,Un-Posted;
 @filter='1=1','a18=''Official Voucher''','a18=''Official Warrant''','a18=''Treasurers Check''','a17=''Posted''','a17<>''Posted''';
+@seriesField=a18;
 
 @browsedelete=
  lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.','Are you sure you wish to delete this Payment?'),
@@ -24,18 +25,19 @@
  d1select('exec dbo.paymentCRUD @mode=4,@paymentType='''&obj:a18&''''),
  lcBlob=obj7:d1,
  prop(13,text,readString(lcBlob,'@debitFieldLabel=')),
- prop(15,text,readString(lcBlob,'@creditFieldLabel='));
+ prop(15,text,readString(lcBlob,'@creditFieldLabel=')),
+ if(obj:a17<>'POSTED' and obj:c9+0>0,set(012,obj:c9)),tsc;
 
 @seriesField=a18;
 
-\t001Register Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
+\t001Register Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; a002+; \00020500;
 \t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; 
 \t005Payment Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; 
 \t007Payment Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
  \w00200855;r2 \d002008obj:a17='Posted';r2
 
 \t009Payee;
-\t011Amount; \w01255; \p0127c0ch,1;
+\t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1;
 \t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and a1 in (''FUND'',''OFFICIAL'')';
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 = ''BANK''';
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE''';
@@ -59,11 +61,26 @@
 \t043Tres Warrant; \l0444771,1; @lf044='a18=''Treasurers Check'''; \h043044;r
 \t045&Print; 
 @acc045=
- @Print=;
+ postandprint=;
  \d046; \w04655;
-@Print=
+@print=
  gcVouchId=obj:id,
  trreport(voucher,4506,voucher=,,,,,voucher);
+
+@postandprint=
+ getVouNum=,
+ print=,
+ postGL=;
+
+@getVouNum=break(obj:key1>'00000'),
+ sql('exec dbo.voucherNumber '&obj:id&', '''&obj:a18&'''');
+
+@postGL=
+ d1select('dbo.trustVoucherStageGL '&obj:id&',0'),
+ break(obj:a17='Posted'),
+ update,
+ d1select('dbo.glPost '&obj:id&',''o'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
 \t101Comment;
 
