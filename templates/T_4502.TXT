@@ -249,7 +249,25 @@ w078090100;r2
  \z102100;
  \w102120;
  \y101102-14;r
-\h113obj:key3<>'INDIV';r
+\h112obj:key3<>'TRUST' or obj:b7+0.00<0.01;
+\t112Write Voucher;
+ @acc112=lccheck=kp('select count(*) from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00'),
+  gccode='',
+  break(lccheck+0<1),
+  if(lccheck+0>1,pickpurpose=),
+  if(gccode<'0',gccode=kp('select top 1 purpose from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00')),
+  gcamt=kp('select top 1 amount from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00 and purpose='''&gccode&''''),
+  sql('exec dbo.paymentCRUD @mode=0,@paymentType=''Trust Voucher'',@id='&obj:id),
+  lcNewId=kp('select top 1 id from object where typ=4771 and a18=''Trust Voucher'' and a17<>''Posted'' order by id desc'),
+  break(lcNewId+0<1),
+  sql('update object set a6=purpose, a3='''&gcamt&''', b5=accountDesc, c9='''&gcamt&''' from object, dbo.purposedetail where object.id='&lcNewId&' and isnull(receiptId,0) = '&obj:id&' and purpose='''&gccode&''''),
+  insert(-02=4775,-03=lcNewId,-04=obj:id,004=gccode,006=gcamt,008=obj:key1),
+  change(lcNewId);
+
+@pickpurpose=select(1,4701,'typ=4701 and id in (select accountId from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00)'),
+  gccode=PIC:key1;
+
+\h113obj:key3<>'INDIV';
 \t113Redeem Amount;
  @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
  if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;

@@ -4,10 +4,10 @@ create proc dbo.paymentCRUD(
  @officialName varchar(50) = '',
  @officialDepositCode varchar(50) = '',
  @officialBankCode varchar(50) = '',
- @voucherDate int = null,
+ @voucherDate int = 0,
  @voucherNumber varchar(50) = '',
  @payee varchar(50) = '',
- @amount money = null,
+ @amount money = 0,
  @debitAcct varchar(50) = '',
  @creditAcct varchar(50) = '',
  @id int = 0,
@@ -28,7 +28,7 @@ begin
 
  if @mode = 4
  begin
-  if @paymentType = 'Official Voucher'
+  if @paymentType in ('Official Voucher','Trust Voucher')
    select @log = 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
@@ -67,6 +67,16 @@ begin
 -- TODO: add gl check here
 
   declare @nextVoucherNumber varchar(50)
+
+ -- Issued from Trust Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
+  if @paymentType = 'Trust Voucher'
+  begin
+   select
+    @voucherDate = dbo.clarionDate(getDate()),
+    @debitAcct = key3,
+    @creditAcct = key2
+   from object where typ = 4503 and key1 = 'TRUST'
+  end
 
   if @paymentType = 'Buy Warrant'
   begin
@@ -131,6 +141,17 @@ begin
   declare @newId int = @@identity
   declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
 
+ end
+
+ if @mode=0 and @paymentType = 'Trust Voucher'
+ begin
+  commit transaction    
+ end
+
+
+ if @mode = 0 and @paymentType <> 'Trust Voucher'
+ begin
+
   declare @stageRows table(acctCode varchar(50), amount money)
   insert @stageRows 
     select @debitAcct, @amount
@@ -171,4 +192,3 @@ begin
 
  return
 end
-
