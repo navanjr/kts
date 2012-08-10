@@ -86,6 +86,9 @@ begin
 
  EXECUTE sp_executesql @sql, @parm,@table=@tableName,@dist=@distToken,@rName=@rToken,@rateOUT=@rateToken OUTPUT;
 
+ exec glAccountVerification @distToken,'SCHOOL','CREATE'
+ exec glAccountVerification @rToken,'CITY','CREATE'
+
  update @rates set mill = @rateToken, processFlag = 1 where id = @idToken
  
 end
@@ -97,8 +100,8 @@ update @rates set rate = mill / (select totalMills from @districtNames where id 
 update @rates set rateCol = newName from @rates, @replaceNames where rateCol = oldname
 
 -- prepare for import to object table
-update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4010
-update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4011
+update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4701 and b.a1='SCHOOL'
+update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4701 and b.a1='CITY'
 
 -- remove any rates that wont import
 delete @rates where ISNULL(districtId,0)=0 
