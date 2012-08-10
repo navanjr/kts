@@ -1,6 +1,6 @@
 create procedure dbo.taxRateImport(@year varchar(4), @tableName varchar(50)) as 
 begin
-
+-- exec taxRateImport '2011', 'mat2011txlv'
 declare
  @sql nvarchar(500),
  @parm nvarchar(500),
@@ -87,7 +87,7 @@ begin
  EXECUTE sp_executesql @sql, @parm,@table=@tableName,@dist=@distToken,@rName=@rToken,@rateOUT=@rateToken OUTPUT;
 
  exec glAccountVerification @distToken,'SCHOOL','CREATE'
- exec glAccountVerification @rToken,'CITY','CREATE'
+-- exec glAccountVerification @rToken,'CITY','CREATE'
 
  update @rates set mill = @rateToken, processFlag = 1 where id = @idToken
  
@@ -101,7 +101,7 @@ update @rates set rateCol = newName from @rates, @replaceNames where rateCol = o
 
 -- prepare for import to object table
 update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4701 and b.a1='SCHOOL'
-update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4701 and b.a1='CITY'
+update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4011
 
 -- remove any rates that wont import
 delete @rates where ISNULL(districtId,0)=0 

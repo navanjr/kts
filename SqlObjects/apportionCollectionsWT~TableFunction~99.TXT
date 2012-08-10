@@ -14,6 +14,7 @@ create function dbo.apportionCollectionsWT( @accountId int ) returns @wt table(
   processFlag int default 0,
   comment varchar(50)
 )
+
 begin
 
  declare
@@ -26,6 +27,7 @@ begin
   @tokenapdistrict varchar(50),
   @tokenaprate varchar(50),
   @tokenappoptype varchar(50),
+  @tokenStepDesc varchar(50),
   @tokenComment varchar(50)
 
 
@@ -52,7 +54,7 @@ begin
 
 -- credit accrued receivables 
  insert @wt(accountId, creditCode, amount, comment)
- select a.accountId, b.accountCode, SUM(a.amount), a.comment
+ select a.accountId, b.accountCode, SUM(a.amount), isnull(a.comment,'')
   from gldetail a, glAccounts b
   where a.accountId = b.accountId
    and a.contraId = @accountId
@@ -61,7 +63,7 @@ begin
 
 -- credit funds
  insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment)
- select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, a.comment
+ select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, isnull(a.comment,apdistrict)
   from gldetail a, glAccounts b
   where a.accountId = b.accountId
    and a.contraId = @accountId
@@ -72,7 +74,7 @@ begin
  update @wt set processFlag = 1 where apTableType = 'L'
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = appilottable, @tokenComment = comment from @wt where processFlag = 1
+  select top 1 @tokenId = id, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = appilottable, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
   insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment)
   select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment
    from dbo.millsGetRows(4009,@tokenYear,@tokenAmount,@tokenCode)
@@ -84,9 +86,9 @@ begin
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenComment = comment from @wt where processFlag = 1
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
   insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment)
-  select @tokenAccountId, apTableType, taxYear, apportionCode, amount, sourceCode, @tokenComment
+  select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment
    from dbo.getRates('apportionment',@tokenAccountId,@tokenAmount,null,'')
   update @wt set processFlag = 2 where id = @tokenId
  end
@@ -96,11 +98,13 @@ begin
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditCode, @tokenComment = comment+case when stepDesc like '%4MILL%' then ' 4 Mill' else '' end from @wt where processFlag = 1
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditCode, @tokenStepDesc = isnull(stepDesc,''), @tokenComment = isnull(comment,'') from @wt where processFlag = 1
+
   insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
-  select @tokenAccountId, @tokenYear, accountCode, amount, description+'_'+@tokenYear, @tokenComment
+  select @tokenAccountId, @tokenYear, accountCode, amount, @tokenStepDesc+' '+description+' '+@tokenYear, @tokenComment
    from dbo.millsGetRows(4013,@tokenYear,@tokenAmount,'')
-  update @wt set processFlag = 2, creditCode = null where id = @tokenId
+  update @wt set processFlag = 2, creditCode = null 
+   where id = @tokenId
  end
 
 -- process P types
@@ -108,9 +112,9 @@ begin
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditcode, @tokenappoptype = appoptype, @tokenComment = comment from @wt where processFlag = 1
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditcode, @tokenappoptype = appoptype, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
   insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
-  select @tokenAccountId, @tokenYear, accountCode, amount, description+'_'+@tokenYear, @tokenComment
+  select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment
    from dbo.millsGetRows(4014,@tokenYear,@tokenAmount,@tokenappoptype)
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end

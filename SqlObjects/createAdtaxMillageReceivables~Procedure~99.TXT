@@ -9,30 +9,30 @@ begin
 
  declare @pt table(
   realtaxyear varchar(4),
-  ORGSCHOOLDISTRICTMAIN varchar(50),
-  ORGSCHOOLDISTRICTTAXRATE varchar(50),
+  SCHOOLDISTRICTMAIN varchar(50),
+  SCHOOLDISTRICTTAXRATE varchar(50),
   pilottable varchar(50))
 
  insert @pt 
- select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' 
+ select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE],'' from adtax 
+ where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' 
 
  delete from @pt where exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=[realtaxyear] 
-  and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE])   
+  and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE])   
 
 
- while exists(select distinct cast([realtaxyear] as varchar(4)), [ORGSCHOOLDISTRICTMAIN], [ORGSCHOOLDISTRICTTAXRATE] from @pt 
- where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
+ while exists(select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE] from @pt 
+ where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' and 
   not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
-  and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE]))
+  and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE]))
  begin
-  select top 1 @year=cast([realtaxyear] as varchar(4)), @district=[ORGSCHOOLDISTRICTMAIN], @rate=[ORGSCHOOLDISTRICTTAXRATE], @pilottable='' from @pt
-  where [realtaxyear]>0 and [ORGSCHOOLDISTRICTMAIN]>'0' and [ORGSCHOOLDISTRICTTAXRATE]>'0' and 
+  select top 1 @year=cast([realtaxyear] as varchar(4)), @district=[SCHOOLDISTRICTMAIN], @rate=[SCHOOLDISTRICTTAXRATE], @pilottable='' from @pt
+  where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' and 
    not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
-   and apdistrict=[ORGSCHOOLDISTRICTMAIN] and aprate=[ORGSCHOOLDISTRICTTAXRATE])
+   and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE])
  
   exec dbo.pilotFundReceivableVerification @year, @district, @rate, ''
  
-  delete from @pt where cast([realtaxyear] as varchar(4))=@year and [ORGSCHOOLDISTRICTMAIN]=@district and [ORGSCHOOLDISTRICTTAXRATE]=@rate
+  delete from @pt where cast([realtaxyear] as varchar(4))=@year and [SCHOOLDISTRICTMAIN]=@district and [SCHOOLDISTRICTTAXRATE]=@rate
  end
 end

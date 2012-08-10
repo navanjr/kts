@@ -1,0 +1,29 @@
+create procedure dbo.createAdtaxCollectionReceivables
+as 
+begin
+ declare
+  @year varchar(4),
+  @accountCode varchar(50)
+
+ declare @pt table(realtaxyear varchar(4), accountCode varchar(50))
+
+ insert @pt 
+ select distinct cast([realtaxyear] as varchar(4)),'' from adtax 
+ where [realtaxyear]>0
+ 
+ update @pt set accountCode = realtaxyear+'_ADVALOREM_AR' where realtaxyear>'0'
+
+ delete from @pt where accountCode in (select accountcode from glAccounts where accountType = 'RECEIVABLE')   
+
+
+ while exists(select * from @pt)
+ begin
+  select top 1 @year=[realtaxyear], @accountCode=accountCode from @pt
+  where [realtaxyear]>'0' and 
+   accountCode not in (select accountcode from glAccounts where accountType = 'RECEIVABLE')
+ 
+  exec dbo.glAccountVerification @accountCode, 'RECEIVABLE', 'CREATE'
+ 
+  delete from @pt where [realtaxyear] = @year
+ end
+end
