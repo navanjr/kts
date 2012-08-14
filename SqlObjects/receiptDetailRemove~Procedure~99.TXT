@@ -8,7 +8,8 @@ begin
   @receiptType varchar(50),
   @suspenseAccountId int,
   @contraId int,
-  @fpId int
+  @fpId int,
+  @log varchar(1000)
   
  select 
   @code = code,
@@ -19,6 +20,14 @@ begin
   @fpId = fpId
  from dbo.receiptCheck(@receiptId,null)
 
+ set @log = '@code=' + isnull(cast(@code as varchar),'') + ';'
+  + '@message=' + isnull(@message,'') + ';'
+  + '@receiptType=' + isnull(@receiptType,'') + ';'
+  + '@suspenseAccountId=' + isnull(cast(@suspenseAccountId as varchar),'') + ';'
+  + '@contraId=' + isnull(cast(@contraId as varchar),'') + ';'
+  + '@fpId=' + isnull(cast(@fpId as varchar),'') + ';'
+
+ exec dbo.logit @@procid, @log
 
  -- bail if we dont have enough data
  if @code = 1
@@ -26,7 +35,6 @@ begin
   select '@code=1;@message=' + @message + ';'
   return
  end
-
 
  begin transaction
   delete receiptDetail where id = @receiptDetailId
