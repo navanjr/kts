@@ -1,0 +1,91 @@
+create function dbo.trustVoucherCheck(@sourceId int, @voucherType varchar(50)='Trust Voucher') returns
+@rettable table(
+ code int,
+ message varchar(500),
+ voucherType varchar(50),
+ debitAccountId int, 
+ creditAccountId int, 
+ purposeAccountId int,
+ fpid int,
+ status varchar(50),
+ amount money
+)
+begin
+ 
+ declare
+  @cdate int,
+  @fpid int,
+  @status varchar(50),
+  @debitAccount varchar(50), 
+  @creditAccount varchar(50),
+  @purposeAccount varchar(50),
+  @debitAccountId int, 
+  @creditAccountId int,
+  @purposeAccountId int,
+  @amount money 
+ 
+
+
+ select
+  @cdate = cast(key2 as int),
+  @voucherType = a18,
+  @status = a17,
+  @debitAccount = a4, 
+  @creditAccount = a5,
+  @purposeAccount = a6
+ from object where id = @sourceId
+
+ select @amount = isnull(sum(cast(key3 as money)),0) from object where typ=4775 and link1=@sourceId and key2=@purposeAccount
+
+ -- check for status of Posted
+ if @status = 'Posted'
+ begin
+  insert @rettable 
+   select 1,'Voucher has already been posted.',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+  return
+ end
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
+ if @fpid = 0
+ begin
+  insert @rettable 
+   select 1,'Fiscal Period is locked or does not exist.',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+  return
+ end
+
+ -- check for debit account id
+  select @debitAccountId = accountId from glaccounts where accountCode = @debitAccount
+ 
+  if isnull(@debitAccountId,0) = 0
+  begin
+   insert @rettable
+    select 1,'Missing Debit Account Information. Contact Support.',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+   return
+  end
+
+ -- check for credit account id
+  select @creditAccountId = accountId from glaccounts where accountCode = @creditAccount
+ 
+  if isnull(@creditAccountId,0) = 0
+  begin
+   insert @rettable
+    select 1,'Missing Credit Account Information. Contact Support.',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+   return
+  end
+
+ -- check for purpose account id
+  select @purposeAccountId = accountId from glaccounts where accountCode = @purposeAccount
+ 
+  if isnull(@purposeAccountId,0) = 0
+  begin
+   insert @rettable
+    select 1,'Missing Purpose Account Information. Contact Support.',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+   return
+  end
+
+ insert @rettable
+  select 0,'OK',@voucherType,@debitAccountId,@creditAccountId,@purposeAccountId,@fpid,@status,@amount
+ return
+
+end

@@ -39,7 +39,7 @@ begin
 
  if @mode = 'taxinvoice' 
  begin
-  if isnull(@taxrollId,0) = 0 or isnull(@invoiceType,'') = ''
+  if isnull(@taxrollId,0) = 0
    return
  
   select
@@ -73,13 +73,13 @@ begin
  if @invoiceType='S'
   begin
    set @sourcecode = @district
-   select @fundcode = accountcode, @fundid = accountid from glaccounts where aptabletype = 'S' and apyear = @taxyear and aprate = @rateName
+   select @fundcode = accountcode, @fundid = accountid from glaccounts where accountCode = @rateName
 
    select @sourceid=isnull(accountid,0) from glaccounts where accountType = 'SOURCE' and accountCode = @sourcecode
 
    insert @rt
    select
-    @rateName,
+    isnull((select accountdesc from glaccounts where accountid=@sourceid),'Assessment'),
     '',
     @sourceCode,
     @sourceid,
@@ -111,9 +111,7 @@ begin
   end
  else
   begin
-   set @sourcecode=@district + '_' + @rateName + '_' + @taxyear
    select @fundcode = accountcode, @fundid = accountid from glaccounts where aptabletype = 'M' and apyear = @taxyear and apdistrict = @district and aprate = @rateName
-   select @sourceid=isnull(accountid,0) from glaccounts where accountType = 'SOURCE' and accountCode = @sourcecode
    insert @rt
    select
     @district + ' ' + taxName,
@@ -154,10 +152,23 @@ begin
  if @mode = 'apportionment' 
  begin
   update a set
-   apportionCode = b.key2,
+   apportionCode = upper(b.key2),
    apTableType = b.a9
   from @rt a, object b
-  where a.taxName = b.key1 and b.typ = 4008
+  where a.taxName = b.key1 and b.typ = 4008 and b.key2>'0'
+  update a set
+   apportionCode = upper(c.apdistrict)
+  from @rt a, object b, glAccounts c
+  where a.taxName = b.key1 and b.typ = 4008 and c.accountId=a.fundid and b.a3='Y'
+  update a set
+   apportionCode = upper(d.key2)
+  from @rt a, object b, glAccounts c, object d
+  where a.taxName = b.key1 and b.typ = 4008 and d.typ=4011 and c.accountId=a.fundid and d.key1=c.aprate and b.a4='Y'
+  update a set
+   apportionCode = upper(d.key3)
+  from @rt a, object b, glAccounts c, object d
+  where a.taxName = b.key1 and b.typ = 4008 and d.typ=4011 and c.accountId=a.fundid and d.key1=c.aprate and b.a5='Y'
+
  end
 
  return

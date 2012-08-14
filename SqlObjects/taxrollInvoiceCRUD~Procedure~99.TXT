@@ -9,7 +9,11 @@ begin
   @message varchar(500),
   @taxyear varchar(4),
   @district varchar(15),
-  @rateName varchar(15)
+  @rateName varchar(15),
+  @accountBlob varchar(2000),
+  @accrualcode varchar(50),
+  @targetcode varchar(50)
+
 
  select
   @code = code,
@@ -31,7 +35,14 @@ begin
 
  if @invoiceType='S'
   begin
-   exec dbo.pilotFundReceivableVerification @taxyear,'',@rateName,''
+    select @accountBlob = dbo.glAccountGetFundAccrualBlob(@rateName, 'ACCRUED RECEIVABLE')
+    select 
+     @accrualcode = dbo.readString('@accrualcode=', @accountBlob),
+     @targetcode = dbo.readString('@fundcode=', @accountBlob)
+
+    exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
+
+--   exec dbo.pilotFundReceivableVerification @taxyear,'',@rateName,''
   end
  else
   begin
@@ -66,7 +77,6 @@ begin
   return
  end
 
- begin transaction
   declare 
    @idToken int,
    @newAccountId int,
@@ -103,7 +113,6 @@ begin
  
   if exists(select * from @invd where isnull(sourceId,0) = 0)
   begin
-   rollback transaction
    if @smode = 0
     begin
      select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
@@ -112,7 +121,6 @@ begin
   end
   if exists(select * from @invd where isnull(fundId,0) = 0 and @invoiceType<>'S')
   begin
-   rollback transaction
    if @smode = 0
     begin
      select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
@@ -121,13 +129,14 @@ begin
   end
   if (select sum(amount) from @invd) = 0
   begin
-   rollback transaction
    if @smode = 0
     begin
      select '@code=1;@message=No amount exists to stage GL.;'
     end
    return
   end
+
+  begin transaction
 
   -- insert invoice detail
   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount)

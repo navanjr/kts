@@ -108,7 +108,7 @@
 @afterloadwindow=
  refreshDetail=,
  break(obj:a17='Posted'),
- if(obj:key3<>'TAX',create(160,9,3,66,'&New Detail')),
+ if(obj:key3='MISC' or obj:key3='INDIV',create(160,9,3,66,'&New Detail')),
  prop(160,7c04h,56),
  create(161,9,3,85,'&Delete'),prop(161,7c04h,56),
  blankEm=,
@@ -129,11 +129,11 @@
 \t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
 
 \t009detailId;\d009010;r \h009010;r
-\t011new detail;  \l0124504;r012002014004016006; @lmode012=1; @nopop012; @lf012='typ=4504 and a1='''&obj:key3&'''';
+\t011new detail; h160obj:key3='TRUST' or obj:key3='OFFICIAL'; \l0124504;r012002014004016006; @lmode012=1; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))';
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
 \t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL'') or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE''))';
  @acc016=if(obj:key3='OFFICIAL',update);
-\t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL' and obj:key3<>'TRUST';
+\t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL' and (obj:key3<>'TRUST' or obj:a17='Posted');
 
 \t017Amount; \t018@n-14.2; @acc018=miscDetail=;
  \h011017;r2
@@ -233,12 +233,44 @@ w078090100;r2
 @lbrw2color=obj7:c10=9,12632256,obj7:c10=1,59110;
 @lbrw2forecolor=obj7:c10=9,0;
 
-\h051054obj:key3<>'INDIV';r
+\h051052obj:key3<>'INDIV';r
 \t051Cert#; \w05260; \l0524100;r052014054002; @lf052='typ=4100 and key2=''A''';
+\h053054obj:key3<>'INDIV' and obj:key3<>'TRUST';r
 \t053Parcel#; \w054100; \r054;
-\x051053+157;r2 \x052054+127;r2
+\h055064obj:key3<>'TRUST';r
+\x051063+157;r2 \x052064+127;r2
+\t055VIN#;
+\t057Title#;
+\t059In Trust; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
+\t061Year; \t062@n4; \w06230;
+\t063Item; \w06460;
+\*TODO: when writing a trust voucher for receipts tied to year and item pull the tax items identified onto the tax inquiry screen.*\
+\h101102obj:key3<>'TRUST';r
+\t101Other;
+ \x101344;
+ \x102374;
+ \z102100;
+ \w102120;
+ \y101102+14;r
+\h112obj:key3<>'TRUST' or obj:b7+0.00<0.01;
+\t112Write Voucher;
+ @acc112=lccheck=kp('select count(*) from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00'),
+  gccode='',
+  break(lccheck+0<1),
+  if(lccheck+0>1,pickpurpose=),
+  if(gccode<'0',gccode=kp('select top 1 purpose from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00')),
+  gcamt=kp('select top 1 amount from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00 and purpose='''&gccode&''''),
+  sql('exec dbo.paymentCRUD @mode=0,@paymentType=''Trust Voucher'',@id='&obj:id),
+  lcNewId=kp('select top 1 id from object where typ=4771 and a18=''Trust Voucher'' and a17<>''Posted'' order by id desc'),
+  break(lcNewId+0<1),
+  sql('update object set a6=purpose, a3='''&gcamt&''', b5=accountDesc, c9='''&gcamt&''' from object, dbo.purposedetail where object.id='&lcNewId&' and isnull(receiptId,0) = '&obj:id&' and purpose='''&gccode&''''),
+  insert(-02=4775,-03=lcNewId,-04=obj:id,004=gccode,006=gcamt,008=obj:key1),
+  change(lcNewId);
 
-\h113obj:key3<>'INDIV';r
+@pickpurpose=select(1,4701,'typ=4701 and id in (select accountId from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00)'),
+  gccode=PIC:key1;
+
+\h113obj:key3<>'INDIV';
 \t113Redeem Amount;
  @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
  if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
@@ -337,7 +369,7 @@ w078090100;r2
   sql('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&','&obj:id),
   refreshDetail=;
 
-\h160obj:key3='TAX';
+\h160obj:key3<>'MISC' and obj:key3<>'INDIV';
 @acc160=
  if(obj:key3<>'MTG',miscDetail=,mortDetailCreate=),
  if(obj:key3<>'MTG',focus(012)),

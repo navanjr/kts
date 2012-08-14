@@ -16,16 +16,21 @@
  lcfyr=obj7:key1,
  sql('exec millsCopy 4013,'''&obj:key1&''','''&lcfyr&'''');
 
+@bb5=Pull Schools,,,;
+@bbproc5=iw('\t001Year; \t002@n4; \w00230;'),
+ lcyear=obj7:key1,
+ if(lcyear+0<1,lcyear=year(today())),
+ sql('insert object (typ,key1,key2) select 4013,'''&lcyear&''',a.accountcode from glaccounts a where a.accountType=''SCHOOL'' and accountCode not in (select key2 from object where typ=4013 and key1='''&lcyear&''')'),
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''''');
+
 @afterloadwindow=if(obj:key1+0<1900,set(2,kp('select year(getdate())'))),tsc;
 \t001Year;f
  \t002@n4;
  \w00230;
 \t003School Name;
- \l0044010;
+ \l0044701; @lf004='typ=4701 and a1=''SCHOOL''';
 \t005ADA;
  \t006@n14.2;
  \w00650;
-
-\t007Fund;  \l0084701; @lf008='typ=4701 and a1=''FUND'''; \q008;
 
 @closewindow=update,sql('exec dbo.adaFundReceivableVerification '''&obj:key1&'''');

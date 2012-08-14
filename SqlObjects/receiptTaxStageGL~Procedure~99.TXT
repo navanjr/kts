@@ -50,10 +50,11 @@ begin
   @idToken int,
   @dueToken money,
   @amountToken money,
+  @taxId int,
   @currTaxId int,
   @priorTaxId int,
   @backTaxId int,
-  @currTaxCode varchar(10),
+  @currTaxCode varchar(50),
   @priorTaxCode varchar(10)
 
 --TODO: bail if there is already gldetail for these receiptLinks 
@@ -66,13 +67,24 @@ begin
   where a.invoiceId = b.id and a.receiptId = @receiptId
 
 -- calculate the balance due, update AR and Contra account id
- select @currTaxId = accountId, @currTaxCode=code from glAccounts where accountCode = 'CURTAX'
- select @priorTaxId = accountId, @priorTaxCode=code from glAccounts where accountCode = 'PRIORTAX'
- select @backTaxId = accountId from glAccounts where accountCode = 'BACKTAX'
+
+ update @wt set processflag=1 where rtrim(taxyear) in (select left(accountCode,4) from glAccounts where right(accountCode,10)='_ADVALOREM')
+ while exists(select * from @wt where processflag=0)
+ begin
+  select top 1 
+    @idToken = linkId,
+    @currTaxCode = rtrim(taxyear)+'_ADVALOREM' 
+   from @wt where processflag=0
+  exec glAccountVerification @currTaxCode, 'FUND', 'CREATE'
+  exec dbo.receiptAccountsVerification @currTaxCode
+  update @wt set processflag=1 where linkId = @idToken
+ end
+ update @wt set processflag=0 where processflag=1
+
  update @wt set
   due = round((select due from dbo.invoiceCheck(invoiceId)),2),
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
-  contraAccountId = case when taxYear = @currTaxCode then @currTaxId when taxyear=@priorTaxCode then @priorTaxId else @backTaxId end
+  contraAccountId = isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+'_ADVALOREM'),0)
    where invoiceId > 0
 
 -- populate Suspense
@@ -119,7 +131,7 @@ begin
   where a.fundCode = b.accountCode and a.accountId = 0
 
 
--- add the credit to the Treasures collection Account and include the slink2 to the receiptLink parent
+-- add the credit to the Treasures collection Account and include the contraId to the receiptLink parent
  insert @glSalesCredits 
  select @receiptSlink, a.contraAccountId, round(sum(b.payAmount)*-1,2), null
  from @wt a, @glFundDebits b
