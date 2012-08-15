@@ -163,13 +163,18 @@
 \t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=;
 \t035Amount;@acc036=lcBranch=3,mortCalc=;
 \t037Rate;
-\t047Total Amount;
-\h029038obj:key3<>'MTG';r \h047048obj:key3<>'MTG';r
-\w03003855;r2 \w04855;
+\t047Tax Amount; \t048@n-19.2; @sel048=focus(048); @acc048=mortManualCalc=;
+\t069Fee Amount; \t070@n-19.2; @sel070=focus(070); @acc070=mortManualCalc=;
+\h029038obj:key3<>'MTG';r 
+\h047048obj:key3<>'MTG';r
+\h069070obj:key3<>'MTG';r
+\w03003855;r2 \w04855; \w07055;
 \x029038+340;r \x047048+157;r
+\x069=029; \x070=030;
 \y029038-182;r \y047048+13;r
-\p0340387c0ch,1;r2 \p0487c0ch,1;
-\p0387cfah,13499135; \p0487cfah,13499135; \p0387c13h,700; \p0487c13h,700; \d038; \d048;
+\y069070=089;r
+\p0340387c0ch,1;r2 \p0487c0ch,1; \p0707c0ch,1;
+\p0387cfah,13499135; \p0487cfah,13499135; \p0707cfah,13499135; \p0387c13h,700; p0487c13h,700; p0707c13h,700; \d038; \d048obj:a17='Posted'; \d070obj:a17='Posted';
 
 \t077Mortgagor; 
 \t079Mortgagee;  
@@ -208,6 +213,12 @@ w078090100;r2
  set(090,obj7:a3),
  focus(078);
 
+@mortManualCalc=
+ lctaxamount=obj:b1,
+ lcfeeamount=obj:b12,
+ sql('exec dbo.mortgageReceiptDetailCRUD '&obj:id&','&lctaxamount+0&','&lcfeeamount+0),
+ refreshDetail=;
+
 @mortCalc=
  lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
  reak(obj:a12+0<1 or obj:a13+0<1 or obj:a14+0<0.1 or obj:a15+0<0.01),
@@ -215,7 +226,8 @@ w078090100;r2
  set(32,readstring(obj7:d1,'@endDate=')),
  set(34,readstring(obj7:d1,'@termYears=')),
  set(38,readstring(obj7:d1,'@taxRate=')),
- set(48,readstring(obj7:d1,'@taxTotal=')),
+ set(48,readstring(obj7:d1,'@taxAmount=')),
+ set(70,readstring(obj7:d1,'@feeAmount=')),
  lctaxamount=readstring(obj7:d1,'@taxAmount='),
  lcfeeamount=readstring(obj7:d1,'@feeAmount='),
  sql('exec dbo.mortgageReceiptDetailCRUD '&obj:id&','&lctaxamount+0&','&lcfeeamount+0),
@@ -386,7 +398,7 @@ w078090100;r2
 ;
 
 @deleteReceiptDetail=
- m('exec receiptDetailRemove '&lcid&', '&obj:id);,
+ sql('exec dbo.receiptDetailRemove '&lcid&', '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
  blankEm=,
  focus(012),
