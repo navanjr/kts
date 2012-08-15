@@ -27,10 +27,10 @@
  prop(13,text,readString(lcBlob,'@debitFieldLabel=')),
  prop(15,text,readString(lcBlob,'@creditFieldLabel=')),
  if(obj:a17<>'POSTED' and obj:c9+0>0,set(012,obj:c9)),
- if(obj:a18='Trust Voucher',brwstuff=),
+ if(obj:a18='Trust Voucher' or obj:a18='Protest Voucher',brwstuff=),
  tsc;
 
-@closewindow=if(obj:a17<>'POSTED' and obj:a18='Trust Voucher',set(012,obj:c9)),tsc;
+@closewindow=if(obj:a17<>'POSTED' and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),tsc;
 
 @brwstuff=brw(150,1,'select id,a1,key3 from object where typ=4775 and link1='&obj:id,320,20,110,90,'50L(2)~Receipt~#2#|M50R(2)~Amount~@n-19.2@#3#|M');
 
@@ -45,8 +45,9 @@
  \w00200855;r2 \d002008obj:a17='Posted';r2
 
 \t009Payee;
-\t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher';r
+\t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
 \t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and a1 in (''FUND'',''OFFICIAL'')';
+  \h013014obj:a18='Protest Voucher';r
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 = ''BANK''';
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE''';
   \h017018obj:a18<>'Trust Voucher';r
@@ -58,9 +59,9 @@
 \h019024;r
 
 
-\t051DebitAccountDesc; \h051;
+\t051DebitAccountDesc; \h051; \h052obj:a18='Protest Voucher';
 \t053CreditAccountDesc; \h053;
-\t055PurposeAccountDesc; \h055;  \h054obj:a18<>'Trust Voucher';
+\t055PurposeAccountDesc; \h055;  \h056obj:a18<>'Trust Voucher';
  \x052056136;r2 \w052056150;r2 \d052056;r2 \p0520567cfah,13499135;r2
 \t093Amount; \t094@n-19.2; \y0930943;r\x093320; \w09350; \x094370; \d094; \s094+'select sum(cast(key3 as money)) from object where typ=4775 and link1='&obj:id&' and key2='''&obj:a6&'''';
 

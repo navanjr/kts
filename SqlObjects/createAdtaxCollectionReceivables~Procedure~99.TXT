@@ -26,4 +26,24 @@ begin
  
   delete from @pt where [realtaxyear] = @year
  end
+
+ insert @pt 
+ select distinct cast([realtaxyear] as varchar(4)),'' from adtax 
+ where [realtaxyear]>0
+ 
+ update @pt set accountCode = realtaxyear+'_PROTEST_AR' where realtaxyear>'0'
+
+ delete from @pt where accountCode in (select accountcode from glAccounts where accountType = 'RECEIVABLE')   
+
+
+ while exists(select * from @pt)
+ begin
+  select top 1 @year=[realtaxyear], @accountCode=accountCode from @pt
+  where [realtaxyear]>'0' and 
+   accountCode not in (select accountcode from glAccounts where accountType = 'RECEIVABLE')
+ 
+  exec dbo.glAccountVerification @accountCode, 'RECEIVABLE', 'CREATE'
+ 
+  delete from @pt where [realtaxyear] = @year
+ end
 end
