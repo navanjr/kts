@@ -11,11 +11,14 @@
 @wbgcolor=999B0Dh;
 @lmode=2;
 
+@importTag=do(3,menuprocess=);
+
 @loadwindow=
  gcBat='gitcmd_temp.bat',
  gcBatIni='gitcmdIni_temp.bat',
  gcRepoPath=getini('git','path','','c:\kellpro.ini'),
  gcAppInitials=getini('git','appinitials','','c:\kellpro.ini'),
+ if(gcAppInitials<'  0' or gcRepoPath<'  0',missingGitSettings=),
  gcAppPath=kpexepath(),
  gitCreateIni=,
  gcBranchName=getini('gitInfo','BRANCHNAME','unknown',gcAppPath&'\gitInfo.ini'),
@@ -37,7 +40,20 @@
  prop(152,'Height',120),
  prop(152,7cfah,16777215),
  prop(152,font,Lucida Console),
- prop(152,fontsize,7);
+ prop(152,fontsize,7),
+ create(153,10,2,140,'',),
+ prop(153,'Width',59),
+ prop(153,'Height',120),
+ prop(153,7cfah,16777215),
+ prop(153,font,Lucida Console),
+ prop(153,fontsize,7);
+
+@missingGitSettings=
+ m('you are missing required GIT settings in your kellpro.ini||default GIT path: c:\client\key\kts','Houston we have a problem...','exclem.ico','set to defaults|cancel'),
+ break(gcretval<>1),
+ putini('git','path','c:\client\key\kts','c:\kellpro.ini'),
+ putini('git','appinitials','kts','c:\kellpro.ini'),
+ close('ok');
 
 @afterloadwindow=
  prop(0,text,'Git Repo: '&upper(gcRepoPath)),
@@ -88,10 +104,11 @@
 
 \t108Import;
 @acc108=
- m('please select on of the following IMPORT options...','Import from local repo...',,'&One Template|&Everything|&Cancel'),
- break(gcretval=3),
+ m('please select on of the following IMPORT options...','Import from local repo...',,'&One Template|&Everything|&Tag|&Cancel'),
+ break(gcretval=4),
  if(gcretval=1,import1Template=),
  if(gcretval=2,importEverything=),
+ if(gcretval=3,importTag=), 
  gitCreateIni=,
  gitStatus=;
 
@@ -140,6 +157,9 @@
 \t115CSV Stuff;
 @acc115=
  do(454,exportCsv1=);
+
+\t117Reconfigure SQL;
+@acc117=do(451,reconfigSqlEnv=);
 
 @import1Template=
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
@@ -257,7 +277,9 @@
  readdos('gitStatus.txt'),
  prop(151,text,workmemo),
  readdos('gitLog.txt'),
- prop(152,text,workmemo);
+ prop(152,text,workmemo),
+ readdos('gitTags.txt'),
+ prop(153,text,workmemo);
 
 @gitCommand=
  send(gcBat,'pushd '&gcRepoPath),
@@ -271,7 +293,10 @@
  send(gcBatIni,'pushd '&gcRepoPath,1),
  send(gcBatIni,'echo [gitInfo] > ..\gitInfo.ini',1),
  send(gcBatIni,'for /F "tokens=3 delims=/" %%i in (.git/HEAD) do echo BRANCHNAME=%%i >> ..\gitInfo.ini',1),
- send(gcBatIni,'call git status > ..\gitStatus.txt',1),
+ send(gcBatIni,'call git tag > ..\gitTags.txt',1),
+ send(gcBatIni,'call sed -n -e ":a" -e "$ s/\n/|/gp;N;b a" ..\gitTags.txt > ..\gitTagsLine.txt',1),
+ send(gcBatIni,'call git describe --tags > ..\gitStatus.txt',1),
+ send(gcBatIni,'call git status >> ..\gitStatus.txt',1),
  send(gcBatIni,'call git log -n20 --date=short > ../gitLog.txt',1),
  send(gcBatIni,'popd',1),
  runw(gcBatIni,,0);
