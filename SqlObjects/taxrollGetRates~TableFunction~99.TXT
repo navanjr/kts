@@ -1,0 +1,117 @@
+create function dbo.taxrollGetRates(@taxrollId int, @invoiceType varchar(1) = '') returns @rettable table(
+ id int identity(1,1),
+ description varchar(500),
+ subDescription varchar(500),
+ sourceCode varchar(50),
+ sourceId int,
+ fundCode varchar(50),
+ fundId int,
+ mill decimal(19,10),
+ amount money
+)
+as
+begin
+
+ declare 
+  @taxYear varchar(4),
+  @district varchar(50),
+  @rateName varchar(50),
+  @totalMills decimal(19,10),
+  @taxAmount money,
+  @totalFigured money,
+  @fundcode varchar(50),
+  @fundid int,
+  @sourcecode varchar(50),
+  @sourceid int,
+  @newAccountId int
+
+ select
+  @taxYear = taxYear,
+  @district = district,
+  @rateName = rateName,
+  @taxAmount = amount
+ from dbo.taxrollCheck(@taxrollId,@invoiceType)
+
+
+ declare @millages table(rateName varchar(50), mill decimal(19,10))
+ insert @millages 
+  select a1, cast(a2 as decimal(19,10))
+  from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @taxYear
+
+ select @totalMills = sum(mill) from @millages
+
+ if @invoiceType='S'
+  begin
+   set @sourcecode=@district
+   select @fundcode=accountcode, @fundid=accountid from glaccounts where aptabletype='S' and apyear=@taxyear and aprate=@rateName
+
+   select @sourceid=isnull(accountid,0) from glaccounts where accountType='SOURCE' and accountCode=@sourcecode
+
+   insert @rettable 
+   select
+    @rateName,
+    '',
+    @sourceCode,
+    @sourceid,
+    @fundcode,
+    @fundid,
+    0.0000000000,
+    b1
+   from object where id=@taxrollId
+
+   insert @rettable 
+   select
+    feedescription,
+    '',
+    feesourceCode,
+    0,
+    feefundCode,
+    0,
+    0.0000000,
+    feeAmount
+    from (select top 1 * from dbo.assessmentDetailCheck(@taxrollId)) data
+  end
+ else
+  begin
+   set @sourcecode=@district + '_' + @rateName + '_' + @taxyear
+   select @fundcode = accountcode, @fundid = accountid
+    from dbo.glAccounts where aptabletype = 'M' and apyear = @taxyear and apdistrict = @district and aprate = @rateName
+   select @sourceid=isnull(accountid,0) from glaccounts where accountType='SOURCE' and accountCode=@sourcecode
+   insert @rettable 
+   select
+    @district + ' ' + rateName,
+    'millage:' + cast(mill as varchar),
+    @district + '_' + rateName + '_' + @taxyear,
+    isnull((select accountid from glaccounts where accountType='SOURCE' and accountCode=@district + '_' + rateName + '_' + @taxyear),0),
+    @fundcode,
+    @fundid,
+    mill,
+    round(@taxAmount * (mill / @totalMills),2)
+   from @millages
+  end
+
+ -- check the total and add or remove from the biggon
+ if @invoiceType!='S'
+ begin
+   select @totalFigured = sum(amount) from @rettable
+   if @totalFigured != @taxAmount
+   begin
+
+    declare
+     @fudgeAmount money,
+     @fudgeToken int
+
+    select top 1 
+     @fudgeAmount = @totalFigured - @taxAmount,
+     @fudgeToken = id
+    from @rettable order by amount desc
+
+    update @rettable set amount = amount - @fudgeAmount where id = @fudgeToken
+  end
+ end
+
+ -- remove any zeros ?Maybe?
+-- delete @rettable where amount = 0 
+
+ return
+end
