@@ -1,0 +1,15 @@
+create function dbo.mortgageReceiptBlob(@RecId varchar(50)) returns varchar(2000) as
+begin
+
+declare @retval varchar(2000)
+
+select 
+
+    @retval='@Tax='+cast(max(case when charindex('tax',account)>0 then general else '0' end) as varchar(50))
+  + ';@Fee='+cast(MAX(case when charindex('fee',account)>0 then general else '0' end) as varchar(50))
+  + ';@Total='+cast(SUM(general) as varchar(50))+';'
+ from receiptDetailView where reclink='o'+@RecId group by recLink
+
+ return @retval
+
+end
