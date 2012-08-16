@@ -1,9 +1,27 @@
-create procedure dbo.receiptAccountsVerification( @fundCode varchar(50) ) as
+create procedure dbo.receiptAccountsVerification( @fundCode varchar(50), @receiptType varchar(50)) as
 begin
 
  declare
   @accountBlob varchar(1000),
-  @accrualCode varchar(50)
+  @accrualCode varchar(50),
+  @collectionDesc varchar(50) = '',
+  @collectionDescription varchar(60) = ''
+
+ set @collectionDesc = isnull((select case 
+    when @receiptType='TAX' then 'AD VALOREM' 
+    when @receiptType='TRUST' then 'DEPOSIT' 
+    when @receiptType='OFFICIAL' then 'DEPOSIT' 
+    else 'RECEIPTS' end),'')
+
+  if len(@collectionDesc)>0
+   begin
+    select top 1
+     @collectionDescription = key1
+    from object where typ = 4703 and upper(left(key1,len(@collectionDesc))) = upper(@collectionDesc)
+
+    update object set a4=@collectionDescription where typ=4701 and key1=@fundCode
+   end
+ 
 
  select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'RECEIVABLE')
 
