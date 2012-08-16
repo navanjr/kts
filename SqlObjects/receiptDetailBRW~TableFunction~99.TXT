@@ -18,20 +18,20 @@ begin
  begin
   insert @rettable
   select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
-   max(case when c.invoiceId>0 then '   '+b.description else c.name end),
-   max(case when c.invoiceId>0 then '   '+lower(b.subDescription) else c.parcel end),
+   max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
+   max(c.parcel),
    sum(b.amount)
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
    and c.invoiceId < 1
-  group by c.invoiceId, c.id
+  group by c.invoiceId, c.id, a.protestAmount
 
   insert @rettable
   select 'aa'+cast(c.invoiceId as varchar)+'b',cast('7'+cast(max(c.id) as varchar) as int)*-1,
-   max(case when c.invoiceId>0 then '   '+b.description else c.name end),
-   max(case when c.invoiceId>0 then '   '+lower(b.subDescription) else c.parcel end),
+   max('   '+b.description),
+   max('   '+lower(b.subDescription)),
    sum(b.amount)
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink

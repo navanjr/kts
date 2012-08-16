@@ -14,7 +14,9 @@ begin
   applyAmount money default 0,
   arAccountId int,
   contraAccountId int,
-  processFlag int default 0
+  processFlag int default 0,
+  protestAmount money,
+  protestId int
  )
  declare @glFundDebits table(
   slink varchar(15),
@@ -24,7 +26,10 @@ begin
   prorate decimal(19,18),
   payAmount decimal(19,10),
   contraId int,
-  due money
+  due money,
+  protestAmount money,
+  protestId int,
+  slink2 varchar(15)
  )
  declare @glSalesCredits table(
   slink varchar(15),
@@ -42,7 +47,8 @@ begin
   accountId int,
   amount money,
   contraId int,
-  processType varchar(50)
+  processType varchar(50),
+  slink2 varchar(15)
  )
 
  declare
@@ -57,25 +63,21 @@ begin
   @currTaxCode varchar(50),
   @priorTaxCode varchar(10),
   @protest varchar(10),
-  @contraCodeSuffix varchar(50)
+  @contraCodeSuffix varchar(50),
+  @protestCodeSuffix varchar(50)
+
 
 --TODO: bail if there is already gldetail for these receiptLinks 
 --TODO: bail if we are offered too much money
 
   select @protest=isnull(b15,'') from object where typ=4502 and id=@receiptId
 
-  if @protest='PROTEST'
-  begin
-   set @contraCodeSuffix='_PROTEST'
-  end
-  else
-  begin
-   set @contraCodeSuffix='_ADVALOREM'
-  end
+  set @contraCodeSuffix='_ADVALOREM'
+  set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear)
-  select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear 
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId)
+  select a.id, a.invoiceId, 'l'+cast(a.id as varchar), 't'+cast(a.invoiceId as varchar), a.methodRate, b.taxYear, a.protestAmount, 0 
   from receiptLink a, invoices b 
   where a.invoiceId = b.id and a.receiptId = @receiptId
 
@@ -94,10 +96,24 @@ begin
  end
  update @wt set processflag=0 where processflag=1
 
+ update @wt set processflag=1 where protestAmount=0.00 or (rtrim(taxyear) in (select left(accountCode,4) from glAccounts where right(accountCode,8)=right(@protestCodeSuffix,8)))
+ while exists(select * from @wt where processflag=0)
+ begin
+  select top 1 
+    @idToken = linkId,
+    @currTaxCode = rtrim(taxyear)+@protestCodeSuffix
+   from @wt where processflag=0
+  exec glAccountVerification @currTaxCode, 'FUND', 'CREATE'
+  exec dbo.receiptAccountsVerification @currTaxCode
+  update @wt set processflag=1 where linkId = @idToken
+ end
+ update @wt set processflag=0 where processflag=1
+
  update @wt set
   due = round((select due from dbo.invoiceCheck(invoiceId)),2),
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
-  contraAccountId = isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
+  contraAccountId = isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0),
+  protestId = case when protestAmount > 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@protestCodeSuffix),0) else 0 end
    where invoiceId > 0
 
 -- populate Suspense
@@ -126,14 +142,21 @@ begin
 -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId, c.due
+  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end
  from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink and c.due<>0.00
- group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due
+ group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due, c.protestAmount, c.protestId, c.invoiceSLink
 
  update @glFundDebits set amount=due where abs(amount)>abs(due)
  update @glFundDebits set payamount=due where abs(payamount)>abs(due)
+ update @glFundDebits set protestAmount=due where abs(protestAmount)>abs(due)
 
+-- change contra account for protested tax money
+ insert @glFundDebits (slink, fundCode, accountId, amount, prorate, payAmount, contraId, due, protestAmount, protestId, slink2)
+    select slink, fundCode, accountId, protestAmount, prorate, protestAmount, protestId, protestAmount, 0,0, slink2 from @glFundDebits where protestAmount>0
+ update @glFundDebits set amount=amount-protestAmount, payamount=payamount-protestAmount, slink2='' where protestAmount>0
+-- remove lines with no amounts
+ delete from @glFundDebits where amount=0.00 and payamount=0.00
 
 -- update the fundDebits with the proper accountId
  update a set a.accountId = b.accountId
@@ -143,17 +166,12 @@ begin
   from @glFundDebits a, glAccounts b
   where a.fundCode = b.accountCode and a.accountId = 0
 
- if @protest='PROTEST'
- begin
-  update @glFundDebits set contraId=@receiptId
- end
-
 -- add the credit to the Treasures collection Account and include the contraId to the receiptLink parent
  insert @glSalesCredits 
- select @receiptSlink, a.contraAccountId, round(sum(b.payAmount)*-1,2), null
+ select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2), null
  from @wt a, @glFundDebits b
  where a.slink = b.slink
- group by b.slink, a.contraAccountId, a.slink
+ group by b.slink, b.contraId, a.slink
 
 -- add the credit to AR Accounts
  insert @glSalesCredits 
@@ -163,11 +181,11 @@ begin
  group by b.slink, a.arAccountId
 
  insert @glStage
-  select slink,accountId,round(payAmount,2) as payAmount,contraId,'fundDebit' from @glFundDebits
+  select slink,accountId,sum(round(payAmount,2)) as payAmount,contraId,'fundDebit',slink2 from @glFundDebits group by slink,accountId,contraId,slink2
  union all
-  select *,'salesCredit' from @glSalesCredits
+  select *,'salesCredit','' from @glSalesCredits
  union all
-  select *,null,'suspense' from @glSuspense
+  select *,null,'suspense','' from @glSuspense
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
@@ -180,7 +198,7 @@ begin
  delete glDetailStage where slink in (select slink from @glStage)
 
 -- insert
- insert gldetailstage (slink,accountId,amount,contraId) select slink, accountId, round(amount,2), contraId from @glStage where amount != 0
+ insert gldetailstage (slink,accountId,amount,contraId,slink2) select slink, accountId, round(amount,2), contraId, slink2 from @glStage where amount != 0
  
  update a set
   a.accountCode = b.accountCode,
