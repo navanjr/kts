@@ -1,0 +1,42 @@
+create function dbo.taxrollItemBRW( @invoiceId int, @showHistory int ) returns @rt table(
+ id int,
+ ord varchar(50),
+ fieldName varchar(50),
+ fieldLabel varchar(50),
+ originalValue varchar(max),
+ latestValue varchar(max),
+ changedFlag char(1),
+ colorFlag int
+) as 
+begin
+
+ declare @taxrollId int
+ select @taxrollId = taxrollId from invoices where id=@invoiceId
+ 
+ declare @wt table(id int, fieldNumber int, fieldName varchar(50), fieldData varchar(max), creationDate int, creationTime int)
+ insert @wt select id, fieldNumber, fieldName, fieldData, creationDate, creationTime from taxrollCorrections where taxrollId = @taxrollId
+
+ declare @blob varchar(max)
+ select @blob = dbo.taxrollItemBlob(@taxrollId)
+
+ insert @rt select cast(ord as int),*,'','',0 from taxrollItemFields(@blob)
+
+ update a set
+  a.latestValue = case when b.fieldData < '  0' then '<blank>' else b.fieldData end,
+  a.changedFlag = '*',
+  a.colorFlag = 1
+ from @rt a
+  inner join @wt b
+   on a.fieldName = b.fieldName
+  left outer join @wt c
+   on a.fieldName = c.fieldName and b.id < c.id
+ where c.id is null
+
+ update @rt set latestValue = originalValue where isnull(latestValue,'') < '  0'
+
+ if @showHistory = 1
+  insert @rt (id,ord,latestValue,changedFlag,colorFlag)
+  select 0,ord+'a', case when originalValue < '  0' then '<blank>' else originalValue end, '', 2 from @rt where changedFlag = '*'
+   
+ return
+end

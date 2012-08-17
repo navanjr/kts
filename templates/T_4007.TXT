@@ -1,0 +1,44 @@
+@id=4007;
+@template=Taxroll Item BRW;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+
+###---###---###---###---###
+@noupdate;
+@loadbrowse=menuprocess=;
+@menuprocess=
+ lcid=kp('select min(id) from object where typ=4007'),
+ if(lcid+0>0,change(lcid),new(4007,,078='0'));
+
+@loadwindow=
+ create(550,12,290,48,'&Show History',78),
+ brwstuff=;
+
+\t000Tax Roll Item;
+\t077Show History Flag; \h077078;r
+ 
+@brwstuff=
+ lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&','&obj:c1&') order by ord',
+ brw(150,1,lcbrwsql,2,2,270,380,'80L(2)~~#2#M10C(2)~~#3#M|80L(4)~~#4#M',10,1),
+ prop(150,7c10h,'Verdana'),
+ prop(150,7c11h,8),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10=1,255;
+@lbrw1color=obj7:c10=2,14810367;
+
+@brw1=
+ lcFieldNumber=kpbrwid(1)*-1,
+ break(lcFieldNumber<1),
+ lcFieldName=kp('select fieldLabel from dbo.taxrollItemFields('''') where cast(ord as int) = '&lcFieldNumber),
+ iw('\t000'&lcFieldName&';\t001Enter New Value;'),
+ break(gcretval<>'OK'),
+ sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxInvoiceId='&gctaxInvoiceId&',@fieldNumber='&lcFieldNumber&',@fieldData='''&str_replace(obj7:key1,'''','''''')&''''),
+ refreshbrw=;
+
+@acc550=refreshbrw=;
+
+@refreshbrw=
+ lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&','&obj:c1&') order by ord',
+ brwreload(1,lcbrwsql);
