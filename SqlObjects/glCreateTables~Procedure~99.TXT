@@ -1,6 +1,18 @@
 create proc dbo.glCreateTables
 as
 begin
+
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxrollCorrections]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table taxrollCorrections(
+   id int identity(1,1),
+   taxrollId int,
+   fieldNumber int,
+   fieldName varchar(50),
+   fieldData varchar(max),
+   creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
+   creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100))    
+  )
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetail(
    id int identity(1,1),
@@ -127,10 +139,6 @@ begin
    alter table paid add location varchar(50) not null default ''
  end
 
-
-
-
-
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[audit]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table audit(
    id int identity(1,1),
@@ -200,6 +208,10 @@ begin
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptLink' and COLUMN_NAME = 'receiptNumber')
  begin
    alter table receiptLink add receiptNumber varchar(50) not null default ''
+ end
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptLink' and COLUMN_NAME = 'protestAmount')
+ begin
+   alter table receiptLink add protestAmount money not null default 0
  end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)

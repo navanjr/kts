@@ -28,7 +28,7 @@ begin
 
  if @mode = 4
  begin
-  if @paymentType in ('Official Voucher','Trust Voucher')
+  if @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher')
    select @log = 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
@@ -68,7 +68,7 @@ begin
 
   declare @nextVoucherNumber varchar(50)
 
- -- Issued from Trust Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
+ -- Issued from Trust or Protest Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
   if @paymentType = 'Trust Voucher'
   begin
    select
@@ -77,7 +77,13 @@ begin
     @creditAcct = key2
    from object where typ = 4503 and key1 = 'TRUST'
 
-   select top 1 @debitAcct = accountCode from glAccounts where code='TRUST'
+   select top 1 @debitAcct = key3 from object where typ=4503 and key1='TRUST'
+  end
+
+  if @paymentType = 'Protest Voucher'
+  begin
+   set @voucherDate = (select dbo.clarionDate(getDate()))
+   select top 1 @creditAcct = key2 from object where typ=4503 and key1='TAX'
   end
 
   if @paymentType = 'Buy Warrant'
@@ -125,15 +131,12 @@ begin
    isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
    @amount,
-   d.accountCode,d.accountDesc,
-   c.accountCode,c.accountDesc,
+   @debitAcct,isnull((select accountDesc from glAccounts where accountCode=@debitAcct),''),
+   @creditAcct,isnull((select accountDesc from glAccounts where accountCode=@creditAcct),''),
    dbo.proper(@paymentType),
    @officialName,
    @officialDepositCode,
    @officialBankCode
-   from glAccounts d, glAccounts c
-   where d.accountCode = @debitAcct 
-    and c.accountCode = @creditAcct
  end try
  begin catch
   set @log = error_message()
@@ -145,13 +148,14 @@ begin
 
  end
 
- if @mode=0 and @paymentType = 'Trust Voucher'
+ if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher')
  begin
   commit transaction    
+  return
  end
 
 
- if @mode = 0 and @paymentType <> 'Trust Voucher'
+ if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher')
  begin
 
   declare @stageRows table(acctCode varchar(50), amount money)

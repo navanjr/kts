@@ -20,11 +20,12 @@ begin
   @arAccountId int,
   @fpid int,
   @status varchar(50),
-  @objectTyp int
+  @objectTyp int,
+  @taxyear varchar(4)
 
  select
   @cdate = cast(key2 as int),
-  @receiptType = 'TAX'+a18,
+  @taxyear = left(a18,4),
   @status = a17,
   @objectTyp = typ
  from object where id = @sourceId
@@ -47,7 +48,7 @@ begin
  end
 
  -- check for contra account id
- select @contraId = id from object where typ = 4701 and key3 = @receiptType 
+ select @contraId = accountId from glAccounts where accountCode = @taxyear+'_ADVALOREM'
  if isnull(@contraId,0) = 0
  begin
   insert @rettable
@@ -56,7 +57,7 @@ begin
  end
 
  -- check for AR account
- select @arAccountId = id from object where typ = 4701 and key3 = @receiptType+'AR' 
+ select @arAccountId = accountId from glAccounts where accountType = 'RECEIVABLE' and targetAccountCode = @taxyear+'_ADVALOREM'
  if isnull(@arAccountId,0) = 0
  begin
   insert @rettable
