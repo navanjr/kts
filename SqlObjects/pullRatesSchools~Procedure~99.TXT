@@ -1,0 +1,16 @@
+create procedure dbo.pullRatesSchools as
+begin
+
+declare @distToken varchar(50)
+declare @wt table(district varchar(50), processflag int)
+
+insert @wt select distinct key1,1 from object where typ = 4012 and key1 not in (select accountCode from glAccounts)
+
+
+while exists(select * from @wt)
+ begin
+  select top 1 @distToken=district from @wt
+  exec glAccountVerification @distToken,'SCHOOL','CREATE'
+  delete from @wt where district=@distToken
+ end
+end

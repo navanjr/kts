@@ -85,7 +85,6 @@
  create(165,9,3,316,'&Apply Payment'),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  create(45,9),
- create(75,9),
  brwstuff=,
  brwstuffMort=;
 
@@ -314,26 +313,23 @@ w078090100;r2
 \t045&Print; @acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
   if(gcretval=2,postAndPrint=);\d046;
  \w04204687;r2
---TODO: Notify user of protest status in bold print on the receipt screen.
-\t075Protest; \h075obj:key3<>'TAX'; \h076; \x0753;
- @acc075=if(obj:a17='Posted',m('This receipt has already been posted,')),
+
+\t075Protest; \h075076obj:key3<>'TAX';r \x0753; \x0763; \y076+13;\w07650;
+@acc076=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ if(lcTyp=6,protestInvoice=,m('Please select a tax invoice to protest...'));
+
+
+ @protestInvoice=if(obj:a17='Posted',m('This receipt has already been posted,')),
   break(obj:a17='Posted'),
-  if(obj:b15<>'PROTEST',protest=,dontprotest=);
-   \d076;
-  @dontprotest=
-    m('Are you sure you want to remove the Protest from this TAX receipt?','Protest?',,6,4),
-    break(gcretval<>2),
-    set(076,''),
-    update,
-    sql('exec receiptTaxStageGL '&obj:id&',0'),
-    refreshDetail=;
-  @protest=
-    m('Are you sure you want to Protest this TAX receipt?','Protest?',,6,4),
-    break(gcretval<>2),
-    set(076,'PROTEST'),
-    update,
-    sql('exec receiptTaxStageGL '&obj:id&',0'),
-    refreshDetail=;
+  m('Are you sure you want to Protest this TAX receipt?','Protest?',,6,4),
+  break(gcretval<>2),
+  sql('update receiptlink set protestAmount='&obj:b15&' where receiptId='&obj:id&' and invoiceId='&lcid),
+  set(76,0),
+  sql('exec dbo.receiptTaxStageGL '&obj:id&',0'),
+  refreshDetail=;
 
 \t091Due; \t092@n14.2;  \s092-'select dbo.receiptBalanceDue('&obj:id&')'; \p0920947cfah,13499135;r2 \p0920947c13h,700;r2 \p0920947c0ch,1;r2 \d092094;r2 \h091092obj:key3='TRUST'  or obj:key3='OFFICIAL';r
 \t093Paid; \t094@n14.2;  \s094-'select sum(amount) from dbo.paid where slink=''o'&obj:id&'''';
