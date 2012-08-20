@@ -4,7 +4,6 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=;
 
 ###---###---###---###---###
 @format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M50L(3)~Type~#30#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
@@ -35,7 +34,15 @@
  gcToggle=gcToggleDb,
  create(351,9,330,40,'Credi&t'),
  prop(351,7cfah,gcToggle),
- refreshbrw=;
+ refreshbrw=,
+ if(obj:a18='Appotion Protest' and obj:a17<>'Posted',gcjeid=obj:id),
+ stageprotest=;
+
+@gfwindow=refreshbrw=;
+
+@stageprotest=break(obj:a17='Posted'),sql('exec dbo.journalEntryStageGL '&obj:id),refreshbrw=;
+
+@closewindow=if(gcjeid=obj:id,gcjeid=0);
 
 @select=choose(obj:key3>'0',008,006);
 
@@ -65,8 +72,11 @@
 \t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
 
 @brwstuff=
- gcsql='select id,accountDesc,amount from dbo.journalEntryBRW('&obj:id&')',
- brw(150,1,gcsql,3,70,300,202,'200L(2)~Account~#2#|M50R(2)~debit(+) or credit(-)~@n-14.2@#3#|M',7,1);
+ gcsql='select id,accountDesc,comment,amount from dbo.journalEntryBRW('&obj:id&')',
+ brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2@#4#|M',7,1),
+ break(obj:a18<>'Appotion Protest'),
+ gcsql='select id,a2,a3,a4,key3 from object where typ=4775 and link1='&obj:id,
+ brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2@#5#|M',7,1), ;
 @lbrw1forecolor=obj7:c10<0,255;
 
 @brw1=
@@ -78,12 +88,18 @@
  set(046,readstring(lcblob,'@amount=')),
  focus(008);
 
+@brw2=
+ break(obj:a17='Posted' or kpbrwid(2)+0<1),
+ change(kpbrwid(2),,1),
+ stageprotest=;
+
 @refreshbrw=
  gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
  calcfld(074),
  calcfld(076),
  if(obj:b15=0,prop(075,text,'Balanced'),prop(075,text,'Out of Balance')),
  brwreload(1),
+ if(obj:a18='Appotion Protest',brwreload(2)),
  tsc;
 
 @blankEm=

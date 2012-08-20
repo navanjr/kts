@@ -4,7 +4,6 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=;
 
 ###---###---###---###---###
 @menuprocess=
@@ -13,9 +12,10 @@
 
 @loadwindow=
  create(150,12,110,3,'Show Paid',28),
- create(151,10,170,3,'Order By:'),
- create(152,12,210,3,'Name',32),
- create(153,12,250,3,'Parcel',34),
+ create(154,12,160,3,'Protest Only',30),
+ create(151,10,220,3,'Order By:'),
+ create(152,12,260,3,'Name',32),
+ create(153,12,300,3,'Parcel',34),
  create(352,9,478,300,'&Print(F9)'),
  create(353,9,478,316,'&Address(F10)'),
  halfToggle=,
@@ -81,13 +81,26 @@
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
  break(lcId<1),
- m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|Release Protest|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
- if(gcretval=2,selectedRateToggle=);
+ if(gcretval=2,selectedRateToggle=),
+ if(gcretval=3,releaseProtest=);
 
 @selectedRateToggle=
  sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
  refreshBRW=;
+
+@releaseProtest=lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
+  break(lccheck+0<.01),
+  if(gcjeid+0<1,newje=,lcchange='dont'),
+  break(gcjeid+0<1),
+  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where invoiceId='&lcId&' 
+    and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
+  sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
+  if(lcchange<>'dont',change(gcjeid));
+
+@newje=fastinsert(-02=4512,004=today(),006='Protest Release',042='Appotion Protest'),
+  gcjeid=obj1:id;
 
 @gfwindow=
  refreshBRW=;
@@ -107,10 +120,11 @@
 @acc150=tsc,refreshBRW=;
 @acc152=if(obj:a13+0>0,set(34,0),set(34,1)),tsc,refreshBRW=;
 @acc153=if(obj:a14+0>0,set(32,0),set(32,1)),tsc,refreshBRW=;
+@acc154=tsc,refreshBRW=;
 
 @refreshBRW=
   kpmo('Selecting Taxroll Data...'),
-  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&obj:a11&''') order by ord',
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&''') order by ord',
   brwreload(1,gcsql),
   brwreload(2),
   kpmc();
@@ -193,3 +207,4 @@
   change(obj7:d1,,1),
   refreshBRW=,
   focus(160);
+

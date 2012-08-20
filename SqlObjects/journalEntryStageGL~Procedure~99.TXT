@@ -1,0 +1,17 @@
+create procedure dbo.journalEntryStageGL(@jeId int) as
+begin
+ 
+ 
+ declare @styp char(1) = 'o'
+ declare
+  @slink varchar(15) = @styp + cast(@jeId as varchar)
+ 
+ -- remove 
+ delete glDetailStage where slink = @slink and left(accountDesc,5)='Stage'
+
+
+ insert gldetailstage (accountId, contraId, accountCode, accountDesc, amount, comment, comment2, slink, slink2) 
+  select a.accountId, a.contraId, a.accountCode, left('Stage '+b.accountDesc,49), a.amount, a.comment, a.comment2, @slink, a.slink2 from dbo.apportionCollectionsBRW(@jeId) a, glaccounts b where a.accountId = b.accountId
+  
+
+end

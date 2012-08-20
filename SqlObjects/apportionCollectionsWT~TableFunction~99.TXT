@@ -12,7 +12,9 @@ create function dbo.apportionCollectionsWT( @accountId int ) returns @wt table(
   aprate varchar(50),
   appoptype varchar(50),
   processFlag int default 0,
-  comment varchar(50)
+  comment varchar(50),
+  slink2 varchar(15),
+  contraId int
 )
 
 begin
@@ -28,46 +30,70 @@ begin
   @tokenaprate varchar(50),
   @tokenappoptype varchar(50),
   @tokenStepDesc varchar(50),
-  @tokenComment varchar(50)
+  @tokenComment varchar(50),
+  @accountType int
 
+declare @twt table(
+	[id] [int] ,
+	[fpid] [int],
+	[fpCode] [varchar](10),
+	[fpDesc] [varchar](50),
+	[accountId] [int],
+	[accountCode] [varchar](50),
+	[accountDesc] [varchar](50),
+	[amount] [money],
+	[creationdate] [int],
+	[creationtime] [int],
+	[date] [int],
+	[slink] [varchar](15),
+	[bsId] [int],
+	[slink2] [varchar](15),
+	[comment] [varchar](50),
+	[contraId] [int],
+	[comment2] [varchar](50))
+
+  select @accountType = typ from object where id = @accountId 
+
+  if @accountType = 4701
+   begin
+-- Add glDetail when apportioning by account
+    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2] from gldetail where contraId = @accountId and ISNULL(bsId,0) = 0
+   end
+  else
+   begin
+-- Add glDetail when apportioning protest by journal entry
+    insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2] from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
+   end
 
 -- debit Collection Account
  insert @wt (accountId, debitCode, apTableType, amount)
  select a.contraId, b.accountCode, b.apTableType, SUM(a.amount)
-  from gldetail a, glAccounts b
+  from @twt a, glAccounts b
   where a.contraId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
   group by a.contraId, b.accountCode, b.apTableType
 
 -- debit Expense accounts
  insert @wt (accountId, debitCode,apTableType,amount)
  select b.accountId, b.accountCode, b.apTableType, SUM(a.amount)
-  from gldetail a, glAccounts b, glaccounts c
+  from @twt a, glAccounts b, glaccounts c
   where b.accountType = 'EXPENSE'
    and a.contraId = c.accountId
    and b.targetAccountCode = c.accountCode
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
   group by b.accountId, b.accountCode, b.apTableType
 
 
 -- credit accrued receivables 
- insert @wt(accountId, creditCode, amount, comment)
- select a.accountId, b.accountCode, SUM(a.amount), isnull(a.comment,'')
-  from gldetail a, glAccounts b
+ insert @wt(accountId, creditCode, amount, comment,slink2, contraId)
+ select a.accountId, b.accountCode, SUM(a.amount), isnull(a.comment,''),slink2, contraId
+  from @twt a, glAccounts b
   where a.accountId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
-  group by a.accountId, b.accountCode, a.comment
+  group by a.accountId, b.accountCode, a.comment, slink2, contraId
 
 -- credit funds
  insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment)
  select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, isnull(a.comment,apdistrict)
-  from gldetail a, glAccounts b
+  from @twt a, glAccounts b
   where a.accountId = b.accountId
-   and a.contraId = @accountId
-   and ISNULL(a.bsId,0) = 0
   group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.comment
 
 -- process the L types
