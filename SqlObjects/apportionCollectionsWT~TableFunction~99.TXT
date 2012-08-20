@@ -81,6 +81,33 @@ declare @twt table(
    and b.targetAccountCode = c.accountCode
   group by b.accountId, b.accountCode, b.apTableType
 
+-- Add additional debits to account for refunds if apportioning protest
+  if @accountType = 4512
+  begin
+-- debit Collection Account
+   insert @wt (accountId, debitCode, apTableType, amount)
+   select a.contraId, b.accountCode, b.apTableType, SUM(cast(c.a5 as money))
+    from @twt a, glAccounts b, object c
+    where a.contraId = b.accountId
+     and c.typ = 4775 
+     and c.olink2 = a.slink2
+     and c.link1 = @accountId
+    group by a.contraId, b.accountCode, b.apTableType
+
+-- debit Expense accounts
+   insert @wt (accountId, debitCode,apTableType,amount)
+   select b.accountId, b.accountCode, b.apTableType, SUM(cast(d.a5 as money))
+    from @twt a, glAccounts b, glaccounts c, object d
+    where b.accountType = 'EXPENSE'
+     and a.contraId = c.accountId
+     and b.targetAccountCode = c.accountCode
+     and d.typ = 4775 
+     and d.olink2 = a.slink2
+     and d.link1 = @accountId
+    group by b.accountId, b.accountCode, b.apTableType
+
+  end
+
 
 -- credit accrued receivables 
  insert @wt(accountId, creditCode, amount, comment,slink2, contraId)

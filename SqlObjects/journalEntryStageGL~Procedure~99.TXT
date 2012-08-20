@@ -4,14 +4,40 @@ begin
  
  declare @styp char(1) = 'o'
  declare
-  @slink varchar(15) = @styp + cast(@jeId as varchar)
+  @slink varchar(15) = @styp + cast(@jeId as varchar),
+  @interestAmount money,
+  @interestType varchar(1) = 'S'
+
+ set @interestAmount = (select sum(amount) from gldetailstage where comment2 = 'INTEREST' and slink = @slink and amount > 0)
+
+ select @interestType = case when isnull(b1,'S') <> '' then isnull(b1,'S') else 'S' end from object where id = @jeId
+
  
  -- remove 
  delete glDetailStage where slink = @slink and left(accountDesc,5)='Stage'
 
-
+-- Insert apportioned total
  insert gldetailstage (accountId, contraId, accountCode, accountDesc, amount, comment, comment2, slink, slink2) 
   select a.accountId, a.contraId, a.accountCode, left('Stage '+b.accountDesc,49), a.amount, a.comment, a.comment2, @slink, a.slink2 from dbo.apportionCollectionsBRW(@jeId) a, glaccounts b where a.accountId = b.accountId
   
+-- Insert Accrued Receivables for the refund
+ insert gldetailstage (accountId, contraId, accountCode, accountDesc, amount, comment, comment2, slink, slink2)
+ select 
+   a.[accountId],a.[contraId],a.[accountCode],left('Stage '+a.accountDesc,49),cast(b.a5 as money)*-1,a.[comment],a.[comment2],@slink,a.[slink2]
+ from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@jeId and cast(b.a5 as money)>0
+
+-- Insert Fund for the refund
+ insert gldetailstage (accountId, accountCode, accountDesc, amount, slink, comment2)
+ select 
+   c.[accountId],c.[accountCode],left('Stage '+c.accountDesc,49),cast(b.a5 as money)*-1,@slink, d.name
+ from object b, glAccounts c, invoices d  where b.typ=4775 and c.accountCode=b.a6 and cast(substring(b.olink2,2,15) as int)=d.id and b.link1=@jeId and cast(b.a5 as money)>0
+
+-- Appotion Interest
+ insert gldetailstage (accountId,accountCode,accountDesc,amount,comment2,slink)
+  select b.accountId, a.accountCode, 'Stage '+a.accountCode, a.amount*-1, 'INTEREST', @slink  
+   from dbo.millsGetRows(4512,@slink,@interestAmount,@interestType) a, glAccounts b
+   where a.accountCode = b.accountCode
+
+
 
 end

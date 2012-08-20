@@ -35,8 +35,17 @@
  create(351,9,330,40,'Credi&t'),
  prop(351,7cfah,gcToggle),
  refreshbrw=,
- if(obj:a18='Appotion Protest' and obj:a17<>'Posted',gcjeid=obj:id),
+ gccomment='',
+ if(obj:a18='Appotion Protest' and obj:a17<>'Posted',doApportionProtest=);
+
+@doApportionProtest=
+ prop(007,'7C00H','Interest Acct'),
+ set(010,'Stage Interest'),
+ gcjeid=obj:id,
+ gccomment='INTEREST',
  stageprotest=;
+
+if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>'1',prop(005,'7C00H','Apportion')),if(obj:olink2>'1',prop(001,'7C00H','Journal')),set(002,kp('select key1 from object where id='&obj:link1));
 
 @gfwindow=refreshbrw=;
 
@@ -57,6 +66,9 @@
 \t009Description; \d010; 
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
  \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h351obj:a17='Posted';
+
+\t047Interest To; \h047048obj:a18<>'Appotion Protest';r \u048; \w04813; @choose048:ARS; \?048'[A]pportion, [R]efund, or [S]plit'; \m048[A]pportion, [R]efund, or [S]plit;
+  @048=if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=);
 
 \t073ABSValue; \h073074;r \s074+'select absAmount from glSummary('&obj:id&',''o'')';
 
@@ -110,10 +122,11 @@
 
 @saveRow=
  if(gcToggle=gcToggleDb,lcAmt=obj:a20,lcAmt=obj:a20*-1),
- d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&obj:link1&','&lcAmt&','&obj:link5),
+ d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&obj:link1&','&lcAmt&','&obj:link5&', @comment='''&gccomment&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
  focus(008),
  break(readstring(obj7:d1,'@code=')=1),
+ if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=),
  refreshbrw=,
  blankEm=;
 
