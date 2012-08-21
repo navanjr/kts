@@ -29,12 +29,12 @@ begin
 -- Insert Fund for the refund
  insert gldetailstage (accountId, accountCode, accountDesc, amount, slink, comment2)
  select 
-   c.[accountId],c.[accountCode],left('Stage '+c.accountDesc,49),cast(b.a5 as money)*-1,@slink, d.name
- from object b, glAccounts c, invoices d  where b.typ=4775 and c.accountCode=b.a6 and cast(substring(b.olink2,2,15) as int)=d.id and b.link1=@jeId and cast(b.a5 as money)>0
+   c.[accountId],c.[accountCode],left('Stage '+c.accountDesc,49),sum(cast(b.a5 as money)*-1),@slink, d.name
+ from object b, glAccounts c, invoices d  where b.typ=4775 and c.accountCode=b.a6 and cast(substring(b.olink2,2,15) as int)=d.id and b.link1=@jeId and cast(b.a5 as money)>0 group by c.[accountId],c.[accountCode],c.accountDesc, d.name
 
 -- Appotion Interest
  insert gldetailstage (accountId,accountCode,accountDesc,amount,comment2,slink)
-  select b.accountId, a.accountCode, 'Stage '+a.accountCode, a.amount*-1, 'INTEREST', @slink  
+  select b.accountId, a.accountCode, 'Stage '+a.accountCode, a.amount*-1, a.description, @slink  
    from dbo.millsGetRows(4512,@slink,@interestAmount,@interestType) a, glAccounts b
    where a.accountCode = b.accountCode
 

@@ -48,11 +48,18 @@ begin
   where slink=@year 
    and amount < 0 
    and isnull(contraId,0) = 0 
-   and '1' = case when @code='S' then '1' 
-                  when @code='A' and isnull(comment,'0') <> '0' then '1' 
-                  when @code='R' and isnull(comment,'R') = 'R'  then '1' 
+   and '1' = case when @code in ('A','S') and isnull(comment,'0') <> '0' then '1' 
                   else '0' end
   group by accountCode
+
+  insert @rt (description, millAmount, accountCode)
+  select left('INTEREST '+comment2,49), sum(amount)*-1, accountCode from gldetailstage
+  where slink=@year 
+   and amount < 0 
+   and isnull(contraId,0) = 0 
+   and '1' = case when @code in ('R','S') and isnull(comment,'R') = 'R'  then '1' 
+                  else '0' end
+  group by accountCode, comment2
  end
 
 
