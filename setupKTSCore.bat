@@ -9,5 +9,4 @@ sqlcmd -H. -d %dbname% -Usa -P America#1 -i C:\client\key\kts\SqlObjects\enableA
 sqlcmd -H. -d %dbname% -Usa -P America#1 -Q"exec dbo.enableAdvancedSQLOptions"
 sqlcmd -H. -d %dbname% -Usa -P America#1 -i C:\client\key\kts\SqlObjects\keyCore~Script~2.txt
 
-dir SqlObjects | grep ~Procedure~1 | gawk "{print $5}"
-
+bcp %dbname%.dbo.template in "Needed\bcpTemplate.txt" -Usa -PAmerica#1 -c
