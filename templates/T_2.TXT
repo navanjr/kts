@@ -4,7 +4,6 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=;
 
 ###---###---###---###---###
 @noupdate;
@@ -162,6 +161,13 @@
 \t117Reconfigure SQL;
 @acc117=do(451,reconfigSqlEnv=);
 
+\t118Create Setup Files;
+@acc118=
+ gcGitCmd='bcp kts.dbo.template out "'&gcRepoPath&'\Needed\bcpTemplate.txt" -Usa -PAmerica#1 -n -C1252',
+ gitCommand=,
+ gcGitCmd='bcp kts.dbo.Users out "'&gcRepoPath&'\Needed\bcpUsers.txt" -Usa -PAmerica#1 -n -C1252',
+ gitCommand=;
+
 @import1Template=
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
  break(gcretval<>'OK'),
@@ -179,13 +185,15 @@
  gitStatus=;
 
 @templateImport=
- importtexttemplate(gcRepoPath&'\templates','RTEM:ID>0');.
+ sql('exec dbo.logit @@procid, '''&gcRepoPath&'\templates''','RTEM:ID>0'),
+ importtexttemplate(gcRepoPath&'\templates','RTEM:ID>0');
 
 @userImport=
  lcpath=gcAppPath,
  lcpath1=gcRepoPath,
  delfile(lcpath&'\kts.usr'),
  filecopy(lcpath1&'\kts.usr',lcpath&'\kts.usr'),
+ sql('exec dbo.logit @@procid, ''key importusers'', ''kts.usr'''),
  importusers('kts.usr');
 
 @dumpUsers=
@@ -224,6 +232,7 @@
 
 @importObjects=
  setpath(gcRepoPath&'\sqlObjects'),
+ sql('exec dbo.logit @@procid, ''import sql objects'','''&gcRepoPath&'\sqlObjects'''),
  dirObjectCheck=;
 
 @importObjectsA=
