@@ -46,10 +46,25 @@ begin
      @taxyear = [REALTAXYEAR],
      @district = [SCHOOLDISTRICTMAIN],
       @rateName = [SCHOOLDISTRICTTAXRATE],
-     @amount = [BALANCEDUE],
+-- TODO: we need to allow for calculating the new balance due from
+     @amount = [TotalDUE],
      @cdate = dbo.clariondate(getdate())
     from adtax where id = @id
    end 
+
+-- if we have corrections ...
+-- TOTALDUE
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @id and fieldName = 'TOTALDUE')
+  select @amount = cast(latestValue as money) from dbo.taxrollItemBRW(null,0,@id) where fieldName = 'TOTALDUE'
+-- REALTAXYEAR
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @id and fieldName = 'REALTAXYEAR')
+  select @taxyear = latestValue from dbo.taxrollItemBRW(null,0,@id) where fieldName = 'REALTAXYEAR'
+-- SCHOOLDISTRICTMAIN
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @id and fieldName = 'SCHOOLDISTRICTMAIN')
+  select @district = latestValue from dbo.taxrollItemBRW(null,0,@id) where fieldName = 'SCHOOLDISTRICTMAIN'
+-- SCHOOLDISTRICTTAXRATE
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @id and fieldName = 'SCHOOLDISTRICTTAXRATE')
+  select @rateName = latestValue from dbo.taxrollItemBRW(null,0,@id) where fieldName = 'SCHOOLDISTRICTTAXRATE'
 
  /*-- check for invoice
  if not exists(select * from invoices where taxrollid = @id)

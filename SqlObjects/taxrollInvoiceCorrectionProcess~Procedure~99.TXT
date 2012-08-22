@@ -1,0 +1,42 @@
+create proc dbo.taxrollInvoiceCorrectionProcess( @invoiceId int ) as
+begin
+
+ declare @taxrollId int
+ select @taxrollId = taxrollId from invoices where id=@invoiceId
+
+ exec dbo.logit @@procid, 'started @taxrollId', @taxrollId
+
+-- bail if this taxroll item has already been corrected
+ if exists(select * from dbo.taxrollCorrections where invoiceId = @invoiceId)
+ begin
+  exec dbo.logit @@procid, 'Bailing due to invoice found in taxrollCorrections... @invoiceId', @invoiceId
+  select '@code=1;@message=Unable to process taxroll correction. Previous invoice correction already exists.'
+  return
+ end
+
+-- TODO: come back and add sql transacion here
+ 
+-- VOID
+ exec dbo.invoiceVoid @invoiceId
+ exec dbo.invoiceUpdate @invoiceId
+
+-- Invoice
+ declare @newInvoiceId int
+ exec dbo.taxReferenceCRUD
+  @taxrollId,
+  @reInvoiceFlag = 'TRUE',
+  @newInvoiceId = @newInvoiceId output
+
+ exec dbo.logit @@procid, '@newInvoiceId', @newInvoiceId
+
+ exec dbo.taxrollInvoiceCRUD null, 1, 'B', @invoiceId = @newInvoiceId
+ 
+
+-- Update corrections records with the new invoiceId
+
+
+ 
+ select '@code=0;@message=Completed, OK.'
+ return
+
+end

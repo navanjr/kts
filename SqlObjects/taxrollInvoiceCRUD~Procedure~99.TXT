@@ -1,5 +1,11 @@
-create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0, @invoiceType varchar (1) = '') as
+create procedure dbo.taxrollInvoiceCRUD(
+ @taxrollId int,
+ @smode int = 0,
+ @invoiceType varchar(1) = '',
+ @invoiceId int = null
+) as
 begin
+ exec dbo.logit @@procid, 'Started'
 
  declare @styp char(1) = 't'
  declare
@@ -14,6 +20,8 @@ begin
   @accrualcode varchar(50),
   @targetcode varchar(50)
 
+ if isnull(@invoiceId,0) > 0 and @taxrollId is null
+  select @taxrollId = taxrollId from invoices where id = @invoiceId
 
  select
   @code = code,
@@ -23,7 +31,7 @@ begin
   @taxYear = taxYear,
   @district = district,
   @rateName = rateName
- from dbo.taxrollCheck(@id,@invoiceType)
+ from dbo.taxrollCheck(@taxrollId,@invoiceType)
  if @code = 1 
  begin
   if @smode=0
@@ -65,7 +73,7 @@ begin
   amount money
  )
  insert @invd
-   select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@id,@invoiceType)
+   select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@taxrollId,@invoiceType)
 
 
  if not exists(select * from @invd)

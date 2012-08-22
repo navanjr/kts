@@ -4,15 +4,29 @@
 @group=;
 @security=Key;
 @securitylevel=1;
+@lastedit=0077304.6252;
 
 ###---###---###---###---###
 @noupdate;
+@select=150;
 @loadbrowse=menuprocess=;
 @menuprocess=
  lcid=kp('select min(id) from object where typ=4007'),
  if(lcid+0>0,change(lcid),new(4007,,078='0'));
 
+@nox=kp('select count(*) from dbo.taxrollItemBRW('&gctaxInvoiceId&',0,null) where fieldLabel = '' on exit'' and latestValue like ''%pending invoice correction%''')>0,
+gcprocessInvoice>0;
+@noexit=
+ m('Pending Invoice Correction.|Please choose one of the following:','oh no you dont...','question.ico','Process Invoice Correction|Undo Invoice Correction|Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,processInvoiceCorrection=);
+
+@processInvoiceCorrection=
+ sql('exec dbo.taxrollInvoiceCorrectionProcess '&gctaxInvoiceId),
+ close('ok');
+
 @loadwindow=
+ set(78,0),
  create(550,12,290,48,'&Show History',78),
  brwstuff=;
 
@@ -20,13 +34,13 @@
 \t077Show History Flag; \h077078;r
  
 @brwstuff=
- lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&','&obj:c1&') order by ord',
- brw(150,1,lcbrwsql,2,2,270,380,'80L(2)~~#2#M10C(2)~~#3#M|80L(4)~~#4#M',10,1),
+ lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag,invoiceFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&',0,null) order by ord',
+ brw(150,1,lcbrwsql,2,2,270,400,'80L(2)~~#2#M10C(2)~~#3#M|200L(4)~~#4#M',10,0),
  prop(150,7c10h,'Verdana'),
  prop(150,7c11h,8),
  prop(150,7CFAH,13499135);
-@lbrw1forecolor=obj7:c10=1,255;
-@lbrw1color=obj7:c10=2,14810367;
+@lbrw1forecolor=obj7:c9=1,255;
+@lbrw1color=obj7:c9=2,14810367,obj7:c10=1,1959605;
 
 @brw1=
  lcFieldNumber=kpbrwid(1)*-1,
@@ -40,5 +54,24 @@
 @acc550=refreshbrw=;
 
 @refreshbrw=
- lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&','&obj:c1&') order by ord',
+ lcbrwsql='select id*-1,fieldLabel,changedFlag,latestValue,colorFlag,invoiceFlag from dbo.taxrollItemBRW('&gctaxInvoiceId&','&obj:c1&',null) order by ord',
  brwreload(1,lcbrwsql);
+
+ gcprocessInvoice=kp('select count(*) from dbo.taxrollItemBRW('&gctaxInvoiceId&',0,null) where fieldName = '' on exit'' and latestValue like ''%pending invoice correction%'''),
+ exec dbo.logit @@procid, ''hello'';
+
+\t115ProcessInvCorrection;
+@acc115=
+ d1select('exec dbo.taxrollInvoiceCorrectionProcess '&gctaxInvoiceId),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Taxroll Invoice Correction...')),
+ refreshbrw=;
+
+\t117&Old View/Correct; \h117gcadmin<>1;
+@acc117=lcSearchId=gctaxInvoiceId,
+ break(lcSearchId+0<1),
+ d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''''),
+ change(obj7:d1);
+
+\t118G/L Detail; \h118gcadmin<>1;
+@acc118=
+ new(4020,,-68=gctaxInvoiceId);
