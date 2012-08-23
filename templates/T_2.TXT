@@ -4,7 +4,6 @@
 @group=;
 @security=Key;
 @securitylevel=1;
-@lastedit=;
 
 ###---###---###---###---###
 @noupdate;
@@ -47,7 +46,17 @@
  prop(153,'Height',120),
  prop(153,7cfah,16777215),
  prop(153,font,Lucida Console),
- prop(153,fontsize,7);
+ prop(153,fontsize,7),
+ create(154,9,6,124,'Create &Tag',);
+
+@acc154=
+ iw(',.t000Please Enter the Tag Name...., ,.t097Tag Name., ,.w09850.,,.h097.,,.x0983.,,.y0983.,'),
+ break(gcretval<>'OK'),
+ lcTagName=obj7:d1,
+ gcGitCmd='git tag '&lcTagName,
+ gitCommand=,
+ gitCreateIni=,
+ gitStatus=;
 
 @missingGitSettings=
  m('you are missing required GIT settings in your kellpro.ini||default GIT path: c:\client\key\kts','Houston we have a problem...','exclem.ico','set to defaults|cancel'),
@@ -139,10 +148,28 @@
 
 \t112Git &Push;
 @acc112=
- gcGitCmd='git push origin '&obj:key1,
- gitCommand=,
+ m('Choose one of the following:','Git Push Options...','Question.ico','push origin '&obj:key1&'|push github '&obj:key1&'|push both|Cancel'),
+ break(gcretval=4),
+ if(gcretval=1,pushOrigin=),
+ if(gcretval=2,pushGitHub=),
+ if(gcretval=3,pushBoth=),
  gitCreateIni=,
  gitStatus=;
+
+@pushBoth=
+ kpmo('Pushing to Origin...'),
+ pushOrigin=,
+ kpmm('Pushing to GitHub...'),
+ pushGitHub=,
+ kpmc();
+
+@pushOrigin=
+ gcGitCmd='git push origin '&obj:key1&' --tags',
+ gitCommand=;
+
+@pushGitHub=
+ gcGitCmd='git push github '&obj:key1&' --tags',
+ gitCommand=;
 
 \t113Git P&ull;
 @acc113=
