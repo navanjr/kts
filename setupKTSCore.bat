@@ -29,6 +29,8 @@ rem SETUP CORE KEY AND KTS TABLES AND SUCH
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridread~ScalarFunction~2.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridwrite~ScalarFunction~2.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\getSiteBlob~ScalarFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\spWriteStringToFile~Procedure~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\split~TableFunction~2.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\clariondate~ScalarFunction~3.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\clariondate114~ScalarFunction~3.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\dirRead~TableFunction~3.txt
