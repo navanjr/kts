@@ -1,4 +1,5 @@
 @echo off
+pushd c:\client\key\kts
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 set /P dbname=What do you want to name this new database?
@@ -41,6 +42,7 @@ rem GENERATE RID FILE
  del sed*
 
 ENDLOCAL
+popd
 GOTO:EOF
 
 
