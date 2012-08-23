@@ -2,7 +2,7 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 set /P dbname=What do you want to name this new database?
-set /P userpassentered=What do you want the key RID Password to use? (dont worry about caseing, i will convert to uppper for you.)
+set /P userpassentered=What do you want the key RID Password to use? (dont worry about caseing, i will convert to upper for you.)
 set /P kppass=What is the Kellpro Support SA Super Secret Password? (this one is case sensitive.)
 
 call :UCase userpassentered userpass
