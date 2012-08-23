@@ -29,6 +29,7 @@ rem SETUP CORE KEY AND KTS TABLES AND SUCH
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridread~ScalarFunction~2.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridwrite~ScalarFunction~2.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\getSiteBlob~ScalarFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\SqlObjectCompare~TableFunction~3.txt
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -Q"insert object (typ,link1) select 0,-1"
 
 rem IMPORT TEMPLATES AND USERS
