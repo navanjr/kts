@@ -1,4 +1,4 @@
-CREATE function [dbo].[taxrollCheck](@taxrollId int, @invoiceType varchar(1) = '', @invoiceId int) returns
+CREATE function [dbo].[taxrollCheck](@id int, @invoiceType varchar(1) = '') returns
 @rettable table(
  code int,
  message varchar(500),
@@ -14,7 +14,7 @@ CREATE function [dbo].[taxrollCheck](@taxrollId int, @invoiceType varchar(1) = '
 
 begin
  declare @styp char(1) = 't'
-
+ 
  declare
   @slink varchar(15),
   @cdate int,
@@ -37,7 +37,7 @@ begin
      @rateName = a20,
      @amount = b1,
      @cdate = key2
-    from object where id = @taxrollId
+    from object where id = @id
    end
   else
    begin
@@ -46,31 +46,28 @@ begin
      @taxyear = [REALTAXYEAR],
      @district = [SCHOOLDISTRICTMAIN],
       @rateName = [SCHOOLDISTRICTTAXRATE],
--- TODO: we need to allow for calculating the new balance due from
-     @amount = [TotalDUE],
+     @amount = [BALANCEDUE],
      @cdate = dbo.clariondate(getdate())
-    from adtax where id = @taxrollId
+    from adtax where id = @id
    end 
 
--- if we have corrections ...
--- TOTALDUE
- if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'TOTALDUE')
-  select @amount = cast(latestValue as money) from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'TOTALDUE'
--- REALTAXYEAR
- if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'REALTAXYEAR')
-  select @taxyear = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'REALTAXYEAR'
--- SCHOOLDISTRICTMAIN
- if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTMAIN')
-  select @district = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTMAIN'
--- SCHOOLDISTRICTTAXRATE
- if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTTAXRATE')
-  select @rateName = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTTAXRATE'
+ /*-- check for invoice
+ if not exists(select * from invoices where taxrollid = @id)
+ begin
+  insert @rettable 
+   select 1,'there is no invoice for this taxroll item',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+*/
+ select @slink = @styp + cast(id as varchar) from invoices where taxrollid = @id
 
---TODO: remove this hack later
- if isnull(@invoiceId,0) = 0
-  select top 1 @slink = @styp + cast(id as varchar) from invoices where taxrollid = @taxrollId order by id
- else
-  select @slink = 't' + cast(@invoiceId as varchar)
+ -- check for status of Posted
+ if exists(select * from glDetail where slink = @slink)
+ begin
+  insert @rettable 
+   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
 
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
@@ -102,14 +99,6 @@ begin
  if dbo.isPosted(@slink) = 'TRUE'
   set @status = 'Posted'
  
- -- check for status of Posted
- if exists(select * from glDetail where slink = @slink)
- begin
-  insert @rettable 
-   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
-  return
- end
-
  insert @rettable
   select 0,'OK',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
  return
