@@ -1,0 +1,95 @@
+create proc dbo.receiptVoid( @receiptId int ) as 
+begin
+ exec dbo.logit @@procid, '@receiptId', @receiptId
+
+ declare
+  @postDate int,
+  @fpId int,
+  @resultCode int,
+  @newId int,
+  @receiptSlink varchar(15) = '0' + cast(@receiptId as varchar),
+  @jeDescription varchar(50) = 'Credit/Void receipt id:' + cast(@receiptId as varchar)
+
+-- get the postdate
+ select @postdate = dbo.clariondate(getDate())
+ 
+ select @fpId = dbo.glGetFiscalPeriodid(@postDate)
+
+ -- bail if the period is closed
+ if isnull(@fpId,0) < 1
+ begin
+  exec dbo.logit @@procid, 'Period closed... @fpid', @fpid
+  return
+ end
+
+ -- TODO: bail if there is no balance or if this has already been voided/canceled. like if it was done wrong
+ -- TODO: dont forget a sql transaction
+
+ -- create JE with Staged GL Detail and link it to the receipt and then post it
+ exec dbo.journalEntryCRUD 0,
+  @description = @jeDescription,
+  @jeType = 'REFUND',
+  @postDate = @postDate,
+  @resultCode = @resultCode output,
+  @newId = @newId output
+
+ declare @wt table(
+  id int identity(1,1),
+  accountId int,
+  accountCode varchar(50),
+  accountDesc varchar(50),
+  accountType varchar(50),
+  amount money,
+  contraId int,
+  targetId int,
+  processFlag int default 0
+ ) 
+ insert @wt (accountCode,amount,contraId,targetId) 
+ select postAccountCode, postAmount, contraId, targetId from dbo.receiptVoidBRW(@receiptId) where postFlag = 1
+ declare 
+  @idToken int,
+  @accountidToken int,
+  @accountCodeToken varchar(50),
+  @accountDescToken varchar(50),
+  @accountTypeToken varchar(50)
+
+ update @wt set accountType = (select accountType from dbo.glAccountTypes(accountCode,'',''))
+ 
+ 
+ while exists ( select * from @wt where processFlag = 0 )
+ begin
+  select top 1
+   @idToken = id,
+   @accountCodeToken = accountCode,
+   @accountTypeToken = accountType
+  from @wt where processFlag = 0
+
+  exec dbo.glAccountVerification
+   @accountCodeToken,
+   @accountTypeToken,
+   'create',
+   @accountid = @accountIdToken output,
+   @accountDesc = @accountDescToken output
+
+  update @wt set
+   accountId = @accountIdToken,
+   accountDesc = @accountDescToken,
+   processFlag = 1 
+  where id = @idToken
+ end
+
+ insert glDetailStage (accountId,accountCode,accountDesc,amount,slink,contraId,targetAccountId) 
+ select accountId, accountCode, accountDesc, amount, 'o' + cast(@newId as varchar), contraId, targetId from @wt
+
+--TODO: Level9 this needs to be one row per invoice on each receipt. so this means we need receiptId on journalLink
+-- we need to also make sure that we have an slink2 for the AR balance on the invoices
+ insert journalLink select @newId, @receiptId, 1
+
+ -- post
+ exec dbo.glPost @newId, 'o'
+
+ -- update
+ exec dbo.journalEntryCRUD 2, @id = @newId
+ 
+ return
+end

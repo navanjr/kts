@@ -1,0 +1,115 @@
+create function dbo.receiptVoidBRW( @receiptId int ) returns @rt table(
+ ord varchar(80),
+ id int,
+ description varchar(100), 
+ subdescription varchar(100), 
+ amount money,
+ sName varchar(50),
+ fName Varchar(50),
+ contraId int,
+ targetId int,
+ postAccountCode varchar(50),
+ postAmount money,
+ postFlag int
+) as 
+begin
+-- declare @receiptSlink varchar(15) 
+
+ declare @wt table(
+  id int identity(1,1),
+  accountId int,
+  slink varchar(15),
+  accountCode varchar(50),
+  accountDesc varchar(50),
+  accountType varchar(50),
+  contraId int,
+  balance money,
+  amount money
+ )
+ declare @glStage table(
+  accountId int,
+  contraId int,
+  targetId int,
+  amount money,
+  postAccountCode varchar(50),
+  postAmount money,
+  postFlag int
+ )
+
+-- we get the accounts effecting this receipt
+ insert @wt
+ select
+  accountId,
+  slink,
+  accountCode,
+  accountDesc,
+  '',
+  isnull(contraId,0),
+  0,
+  sum(isnull(amount,0)) 
+ from glDetail 
+ where slink in (select slink from dbo.receiptSlinks( @receiptId ) )
+  group by accountId, slink, accountCode, accountDesc, isnull(contraId,0)
+
+-- update the balance
+ update a set balance = (
+  select sum(isnull(amount,0))
+  from glDetail
+  where accountId = a.accountId
+--   and contraId = isnull(a.contraId,0)
+ ) from @wt a
+
+-- update accounttypes
+ update a set a.accountType = b.accountType from @wt a, dbo.glAccounts b where a.accountCode = b.accountCode
+
+-- am i a tax receipt
+ insert @rt (ord)  select 'f'
+ if (select receiptType from dbo.receiptCheck(@receiptId,null)) = 'TAX'
+ begin
+-- debit each receivable account on this receipt
+-- credit a acp for every acr that is on this receipt
+  insert @rt (ord,description)  select 'ff', 'Void Preview (not posted detail)'
+
+-- matt says we can just use the l's so we get the receivable from the links glDetail
+
+  insert @glStage (accountId, contraId, amount)
+  select
+   accountId,
+   contraId,
+   amount * -1
+  from @wt where left(slink,1) = 'l'
+
+-- setup Debits (these are the ones with out a contraId)
+  update a set a.postAccountCode = b.accountCode, a.postAmount = a.amount, postFlag = 1
+  from @glStage a, dbo.glAccounts b
+  where a.accountId = b.accountId
+   and a.contraId = 0
+
+-- setup credits (these are the ones with a contraId)
+  update a set a.postAccountCode = b.accountCode + '_ACP', a.postAmount = a.amount, a.targetId = a.accountId, postFlag = 1
+  from @glStage a, dbo.glAccounts b
+  where a.contraId = b.accountId
+   and a.contraId != 0
+ 
+  insert @rt (ord,id,description,subDescription,amount,contraId,targetId,postAccountCode,postAmount,postFlag)
+   select
+   'fff',
+   accountId,
+   '      ' + isnull(postAccountCode,''),
+   '',
+   amount * -1,
+   contraId,
+   targetId,
+   postAccountCode,
+   postAmount,
+   postFlag
+  from @glStage
+
+ end
+ else
+ begin
+  insert @rt (ord,subDescription)  select 'ff', 'Ima Not Tax Receipt'
+ end
+
+ return
+end
