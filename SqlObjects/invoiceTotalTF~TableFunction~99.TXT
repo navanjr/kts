@@ -1,5 +1,4 @@
 create function dbo.invoiceTotalTF(@invoiceId int) returns @rt table(
--- DO NOT USE THIS ANYMORE !!!!
  slink varchar(15),
  accountId int,
  accountDesc varchar(50),
@@ -10,7 +9,6 @@ create function dbo.invoiceTotalTF(@invoiceId int) returns @rt table(
 )
 
 -- TODO: not sure about this one... it appears that there would be duplicates in @rt as invoiceSlinks will grab all invoice, receipts and receiptLink
--- this is not being use anywere in KTS.  so i think it is safe to remove this object.
 --   I think the only place matt is using this one is in taxroll BRW
 
 begin
@@ -19,6 +17,24 @@ begin
  select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount, 'Posted'
  from glDetail a, glAccounts b
  where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+
+/*
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSlinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId))
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSubSlinks(@invoiceId))
+*/
 
  return
 

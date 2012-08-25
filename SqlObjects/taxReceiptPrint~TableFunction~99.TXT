@@ -1,0 +1,96 @@
+create function dbo.taxReceiptPrint(@recId varchar(50)) returns   
+          @rt table(
+			recId varchar(50),
+			InvoiceId int,
+			taxRollid int,
+			typ varchar(10),
+			parcel varchar(50),
+			item varchar(50),
+			taxyear varchar(50),
+			receiptNo varchar(20),
+			receiptDate varchar(20),
+			schoolDistrict varchar(50),
+			legal varchar(max),
+			acres varchar(10),
+			blk varchar(10),
+			sec varchar(10),
+			twp varchar(10),
+			rng varchar(10),
+			recOf varchar(max),
+			paidBy varchar(100),
+			TaxAmt money,
+			TaxDue money,
+			TaxPaid money,
+			TotPaid money,
+			Penalty  money,
+			mail  money,
+			lien  money,
+			adv  money,
+			mowing  money,
+			other  money,
+			ckoth  money,
+			cash  money,
+			change  money,
+			blob varchar(max),
+                        deputy varchar(50)                 )
+begin		
+	insert @rt (recId,invoiceId)
+					select  @recId, right(slink,LEN(slink)-1) from dbo.receiptSLinks(@recId) where LEFT(slink,1)='t'
+					
+    update r set
+                  r.taxRollid = i.TAXROLLID,
+                  r.typ = i.typ,
+                  r.parcel = i.parcel,
+                  r.item = i.ITEM,
+                  r.taxYear = i.taxyear,
+                  r.paidBy = i.NAME
+                from invoices i, @rt r where r.InvoiceId = i.ID
+                  
+					
+	delete from @rt where typ='P'
+	
+	update @rt set receiptNo = key1, receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18 from Object where ID = @recid
+
+
+	update r set 
+				r.schoolDistrict = a.SCHOOLDISTRICTMAIN,
+				r.legal = cast(a.LEGALDESCRIPTION as varchar(max))+CHAR(13)+CHAR(10)+A.SCHOOLDISTRICTMAIN,
+				r.acres = a.ACRES,			
+				r.blk = a.TOWNSHIPBLOCK,
+				r.sec = a. SECTIONNUMBER,
+				r.twp = '',
+				r.rng = a.RANGELOT,
+				r.blob = dbo.getTaxInvoiceBlob(r.invoiceId)			
+			from @rt r, AdTax a where r.taxRollid = a.ID
+				
+	update @rt set
+			recOf = dbo.readstring('@NAME=',blob)+CHAR(13)+CHAR(10)+dbo.parseAddress(blob),
+			TaxAmt = cast(dbo.readstring('INVOICEAMT=',blob) as money),
+			TaxDue =  cast(dbo.readstring('INVOICEAMT=',blob) as money),
+			TaxPaid =  cast(dbo.readstring('INVOICEAMT=',blob) as money),
+			TotPaid = 0,
+			Penalty = cast(dbo.readstring('PENALTY=',blob) as money),
+			mail = 0,
+			lien = 0,
+			adv = 0,
+			mowing = 0,
+			other = 0			
+			
+	update @rt set
+			TotPaid = TaxDue + Penalty + mail + lien + adv + mowing + other
+
+--Update Paid
+
+	declare @paidBlob varchar(max) 
+			set @paidBlob = ''
+			select @paidBlob = @paidBlob + '@'+paycode+'='+cast(SUM(amount) as varchar)+';'
+		from paid where slink = 'o'+@recid group by paycode
+			
+	update r set
+			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
+			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
+			r.change =  cast(dbo.readstring('@coin=',@paidBlob) as money)
+		from @rt r, paid p where 'o'+r.recId = p.slink 
+							
+ return					
+end
