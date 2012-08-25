@@ -2,11 +2,13 @@ create function dbo.taxrollItemFields( @blob varchar(max) ) returns @rt table(
  ord varchar(50),
  fieldName varchar(50),
  fieldLabel varchar(50) default '',
- fieldValue varchar(max)
+ fieldValue varchar(max),
+ changeableFlag int default 1,
+ invoiceFlag int default 0
 ) as
 begin
 
- insert @rt 
+ insert @rt (ord, fieldName, fieldLabel, fieldValue)
         select '01', 'OWNERNAME', 'Name', dbo.readString('@OWNERNAME=',@blob)
   union select '02', 'REALTAXYEAR', 'Tax Year', dbo.readString('@REALTAXYEAR=',@blob)
   union select '03', 'FULLPIDNUMBER', 'Parcel #', dbo.readString('@FULLPIDNUMBE=',@blob)
@@ -26,9 +28,9 @@ begin
   union select '17', 'FIREDISTRICT', 'Fire District', dbo.readString('@FIREDISTRICT=',@blob)
   union select '18', 'OWNERNUMBER', 'Owner Number', dbo.readString('@OWNERNUMBER=',@blob)
   union select '19', 'acres', 'Acres', dbo.readString('@acres=',@blob)
-  union select '20', 'ORGSCHOOLDISTRICTMAIN', 'Orig School', dbo.readString('@ORGSCHOOLDISTRICTMAIN=',@blob)
+--  union select '20', 'ORGSCHOOLDISTRICTMAIN', 'Orig School', dbo.readString('@ORGSCHOOLDISTRICTMAIN=',@blob)
   union select '21', 'SCHOOLDISTRICTMAIN', 'Main School', dbo.readString('@SCHOOLDISTRICTMAIN=',@blob)
-  union select '22', 'ORGSCHOOLDISTRICTTAXRATE', 'Orig Rate', dbo.readString('@ORGSCHOOLDISTRICTTAXRATE=',@blob)
+--  union select '22', 'ORGSCHOOLDISTRICTTAXRATE', 'Orig Rate', dbo.readString('@ORGSCHOOLDISTRICTTAXRATE=',@blob)
   union select '23', 'SCHOOLDISTRICTTAXRATE', 'Tax Rate', dbo.readString('@SCHOOLDISTRICTTAXRATE=',@blob)
   union select '24', 'lots', 'Lots', dbo.readString('@lots=',@blob)
   union select '25', 'MFGHOMEASSESSED', 'Mobile Assessed', dbo.readString('@MFGHOMEASSESSED=',@blob)
@@ -41,7 +43,7 @@ begin
   union select '32', 'exemption3', 'Exemption 3', dbo.readString('@exemption3=',@blob)
   union select '33', 'NETASSESSEDVALUE', 'Net Assessed', dbo.readString('@NETASSESSEDVALUE=',@blob)
   union select '34', 'TOTALTAXRATE', 'Total Tax Rate', dbo.readString('@TOTALTAXRATE=',@blob)
-  union select '35', 'ORIGINALTOTALDUE', 'Orig Total Due', dbo.readString('@ORIGINALTOTALDUE=',@blob)
+--  union select '35', 'ORIGINALTOTALDUE', 'Orig Total Due', dbo.readString('@ORIGINALTOTALDUE=',@blob)
   union select '36', 'TOTALDUE', 'Total Due', dbo.readString('@TOTALDUE=',@blob)
   union select '37', 'BALANCEDUE', 'Balance Due', dbo.readString('@BALANCEDUE=',@blob)
   union select '38', 'CERTIFICATENUMBER', 'Certificate #', dbo.readString('@CERTIFICATENUMBER=',@blob)
@@ -54,6 +56,22 @@ begin
   union select '45', 'flag2', 'Flag 2', dbo.readString('@flag2=',@blob)
   union select '46', 'flag3', 'Flag 3', dbo.readString('@flag3=',@blob)
   union select '47', 'LEGALDESCRIPTION', 'Legal Description', dbo.readString('@LEGALDESCRIPTION=',@blob)
+
+-- tell em which items can not be changed
+ update @rt set changeableFlag = 0 where fieldName in 
+ (
+  'REALTAXYEAR',
+  'BALANCEDUE'
+ )
+
+-- tell em which items that if changed will effect the G/L
+ update @rt set invoiceFlag = 1 where fieldName in 
+ (
+--  'REALTAXYEAR',
+  'SCHOOLDISTRICTMAIN',
+  'SCHOOLDISTRICTTAXRATE',
+  'TOTALDUE'
+ )
 
  return
 end

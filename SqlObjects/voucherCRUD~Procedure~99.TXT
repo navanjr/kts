@@ -6,15 +6,11 @@ create proc dbo.voucherCRUD(
  @amount money = null,
  @debitAcct varchar(50) = null,
  @creditAcct varchar(50) = null,
- @id int = 0,
- @postResult varchar(100) = null output 
+ @id int = 0 
 ) as 
 begin
  
- declare
-  @slink varchar(15) = 'o' + cast(@id as varchar),
-  @log varchar(max)
-
+ declare @slink varchar(15) = 'o' + cast(@id as varchar)
 
  if @mode = 3
  begin
@@ -44,12 +40,6 @@ begin
 
   exec dbo.nextObjectAutoNumber 4771, null, @nextVoucherNumber output
 
- exec dbo.logit 'NextVoucherNumber', @nextVoucherNumber
-
- exec dbo.logit 'debitAccount', @debitAcct
- exec dbo.logit 'creditAccount', @creditAcct, @@procid
-
-begin try
   insert object (
    typ,
    key1, key2, Key3, a1,
@@ -69,11 +59,6 @@ begin try
    from glAccounts d, glAccounts c
    where d.accountCode = @debitAcct 
     and c.accountCode = @creditAcct
-end try
-begin catch
- set @log = error_message()
- exec dbo.logit 'sqlCatchError', @log
-end catch
  
   declare @newId int = @@identity
   declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
@@ -90,7 +75,7 @@ end catch
   commit transaction    
 
   -- post gl
-  exec dbo.glPost @newId, 'o', @resultString = @postResult output
+  exec dbo.glPost @newId, 'o'
 
  end
 

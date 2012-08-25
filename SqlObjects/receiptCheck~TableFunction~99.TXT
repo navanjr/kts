@@ -8,7 +8,8 @@ create function dbo.receiptCheck(@sourceId int, @paycode varchar(50) = null) ret
  arAccountId int,
  fpid int,
  status varchar(50),
- objectTyp int
+ objectTyp int,
+ blob varchar(max) 
 )
 begin
  
@@ -37,6 +38,7 @@ begin
  begin
   insert @rettable 
    select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+,''
   return
  end
 
@@ -46,6 +48,7 @@ begin
  begin
   insert @rettable 
    select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+,''
   return
  end
 
@@ -66,6 +69,7 @@ begin
   begin
    insert @rettable
     select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp
+,''
    return
   end
 
@@ -75,6 +79,7 @@ begin
   begin
    insert @rettable
     select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+,''
    return
   end
  end
@@ -88,12 +93,25 @@ begin
   begin
    insert @rettable 
     select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+,''
    return 
   end
  end
- 
+
+ declare @blob varchar(max) =  
+  '@code=0;@message=OK;'
+  + '@receiptType=' + isnull(@receiptType,'null') + ';'
+  + '@suspenseAccountId=' + isnull(cast(@suspenseAccountId as varchar),'null') + ';'
+  + '@contraId=' + isnull(cast(@contraId as varchar),'null') + ';'
+  + '@arAccountId=' + isnull(cast(@arAccountId as varchar),'null') + ';'
+  + '@fpid=' + isnull(cast(@fpid as varchar),'null') + ';'
+  + '@status=' + isnull(@status,'null') + ';'
+  + '@objectTyp=' + isnull(cast(@objectTyp as varchar),'null') + ';'
+
  insert @rettable
   select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
+,@blob
+
  return
 
 end

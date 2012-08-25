@@ -1,0 +1,64 @@
+create function dbo.glAccountTypes(
+-- accountType is optional, if you provide it i can check your accountCode for a suffix and fix it if it is missing.
+--   and you can pass accountType in long or short form ('_exp' or 'Expense')
+ @accountCode varchar(50),
+ @accountTypePassed varchar(50),
+ @returnMode varchar(10)
+) returns @rt table(
+ accountCode varchar(50),
+ accountType varchar(50),
+ accountCodeSuffix varchar(10),
+ accountDescSuffix varchar(50),
+ accountDesc varchar(80) default ''
+) as
+begin
+
+ declare
+  @accountType varchar(50),
+  @theRightSuffix varchar(10) 
+
+ insert @rt (accountType, accountCodeSuffix, accountDescSuffix) 
+        select 'SOURCE'             , ''     , ''
+  union select 'SUSPENSE'           , ''     , ''
+  union select 'FUND'               , ''     , ''
+  union select 'PAYABLE'            , '_AP'  , ' Payable'
+  union select 'RECEIVABLE'         , '_AR'  , ' Receivable'
+  union select 'ACCRUED RECEIVABLE' , '_ACR' , ' Accrued Receivable'
+  union select 'ACCRUED PAYABLE'    , '_ACP' , ' Accrued Payable'
+  union select 'EXPENSE'            , '_EXP' , ' Expense'
+  union select 'SCHOOL'             , ''     , ''
+  union select 'CITY'               , ''     , ''
+  union select 'WARRANT'            , '_WR'  , ' Warrants Registered'
+
+-- does the offered accountCode have the proper account suffix if not add it.
+ if isnull(@accountTypePassed,'') > '  0' or charindex('_',@accountCode) > 0
+ begin
+
+  if not isnull(@accountTypePassed,'') > '  0'
+   select @accountTypePassed = right(@accountCode,charindex('_',REVERSE(@accountCode)))
+ 
+  select
+   @theRightSuffix = accountCodeSuffix,
+   @accountType = accountType
+  from @rt where case when charindex('_',@accountTypePassed) > 0 then accountCodeSuffix else accountType end = @accountTypePassed
+
+  if not right(@accountCode,len(@theRightSuffix)) = @theRightSuffix
+   set @accountCode = @accountCode + @theRightSuffix
+
+ end
+
+ update @rt set
+  accountCode = upper(@accountCode),
+  accountDesc = dbo.proper(replace(replace(@accountCode,accountCodeSuffix,accountDescSuffix),'_',' '))
+ where accountType = @accountType
+
+ update @rt set
+  accountCode = upper(replace(@accountCode,@theRightSuffix,'') + accountCodeSuffix),
+  accountDesc = dbo.proper(replace(replace(@accountCode,@theRightSuffix,accountDescSuffix),'_',' '))
+ where accountType != @accountType
+
+ if not @returnMode = 'ALL'
+  delete @rt where accountType != @accountType
+
+ return
+end

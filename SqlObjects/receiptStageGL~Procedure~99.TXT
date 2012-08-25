@@ -1,5 +1,6 @@
 create procedure dbo.receiptStageGL (@receiptId int, @mode int = 0) as
 begin
+ exec dbo.logit @@procid, 'Started...'
  
  declare @accountsWorking table(
   accountId int,
@@ -24,14 +25,18 @@ begin
   @tokenContraId int,
   @tokenAmount money,
   @receiptType varchar(50),
-  @comment varchar(50)
+  @comment varchar(50),
+  @logBlob varchar(max)
  
  select 
   @code = code,
   @contraId = contraId ,
   @arAccountId = arAccountId,
-  @receiptType = receiptType
+  @receiptType = receiptType,
+  @logblob = blob
  from dbo.receiptCheck(@receiptId,null)
+
+ exec dbo.logit @@procid, 'receiptCheck', @logblob
 
  -- credit Source and Debit AR
  if @receiptType<>'OFFICIAL'

@@ -12,19 +12,23 @@ create procedure dbo.glAccountVerification (
  @populationType varchar(50) = '',
  @targetAccountCode varchar(50) = '',
  @collectionDesc varchar(50) = '',
- @accountId int = null OUTPUT
+ @accountId int = null OUTPUT,
+ @accountDesc varchar(50) = null OUTPUT
 ) as
 begin
  
 -- check for this account if we have it we get the id and bail
  if exists(select * from glAccounts where accountCode = upper(@accountCode))
  begin
-  select @accountId = accountId from glAccounts where accountCode = upper(@accountCode)
+-- TODO: Level9 if we were given a target code letst update this account if its blank
+  select
+   @accountId = accountId,
+   @accountDesc = accountDesc
+  from glAccounts where accountCode = upper(@accountCode)
   return
  end
 
  declare
-  @accountDesc varchar(50),
   @typeDesc varchar(50),
   @reportCode varchar(50)
 
@@ -46,23 +50,39 @@ begin
     from object where typ = 4703 and upper(left(key1,len(@collectionDesc))) = upper(@collectionDesc)
    end
 
-  declare @accountTypes table(accountType varchar(50), accountDesc varchar(80))
-  insert @accountTypes select 'SOURCE', replace(@accountCode,'_',' ')
-  insert @accountTypes select 'SUSPENSE', replace(@accountCode,'_',' ')
-  insert @accountTypes select 'FUND', replace(@accountCode,'_',' ')
-  insert @accountTypes select 'PAYABLE', replace(replace(@accountCode,'_AP',' Payable'),'_',' ')
-  insert @accountTypes select 'RECEIVABLE', replace(replace(@accountCode,'_AR',' Receivable'),'_',' ')
-  insert @accountTypes select 'ACCRUED RECEIVABLE', replace(replace(@accountCode,'_ACR',' Accrued Receivable'),'_',' ')
-  insert @accountTypes select 'ACCRUED PAYABLE', replace(replace(@accountCode,'_ACP',' Accrued Payable'),'_',' ')
-  insert @accountTypes select 'EXPENSE', replace(replace(@accountCode,'_EXP',' Expense'),'_',' ')
-  insert @accountTypes select 'SCHOOL', replace(replace(@accountCode,'',' School'),'_',' ')
-  insert @accountTypes select 'CITY', replace(replace(@accountCode,'',' City'),'_',' ')
-  insert @accountTypes select 'WARRANT', replace(replace(@accountCode,'_WR',' Warrants Registered'),'_',' ')
+  declare @accountTypes table(
+   accountType varchar(50),
+   accountCodeSuffix varchar(10),
+   accountDescSuffix varchar(50),
+   accountDesc varchar(80) default ''
+  )
+  insert @accountTypes select 'SOURCE', '', '', ''
+  insert @accountTypes select 'SUSPENSE', '', '', ''
+  insert @accountTypes select 'FUND', '', '', ''
+  insert @accountTypes select 'PAYABLE', '_AP',' Payable', ''
+  insert @accountTypes select 'RECEIVABLE', '_AR',' Receivable', ''
+  insert @accountTypes select 'ACCRUED RECEIVABLE', '_ACR',' Accrued Receivable', ''
+  insert @accountTypes select 'ACCRUED PAYABLE', '_ACP',' Accrued Payable', ''
+  insert @accountTypes select 'EXPENSE', '_EXP',' Expense', ''
+  insert @accountTypes select 'SCHOOL', '', '', ''
+  insert @accountTypes select 'CITY', '', '', ''
+  insert @accountTypes select 'WARRANT', '_WR',' Warrants Registered', ''
+
+-- does the offered accountCode have the proper account suffix if not add it.
+  declare @theRightSuffix varchar(10) 
+  select @theRightSuffix = accountCodeSuffix from @accountTypes where accountType = @accountType
+  if not right(@accountCode,len(@theRightSuffix)) = @theRightSuffix
+   set @accountCode = @accountCode + @theRightSuffix
+
+  update @accountTypes set accountDesc = replace(replace(@accountCode,accountCodeSuffix,accountDescSuffix),'_',' ')
+
+--TODO: we are thinking we might have to trap for accountCodes longer than 50 char
 
   if upper(@mode) = 'CREATE' and upper(@accountType) in (select accountType from @accountTypes)
   begin
+
    select @accountDesc = accountDesc from @accountTypes where accountType = @accountType
-   select @accountId = @@identity
+
    insert object (typ,key1,key2,a1,a2,a3,a4,a8,a9,a10,a11,a12,a13,a14,a16) 
     select 
      4701,
@@ -80,6 +100,11 @@ begin
      @rate,
      @populationType,
      'KTS' 
+
+   select
+    @accountId = @@identity,
+    @accountDesc = @accountDesc
+
   end
 
   return

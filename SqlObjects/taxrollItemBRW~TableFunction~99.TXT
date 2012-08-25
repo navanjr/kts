@@ -1,17 +1,19 @@
-create function dbo.taxrollItemBRW( @invoiceId int, @showHistory int ) returns @rt table(
+create function dbo.taxrollItemBRW( @invoiceId int, @showHistory int, @taxrollId int ) returns @rt table(
  id int,
  ord varchar(50),
  fieldName varchar(50),
  fieldLabel varchar(50),
  originalValue varchar(max),
+ changeableFlag int,
+ invoiceFlag int,
  latestValue varchar(max),
  changedFlag char(1),
  colorFlag int
 ) as 
 begin
 
- declare @taxrollId int
- select @taxrollId = taxrollId from invoices where id=@invoiceId
+ if isnull(@invoiceId,0) > 0
+  select @taxrollId = taxrollId from invoices where id=@invoiceId
  
  declare @wt table(id int, fieldNumber int, fieldName varchar(50), fieldData varchar(max), creationDate int, creationTime int)
  insert @wt select id, fieldNumber, fieldName, fieldData, creationDate, creationTime from taxrollCorrections where taxrollId = @taxrollId
@@ -34,9 +36,36 @@ begin
 
  update @rt set latestValue = originalValue where isnull(latestValue,'') < '  0'
 
+-- update the id of the items we dont want to offer to change
+ update @rt set id = 0 where changeableFlag = 0
+
  if @showHistory = 1
   insert @rt (id,ord,latestValue,changedFlag,colorFlag)
   select 0,ord+'a', case when originalValue < '  0' then '<blank>' else originalValue end, '', 2 from @rt where changedFlag = '*'
+
+-- get the total balance due for all linked invoices
+ declare @due money
+ select @due = sum(amount) from dbo.invoiceGLTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
+ update @rt set latestValue = convert(varchar,@due,1) where fieldName = 'BALANCEDUE'
+
+-- is there are invoice change pending?
+ if exists(
+   select * from dbo.taxrollCorrections 
+    where taxrollId = @taxrollId
+     and isnull(invoiceId,0) = 0
+     and fieldName in (select fieldName from dbo.taxrollItemFields(null) where invoiceFlag=1))
+  insert @rt (ord,fieldLabel, latestValue,colorflag) select '998',' on exit','  pending Invoice Correction',1
+
+-- lets add invoices to the bottom for bookkeepers
+-- TODO: come back later and make this only visable to bookkeepers
+ insert @rt (ord,fieldLabel, latestValue) select '999','',''
+ insert @rt (ord,fieldLabel, latestValue) select '9991','  Taxroll', cast(@taxrollId as varchar)
+ insert @rt (ord,fieldLabel, latestValue) select '9992','  Invoice', cast(@invoiceId as varchar)
+
+ declare @slink varchar(15) = 't' + cast(@invoiceId as varchar)
+ insert @rt (ord,fieldLabel, latestValue)
+  select '9992', '     fp: ' + fpCode, 'db total: ' + cast(sum(case when amount > 0 then amount else 0 end) as varchar) 
+  from dbo.glDetail where slink = @slink group by fpCode
    
  return
 end

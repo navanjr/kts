@@ -1,6 +1,7 @@
 create proc dbo.glCreateTables
 as
 begin
+ exec dbo.logit @@procid, 'started'
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxrollCorrections]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table taxrollCorrections(
@@ -12,6 +13,10 @@ begin
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100))    
   )
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxrollCorrections' and COLUMN_NAME = 'invoiceId')
+ begin
+  alter table taxrollCorrections add invoiceId int
+ end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetail(
@@ -61,6 +66,10 @@ begin
  begin
   alter table glDetail add comment2 varchar(50)
  end
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'targetAccountId')
+ begin
+  alter table glDetail add targetAccountId int
+ end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetailStage]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetailStage(
@@ -101,6 +110,10 @@ begin
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'comment2')
  begin
   alter table glDetailStage add comment2 varchar(50)
+ end
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'targetAccountId')
+ begin
+  alter table glDetailStage add targetAccountId int
  end
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[paid]') and OBJECTPROPERTY(id, N'IsTable') = 1)

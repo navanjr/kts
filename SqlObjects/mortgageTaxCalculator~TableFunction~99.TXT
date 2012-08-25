@@ -16,30 +16,30 @@ create function dbo.mortgageTaxCalculator(
 ) as 
 begin
 
-/*
-Rate of Tax on each $100 or major fraction thereof :
+
+ declare
+  @taxRate money,
+  @taxAmount money,
+  @feeAmount money = 5.0,
+  @taxTotal money,
+  @taxRateDescription varchar(max)
+
+set @taxRateDescription='Rate of Tax on each $100 or major fraction thereof :
 5 years Of more .10
 4 years and less than 5 Years .08
 3 years and less than 4 years .06
 2 years and less than 3 years .04
 Less than 2 years .02 
 Mortgage for less than $100 .10
-Certification Fee per Mortgage $5.00
-*/
-
- declare
-  @taxRate money,
-  @taxAmount money,
-  @feeAmount money = 5.0,
-  @taxTotal money
+Certification Fee per Mortgage $5.00'
 
 -- sent endDate if empty
  if isnull(@endDate,0) < 1 and isnull(@termYears,0) > 0
-  set @endDate = @startDate + (@termYears * 365)
+  set @endDate = dbo.clariondate(dateadd(year,@termYears,dbo.date1(@startDate)))
 
 -- sent term if empty
  if isnull(@endDate,0) > 0 and isnull(@termYears,0) < 1
-  set @termYears = (@endDate - @startDate) / 365.0
+  set @termYears = (@endDate-@startDate)/365.25
 
  if floor(@termYears) < 6
   select @taxRate = case floor(@termYears)
@@ -67,7 +67,8 @@ Certification Fee per Mortgage $5.00
   ';@taxRate=' + cast(@taxRate as varchar) + 
   ';@taxAmount=' + cast(@taxAmount as varchar) + 
   ';@feeAmount=' + cast(@feeAmount as varchar) + 
-  ';@taxTotal=' + cast(@TaxTotal as varchar) + ';'
+  ';@taxTotal=' + cast(@TaxTotal as varchar) + 
+  ';@taxRateDescription=' + @taxRateDescription +';'   
 
  return
 end

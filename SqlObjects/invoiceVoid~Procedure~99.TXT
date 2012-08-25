@@ -1,19 +1,28 @@
-create procedure dbo.invoiceVoid(@invoiceId int, @postDate int) as
+create procedure dbo.invoiceVoid( @invoiceId int ) as
 -- this proc will create a Journal Entry and journalLink to an invoice
 begin
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId
 
  declare
+  @postDate int,
   @fpId int,
   @resultCode int,
   @newId int,
   @invoiceSlink varchar(15) = 't' + cast(@invoiceId as varchar),
   @description varchar(50) = 'Credit/Void Invoice id:' + cast(@invoiceId as varchar)
+
+-- get the postdate
+ select @postdate = postdate from dbo.invoices where id = @invoiceId
+ exec dbo.logit @@procid, '@postdate', @postdate
  
  select @fpId = dbo.glGetFiscalPeriodid(@postDate)
 
  -- bail if the period is closed
  if isnull(@fpId,0) < 1
+ begin
+  exec dbo.logit @@procid, 'Period closed... @fpid', @fpid
   return
+ end
 
  -- TODO: bail if there is any receipts or other contra gl activity
 
