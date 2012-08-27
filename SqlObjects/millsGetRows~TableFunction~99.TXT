@@ -40,6 +40,29 @@ begin
   select key2+'By Population' ,cast(key3 as decimal(19,9)),key2 from object where typ = @typ and key1 = @year and a2 = @code
  end
 
+ if @typ=4512
+ begin
+-- For Journal Entries the @year is the slink to the Journal and @code is the interest to field
+  insert @rt (description, millAmount, accountCode)
+  select 'INTEREST', sum(amount)*-1, accountCode from gldetailstage
+  where slink=@year 
+   and amount < 0 
+   and isnull(contraId,0) = 0 
+   and '1' = case when @code in ('A','S') and isnull(comment,'0') <> '0' then '1' 
+                  else '0' end
+  group by accountCode
+
+  insert @rt (description, millAmount, accountCode)
+  select left('INTEREST '+comment2,49), sum(amount)*-1, accountCode from gldetailstage
+  where slink=@year 
+   and amount < 0 
+   and isnull(contraId,0) = 0 
+   and '1' = case when @code in ('R','S') and isnull(comment,'R') = 'R'  then '1' 
+                  else '0' end
+  group by accountCode, comment2
+ end
+
+
  select @millTotal = sum(millAmount) from @rt
 
  update @rt set 

@@ -30,6 +30,14 @@ Begin
    insert @taxYears select @taxYear
 
   declare @showPaidFlag char(1) = substring(@orderString,3,1)
+  declare @protest varchar(10) = ''
+
+  if substring(@orderString,4,1) = '1' 
+  begin
+    set @protest='PROTEST'
+--    set @showPaidFlag='1'
+  end
+
 
 -- get the first 1000 rows that match the search string. IF we have a search string ordered by name
 
@@ -44,6 +52,7 @@ Begin
     and cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
    order by name
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
@@ -56,6 +65,7 @@ Begin
     cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
    order by name
   end
@@ -71,6 +81,7 @@ Begin
     and cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
    order by parcel
 -- get the first 1000 rows with out using a search string.  ordered by parcel  why would you ever do this?
@@ -83,6 +94,7 @@ Begin
     cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
    order by parcel
   end
@@ -99,6 +111,12 @@ Begin
    update @rt set ord = isnull(ord,'')+name
   else
    update @rt set ord = isnull(ord,'')+parcel
+
+  if @protest='PROTEST'
+  begin
+   update a set amount=p.amount from @rt a, dbo.protestDetail p where a.invoiceId=p.invoiceId*-1
+  end
+
 
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
