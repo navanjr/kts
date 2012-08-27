@@ -11,19 +11,6 @@ create procedure dbo.receiptPaymentAdd(
 )
 as
 begin
- 
- declare @logBlob varchar(max) = 
-  '@receiptId=' + cast(@receiptId as varchar) + ';'
-  + '@paycode=' + isnull(@paycode,'null') + ';'
-  + '@amount=' + isnull(cast(@amount as varchar),'null') + ';'
-  + '@checkNumber=' + isnull(@checkNumber,'null') + ';'
-  + '@bankId=' + cast(@bankId as varchar) + ';'
-  + '@paymentId=' + cast(@paymentId as varchar) + ';'
-  + '@mode=' + cast(@mode as varchar) + ';'
-  + '@drawnon=' + isnull(@drawnon,'null') + ';'
-  + '@location=' + isnull(@location,'null') + ';'
-
- exec dbo.logit @@procid, @logBlob
 
  declare @styp char(1) = 'o'
 
@@ -47,8 +34,6 @@ begin
   @fpId = fpId,
   @objectTyp = objectTyp
  from dbo.receiptCheck(@receiptId,@paycode)
-
-exec dbo.logit @@procid, '@receiptType',@receiptType
 
  -- bail if we dont have enough data
  if @code = 1
@@ -82,8 +67,6 @@ exec dbo.logit @@procid, '@receiptType',@receiptType
    select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
   else
    select @balance = balance from dbo.glSummary(@receiptId,'o')
-
- exec dbo.logit @@procid, '@balance',@balance
 
 -- TEST Mode we bail
   if @mode = 1

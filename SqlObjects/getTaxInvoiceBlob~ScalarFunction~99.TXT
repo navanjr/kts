@@ -1,23 +1,20 @@
-create function [dbo].[getTaxInvoiceBlob](@InvId int) returns varchar(max) as
+create function [dbo].[getTaxInvoiceBlob](@InvId int) returns varchar(4000) as
 begin
 
- declare @retval varchar(max), @invoiceType varchar(1)
+ declare @retval varchar(500), @invoiceType varchar(1)
  
 
-  select 
-  
-  @retval =  '@taxrollid=' + rtrim(max(TAXROLLID)) + ';'
-  + '@TYP=' + rtrim(max(case when invoiceId>0 then '' else TYP end)) + ';'
-  + '@PARCEL=' + rtrim(max(PARCEL)) + ';'
-  + '@ITEM=' + rtrim(max(case when invoiceId>0 then 0.0 else ITEM end)) + ';'
-  + '@TAXYEAR=' + rtrim(max(TAXYEAR)) + ';'
-  + '@POSTDATE=' + rtrim(max(case when invoiceId>0 then '' else POSTDATE end)) + ';'
-  + '@STATUS=' + rtrim(max(case when invoiceId>0 then '' else [STATUS] end)) + ';'
-  + '@INVOICEAMT=' + rtrim(sum(case when typ='P' then 0 else invoiceAmount end)) + ';'
-  + '@PENALTY=' + rtrim(sum(case when typ='P' then invoiceAmount else 0 end)) + ';',
-  @invoiceType = rtrim(max(case when invoiceId>0 then '' else TYP end)) 
-  from invoices where (ID=@InvId or invoiceId=@InvId) 
-  group by case when invoiceId>0 then invoiceId else ID end
+ select 
+  @retval = 
+    '@taxrollid=' + rtrim(TAXROLLID) + ';'
+  + '@TYP=' + rtrim(TYP) + ';'
+  + '@PARCEL=' + rtrim(PARCEL) + ';'
+  + '@ITEM=' + rtrim(ITEM) + ';'
+  + '@TAXYEAR=' + rtrim(TAXYEAR) + ';'
+  + '@POSTDATE=' + rtrim(POSTDATE) + ';'
+  + '@STATUS=' + rtrim(STATUS) + ';',
+  @invoiceType = rtrim(typ)
+ from invoices where ID=@InvId
 
  select top 1 @retval = @retval
   + '@NAME=' + rtrim(NAME) + ';'
@@ -44,9 +41,6 @@ select @retval = @retval
  + '@NETASSESSEDVALUE=' + rtrim(NETASSESSEDVALUE) + ';'
  + '@SCHOOLDISTRICTMAIN=' + rtrim(SCHOOLDISTRICTMAIN) + ';'
  + '@ACRES=' + rtrim(ACRES) + ';'
- + '@TWP=' + rtrim(TOWNSHIPBLOCK) + ';'
- + '@SEC=' + rtrim(SECTIONNUMBER) + ';'
- + '@RNG=' + rtrim(RANGELOT) + ';'
  + '@TOTALDUE=' + rtrim(TOTALDUE) + ';'
  + '@LEGALDESCRIPTION=' + rtrim(replace(cast(LEGALDESCRIPTION as varchar(4000)),'''','')) + ';'
  from AdTax where ID = dbo.readstring('@taxrollid=',@retval)
