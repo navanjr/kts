@@ -1,0 +1,57 @@
+@id=5008;
+@template=Test Report;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+
+###---###---###---###---###
+** this is a test report written by Nate
+@bb7=&Print; @bbproc7=testreport=;
+
+@testreport=
+ do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=250,
+  lcM=1000,
+  lcCw=2250,
+  lcAw=(lcCw*1.5)+(lcM*4),
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcRecCnt=0,
+  gcSQLcmd5008='select accountCode, accountDesc, accountBalance, accountType from dbo.glAccounts where cast(accountBalance as money) <> 0 order by accountType, accountCode',
+  lcDCW=2000,
+  lcDCWn='1000R',
+  gcBalanceGrandTotal=0,
+  lcGrpName='',
+
+ tr(
+  prn(printed),prn(page),
+  prn(gcCounty&' County',t1),
+  prn('Fund Report',t2),
+  prn('(confidential)',t3),
+
+  grp(1,obj5:a4,
+   do(
+    bnd('H',obj5:a4,lcDCW),  
+   ),
+   do(
+    bnd('H',,lcDCW,lcGrpName&' Total',lcDCW&'R',format(gcBalanceGroupTotal,@n$-15.2b),1000R),
+    gcBalanceGroupTotal=0,  
+    nl,
+   ),
+  ),
+
+  prn(,2000),
+  bnd('HU','Code',lcDCW,'Name',lcDCW,'Balance',lcDCWn),
+
+  det(gcSQLcmd5008),
+   gcBalanceGroupTotal=gcBalanceGroupTotal+obj5:a3,
+   bnd('D','    '&obj5:a1,lcDCW,obj5:a2,lcDCW,format(obj5:a3,@n-15.2b),1000R),
+   gcBalanceGrandTotal=gcBalanceGrandTotal+obj5:a3,
+   lcGrpName=obj5:a4,
+  edt,
+
+  bnd('H',,lcDCW,,lcDCW&'R','==============',lcDCWn),  
+  bnd('D',,lcDCW,'Grand Total',lcDCW&'R',format(gcBalanceGrandTotal,@n$-15.2b),lcDCWn),  
+ );

@@ -1,0 +1,46 @@
+@id=5011;
+@template=Daily Deposit;
+@shortcut=;
+@group=;
+@security=Key;
+@securitylevel=1;
+
+###---###---###---###---###
+@bb7=&Print; @bbproc7=printDailyDeposit=;
+
+
+@printDailyDeposit=
+ do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=250,
+  lcM=1000,
+  lcCw=2250,
+  lcAw=(lcCw*1.5)+(lcM*4),
+  lcFont='',
+  lcHeaderFontSize=12,
+  gcsql5011='select receivedOf, drawnon, location, amount from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode not in (''CASH'',''COIN'')',
+  lcRecCnt=0,
+  lcCash=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode = ''CASH'''),
+  lcCoin=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode = ''COIN'''),
+ tr(
+ legal,
+  prn('S.A.%I. 197 (2002)'),
+  prn('CREDIT TO GENERAL ACCOUNT',t1),
+  prn('DEPOSITED BY THE',t2),
+  prn('TREASURER OF '&gcCounty&' COUNTY',t3),
+  det('select key2 as date, a1 as bankname, '''&gcCity&''' as location from object where id='&gcDepId),
+    prn(format(obj5:a1,@d2),6500,1100),
+    prn(,1000),
+    bnd('D',,3000,'WITH THE',1000,,3000),
+    bnd('D',obj5:a2,3000,,1000,obj5:a3,3000),
+    bnd('D','NAME OF BANK',3000,,1000,'LOCATION',3000),
+    nl,
+    nl,
+    prn('TO BE CREDITED TO THE GENERAL ACCOUNT OF '&gcCounty&' COUNTY TREASURER'),
+  edt,
+  prn(,lcLm),
+  det(gcsql5011,,,,),
+    bnd('DB',obj5:a1,2000,obj5:a2,1500,obj5:a3,1500,format(obj5:a4,@n-15.2),1000R)
+  edt,
+);
+
