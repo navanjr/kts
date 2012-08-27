@@ -119,31 +119,21 @@ begin
 -- populate Suspense
 -- get all the payments linked to this receipt
  insert @glSuspense
-
  select @receiptSlink, b.accountId, round(sum(a.amount),2)
   from paid a, paycodes b 
   where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId
-
  select @paidTotal = round(sum(amount),2) from @glSuspense
-
-
- exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
 
  while exists(select * from @wt where processFlag = 0)
  begin
   select top 1 @idToken = linkId, @dueToken = due * methodRate from @wt where processFlag = 0 order by methodRate desc, linkId
   if @paidTotal > 0
   begin
-   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
    if @dueToken <= @paidTotal
     update @wt set applyAmount = @dueToken where linkId = @idToken
    else
     update @wt set applyAmount = @paidTotal where linkId = @idToken
-
-   exec dbo.logit @@procid, '@dueToken = ', @dueToken, @level = 2 
-
    set @paidTotal = @paidTotal - @dueToken
-
   end
   update @wt set processFlag = 1 where linkId = @idToken
  end
@@ -152,7 +142,7 @@ begin
 -- add the debit to funds accounts from the invoice detail
  insert @glFundDebits
  select
-  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end
+  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount/c.due)*sum(a.amount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end
  from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink and c.due<>0.00
  group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due, c.protestAmount, c.protestId, c.invoiceSLink

@@ -1,21 +1,96 @@
-create procedure [dbo].[taxReferenceCRUD](@taxrollId int) as
+create procedure [dbo].[taxReferenceCRUD](
+ @taxrollId int,
+ @reInvoiceFlag varchar(10) = 'FALSE',
+ @newInvoiceId int = null output
+) as
 begin
 
+ exec dbo.logit @@procid, '@taxrollId', @taxrollId
+
  -- insert tax reference invoice
- if not exists(select * from invoices where taxrollId=@taxrollId)
+ if not exists(select * from invoices where taxrollId=@taxrollId) or @reInvoiceFlag = 'TRUE'
   begin
+
+   declare @rt table(
+    taxrollId int,
+    typ varchar(50),
+    PARCEL varchar(50),
+    item [numeric](7, 1),
+    taxyear [numeric](5, 0),
+    name varchar(50),
+    businessname varchar(50),
+    postdate int,
+    status varchar(50)
+   )
+
+   declare @wt table( fieldName varchar(50), latestValue varchar(max) )
+
+-- if we have taxroll corrections, lets go get em
+   if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId)
+   begin
+
+    insert @wt select fieldName, latestValue from dbo.taxrollItemBRW(null,0,@taxrollId)
+
+    declare @typ varchar(50),
+     @parcel varchar(50),
+     @item  varchar(50),
+     @taxyear varchar(50),
+     @name varchar(50),
+     @businessname varchar(50),
+     @logBlob varchar(max)
+
+    select @typ = latestValue from @wt where fieldName = 'RECORDTYPE'
+    select @parcel = latestValue from @wt where fieldName = 'FULLPIDNUMBER'
+    select @item =latestValue from @wt where fieldName = 'ITEMNUMBER'
+    select @taxyear = latestValue from @wt where fieldName = 'REALTAXYEAR'
+    select @name = latestValue from @wt where fieldName = 'OWNERNAME'
+    select @businessname = latestValue from @wt where fieldName = 'BUSINESSNAME'
+
+    select @logBlob = '@name=' + isnull(@name,'null') + ';@businessname=' + isnull(@businessname,'null') + ';'
+    exec dbo.logit @@procid, @logBlob, @level=2
+    
+    insert @rt
+    select
+     @taxrollId,
+     @typ,
+     @parcel,
+     @item,
+     @taxyear,
+     @name,
+     @businessname,
+     dbo.clariondate(getdate()),
+     ''
+   end
+   else
+   begin
+-- this is straight from adtax cause we dont have any corrections
+    insert @rt
+    select
+     [ID],
+     [RECORDTYPE],
+     [FULLPIDNUMBER],
+     [ITEMNUMBER],
+     [REALTAXYEAR],
+     [OWNERNAME],
+     [BUSINESSNAME],
+     dbo.clariondate(getdate()),
+     ''
+    from adtax where id = @taxrollId
+
+   end
+
+-- insert the final result into invoices
    insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS])
    select
-    [ID],
-    [RECORDTYPE],
-    [FULLPIDNUMBER],
-    [ITEMNUMBER],
-    [REALTAXYEAR],
-    [OWNERNAME],
-    [BUSINESSNAME],
+    [TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],
     dbo.clariondate(getdate()),
     ''
-   from adtax where id = @taxrollId
+   from @rt where taxrollId = @taxrollId
+
+   set @newInvoiceId = @@identity
+   
+   exec dbo.logit @@procid, '@newInvoiceId', @newInvoiceId
+
   end
 
 end
