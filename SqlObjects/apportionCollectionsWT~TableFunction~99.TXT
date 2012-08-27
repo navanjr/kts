@@ -14,7 +14,8 @@ create function dbo.apportionCollectionsWT( @accountId int ) returns @wt table(
   processFlag int default 0,
   comment varchar(50),
   slink2 varchar(15),
-  contraId int
+  contraId int,
+  sourceCode varchar(60)
 )
 
 begin
@@ -31,7 +32,9 @@ begin
   @tokenappoptype varchar(50),
   @tokenStepDesc varchar(50),
   @tokenComment varchar(50),
-  @accountType int
+  @accountType int,
+  @tokenSourceCode varchar(60)
+
 
 declare @twt table(
 	[id] [int] ,
@@ -50,19 +53,20 @@ declare @twt table(
 	[slink2] [varchar](15),
 	[comment] [varchar](50),
 	[contraId] [int],
-	[comment2] [varchar](50))
+	[comment2] [varchar](50),
+	[sourceCode] [varchar](60))
 
   select @accountType = typ from object where id = @accountId 
 
   if @accountType = 4701
    begin
 -- Add glDetail when apportioning by account
-    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2] from gldetail where contraId = @accountId and ISNULL(bsId,0) = 0 
+    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail where contraId = @accountId and ISNULL(bsId,0) = 0 
    end
   else
    begin
 -- Add glDetail when apportioning protest by journal entry
-    insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2] from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
+    insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode] from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
    end
 
   delete from @twt where amount=0.00
@@ -112,28 +116,28 @@ declare @twt table(
 
 
 -- credit accrued receivables 
- insert @wt(accountId, creditCode, amount, comment,slink2, contraId)
- select a.accountId, b.accountCode, SUM(a.amount), isnull(a.comment,''),slink2, contraId
+ insert @wt(accountId, creditCode, amount, comment,slink2, contraId, sourceCode)
+ select a.accountId, b.accountCode, SUM(a.amount), isnull(a.comment,''),slink2, contraId, sourceCode
   from @twt a, glAccounts b
   where a.accountId = b.accountId
-  group by a.accountId, b.accountCode, isnull(a.comment,''), slink2, contraId
+  group by a.accountId, b.accountCode, isnull(a.comment,''), slink2, contraId, sourceCode
   having SUM(a.amount) <> 0.00
 
 -- credit funds
- insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment)
- select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, b.apdistrict
+ insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment, sourceCode)
+ select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, b.apdistrict, a.sourceCode
   from @twt a, glAccounts b
   where a.accountId = b.accountId
-  group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype
+  group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.sourceCode
   having SUM(a.amount) <> 0.00
 
 -- process the L types
  update @wt set processFlag = 1 where apTableType = 'L'
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = appilottable, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
-  insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment)
-  select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment
+  select top 1 @tokenId = id, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = appilottable, @tokenComment = isnull(comment,''), @tokenSourceCode = isnull(sourceCode,'') from @wt where processFlag = 1
+  insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment, sourceCode)
+  select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment, @tokenSourceCode
    from dbo.millsGetRows(4009,@tokenYear,@tokenAmount,@tokenCode)
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
@@ -143,9 +147,9 @@ declare @twt table(
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
-  insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment)
-  select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenComment = isnull(comment,''), @tokenSourceCode = isnull(sourceCode,'') from @wt where processFlag = 1
+  insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment, sourceCode)
+  select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment, case when @tokenSourceCode in ('AD VALOREM','') then sourceCode else @tokenSourceCode end   
    from dbo.getRates('apportionment',@tokenAccountId,@tokenAmount,null,'')
   update @wt set processFlag = 2 where id = @tokenId
  end
@@ -155,10 +159,10 @@ declare @twt table(
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditCode, @tokenStepDesc = isnull(stepDesc,''), @tokenComment = isnull(comment,'') from @wt where processFlag = 1
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditCode, @tokenStepDesc = isnull(stepDesc,''), @tokenComment = isnull(comment,''), @tokenSourceCode = isnull(sourceCode,'') from @wt where processFlag = 1
 
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
-  select @tokenAccountId, @tokenYear, accountCode, amount, @tokenStepDesc+' '+description+' '+@tokenYear, @tokenComment
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode)
+  select @tokenAccountId, @tokenYear, accountCode, amount, @tokenStepDesc+' '+description+' '+@tokenYear, @tokenComment, @tokenSourceCode
    from dbo.millsGetRows(4013,@tokenYear,@tokenAmount,'')
   update @wt set processFlag = 2, creditCode = null 
    where id = @tokenId
@@ -169,9 +173,9 @@ declare @twt table(
 
  while exists(select * from @wt where processFlag = 1)
  begin
-  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditcode, @tokenappoptype = appoptype, @tokenComment = isnull(comment,'') from @wt where processFlag = 1
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment)
-  select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment
+  select top 1 @tokenId = id, @tokenAccountId = accountId, @tokenAmount = amount, @tokenYear = apYear, @tokenCode = creditcode, @tokenappoptype = appoptype, @tokenComment = isnull(comment,''), @tokenSourceCode = isnull(sourceCode,'') from @wt where processFlag = 1
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode)
+  select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment, @tokenSourceCode
    from dbo.millsGetRows(4014,@tokenYear,@tokenAmount,@tokenappoptype)
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
