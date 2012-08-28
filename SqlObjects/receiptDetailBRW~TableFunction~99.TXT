@@ -4,19 +4,27 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int) returns
  id int,
  description varchar(100), 
  subdescription varchar(100), 
- amount money 
+ amount money,
+ sName varchar(50),
+ fName Varchar(50) 
 )
 begin
 
  declare @styp char(1) = 'o'
  declare @slink varchar(15) = @styp + cast(@receiptId as varchar)
 
- insert @rettable
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink
+ insert @rettable (ord,id,description,subdescription,amount)
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
+ 
+ update @rettable 
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
+
+ update @rettable 
+      set fName = dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
 
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
-  insert @rettable
+  insert @rettable (ord,id,description,subdescription,amount)
   select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
    max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
    max(c.parcel),
@@ -28,7 +36,7 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount
 
-  insert @rettable
+  insert @rettable (ord,id,description,subdescription,amount)
   select 'aa'+cast(c.invoiceId as varchar)+'b',cast('7'+cast(max(c.id) as varchar) as int)*-1,
    max('   '+b.description),
    max('   '+lower(b.subDescription)),
@@ -43,24 +51,24 @@ begin
 
  if exists(select * from dbo.paid where slink = @slink)
  begin
-  insert @rettable
+  insert @rettable (ord,id,description,subdescription,amount)
   select 'ba',0,'','',0
-  insert @rettable
+  insert @rettable (ord,id,description,subdescription,amount)
   select 'bb',0,'Payment(s)','',0
-  insert @rettable
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno+'/'+drawnon+'/'+location,amount*-1 from dbo.paid where slink = @slink
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount*-1 from dbo.paid where slink = @slink
  end
 
  if @showGl = 1
  begin
   if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'ca',0,'','',0
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'cb',0,'GL Detail (staged)','',0
 
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'cc'+b.accountType,0,'   '+a.accountDesc,lower(b.accountType),sum(a.amount)
    from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId
     and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
@@ -70,11 +78,11 @@ begin
 
   if exists(select * from dbo.glDetail where slink = @slink)
   begin
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'ca',0,'','',0
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'cb',0,'GL Detail (posted)','',0
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount)
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
     and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
@@ -107,13 +115,13 @@ begin
    update @taxInvoices set description = (select top 1 description from receiptDetail where slink = realslink) 
    where description = 'sub invoice'
 
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'ea',0,'','',0
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select 'eb',0,'GL Detail (posted via Tax Invoice)','',0
 
   --Invoice Header
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select
     'ec' + slink + ord + min(realslink) + 'a',
     0,
@@ -124,7 +132,7 @@ begin
    group by slink,description,subdescription, ord
 
   -- invoice GL Detail
-   insert @rettable
+   insert @rettable (ord,id,description,subdescription,amount)
    select
     'ec' + c.slink + c.ord + max(c.realslink) + 'b',
     0,
@@ -143,3 +151,4 @@ begin
 
  return
 end
+
