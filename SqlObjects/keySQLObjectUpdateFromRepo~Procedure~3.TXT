@@ -1,0 +1,61 @@
+create procedure dbo.keySQLObjectUpdateFromRepo( @objectName varchar(50) ) as
+begin
+ set nocount on
+
+ declare
+  @txt nvarchar(max),
+  @path varchar(1000),
+  @objectType varchar(50),
+  @objectOrder varchar(50),
+  @fullPath varchar(1000),
+  @objectId int,
+  @sql nvarchar(max),
+  @params nvarchar(max),
+  @data varchar(max)
+ 
+ exec dbo.keyReturnIniValue
+  'c:\kellpro.ini',
+  @section = 'git',
+  @field = 'path',
+  @value = @path out 
+ 
+ select
+  @objectType = objectType,
+  @objectOrder = objectOrder,
+  @fullPath = objectPath
+ from dbo.dir(@path + '\SqlObjects')
+ where objectName = @objectName
+
+-- bail if we are not ready
+ if @objectName < '  0' or @objectType < '  0' or @objectOrder < '  0'
+ begin
+  exec dbo.logit @@procid, 'not ready to read from Repo...'
+  return
+ end
+
+-- get the raw data
+ select
+  @sql = 'select @text_file=(select * from openrowset (bulk ''' + @fullPath + ''', SINGLE_CLOB) as X)',
+  @params = '@text_file varchar(max) OUTPUT'  
+ exec sp_executesql
+  @stmt = @sql,
+  @params = @params,
+  @text_file = @data OUTPUT 
+
+-- see if it exists in object
+ select @objectId = id from Object where typ = 451 and Key1 = @objectName and Key2 = @objectType
+ if @objectId > 0
+ begin
+  exec dbo.logit @@procid, 'updating sqlObject from Repo... @objectName', @objectName
+
+  alter table object disable trigger keySqlObjectWriteToRepoTR
+  update Object set
+   A17 = @objectOrder,
+   A19 = '',
+   E1 = @data
+  where typ = 451 and id = @objectId
+  alter table object enable trigger keySqlObjectWriteToRepoTR
+  
+ end
+ 
+end
