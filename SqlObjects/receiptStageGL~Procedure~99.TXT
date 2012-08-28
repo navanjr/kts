@@ -5,13 +5,15 @@ begin
   accountId int,
   contraId int,
   amount money,
-  comment varchar(100)
+  comment varchar(100),
+  sourceCode varchar(60)
  )
  declare @accounts table(
   accountId int,
   contraId int,
   amount money,
-  comment varchar(100)
+  comment varchar(100),
+  sourceCode varchar(60)
  )
  
  declare @styp char(1) = 'o'
@@ -24,7 +26,8 @@ begin
   @tokenContraId int,
   @tokenAmount money,
   @receiptType varchar(50),
-  @comment varchar(50)
+  @comment varchar(50),
+  @sourceCode varchar(60)
  
  select 
   @code = code,
@@ -37,52 +40,52 @@ begin
  if @receiptType<>'OFFICIAL'
  begin
   insert @accountsWorking
-   select b.accountId, null, sum(a.amount)*-1,'' 
+   select b.accountId, null, sum(a.amount)*-1,'', ''
    from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
-  insert @accountsWorking select @arAccountId, null, @tokenAmount,''
+  insert @accountsWorking select @arAccountId, null, @tokenAmount,'',''
  end
 
  if exists(select * from paid where slink = @slink)
  begin
-  declare @ap table(accountId int, contraId int, amount money, prorate decimal(19,18), payAmount decimal(19,10), comment varchar(100))
+  declare @ap table(accountId int, contraId int, amount money, prorate decimal(19,18), payAmount decimal(19,10), comment varchar(100), sourceCode varchar(60))
   declare @paidTotal money
 
   -- credit AR
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
   if @receiptType<>'OFFICIAL'
   begin
-   insert @accountsWorking select @arAccountId, null, @paidTotal,''
+   insert @accountsWorking select @arAccountId, null, @paidTotal,'',''
   end
 
   -- debit suspense accounts
   insert @accountsWorking
-  select b.accountId, null, sum(a.amount),''
+  select b.accountId, null, sum(a.amount),'',''
   from paid a, paycodes b 
   where a.paycode = b.paycode and a.slink = @slink group by b.accountId
 
   -- debit tresurers receipt fund and credit fund receivables
-  insert @accountsWorking select @contraId, null, @paidTotal,''
+  insert @accountsWorking select @contraId, null, @paidTotal,'',''
   if @receiptType<>'OFFICIAL'
   begin
    insert @ap
-    select b.accountId,  case when @receiptType='TRUST' then @receiptId else @contraId end, sum(a.amount)*-1, 0, 0,a.description
+    select b.accountId,  case when @receiptType='TRUST' then @receiptId else @contraId end, sum(a.amount)*-1, 0, 0,a.description,a.sourceCode
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description
+    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description, a.sourceCode
    insert @ap
-    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0,a.description
+    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0, a.description, a.sourcecode
     from receiptDetail a, dbo.glAccounts b 
     where a.slink = @slink and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode and b.accountcode<>a.fundcode and @receiptType<>'TRUST'
-     group by b.accountId, a.description
+     group by b.accountId, a.description, a.sourcecode
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
-  insert @accountsWorking select accountId, contraId, payAmount, comment from @ap
+  insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode from @ap
  end 
  
 
- insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment from @accountsWorking group by accountId, contraId, comment having sum(isnull(amount,0)) != 0
+ insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment, sourceCode from @accountsWorking group by accountId, contraId, comment, sourceCode having sum(isnull(amount,0)) != 0
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
@@ -101,9 +104,10 @@ begin
    @tokenId = accountId,
    @tokenContraId = contraId,
    @tokenAmount = amount,
-   @comment = left(rtrim(comment),49)
+   @comment = left(rtrim(comment),49),
+   @sourceCode = sourceCode
   from @accounts
-  insert gldetailstage (slink,accountId,amount,contraId,comment) select @slink,@tokenId,@tokenAmount,@tokenContraId, @comment
+  insert gldetailstage (slink,accountId,amount,contraId,comment,sourceCode) select @slink,@tokenId,@tokenAmount,@tokenContraId, @comment, @sourceCode
   delete @accounts where accountId = @tokenId
  end
  

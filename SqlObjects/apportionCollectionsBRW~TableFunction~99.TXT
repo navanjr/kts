@@ -6,21 +6,22 @@ create function dbo.apportionCollectionsBRW( @accountId int ) returns @rt table(
  comment varchar(50),
  comment2 varchar(50),
  slink2 varchar(15),
- contraId int
+ contraId int,
+ sourceCode varchar(60)
 )
 begin
 
 -- debits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId 
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode
  from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
-  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId 
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
  
 -- credits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId  
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode  
  from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
-  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId 
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
 
  return
 end
