@@ -8,15 +8,27 @@ begin
   @resultCode int,
   @resultMessage varchar(50),
   @newId int,
-  @slink varchar(15)
+  @slink varchar(15),
+  @accountType int,
+  @jeType varchar(50)
 
- select @accountDesc = accountDesc from dbo.glAccounts where accountId = @accountId
+ select @accountType = typ from object where id = @accountId 
 
+ if @accountType = 4701 
+  select @accountDesc = accountDesc from dbo.glAccounts where accountId = @accountId
+
+ if @accountType = 4502
+  select top 1 @accountDesc = a.accountDesc from dbo.glAccounts a, gldetail b where a.accountId = b.contraId and b.contraId > 0
+    and b.slink in (select slink from dbo.receiptSLinks(@accountId))
+    and ISNULL(b.bsId,0) = 0
+
+ 
 -- create new JE
+  set @jeType = 'APPORTIONMENT'+case when @accountType=4502 then ' SPECIAL' else '' end  
  exec dbo.journalEntryCRUD
   @mode = 0,
   @description = @accountDesc,
-  @jeType = 'APPORTIONMENT',
+  @jeType = @jeType,
   @resultCode = @resultCode output,
   @resultMessage = @resultMessage output,
   @newId = @newId output
@@ -34,10 +46,25 @@ begin
  
 
 -- link origional apportion postngs to this JE
- update glDetail set bsId = @newId
- where 
-   contraId = @accountId
-   and ISNULL(bsId,0) = 0
+ if @accountType = 4701
+ begin
+  update glDetail set bsId = @newId
+  where 
+    contraId = @accountId
+    and ISNULL(bsId,0) = 0
+ end
+
+ if @accountType = 4502
+ begin
+  update glDetail set bsId = @newId
+  where 
+    contraId > 0
+    and slink in (select slink from dbo.receiptSLinks(@accountId))
+    and ISNULL(bsId,0) = 0
+ end
+ 
  
  return
 end
+
+

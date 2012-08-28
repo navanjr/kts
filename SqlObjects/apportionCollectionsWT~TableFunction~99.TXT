@@ -73,12 +73,12 @@ declare @twt table(
 
   if @accountType = 4502
    begin
-    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
+--    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
 
 -- Add glDetail when special apportioning a receipt
-/*    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
-      where slink=@slink and contraId > 0 and ISNULL(bsId,0) = 0 
-*/   end
+    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
+      where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
+   end
 
 
   delete from @twt where amount=0.00
