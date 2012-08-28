@@ -20,7 +20,7 @@ begin
       set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
 
  update @rettable 
-      set fName = dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50)  from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
 
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
@@ -136,7 +136,7 @@ begin
    select
     'ec' + c.slink + c.ord + max(c.realslink) + 'b',
     0,
-    '      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,
+    left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
     lower(b.accountType),
     sum(a.amount)
    from dbo.glDetail a, glaccounts b, @taxInvoices c
@@ -151,4 +151,3 @@ begin
 
  return
 end
-
