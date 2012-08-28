@@ -1,0 +1,39 @@
+create procedure dbo.keySQLObjectWriteToRepo( @id int )
+as
+begin
+ 
+ declare
+  @gitCommitter varchar(10),
+  @txt varchar(max),
+  @path varchar(100),
+  @fullPath varchar(1000)
+
+ exec dbo.keyReturnIniValue
+  'c:\kellpro.ini',
+  @section = 'git',
+  @field = 'committer',
+  @value = @gitCommitter out 
+
+-- bail if we are not a git committer
+ if not isnull(@gitCommitter,'FALSE') = 'TRUE'
+ begin
+  exec dbo.logit @@procid, 'not a git Committer'
+  return
+ end
+
+ exec dbo.keyReturnIniValue
+  'c:\kellpro.ini',
+  @section = 'git',
+  @field = 'path',
+  @value = @path out 
+
+ select
+  @txt = cast(e1 as varchar(max)),
+  @fullPath = @path + '\SqlObjects\' + rtrim(key1) + '~' + rtrim(key2) + '~' + rtrim(key3) + '.TXT'  
+ from Object where typ = 451 and id = @id
+
+ exec dbo.spOverwriteTextFile
+  @fileName = @fullPath,
+  @text = @txt
+
+end
