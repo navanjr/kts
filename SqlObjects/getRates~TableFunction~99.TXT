@@ -47,7 +47,7 @@ begin
    @district = district,
    @rateName = rateName,
    @taxAmount = amount
-  from dbo.taxrollCheck(@taxrollId,@invoiceType)
+  from dbo.taxrollCheck(@taxrollId,@invoiceType,null)
  end
 
  if @mode = 'apportionment' 
@@ -111,13 +111,13 @@ begin
   end
  else
   begin
-   select @fundcode = accountcode, @fundid = accountid from glaccounts where aptabletype = 'M' and apyear = @taxyear and apdistrict = @district and aprate = @rateName
+   select @fundcode = accountcode, @fundid = accountid from glaccounts where aptabletype = 'M' and apyear = @taxyear and apdistrict = @district and aprate = @rateName and accountType='ACCRUED RECEIVABLE'
    insert @rt
    select
     @district + ' ' + taxName,
     cast(mill as varchar),
-    @district + '_' + taxName + '_' + @taxyear,
-    isnull((select accountid from glaccounts where accountType='SOURCE' and accountCode=@district + '_' + taxName + '_' + @taxyear),0),
+    @district + '_' + @rateName + '_' + @taxyear,
+    isnull((select accountid from glaccounts where accountType='SOURCE' and accountCode=@district + '_' + @rateName + '_' + @taxyear),0),
     @fundcode,
     @fundid,
     mill,

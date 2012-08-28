@@ -61,13 +61,25 @@ declare @twt table(
   if @accountType = 4701
    begin
 -- Add glDetail when apportioning by account
-    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail where contraId = @accountId and ISNULL(bsId,0) = 0 
+    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
+    where contraId = @accountId and ISNULL(bsId,0) = 0 
    end
-  else
+
+  if @accountType = 4512
    begin
 -- Add glDetail when apportioning protest by journal entry
     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode] from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
    end
+
+  if @accountType = 4502
+   begin
+    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
+
+-- Add glDetail when special apportioning a receipt
+/*    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
+      where slink=@slink and contraId > 0 and ISNULL(bsId,0) = 0 
+*/   end
+
 
   delete from @twt where amount=0.00
 

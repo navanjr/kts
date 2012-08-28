@@ -23,7 +23,7 @@ begin
   @taxYear = taxYear,
   @district = district,
   @rateName = rateName
- from dbo.taxrollCheck(@id,@invoiceType)
+ from dbo.taxrollCheck(@id,@invoiceType,null)
  if @code = 1 
  begin
   if @smode=0
@@ -152,21 +152,22 @@ begin
   -- stage the GL
   declare @accountsWorking table(
    accountId int,
-   amount money
+   amount money,
+   comment2 varchar(50)
   )
   declare 
    @tokenAmount money
  
   -- credit Source and Debit AR
   insert @accountsWorking
-   select b.accountId, sum(a.amount)*-1 
+   select b.accountId, sum(a.amount)*-1, a.description 
    from receiptDetail a, dbo.glAccounts b 
-   where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
+   where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId, a.description
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
-  insert @accountsWorking select @arAccountId, @tokenAmount
+  insert @accountsWorking select @arAccountId, @tokenAmount, ''
 
   -- insert
-  insert gldetailstage (slink,accountId,amount) select @slink,accountId,amount from @accountsWorking where amount != 0
+  insert gldetailstage (slink,accountId,amount,comment2) select @slink,accountId,amount,comment2 from @accountsWorking where amount != 0
  
   update a set
    a.accountCode = b.accountCode,
