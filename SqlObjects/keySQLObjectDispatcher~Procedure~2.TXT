@@ -35,9 +35,16 @@ declare
  set @sql_5 = ''
 
 -- Drop the Object
- if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
-  exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
-
+ if @objectType = 'Trigger'
+ begin
+  if OBJECT_ID (@objectName, 'TR') IS NOT NULL
+   exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+ end
+ else
+ begin
+  if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+ end
 -- Bail if dropFlag = TRUE 
  if @dropFlag = 'TRUE'
  begin
