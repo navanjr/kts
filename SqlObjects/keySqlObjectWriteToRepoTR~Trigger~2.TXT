@@ -1,0 +1,17 @@
+create TRIGGER dbo.keySqlObjectWriteToRepoTR ON dbo.object
+AFTER INSERT, UPDATE 
+AS
+--TODO: we need to make sure this object is in the setupKTS script might be good to get this in a if ord < 3 loop in the setup script
+
+ if (@@ROWCOUNT = 0)
+  return
+
+ if not (select typ from inserted) = 451
+  return
+  
+ declare @objectId int
+
+ select @objectId = id from inserted
+ 
+ if @objectId > 0
+  exec dbo.keySQLObjectWriteToRepo @objectId

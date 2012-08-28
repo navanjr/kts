@@ -6,6 +6,9 @@ begin
   @gitCommitter varchar(10),
   @txt varchar(max),
   @path varchar(100),
+  @objectName varchar(60),
+  @objectType varchar(50),
+  @objectOrder varchar(50),
   @fullPath varchar(1000)
 
  exec dbo.keyReturnIniValue
@@ -21,17 +24,28 @@ begin
   return
  end
 
+ select
+  @txt = cast(e1 as varchar(max)),
+  @objectName = rtrim(key1),
+  @objectType = rtrim(key2),
+  @objectOrder = rtrim(a17)
+ from Object where typ = 451 and id = @id
+
+-- bail if we are not ready
+ if @objectName < '  0' or @objectType < '  0' or @objectOrder < '  0'
+ begin
+  exec dbo.logit @@procid, 'not ready to write to Repo...'
+  return
+ end
+
  exec dbo.keyReturnIniValue
   'c:\kellpro.ini',
   @section = 'git',
   @field = 'path',
   @value = @path out 
 
- select
-  @txt = cast(e1 as varchar(max)),
-  @fullPath = @path + '\SqlObjects\' + rtrim(key1) + '~' + rtrim(key2) + '~' + rtrim(key3) + '.TXT'  
- from Object where typ = 451 and id = @id
-
+ set @fullPath = @path + '\SqlObjects\' + @objectName + '~' + @objectType + '~' + @objectOrder + '.TXT'  
+ 
  exec dbo.spOverwriteTextFile
   @fileName = @fullPath,
   @text = @txt
