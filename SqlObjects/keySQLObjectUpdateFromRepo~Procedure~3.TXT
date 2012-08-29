@@ -1,4 +1,7 @@
-create procedure dbo.keySQLObjectUpdateFromRepo( @objectName varchar(50) ) as
+create procedure dbo.keySQLObjectUpdateFromRepo(
+ @objectName varchar(50),
+ @debugMode varchar(5) = 'FALSE'
+) as
 begin
  set nocount on
 
@@ -89,6 +92,9 @@ begin
   where a.typ = 451 and a.id = b.objectId
  alter table object enable trigger keySqlObjectWriteToRepoTR
 
- select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' SqlObjects from the repo;'
+ if @debugMode = 'TRUE'
+  select * from @wt order by objectName
+
+ select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' SqlObjects from the repo;'
   
 end
