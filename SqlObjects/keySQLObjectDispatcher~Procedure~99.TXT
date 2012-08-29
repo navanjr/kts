@@ -1,0 +1,70 @@
+create procedure dbo.keySQLObjectDispatcher(
+ @id int,
+ @dropFlag varchar(5) = 'FALSE',
+ @silentMode varchar(5) = 'FALSE',
+ @result int = null output
+) as
+begin
+
+declare
+  @objectName nvarchar(50),
+  @objectType nvarchar(50),
+  @objectDropType nvarchar(50),
+  @sqlMax nvarchar(max)
+
+-- Gather information about this Object
+ select -- @loopcount=(datalength(e1)/4000)+1,
+  @objectName=Key1,
+  @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
+  @objectDropType=Key2,
+  @sqlMax = e1
+ from object where id = @id
+
+-- Drop the Object
+ if @objectType = 'Trigger'
+ begin
+  if OBJECT_ID (@objectName, 'TR') IS NOT NULL
+   exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+ end
+ else
+ begin
+  if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+ end
+-- Bail if dropFlag = TRUE 
+ if @dropFlag = 'TRUE'
+ begin
+  delete object where typ = 451 and id = @id
+  if not exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   and not exists(select * from object where typ = 451 and id = @id)
+  begin
+   if @silentMode = 'FALSE'
+    select '@code=1;@message=Object was removed... Have a nice day.;'
+   set @result = 0
+   return 
+  end
+  else
+  begin
+   if @silentMode = 'FALSE'
+    select '@code=1;@message=object was not deleted. Something went horribly wrong;'
+   set @result = 1
+   return
+  end
+ end
+
+-- Create the object
+  begin try
+   exec(@sqlMax)
+  end try
+  begin catch
+   if @silentMode = 'FALSE'
+    select '@code=1;@message='+ERROR_MESSAGE()+';'
+   set @result = 1
+   return
+  end catch
+
+  if @silentMode = 'FALSE'
+   select '@code=0;@message=OK;'
+  set @result = 0
+  return
+ end
