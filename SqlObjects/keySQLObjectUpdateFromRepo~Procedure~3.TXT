@@ -29,7 +29,8 @@ begin
   objectOrder varchar(50),
   objectPath varchar(100),
   data varchar(max),
-  processFlag int
+  processFlag int,
+  errors varchar(50)
  )
  
  exec dbo.keyReturnIniValue
@@ -46,7 +47,7 @@ begin
    objectType,
    objectOrder,
    objectPath,
-   '',0
+   '',0,''
   from dbo.dir(@path + '\SqlObjects')
  else
   insert @wt
@@ -56,12 +57,12 @@ begin
    objectType,
    objectOrder,
    objectPath,
-   '',0
+   '',0,''
   from dbo.dir(@path + '\SqlObjects')
   where objectName = @objectName
 
 -- gather data from object
- update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1
+ update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1 and b.typ = 451
 
  while exists(select * from @wt where processFlag = 0)
  begin
@@ -78,22 +79,32 @@ begin
   return
  end
 
+ update @wt set errors = 'dups' where objectId in (select objectId from @wt group by objectId having count(*) > 1)
+
  select @totalRepoFiles = count(*) from @wt
  select @tally = count(a.id) from object a, @wt b where a.typ = 451 and a.id = b.objectId
 
  select @logBlob = 'importing ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' sqlObjects from Repo...'
  exec dbo.logit @@procid, @logBlob
 
- alter table object disable trigger keySqlObjectWriteToRepoTR
- update a set
+ if not @debugMode = 'TRUE'
+ begin
+  alter table object disable trigger keySqlObjectWriteToRepoTR
+  update a set
+   a.key2 = b.objectType,
    a.A17 = b.objectOrder,
    a.A19 = '',
    a.E1 = b.data
+  from object a, @wt b
   where a.typ = 451 and a.id = b.objectId
- alter table object enable trigger keySqlObjectWriteToRepoTR
+  alter table object enable trigger keySqlObjectWriteToRepoTR
+ end
 
  if @debugMode = 'TRUE'
-  select * from @wt order by objectName
+ begin
+  select * from @wt -- where objectId not in (select id from object where typ = 451)
+  order by objectName 
+ end
 
  select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' SqlObjects from the repo;'
   
