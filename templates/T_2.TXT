@@ -1,11 +1,3 @@
-@id=2;
-@template=Key Git Procedures;
-@shortcut=;
-@group=;
-@security=Key;
-@securitylevel=1;
-
-###---###---###---###---###
 @noupdate;
 @bbgcolor=999B0Dh;
 @wbgcolor=999B0Dh;
@@ -83,7 +75,7 @@
 @acc105=
  m('please select on of the following EXPORT options...','Export to local repo...',,'&Objects|&Templates|&Users|&Everything|&Cancel'),
  break(gcretval=6),
- if(gcretval=1,exportObjects=),
+ if(gcretval=1,sql('exec dbo.keySQLObjectsWriteToRepo null')),
  if(gcretval=2,exportTemplates=),
  if(gcretval=3,dumpUsers=),
  if(gcretval=4,exportEverything=),
@@ -91,20 +83,13 @@
  gitStatus=;
 
 @exportEverything=
- exportObjects=,
- gcExportTemplateFilter='RTEM:ID > 0',exportTemplateGuts=,
- dumpUsers=;
-
-@exportTemplateGuts=
- exporttexttemplate(gcRepoPath&'\templates',gcExportTemplateFilter),
- send(gcBat,'pushd '&gcRepoPath),
- sqlloop('select id from template where id > 0',exportloop=),
- send(gcBat,'del sed*',1),
- send(gcBat,'popd',1),
- runw(gcBat,,0),
-@exportloop=
- lcTemplateId=obj5:a1,
- send(gcBat,'sed -i "/^@lastedit=/d" templates\T_'&lcTemplateId&'.TXT',1);
+ kpmo('Exporting SqlObjects','Export Everything...'),
+ sql('exec dbo.keySQLObjectsWriteToRepo null'),
+ kpmm('Exporting Templates'),
+ sql('exec dbo.keyTemplateWriteToRepo null'),
+ kpmm('Exporting Users'),
+ dumpUsers=
+ kpmc();
 
 @exportTemplates=
  lcid=kp('select id from object where typ=455'),
@@ -231,29 +216,6 @@
  exportusers('kts.usr'),
  filecopy(lcpath&'\kts.usr',lcpath1&'\kts.usr');
 
-@exportObjects=
- if(kpexists(gcRepoPath&'\SqlObjects')<>1,createFolder=),
- sqlloop('select id,key1,key2,a17,a18 from object where typ=451',exportObject1=);
-
-@createFolder=
- gcGitCmd='mkdir '&gcRepoPath&'\SqlObjects',
- gitCommand=;
-
-@exportObject1=
- gcSQLObjId=obj5:a1,
- gcSQLObjA2=obj5:a2,
- gcSQLObjA3=obj5:a3,
- gcSQLObjA4=obj5:a4,
- gcSQLObjA5=obj5:a5,
- exportBlackBox=;
-
-@exportBlackBox=
- fastmodify(gcSQLObjId,044=''),
- lcFile=gcSQLObjA2&'~'&gcSQLObjA3&'~'&gcSQLObjA4&'.TXT',
- e1select('select e1 from object where id='&gcSQLObjId),
- lcE1=clip(obj7:e1),
- send(gcRepoPath&'\SqlObjects\'&lcFile,lcE1);
-
 @importObjects=
  setpath(gcRepoPath&'\sqlObjects'),
  sql('exec dbo.logit @@procid, ''import sql objects'','''&gcRepoPath&'\sqlObjects'''),
@@ -289,10 +251,10 @@
  importObjectsA=;
 
 @createFunction=
- lcFile='EnableAdvancedSQLOptions~Script~99',
+ lcFile='EnableAdvancedSQLOptions~Script~1',
  importObjects2=,
  createoneobject=,
- lcFile='dirRead~TableFunction~99',
+ lcFile='dirRead~TableFunction~3',
  importObjects2=,
  createoneobject=;
 
