@@ -1,17 +1,10 @@
-create function dbo.rpMonthEndDetail(@beginDate int, @endDate int) returns @rt table(accountType varchar(50),accountId int, accountCode varchar(60), accountDesc varchar(50), comment varchar(50), comment2 varchar(50),
- sourceCode varchar(60), amount money, journalType varchar(50), sourceDesc varchar(50), sourceSECA varchar(50), journalDesc varchar(50))
- as
- begin
-insert @rt 
-select b.accountType,a.accountId, a.accountCode, a.accountDesc, comment, a.comment2, case when left(a.sourceCode,len(a.comment))=a.comment and len(a.comment)>5 then '' else a.sourceCode end as sourceCode, sum(amount) as amount, c.journalType, '' as sourceDesc, '' as sourceSECA, o.key3 as journalDesc
-from gldetail a, glAccounts b, (select * from dbo.monthEndSLinks(@beginDate,@endDate)) c, object o  
-where o.typ=4512 and slink='o'+cast(o.id as varchar)
- and a.accountCode=b.accountCode 
- and slink = c.journalSlink
- and accountType not in ('ACCRUED RECEIVABLE', 'EXPENSE')
-group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3
-having sum(amount)<>0.00
+create function dbo.rpMonthEndSLinks(@beginDate int, @endDate int) returns @rt table(
+ journalSlink varchar(15),
+ journalType varchar(50)
+)
+begin
 
-update a set sourceDesc=b.key2, sourceSECA=b.a19 from @rt a, object b where b.typ=4701 and len(a.sourceCode) > 2 and a.sourceCode=b.key1
-return
+ insert @rt select 'o' + cast(id as varchar), a18 from object where typ=4512 and key2 >= @beginDate and key2 <= @endDate
+
+ return
 end
