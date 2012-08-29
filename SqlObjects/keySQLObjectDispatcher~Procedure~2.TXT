@@ -1,6 +1,8 @@
 create procedure dbo.keySQLObjectDispatcher(
  @id int,
- @dropFlag varchar(5) = 'FALSE'
+ @dropFlag varchar(5) = 'FALSE',
+ @silentMode varchar(5) = 'FALSE',
+ @result int = null output
 ) as
 begin
 
@@ -8,31 +10,15 @@ declare
   @objectName nvarchar(50),
   @objectType nvarchar(50),
   @objectDropType nvarchar(50),
-  @loopcount int,
-  @looptally int,
-  @sqlclip nvarchar(4000),
-  @sql_1 nvarchar(4000),
-  @sql_2 nvarchar(4000),
-  @sql_3 nvarchar(4000),
-  @sql_4 nvarchar(4000),
-  @sql_5 nvarchar(4000)
- 
- declare @sql table
-  (line int IDENTITY(1,1), sqlcode nvarchar(4000))
+  @sqlMax nvarchar(max)
 
 -- Gather information about this Object
- select @loopcount=(datalength(e1)/4000)+1,
+ select -- @loopcount=(datalength(e1)/4000)+1,
   @objectName=Key1,
   @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
-  @objectDropType=Key2
- from object where id=@id
- set @looptally=1
- set @sqlclip = ''
- set @sql_1 = ''
- set @sql_2 = ''
- set @sql_3 = ''
- set @sql_4 = ''
- set @sql_5 = ''
+  @objectDropType=Key2,
+  @sqlMax = e1
+ from object where id = @id
 
 -- Drop the Object
  if @objectType = 'Trigger'
@@ -51,44 +37,34 @@ declare
   delete object where typ = 451 and id = @id
   if not exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
    and not exists(select * from object where typ = 451 and id = @id)
-   select '@code=1;@message=Object was removed... Have a nice day.;'
+  begin
+   if @silentMode = 'FALSE'
+    select '@code=1;@message=Object was removed... Have a nice day.;'
+   set @result = 0
+   return 
+  end
   else
-   select '@code=1;@message=object was not deleted. Something went horribly wrong;'
-  return 
+  begin
+   if @silentMode = 'FALSE'
+    select '@code=1;@message=object was not deleted. Something went horribly wrong;'
+   set @result = 1
+   return
+  end
  end
 
 -- Create the object
- while 1=1
-  begin 
-   print @looptally
-   set @loopcount=@loopcount-1
-   select @sqlclip=substring(e1,@looptally,4000) 
-    from object 
-    where id=@id
-   insert @sql (sqlcode) values (@sqlclip)
-   if @looptally=1
-    set @sql_1 = @sqlclip
-   if @looptally=4001
-    set @sql_2 = @sqlclip
-   if @looptally=8001
-    set @sql_3 = @sqlclip
-   if @looptally=12001
-    set @sql_4 = @sqlclip
-   if @looptally=16001
-    set @sql_5 = @sqlclip
-   set @looptally=@looptally+4000
-   set @sqlclip = ''
-   if @loopcount=0
-    break
-   continue
-  end
-
   begin try
-   exec(@sql_1+@sql_2+@sql_3+@sql_4+@sql_5)
+   exec(@sqlMax)
   end try
   begin catch
-   select '@code=1;@message='+ERROR_MESSAGE()+';'
+   if @silentMode = 'FALSE'
+    select '@code=1;@message='+ERROR_MESSAGE()+';'
+   set @result = 1
+   return
   end catch
 
-  select '@code=0;@message=OK;'
+  if @silentMode = 'FALSE'
+   select '@code=0;@message=OK;'
+  set @result = 0
+  return
  end

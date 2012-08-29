@@ -2,6 +2,8 @@ create procedure dbo.keySQLObjectUpdateFromRepo( @objectName varchar(50) ) as
 begin
  set nocount on
 
+ exec dbo.logit @@procid, 'Started... @objectName', @objectName
+
  declare
   @txt nvarchar(max),
   @path varchar(1000),
@@ -11,7 +13,20 @@ begin
   @objectId int,
   @sql nvarchar(max),
   @params nvarchar(max),
-  @data varchar(max)
+  @data varchar(max),
+  @logBlob varchar(max),
+  @idToken int,
+  @tally int
+
+ declare @wt table(
+  objectId int,
+  objectName varchar(60),
+  objectType varchar(50),
+  objectOrder varchar(50),
+  objectPath varchar(100),
+  data varchar(max),
+  processFlag int
+ )
  
  exec dbo.keyReturnIniValue
   'c:\kellpro.ini',
@@ -19,43 +34,59 @@ begin
   @field = 'path',
   @value = @path out 
  
- select
-  @objectType = objectType,
-  @objectOrder = objectOrder,
-  @fullPath = objectPath
- from dbo.dir(@path + '\SqlObjects')
- where objectName = @objectName
+ if @objectName is null
+  insert @wt
+  select
+   0,
+   objectName,
+   objectType,
+   objectOrder,
+   objectPath,
+   '',0
+  from dbo.dir(@path + '\SqlObjects')
+ else
+  insert @wt
+  select
+   0,
+   objectName,
+   objectType,
+   objectOrder,
+   objectPath,
+   '',0
+  from dbo.dir(@path + '\SqlObjects')
+  where objectName = @objectName
 
--- bail if we are not ready
- if @objectName < '  0' or @objectType < '  0' or @objectOrder < '  0'
+-- gather data from object
+ update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1 @idToken = objectId, @fullPath = objectPath from @wt where processFlag = 0
+  exec dbo.spReadTextFile @fullPath, @fileContents = @data out
+  update @wt set processflag = 1, data = @data where objectId = @idToken 
+ end
+ 
+-- bail if we dont have anything to import
+ if not exists(select * from @wt where objectId > 0 and isnull(data,'') > '  0')
  begin
   exec dbo.logit @@procid, 'not ready to read from Repo...'
+  select '@code=1;@message=Nothing to import;'
   return
  end
 
--- get the raw data
- select
-  @sql = 'select @text_file=(select * from openrowset (bulk ''' + @fullPath + ''', SINGLE_CLOB) as X)',
-  @params = '@text_file varchar(max) OUTPUT'  
- exec sp_executesql
-  @stmt = @sql,
-  @params = @params,
-  @text_file = @data OUTPUT 
+ select @tally = count(a.id) from object a, @wt b where a.typ = 451 and a.id = b.objectId
 
--- see if it exists in object
- select @objectId = id from Object where typ = 451 and Key1 = @objectName and Key2 = @objectType
- if @objectId > 0
- begin
-  exec dbo.logit @@procid, 'updating sqlObject from Repo... @objectName', @objectName
+ select @logBlob = 'importing ' + cast(@tally as varchar) + ' sqlObjects from Repo...'
+ exec dbo.logit @@procid, @logBlob
 
-  alter table object disable trigger keySqlObjectWriteToRepoTR
-  update Object set
-   A17 = @objectOrder,
-   A19 = '',
-   E1 = @data
-  where typ = 451 and id = @objectId
-  alter table object enable trigger keySqlObjectWriteToRepoTR
+ alter table object disable trigger keySqlObjectWriteToRepoTR
+ update a set
+   a.A17 = b.objectOrder,
+   a.A19 = '',
+   a.E1 = b.data
+  where a.typ = 451 and a.id = b.objectId
+ alter table object enable trigger keySqlObjectWriteToRepoTR
+
+ select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' SqlObjects from the repo;'
   
- end
- 
 end

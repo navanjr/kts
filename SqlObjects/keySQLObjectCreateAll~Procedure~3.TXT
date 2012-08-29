@@ -1,0 +1,37 @@
+create procedure dbo.keySQLObjectCreateAll as
+begin
+
+ declare 
+  @idToken int,
+  @result int,
+  @good int,
+  @bad int,
+  @total int
+ 
+ declare @wt table(
+  id int,
+  ord int,
+  objectName varchar(60),
+  processFlag int,
+  result int
+ )
+
+ insert @wt select id, a17, key1, 0, null from object where typ = 451 and a1 != '1' order by a17
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1 @idToken = id from @wt where processFlag = 0 order by ord, objectName
+  exec @result = dbo.keySQLObjectDispatcher @idToken, @silentMode = 'TRUE'
+  update @wt set processFlag = 1, result = @result where id = @idToken  
+ end
+
+ select @good = count(*) from @wt where result = 0 
+ select @bad = count(*) from @wt where result = 1
+ select @total = count(*) from @wt
+ 
+ select '@code=0;@message=Finished processing;'
+  + '@good=' + cast(isnull(@good,0) as varchar) + ';'
+  + '@bad=' + cast(isnull(@bad,0) as varchar) + ';'
+  + '@total=' + cast(isnull(@total,0) as varchar) + ';'
+
+end
