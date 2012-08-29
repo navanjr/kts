@@ -1,4 +1,6 @@
-create procedure dbo.keySQLObjectCreateAll as
+create procedure dbo.keySQLObjectCreateAll(
+ @debugMode varchar(5) = 'FALSE'
+) as
 begin
 
  declare 
@@ -6,7 +8,8 @@ begin
   @result int,
   @good int,
   @bad int,
-  @total int
+  @total int,
+  @logBlob varchar(max)
  
  declare @wt table(
   id int,
@@ -21,7 +24,7 @@ begin
  while exists(select * from @wt where processFlag = 0)
  begin
   select top 1 @idToken = id from @wt where processFlag = 0 order by ord, objectName
-  exec @result = dbo.keySQLObjectDispatcher @idToken, @silentMode = 'TRUE'
+  exec dbo.keySQLObjectDispatcher @idToken, @silentMode = 'TRUE', @result = @result out
   update @wt set processFlag = 1, result = @result where id = @idToken  
  end
 
@@ -29,9 +32,17 @@ begin
  select @bad = count(*) from @wt where result = 1
  select @total = count(*) from @wt
  
- select '@code=0;@message=Finished processing;'
+ if @debugMode = 'TRUE'
+  select * from @wt order by objectName
+ 
+ select
+  @logBlob = '@code=0;@message=Finished processing;'
   + '@good=' + cast(isnull(@good,0) as varchar) + ';'
   + '@bad=' + cast(isnull(@bad,0) as varchar) + ';'
   + '@total=' + cast(isnull(@total,0) as varchar) + ';'
+ 
+ select @logBlob
+
+ exec dbo.logit @@procid, @logBlob
 
 end

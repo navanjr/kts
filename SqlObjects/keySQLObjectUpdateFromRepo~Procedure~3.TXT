@@ -16,7 +16,8 @@ begin
   @data varchar(max),
   @logBlob varchar(max),
   @idToken int,
-  @tally int
+  @tally int,
+  @totalRepoFiles int
 
  declare @wt table(
   objectId int,
@@ -74,9 +75,10 @@ begin
   return
  end
 
+ select @totalRepoFiles = count(*) from @wt
  select @tally = count(a.id) from object a, @wt b where a.typ = 451 and a.id = b.objectId
 
- select @logBlob = 'importing ' + cast(@tally as varchar) + ' sqlObjects from Repo...'
+ select @logBlob = 'importing ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' sqlObjects from Repo...'
  exec dbo.logit @@procid, @logBlob
 
  alter table object disable trigger keySqlObjectWriteToRepoTR
