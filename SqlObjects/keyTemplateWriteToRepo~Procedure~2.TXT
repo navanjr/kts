@@ -6,7 +6,9 @@ begin
   @gitCommitter varchar(10),
   @txt varchar(max),
   @path varchar(100),
-  @fullPath varchar(1000)
+  @fullPath varchar(1000),
+  @tally int,
+  @idToken int
 
  exec dbo.keyReturnIniValue
   'c:\kellpro.ini',
@@ -21,20 +23,55 @@ begin
   return
  end
 
- select
-  @txt = cast(options as varchar(max))
- from template where id = @id
-
  exec dbo.keyReturnIniValue
   'c:\kellpro.ini',
   @section = 'git',
   @field = 'path',
   @value = @path out 
 
- set @fullPath = @path + '\templates\T_' + cast(@id as varchar) + '.TXT'  
+ declare @wt table(
+  id int,
+  fullPath varchar(1000),
+  data varchar(max),
+  processFlag int
+ )
+
+ if isnull(@id,0) = 0
+  insert @wt select
+   id,
+   @path + '\templates\T_' + cast(id as varchar) + '.TXT',  
+   cast(options as varchar(max)),
+   0
+   from template where id > 0
+ else
+  insert @wt select
+   id,
+   @path + '\templates\T_' + cast(id as varchar) + '.TXT',  
+   cast(options as varchar(max)),
+   0
+   from template where id = @id
+
+ if not exists(select * from @wt)
+ begin
+  exec dbo.logit @@procid, 'No Templates to Write to Repo'
+  return
+ end
+
+ select @tally = count(*) from @wt
+ if isnull(@tally,0) > 1
+  exec dbo.logit @@procid, 'Processing Templates... @tally', @tally
  
- exec dbo.spOverwriteTextFile
-  @fileName = @fullPath,
-  @text = @txt
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1
+   @idToken = id,
+   @fullPath = fullPath,
+   @txt = data
+  from @wt where processFlag = 0 
+  order by id 
+ 
+  exec dbo.spOverwriteTextFile @fileName = @fullPath, @text = @txt
+  update @wt set processFlag = 1 where id = @idToken
+ end
 
 end
