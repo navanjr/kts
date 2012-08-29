@@ -108,9 +108,13 @@
  gitStatus=;
 
 @importEverything=
- templateImport=,
+ kpmo('Templates','Importing...'),
+ sql('exec dbo.keyTemplateUpdateFromRepo null'),
+ kpmm('Users...'),
  userImport=,
- importObjects=;
+ kpmm('SqlObjects...'),
+ sql('exec dbo.keySQLObjectUpdateFromRepo null'),
+ kpmc();
 
 \t110Git Reset;
 @acc110=
@@ -185,7 +189,7 @@
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
  break(gcretval<>'OK'),
  lcTemplateId=obj7:key1,
- importtexttemplate(gcRepoPath&'\templates','RTEM:ID='&lcTemplateId),
+ sql('exec dbo.keyTemplateUpdateFromRepo '&lcTemplateId),
  gitCreateIni=,
  gitStatus=;
 
@@ -196,10 +200,6 @@
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
-
-@templateImport=
- sql('exec dbo.logit @@procid, '''&gcRepoPath&'\templates''','RTEM:ID>0'),
- importtexttemplate(gcRepoPath&'\templates','RTEM:ID>0');
 
 @userImport=
  lcpath=gcAppPath,
@@ -215,40 +215,6 @@
  delfile(lcpath&'\kts.usr'),
  exportusers('kts.usr'),
  filecopy(lcpath&'\kts.usr',lcpath1&'\kts.usr');
-
-@importObjects=
- setpath(gcRepoPath&'\sqlObjects'),
- sql('exec dbo.logit @@procid, ''import sql objects'','''&gcRepoPath&'\sqlObjects'''),
- dirObjectCheck=;
-
-@importObjectsA=
- sqlloop('select name,path from dbo.dirRead('''&kp('path')&''') where name is not null',importObjects1=),
- do(451,bbproc5=),
- setpath(gcAppPath);
-
-@importObjects1=
- gcFile=obj5:a1,
- importObjects2=;
-
-@importObjects2=
- lcWrk=gcFile,
- lcName=sub(lcWrk,1,instring('~',lcWrk,1,1)-1),
- lcWrk=sub(lcWrk,len(lcName)+2,len(lcWrk)-(len(lcName))),
- lcType=sub(lcWrk,1,instring('~',lcWrk,1,1)-1),
- lcOrder=sub(lcWrk,len(lcType)+2,len(lcWrk)-(len(lcType))),
- readdos(gcFile&'.txt'),
- lcObjectId=kp('select id from object where typ=451 and key1='''&lcName&''''),
- if(lcObjectId+0>0,updateIt=,insertIt=);
-
-@updateIt=
- modify(lcObjectId,004=lcType,006=lcOrder,102=workmemo);
-@insertIt=
- insert(-02=451,002=lcName,004=lcType,006=lcOrder,102=workmemo);
-
-@dirObjectCheck=
- lcDirId=kp('select id from dbo.sysobjects where id = object_id(N''[dbo].[dirRead]'') and OBJECTPROPERTY(id, N''IsTableFunction'') = 1'),
- if(lcDirId+0=0,createFunction=),
- importObjectsA=;
 
 @createFunction=
  lcFile='EnableAdvancedSQLOptions~Script~1',
