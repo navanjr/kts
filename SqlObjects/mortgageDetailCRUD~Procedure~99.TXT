@@ -1,31 +1,48 @@
 create procedure dbo.mortgageDetailCRUD(
+ @mode int,
  @receiptId int,
  @receiptTyp int
 
 ) as
 begin
+ exec dbo.logit @@procid, '@mode',@mode
 
- declare 
-  @MortgageNameId int,
-  @mortgagor varchar(50),
-  @mortgagee varchar(50),
-  @description varchar(50),
-  @section varchar(50),
-  @township varchar(50),
-  @range varchar(50),
-  @lender varchar(50)
+ if @mode = 3
+ begin
+  -- bail if we are posted
+  if (select status from receiptCheck(@receiptId,null)) = 'Posted'
+  begin
+   exec dbo.logit @@procid, '@code=1;@message=Sorry, receipt is already posted. can not delete this item.  @object_id', @receiptTyp
+   return
+  end
+  
+  update object set typ = -4507 where typ = 4507 and id = @receiptTyp -- hijacked this variable for deleting mortgage detail record
+
+ end
+
+ if @mode = 0 or @mode = 1
+ begin
+  declare 
+   @MortgageNameId int,
+   @mortgagor varchar(50),
+   @mortgagee varchar(50),
+   @description varchar(50),
+   @section varchar(50),
+   @township varchar(50),
+   @range varchar(50),
+   @lender varchar(50)
 
  -- retrieve the specifics from the mortgageInfo in object
- select
-  @MortgageNameId = link4,
-  @mortgagor = c1,
-  @mortgagee = c2,
-  @description = c3,
-  @section = c4,
-  @township = c5,
-  @range = c6,
-  @lender = c7
- from object where typ = @receiptTyp and id = @receiptId
+  select
+   @MortgageNameId = link4,
+   @mortgagor = c1,
+   @mortgagee = c2,
+   @description = c3,
+   @section = c4,
+   @township = c5,
+   @range = c6,
+   @lender = c7
+  from object where typ = @receiptTyp and id = @receiptId
 
   if isnull(@MortgageNameId,0) = 0
   begin
@@ -51,6 +68,8 @@ begin
      a1 = @township,
      a2 = @range,
      a3 = @lender
-   where id = @MortgageNameId
-  end
+    where id = @MortgageNameId
+   end
+ end
+
 end

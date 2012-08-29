@@ -1,11 +1,3 @@
-@id=4502;
-@template=Receipts;
-@shortcut=;
-@group=;
-@security=Key;
-@securitylevel=1;
-
-###---###---###---###---###
 @dk1;
 @wbgcolor=12701121;
 @lmode=2;
@@ -47,9 +39,7 @@
  d1select('exec dbo.receiptNew ''TRUST'''),
  change(obj7:d1);
 
-@newOfficial=
- d1select('exec dbo.receiptNew ''OFFICIAL'''),
- change(obj7:d1);
+@newOfficial=new(4522);
 
 @goTax=do(4003,menuprocess=);
 
@@ -86,7 +76,11 @@
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  create(45,9),
  brwstuff=,
- brwstuffMort=;
+ brwstuffMort=,
+ procTabOrd=;
+
+@procTabOrd=
+ if(obj:key3='MTG',tabord('008030032034036038070078080082084086088090'));
 
 @select=008;
 
@@ -185,16 +179,29 @@
 w078090100;r2
  \h077090obj:a17='Posted' or obj:key3<>'MTG';r
 
+\t109Add MTG &Detail; @acc109=mortDetail=;
+ \h109obj:a17='Posted' or obj:key3<>'MTG';
+
 @mortDetail=
  break(obj:c1<'  0' and obj:c2<'  0' and obj:c3<'  0' and obj:c4<'  0' and obj:c5<'  0' and obj:c6<'  0' and obj:c7<'  0'),
  update,
- sql('exec mortgageDetailCRUD '&obj:id&','&obj:type),
+ sql('exec mortgageDetailCRUD 0,'&obj:id&','&obj:type),
  blankEmMort=,
  focus(078),
  refreshDetail=;
  
 @blankEmMort=
  set(-06,0,1),set(078,'',1),set(080,'',1),set(082,'',1),set(084,'',1),set(086,'',1),set(088,'',1),set(090,'',1);
+
+@lbrwclick151=
+ break(obj:a17='Posted'),
+ lcidMort=kpbrwid(2),
+ break(lcidMort+0<1),
+ m('Choose one of the following options...','Mortgage Details','question.ico','&Delete|&Cancel'),
+ break(gcretval+0<>1),
+ d1select('exec mortgageDetailCRUD 3,'&obj:id&','&lcidMort),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Mortgage Detail...')),
+ refreshDetail=;
 
 @brw2=
  break(obj:a17='Posted'),
@@ -339,7 +346,7 @@ w078090100;r2
  \y091283; \y092282; \x091250; \x092278;
  \y093294; \y094293; \x093250; \x094278;
 
-\t097Comments; \d098obj:a17='Posted'; \w098271;
+\t097Co&mments; \d098obj:a17='Posted'; \w098271;
  \y09754; \x0973; \y09854; \x09864; 
 
 \t111&Void; @acc111=voidReceipt=; \h111obj:a17<>'Posted';
