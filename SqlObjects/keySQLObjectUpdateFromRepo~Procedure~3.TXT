@@ -89,7 +89,10 @@ begin
 
  if not @debugMode = 'TRUE'
  begin
+-- turn off the trigger on object
   alter table object disable trigger keySqlObjectWriteToRepoTR
+
+-- update existing SqlObjects
   update a set
    a.key2 = b.objectType,
    a.A17 = b.objectOrder,
@@ -97,6 +100,12 @@ begin
    a.E1 = b.data
   from object a, @wt b
   where a.typ = 451 and a.id = b.objectId
+
+-- add the sqlObjects we dont have
+  insert object (typ, key1, key2, a17, e1)
+  select 451, objectName, objectType, objectOrder, data from @wt where isnull(objectId,0) = 0
+
+-- turn the trigger back on
   alter table object enable trigger keySqlObjectWriteToRepoTR
  end
 
