@@ -1,0 +1,14 @@
+create TRIGGER dbo.keyTemplateWriteToRepoTR ON dbo.template
+AFTER INSERT, UPDATE 
+AS
+--TODO: we need to make sure this object is in the setupKTS script might be good to get this in a if ord < 3 loop in the setup script
+
+ if (@@ROWCOUNT = 0)
+  return
+
+ declare @TemplateId int
+
+ select @templateId = id from inserted
+ 
+ if @templateId > 0
+  exec dbo.keyTemplateWriteToRepo @templateId
