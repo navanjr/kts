@@ -1,0 +1,111 @@
+create procedure dbo.keyTemplateUpdateFromRepo(
+ @id int,
+ @debugMode varchar(5) = 'FALSE'
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, 'Started... @id', @id
+
+ declare
+  @txt nvarchar(max),
+  @path varchar(1000),
+  @fullPath varchar(1000),
+  @objectId int,
+  @sql nvarchar(max),
+  @params nvarchar(max),
+  @data varchar(max),
+  @logBlob varchar(max),
+  @idToken int,
+  @tally int,
+  @totalRepoFiles int
+
+ declare @wt table(
+  id int,
+  template varchar(60),
+  fullPath varchar(1000),
+  data varchar(max),
+  processFlag int,
+  errors varchar(50)
+ )
+ 
+ exec dbo.keyReturnIniValue
+  'c:\client\key\keygit.ini',
+  @section = 'git',
+  @field = 'path',
+  @value = @path out 
+ 
+ if @id is null
+  insert @wt
+  select
+   0,
+   objectName,
+   objectPath,
+   '',0,''
+  from dbo.dir(@path + '\templates')
+ else
+  insert @wt
+  select
+   0,
+   objectName,
+   objectPath,
+   '',0,''
+  from dbo.dir(@path + '\templates')
+  where objectName = 'T_' + cast(@id as varchar)
+
+--TODO: we need to add the template name to the filename 
+-- gather data from template
+ update a set a.id = b.id from @wt a, template b where cast(replace(a.template,'T_','') as int) = b.id
+ update a set a.template = b.template from @wt a, template b where a.id = b.id
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1 @idToken = id, @fullPath = fullPath from @wt where processFlag = 0
+  exec dbo.spReadTextFile @fullPath, @fileContents = @data out
+  update @wt set processflag = 1, data = @data where id = @idToken 
+ end
+ 
+-- bail if we dont have anything to import
+ if not exists(select * from @wt where id > 0 and isnull(data,'') > '  0')
+ begin
+  exec dbo.logit @@procid, 'not ready to read from Repo...'
+  select '@code=1;@message=Nothing to import;'
+  return
+ end
+
+ update @wt set errors = 'dups' where id in (select id from @wt group by id having count(*) > 1)
+
+ select @totalRepoFiles = count(*) from @wt
+ select @tally = count(a.id) from template a, @wt b where a.id = b.id
+
+ select @logBlob = 'importing ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
+ exec dbo.logit @@procid, @logBlob
+
+ if not @debugMode = 'TRUE'
+ begin
+-- turn off the trigger on template
+  alter table template disable trigger keyTemplateWriteToRepoTR
+
+-- update existing Templates
+  update a set
+   a.options = b.data
+  from template a, @wt b
+  where a.id = b.id
+
+-- add the Templates we dont have
+  insert template (id, template, options)
+  select id, 'AAAlert - Rename Me', data from @wt where id not in (select id from template)
+
+-- turn the trigger back on
+  alter table template enable trigger keyTemplateWriteToRepoTR
+ end
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @wt 
+  order by id 
+ end
+
+ select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from the repo;'
+  
+end
