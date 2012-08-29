@@ -1,13 +1,4 @@
-@id=451;
-@template=SQL Objects;
-@shortcut=;
-@group=;
-@security=Key;
-@securitylevel=1;
-
-###---###---###---###---###
 ** Written by nate.anderson@kellpro.com **
-
 bbgcolor=999B0Dh;
 wbgcolor=999B0Dh;
 @lmode=2;
@@ -38,15 +29,19 @@ wbgcolor=999B0Dh;
   calcrecord();
 
 @bb5=Create &All;  
- @bbproc5=
-  m('Are you sure?','Create all SQL Objects...','question.ico',6,4),
-  if(gcretval=2,createallobjects=);
+@bbproc5=
+ m('Are you sure?','Create all SQL Objects...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Creating SQL Objects...','Please wait...'),
+ d1select('exec dbo.keySQLObjectCreateAll'),
+ kpmc(),
+ m(obj7:d1,'Create SQLObjects...');
 
-@bb6=E&xecute Proc;  
- @bbproc6=acc108=;
+@bb10=E&xecute Proc;  
+ @bbproc10=acc108=;
 
-@bb7=Import One;
- @bbproc7=
+@bb9=Import One;
+ @bbproc9=
   setpath(gcRepoPath&'\sqlObjects'),
   gcFile=obj:key1&'~'&obj:key2&'~'&obj:a17,
   do(2,importObjects2=),
@@ -84,26 +79,11 @@ wbgcolor=999B0Dh;
  
 @closewindow=update,calcfld(042),if(lcUpdated='1',m(obj:lastedittime)),update;
 
-@createallobjects=
- kpmo('Creating SQL Objects...','Please wait...'),
- sql('update Object set E1 = dbo.SuperTrim(e1) where TYP=451'),
- sqlloop('select * from dbo.sqlObjectCompare(0) where skipFlag != 1 order by ord',createallobjectsloop=),
- kpmc();
-
-@createallobjectsloop=
- gcid=obj5:a1,
- gcname=obj5:a2,
- gctype=obj5:a3,
- kpmm('Creating '&gcname,'Please wait...'),
- sql('exec dbo.keySQLObjectDispatcher '&gcid),
- lcStatus=kp('select stat from dbo.sqlObjectCompare('&gcid&')'),
- fastmodify(gcid,042=lcStatus);
-
 @loadwindow=
  gcRepoPath=getini('git','path','','c:\kellpro.ini'),
  gcAppPath=kpexepath(),
  create(150,33,64,15,'',004),
- prop(150,'From','Procedure|ScalarFunction|Script|TableFunction|View'),
+ prop(150,'From','Procedure|ScalarFunction|Script|TableFunction|Trigger|View'),
  prop(150,'Width',118),
  prop(150,'Height',12),
  prop(150,'Readonly',0),
@@ -152,19 +132,8 @@ wbgcolor=999B0Dh;
 
 @createobject=sql('exec dbo.keySQLObjectDispatcher '&obj:id);
 
-exportObjects=
- sqlloop('select id from object where typ=451 and isnull(a19,'''')=1',exportObject1=);
-
-exportObject1=
- e1select('select e1 from object where id='&obj5:a1),
-
 @exportObject1=
- gcSQLObjId=obj:id,
- gcSQLObjA2=obj:key1,
- gcSQLObjA3=obj:key2,
- gcSQLObjA4=obj:a17,
- gcSQLObjA5=obj:a18,
- do(2,exportBlackBox=);
+ sql('exec dbo.keySQLObjectWriteToRepo '&obj:id);
 
 @importobjects=
  kpmo('Importing Objects...','Please wait...'),
