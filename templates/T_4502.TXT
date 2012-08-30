@@ -137,7 +137,7 @@ lmode=2;
  \h016obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX';
  \h018obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='OFFICIAL';
 
-\t019Paycode; \l0204505; \w02050;
+\t019Paycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=);
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
 \t023Check #; \w02450; 
 \t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; lmode026=2;
@@ -178,10 +178,13 @@ lmode=2;
 w078090100;r2
  \h077090obj:a17='Posted' or obj:key3<>'MTG';r
 
+\h109obj:a17='Posted' or obj:key3<>'MTG';
+\t109&New Detail; @acc109=mortDetail=;
+
 @mortDetail=
  break(obj:c1<'  0' and obj:c2<'  0' and obj:c3<'  0' and obj:c4<'  0' and obj:c5<'  0' and obj:c6<'  0' and obj:c7<'  0'),
  update,
- sql('exec mortgageDetailCRUD '&obj:id&','&obj:type),
+ sql('exec mortgageDetailCRUD 0,'&obj:id&','&obj:type),
  blankEmMort=,
  focus(078),
  refreshDetail=;
@@ -240,7 +243,7 @@ w078090100;r2
 \h051052obj:key3<>'INDIV';r
 \t051Cert#; \w05260; \l0524100;r052014054002; @lf052='typ=4100 and key2=''A''';
 \h053054obj:key3<>'INDIV' and obj:key3<>'TRUST';r
-\t053Parcel#; \w054100; \r054;
+\t053Parcel#; \w054100; \r054obj:key3='INDIV';
 \h055058obj:key3<>'TRUST';r
 \h059060obj:key3<>'TRUST' and obj:b15<>'PROTEST';r
 \h061064obj:key3<>'TRUST';r
@@ -416,7 +419,7 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
 
 \h160obj:key3<>'MISC' and obj:key3<>'INDIV' and obj:key3<>'TRUST' and obj:key3<>'OFFICIAL';
 @acc160=
- if(obj:key3<>'TRUST',miscDetail=),
+ if(obj:key3<>'TRUST' and obj:key3<>'MTG',miscDetail=),
  if(obj:key3='MISC' or obj:key3='INDIV',focus(012)),
  if(obj:key3='TRUST' or obj:key3='OFFICIAL',focus(016)),
  refreshDetail=;
