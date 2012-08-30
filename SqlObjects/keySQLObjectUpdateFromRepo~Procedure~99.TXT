@@ -1,0 +1,120 @@
+create procedure dbo.keySQLObjectUpdateFromRepo(
+ @objectName varchar(50),
+ @debugMode varchar(5) = 'FALSE'
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, 'Started... @objectName', @objectName
+
+ declare
+  @txt nvarchar(max),
+  @path varchar(1000),
+  @objectType varchar(50),
+  @objectOrder varchar(50),
+  @fullPath varchar(1000),
+  @objectId int,
+  @sql nvarchar(max),
+  @params nvarchar(max),
+  @data varchar(max),
+  @logBlob varchar(max),
+  @idToken int,
+  @tally int,
+  @totalRepoFiles int
+
+ declare @wt table(
+  objectId int,
+  objectName varchar(60),
+  objectType varchar(50),
+  objectOrder varchar(50),
+  objectPath varchar(100),
+  data varchar(max),
+  processFlag int,
+  errors varchar(50)
+ )
+ 
+ exec dbo.keyReturnIniValue
+  'c:\client\key\keygit.ini',
+  @section = 'git',
+  @field = 'path',
+  @value = @path out 
+ 
+ if @objectName is null
+  insert @wt
+  select
+   0,
+   objectName,
+   objectType,
+   objectOrder,
+   objectPath,
+   '',0,''
+  from dbo.dir(@path + '\SqlObjects')
+ else
+  insert @wt
+  select
+   0,
+   objectName,
+   objectType,
+   objectOrder,
+   objectPath,
+   '',0,''
+  from dbo.dir(@path + '\SqlObjects')
+  where objectName = @objectName
+
+-- gather data from object
+ update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1 and b.typ = 451
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select top 1 @idToken = objectId, @fullPath = objectPath from @wt where processFlag = 0
+  exec dbo.spReadTextFile @fullPath, @fileContents = @data out
+  update @wt set processflag = 1, data = @data where objectId = @idToken 
+ end
+ 
+-- bail if we dont have anything to import
+ if not exists(select * from @wt where objectId > 0 and isnull(data,'') > '  0')
+ begin
+  exec dbo.logit @@procid, 'not ready to read from Repo...'
+  select '@code=1;@message=Nothing to import;'
+  return
+ end
+
+ update @wt set errors = 'dups' where objectId in (select objectId from @wt group by objectId having count(*) > 1)
+
+ select @totalRepoFiles = count(*) from @wt
+ select @tally = count(a.id) from object a, @wt b where a.typ = 451 and a.id = b.objectId
+
+ select @logBlob = 'importing ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' sqlObjects from Repo...'
+ exec dbo.logit @@procid, @logBlob
+
+ if not @debugMode = 'TRUE'
+ begin
+-- turn off the trigger on object
+  alter table object disable trigger keySqlObjectWriteToRepoTR
+
+-- update existing SqlObjects
+  update a set
+   a.key2 = b.objectType,
+   a.A17 = b.objectOrder,
+   a.A19 = '',
+   a.E1 = b.data
+  from object a, @wt b
+  where a.typ = 451 and a.id = b.objectId
+
+-- add the sqlObjects we dont have
+  insert object (typ, key1, key2, a17, e1)
+  select 451, objectName, objectType, objectOrder, data from @wt where isnull(objectId,0) = 0
+
+-- turn the trigger back on
+  alter table object enable trigger keySqlObjectWriteToRepoTR
+ end
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @wt -- where objectId not in (select id from object where typ = 451)
+  order by objectName 
+ end
+
+ select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' SqlObjects from the repo;'
+  
+end

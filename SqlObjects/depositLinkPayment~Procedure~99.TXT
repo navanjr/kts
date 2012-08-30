@@ -5,15 +5,27 @@ begin
  declare 
   @slink varchar(15) = @styp + cast(@depositId as varchar),
   @code int,
-  @message varchar(500)
+  @message varchar(500),
+  @logBlob varchar(max) =
+   '@depositId=' + cast(@depositId as varchar)
+   + ';@paymentId=' + cast(@paymentId as varchar)
+   + ';@supressOutput=' + cast(@supressOutput as varchar)
 
- select @code = code, @message = message from dbo.depositLinkCheck(@depositId, @paymentId)
+ exec dbo.logit @@procid, @logblob
+
+ select
+  @code = code,
+  @message = message,
+  @logBlob = '@code=' + cast(code as varchar) + ';@message=' + message + ';'
+ from dbo.depositLinkCheck(@depositId, @paymentId)
+
 
  -- first we run the link check
  if @code = 1
  begin
   if @supressOutput = 0
    select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+  exec dbo.logit @@procid, @logblob
   return
  end
 
