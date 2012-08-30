@@ -121,8 +121,8 @@
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail; h160obj:key3='TRUST' or obj:key3='OFFICIAL'; \l0124504;r012002014004016006; @lmode012=1; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))';
-\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
-\t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL'') or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE''))';
+\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''',2;
+\t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL'') or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE''))',2;
  @acc016=if(obj:key3='OFFICIAL',update);
 \t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL' and (obj:key3<>'TRUST' or obj:a17='Posted');
 
@@ -339,6 +339,23 @@ w078090100;r2
  m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
  break(gcretval<>2);
 
+\t119Special Apportion;  \h119gcadmin=0;
+@acc119=gccontinue='',
+  if(obj:a17<>'Posted',dounposted=),
+  break(gccontinue='No'),
+  m('Are you sure you want to Special Apportion this receipt?','Apportion?',,6,4),
+  break(gcretval<>2),
+  gc4794id=obj:id,
+  lcApportionStage=kp('select max(id) from object where typ = 4794'),
+  if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
+
+@dounposted=gccontinue='No',
+  m('The Receipt must be posted before you can apportion it.  Would you like to post it now?','Post?',,6,4),
+  break(gcretval<>2),
+  postAndPrint=, 
+  if(obj:a17='Posted',gccontinue='');
+
+
 \t120TestCheck=; @acc120=testCheck=; \h120gcadmin=0;
 @testCheck=
  m('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0');
@@ -446,6 +463,12 @@ w078090100;r2
  gcRecType=obj:key3,
  if(gcRecType='MTG',mortSetVar=), 
  trreport(gcRectype&'Receipt');
+
+
+ if(gcRectype='MISC',printMiscRec=),
+ if(gcRectype='MTG',printMTGRec=),
+ if(gcRectype='TRUST',printTrustRec=),
+ if(gcRectype='TAX',printTaxRec=);
 
 @mortSetVar=
  lcBranch=1,
