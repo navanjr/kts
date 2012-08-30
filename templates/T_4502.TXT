@@ -159,7 +159,7 @@ lmode=2;
 \t031Maturity Date; \t032@d2; @acc032=lcBranch=2,mortCalc=;
 \t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=;
 \t035Amount;@acc036=lcBranch=3,mortCalc=;
-\t037Rate;
+\t037Rate; @acc038=lcBranch=4,mortCalc=;
 \t047Tax Amount; \t048@n-19.2; @sel048=focus(048); @acc048=mortManualCalc=;
 \t069Fee Amount; \t070@n-19.2; @sel070=focus(070); @acc070=mortManualCalc=;
 \h029038obj:key3<>'MTG';r 
@@ -171,7 +171,7 @@ lmode=2;
 \y029038-182;r \y047048+13;r
 \y069070=089;r
 \p0340387c0ch,1;r2 \p0487c0ch,1; \p0707c0ch,1;
-\p0387cfah,13499135; \p0487cfah,13499135; \p0707cfah,13499135; \p0387c13h,700; p0487c13h,700; p0707c13h,700; \d038; \d048obj:a17='Posted'; \d070obj:a17='Posted';
+\p0387cfah,13499135; \p0487cfah,13499135; \p0707cfah,13499135; \p0387c13h,700; p0487c13h,700; p0707c13h,700; \d048obj:a17='Posted'; \d070obj:a17='Posted';
 
 \t077Mortgagor; 
 \t079Mortgagee;  
@@ -220,8 +220,7 @@ w078090100;r2
  refreshDetail=;
 
 @mortCalc=
- lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
- reak(obj:a12+0<1 or obj:a13+0<1 or obj:a14+0<0.1 or obj:a15+0<0.01),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&', 0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', '&obj:a16+0),
  d1select('select blob from dbo.mortgageTaxCalculator('&lcOptions&')'),
  set(32,readstring(obj7:d1,'@endDate=')),
  set(34,readstring(obj7:d1,'@termYears=')),
@@ -480,7 +479,8 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
  gccertId=0;
 
 @getRecNum=break(obj:key1>'00000'),
- sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&'''');
+ sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
+ rekey('id='&obj:id);
 
 @printRec=
  update,
@@ -497,7 +497,7 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
 
 @mortSetVar=
  lcBranch=1,
- lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&',0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&',0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&',0'),
  e1select('select dbo.readstring(''@taxRateDescription='',blob)  from dbo.mortgageTaxCalculator('&lcOptions&')'),
  gcRateDesc=obj7:e1,
 
