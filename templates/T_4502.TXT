@@ -141,10 +141,12 @@ lmode=2;
  \h016obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX';
  \h018obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='OFFICIAL';
 
+\t045paycodeId;\d045046;r \h045046;r
+
 \t019Paycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=);
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
 \t023Check #; \w02450; 
-\t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; lmode026=2;
+\t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; lmode026=2; @nopop026;
 \t027Location; \w02850;@acc028=acc165=;
  \h019028obj:a17='Posted';r
  \y019306; \x01965; \y020317; \x02065;
@@ -299,7 +301,7 @@ w078090100;r2
  evalPaycode=,break(lcBreak),
  evalAmount=,break(lcBreak),
  evalCheck=,break(lcBreak),
- d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,0,0,'''&obj:a10&''','''&obj:a11&''''),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  break(readstring(obj7:d1,'@code=')=1),
  refreshDetail=,
@@ -384,9 +386,9 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
  refreshDetail=;
 
 @blankEm=
- set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
+ set(-06,0),set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
  break(obj:key3='OFFICIAL'),
- set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1);
+ set(-07,0),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1);
 
 @refreshDetail=
  if(obj:a17='Posted',prop(165,'7C65H',1)),
@@ -401,6 +403,7 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp+0=7,donewinvoice=),
+ if(lcTyp+0=8,getpaid=),
  break(lcTyp<>9),
  set(-07,lcid,1),
  gcblob=kp('select dbo.getMiscDetail('&lcid&')'),
@@ -409,6 +412,16 @@ t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to
  set(016,readstring(gcblob,'@fund=')),
  set(018,readstring(gcblob,'@amount=')),
  focus(012);
+
+@getpaid=
+ set(-06,lcid,1),
+ gcblob=kp('select dbo.getPaidInfo('&lcid&')'),
+ set(020,readstring(gcblob,'@paycode=')),
+ set(022,readstring(gcblob,'@amount=')),
+ set(024,readstring(gcblob,'@checkNumber=')),
+ set(026,readstring(gcblob,'@drawnon=')),
+ set(028,readstring(gcblob,'@location=')),
+ focus(020);
 
 @donewinvoice=gcid=lcid,lcmaininvoiceId=kp('select invoiceId from invoices where id='&lcid),
   break(lcmaininvoiceId+0=0),
