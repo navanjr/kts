@@ -88,7 +88,6 @@
  kpmm('Exporting Templates'),
  sql('exec dbo.keyTemplateWriteToRepo null'),
  kpmm('Exporting Users'),
- dumpUsers=,
  kpmc();
 
 @exportTemplates=
@@ -99,19 +98,18 @@
 
 \t108Import;
 @acc108=
- m('please select on of the following IMPORT options...','Import from local repo...',,'&One Template|&Everything|&Tag|&Cancel'),
+ m('please select on of the following IMPORT options...','Import from local repo...',,'&One Template|Users|&Everything|&Tag|&Cancel'),
  break(gcretval=4),
  if(gcretval=1,import1Template=),
- if(gcretval=2,importEverything=),
- if(gcretval=3,importTag=), 
+ if(gcretval=2,importUsers=),
+ if(gcretval=3,importEverything=),
+ if(gcretval=4,importTag=), 
  gitCreateIni=,
  gitStatus=;
 
 @importEverything=
  kpmo('Templates','Importing...'),
  sql('exec dbo.keyTemplateUpdateFromRepo null'),
- kpmm('Users...'),
- userImport=,
  kpmm('SqlObjects...'),
  sql('exec dbo.keySQLObjectUpdateFromRepo null'),
  kpmc();
@@ -178,13 +176,6 @@
 \t117Reconfigure SQL;
 @acc117=do(451,reconfigSqlEnv=);
 
-\t118Create Setup Files;
-@acc118=
- gcGitCmd='bcp kts.dbo.template out "'&gcRepoPath&'\Needed\bcpTemplate.txt" -Usa -PAmerica#1 -n -C1252',
- gitCommand=,
- gcGitCmd='bcp kts.dbo.Users out "'&gcRepoPath&'\Needed\bcpUsers.txt" -Usa -PAmerica#1 -n -C1252',
- gitCommand=;
-
 @import1Template=
  iw(',.t000Please Enter a Template Id...., ,.t001Typ.,'),
  break(gcretval<>'OK'),
@@ -201,20 +192,22 @@
  gitCreateIni=,
  gitStatus=;
 
+@getCreds=
+ iw('\t000I need some info; \t001Server; \t003SA Password;'),
+ lcServer=obj7:key1,
+ lcSAPass=obj7:key2;
 @userImport=
- lcpath=gcAppPath,
- lcpath1=gcRepoPath,
- delfile(lcpath&'\kts.usr'),
- filecopy(lcpath1&'\kts.usr',lcpath&'\kts.usr'),
- sql('exec dbo.logit @@procid, ''key importusers'', ''kts.usr'''),
- importusers('kts.usr');
-
+ getCreds=,
+ break(gcretval<>'OK'),
+ gcGitCmd='bcp kts.dbo.Users in "'&gcRepoPath&'\Needed\bcpUsers.txt" -S'&lcServer&' -Usa -P'&lcSAPass&' -n -C1252',
+ m('Press OK to release the following command:||'&gcGitCmd),
+ gitCommand=;
 @dumpUsers=
- lcpath=gcAppPath,
- lcpath1=gcRepoPath,
- delfile(lcpath&'\kts.usr'),
- exportusers('kts.usr'),
- filecopy(lcpath&'\kts.usr',lcpath1&'\kts.usr');
+ getCreds=,
+ break(gcretval<>'OK'),
+ gcGitCmd='bcp kts.dbo.Users out "'&gcRepoPath&'\Needed\bcpUsers.txt" -S'&lcServer&' -Usa -P'&lcSAPass&' -n -C1252',
+ m('Press OK to release the following command:||'&gcGitCmd),
+ gitCommand=;
 
 @createFunction=
  lcFile='EnableAdvancedSQLOptions~Script~1',
