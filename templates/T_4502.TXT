@@ -1,24 +1,28 @@
 @dk1;
 @wbgcolor=12701121;
-@lmode=2;
-@format=50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
-@filtername=All,Posted,Un-Posted,Type Query,All Query;
-@filter='key3='''&readstring(cur:data,'@receiptType=')&'''','a17=''Posted'' and key3='''&readstring(cur:data,'@receiptType=')&'''','a17<>''Posted'' and key3='''&readstring(cur:data,'@receiptType=')&'''',
+lmode=2;
+@format=50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Receipt Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M;
+@filtername=All,Series,All Posted,All Un-Posted,Series Query,All Query;
+@filter='id>0','key3='''&readstring(cur:data,'@receiptType=')&'''','a17=''Posted''','a17<>''Posted''',
 'typ=4502 and key3='''&readstring(cur:data,'@receiptType=')&''' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))',
 'typ=4502 and id in (select id from dbo.receiptSearch('''&filterfield1&'''))';
+
+@key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
+@ordername=Receipt No Only,Date Newest on Top;
 
 @menuprocess=if(readstring(cur:data,'@receiptType=')<'0',settype=),browse(1,4502);
 @settype=select(1,4503),writecurdata(@receiptType=,PIC:KEY1);
 
 @insertSelections=
- m('Please select one of the following...','New Receipt...',,'&Misc|Mort&gage|&Trust|&Official|Ta&x|Individual &Redemption|Cancel'),
+ m('Please select one of the following...','New Receipt...',,'&Misc|Mort&gage|&Trust|&Official|Ta&x|Individual &Redemption|&Browse Receipts|Cancel'),
  sql('exec dbo.logit null,''NewReceipt'','''&gcretval&''''),
  if(gcretval=1,newMisc=),
  if(gcretval=2,newMort=),
  if(gcretval=3,newTrust=),
  if(gcretval=4,newOfficial=),
  if(gcretval=5,goTax=),
- if(gcretval=6,newIndiv=);
+ if(gcretval=6,newIndiv=),
+ if(gcretval=7,browse(1,4502));
 
 @browseinsert=
  insertSelections=;
@@ -39,7 +43,7 @@
  d1select('exec dbo.receiptNew ''TRUST'''),
  change(obj7:d1);
 
-@newOfficial=
+@newOfficial=new(4522);
  d1select('exec dbo.receiptNew ''OFFICIAL'''),
  change(obj7:d1);
 
@@ -76,7 +80,7 @@
  if(tier=3,procTier3=),
  create(165,9,3,316,'&Apply Payment'),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
- create(45,9),
+ reate(45,9),
  brwstuff=,
  brwstuffMort=;
 
@@ -112,6 +116,7 @@
 
 @mortDetailCreate=neww(4508,,-03=obj:id);
 
+\u002104;r
 \t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
 @seriesField=key3;
 \t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
@@ -120,9 +125,9 @@
 \t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
 
 \t009detailId;\d009010;r \h009010;r
-\t011new detail; h160obj:key3='TRUST' or obj:key3='OFFICIAL'; \l0124504;r012002014004016006; @lmode012=1; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))';
-\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''';
-\t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL'') or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE''))';
+\t011new detail; h160obj:key3='TRUST' or obj:key3='OFFICIAL'; \l0124504;r012002014004016006; lmode012=1; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))';
+\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE''',2;
+\t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (''FUND'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''OFFICIAL'' and a1=''OFFICIAL'') or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE''))',2;
  @acc016=if(obj:key3='OFFICIAL',update);
 \t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL' and (obj:key3<>'TRUST' or obj:a17='Posted');
 
@@ -136,10 +141,12 @@
  \h016obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX';
  \h018obj:a17='Posted' or obj:key3='MTG' or obj:key3='TAX' or obj:key3='OFFICIAL';
 
-\t019Paycode; \l0204505; \w02050;
+\t045paycodeId;\d045046;r \h045046;r
+
+\t019Paycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=);
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
 \t023Check #; \w02450; 
-\t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; @lmode026=2;
+\t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; lmode026=2; @nopop026;
 \t027Location; \w02850;@acc028=acc165=;
  \h019028obj:a17='Posted';r
  \y019306; \x01965; \y020317; \x02065;
@@ -152,7 +159,7 @@
 \t031Maturity Date; \t032@d2; @acc032=lcBranch=2,mortCalc=;
 \t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=;
 \t035Amount;@acc036=lcBranch=3,mortCalc=;
-\t037Rate;
+\t037Rate; @acc038=lcBranch=4,mortCalc=;
 \t047Tax Amount; \t048@n-19.2; @sel048=focus(048); @acc048=mortManualCalc=;
 \t069Fee Amount; \t070@n-19.2; @sel070=focus(070); @acc070=mortManualCalc=;
 \h029038obj:key3<>'MTG';r 
@@ -164,7 +171,7 @@
 \y029038-182;r \y047048+13;r
 \y069070=089;r
 \p0340387c0ch,1;r2 \p0487c0ch,1; \p0707c0ch,1;
-\p0387cfah,13499135; \p0487cfah,13499135; \p0707cfah,13499135; \p0387c13h,700; p0487c13h,700; p0707c13h,700; \d038; \d048obj:a17='Posted'; \d070obj:a17='Posted';
+\p0387cfah,13499135; \p0487cfah,13499135; \p0707cfah,13499135; \p0387c13h,700; p0487c13h,700; p0707c13h,700; \d048obj:a17='Posted'; \d070obj:a17='Posted';
 
 \t077Mortgagor; 
 \t079Mortgagee;  
@@ -177,10 +184,13 @@
 w078090100;r2
  \h077090obj:a17='Posted' or obj:key3<>'MTG';r
 
+\h109obj:a17='Posted' or obj:key3<>'MTG';
+\t109&New Detail; @acc109=mortDetail=;
+
 @mortDetail=
  break(obj:c1<'  0' and obj:c2<'  0' and obj:c3<'  0' and obj:c4<'  0' and obj:c5<'  0' and obj:c6<'  0' and obj:c7<'  0'),
  update,
- sql('exec mortgageDetailCRUD '&obj:id&','&obj:type),
+ sql('exec mortgageDetailCRUD 0,'&obj:id&','&obj:type),
  blankEmMort=,
  focus(078),
  refreshDetail=;
@@ -210,8 +220,7 @@ w078090100;r2
  refreshDetail=;
 
 @mortCalc=
- lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
- reak(obj:a12+0<1 or obj:a13+0<1 or obj:a14+0<0.1 or obj:a15+0<0.01),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&', 0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', '&obj:a16+0),
  d1select('select blob from dbo.mortgageTaxCalculator('&lcOptions&')'),
  set(32,readstring(obj7:d1,'@endDate=')),
  set(34,readstring(obj7:d1,'@termYears=')),
@@ -239,7 +248,7 @@ w078090100;r2
 \h051052obj:key3<>'INDIV';r
 \t051Cert#; \w05260; \l0524100;r052014054002; @lf052='typ=4100 and key2=''A''';
 \h053054obj:key3<>'INDIV' and obj:key3<>'TRUST';r
-\t053Parcel#; \w054100; \r054;
+\t053Parcel#; \w054100; \r054obj:key3='INDIV';
 \h055058obj:key3<>'TRUST';r
 \h059060obj:key3<>'TRUST' and obj:b15<>'PROTEST';r
 \h061064obj:key3<>'TRUST';r
@@ -257,6 +266,10 @@ w078090100;r2
  \z102100;
  \w102120;
  \y101102+14;r
+
+\t108&Print; @acc108=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);
+
 \h112(obj:key3<>'TRUST' and obj:b15<>'PROTEST') or obj:b7+0.00<0.01;
 \t112Write Voucher;
  @acc112=lccheck=kp('select count(*) from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00'),
@@ -287,7 +300,7 @@ w078090100;r2
  evalPaycode=,break(lcBreak),
  evalAmount=,break(lcBreak),
  evalCheck=,break(lcBreak),
- d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,0,0,'''&obj:a10&''','''&obj:a11&''''),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  break(readstring(obj7:d1,'@code=')=1),
  refreshDetail=,
@@ -305,9 +318,9 @@ w078090100;r2
 \t041Deputy;  \f042=cur:fullname; 
 \t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
  \d042044;r2 
-\t045&Print; @acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
-  if(gcretval=2,postAndPrint=);\d046;
- \w04204687;r2
+t045&Print; acc045=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);d046;
+ \w04204487;r2
 
 \t075Protest; \h075076obj:a17='Posted' or obj:key3<>'TAX';r \x0753; \x0763; \y076+13;\w07650;
 @acc076=
@@ -331,13 +344,30 @@ w078090100;r2
  \y091283; \y092282; \x091250; \x092278;
  \y093294; \y094293; \x093250; \x094278;
 
-\t097Comments; \d098obj:a17='Posted'; \w098271;
+\t097&Comments; \d098obj:a17='Posted'; \w098271;
  \y09754; \x0973; \y09854; \x09864; 
 
 \t111&Void; @acc111=voidReceipt=; \h111obj:a17<>'Posted';
 @voidReceipt=
  m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
  break(gcretval<>2);
+
+\t119Special Apportion;  \h119gcadmin=0;
+@acc119=gccontinue='',
+  if(obj:a17<>'Posted',dounposted=),
+  break(gccontinue='No'),
+  m('Are you sure you want to Special Apportion this receipt?','Apportion?',,6,4),
+  break(gcretval<>2),
+  gc4794id=obj:id,
+  lcApportionStage=kp('select max(id) from object where typ = 4794'),
+  if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
+
+@dounposted=gccontinue='No',
+  m('The Receipt must be posted before you can apportion it.  Would you like to post it now?','Post?',,6,4),
+  break(gcretval<>2),
+  postAndPrint=, 
+  if(obj:a17='Posted',gccontinue='');
+
 
 \t120TestCheck=; @acc120=testCheck=; \h120gcadmin=0;
 @testCheck=
@@ -355,9 +385,9 @@ w078090100;r2
  refreshDetail=;
 
 @blankEm=
- set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
+ set(-06,0),set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
  break(obj:key3='OFFICIAL'),
- set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1);
+ set(-07,0),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1);
 
 @refreshDetail=
  if(obj:a17='Posted',prop(165,'7C65H',1)),
@@ -372,6 +402,7 @@ w078090100;r2
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp+0=7,donewinvoice=),
+ if(lcTyp+0=8,getpaid=),
  break(lcTyp<>9),
  set(-07,lcid,1),
  gcblob=kp('select dbo.getMiscDetail('&lcid&')'),
@@ -380,6 +411,16 @@ w078090100;r2
  set(016,readstring(gcblob,'@fund=')),
  set(018,readstring(gcblob,'@amount=')),
  focus(012);
+
+@getpaid=
+ set(-06,lcid,1),
+ gcblob=kp('select dbo.getPaidInfo('&lcid&')'),
+ set(020,readstring(gcblob,'@paycode=')),
+ set(022,readstring(gcblob,'@amount=')),
+ set(024,readstring(gcblob,'@checkNumber=')),
+ set(026,readstring(gcblob,'@drawnon=')),
+ set(028,readstring(gcblob,'@location=')),
+ focus(020);
 
 @donewinvoice=gcid=lcid,lcmaininvoiceId=kp('select invoiceId from invoices where id='&lcid),
   break(lcmaininvoiceId+0=0),
@@ -394,7 +435,7 @@ w078090100;r2
 
 \h160obj:key3<>'MISC' and obj:key3<>'INDIV' and obj:key3<>'TRUST' and obj:key3<>'OFFICIAL';
 @acc160=
- if(obj:key3<>'TRUST',miscDetail=),
+ if(obj:key3<>'TRUST' and obj:key3<>'MTG',miscDetail=),
  if(obj:key3='MISC' or obj:key3='INDIV',focus(012)),
  if(obj:key3='TRUST' or obj:key3='OFFICIAL',focus(016)),
  refreshDetail=;
@@ -438,7 +479,8 @@ w078090100;r2
  gccertId=0;
 
 @getRecNum=break(obj:key1>'00000'),
- sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&'''');
+ sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
+ rekey('id='&obj:id);
 
 @printRec=
  update,
@@ -447,9 +489,15 @@ w078090100;r2
  if(gcRecType='MTG',mortSetVar=), 
  trreport(gcRectype&'Receipt');
 
+
+ if(gcRectype='MISC',printMiscRec=),
+ if(gcRectype='MTG',printMTGRec=),
+ if(gcRectype='TRUST',printTrustRec=),
+ if(gcRectype='TAX',printTaxRec=);
+
 @mortSetVar=
  lcBranch=1,
- lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0,obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0,obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&',0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&',0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&',0'),
  e1select('select dbo.readstring(''@taxRateDescription='',blob)  from dbo.mortgageTaxCalculator('&lcOptions&')'),
  gcRateDesc=obj7:e1,
 

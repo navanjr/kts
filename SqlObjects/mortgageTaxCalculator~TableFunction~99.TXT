@@ -2,7 +2,8 @@ create function dbo.mortgageTaxCalculator(
  @startDate int=0,
  @endDate int=0,
  @termYears decimal(19,9)=0,
- @loanAmount money=0
+ @loanAmount money=0,
+ @taxRate money=0
 ) returns @rt table(
  startDate int,
  endDate int,
@@ -28,10 +29,11 @@ Certification Fee per Mortgage $5.00
 */
 
  declare
-  @taxRate money,
   @taxAmount money,
   @feeAmount money = 5.0,
   @taxTotal money
+
+
 
 -- sent endDate if empty
  if isnull(@endDate,0) < 1 and isnull(@termYears,0) > 0
@@ -41,16 +43,22 @@ Certification Fee per Mortgage $5.00
  if isnull(@endDate,0) > 0 and isnull(@termYears,0) < 1
   set @termYears = (@endDate - @startDate) / 365.0
 
- if floor(@termYears) < 6
-  select @taxRate = case floor(@termYears)
-   when 5 then .1
-   when 4 then .08
-   when 3 then .06
-   when 2 then .04
-   else .02
-  end
- else
-  select @taxRate = .1
+ if @taxRate < .01
+ begin
+  if floor(@termYears) < 6
+   select @taxRate = case floor(@termYears)
+    when 5 then .1
+    when 4 then .08
+    when 3 then .06
+    when 2 then .04
+    else .02
+   end
+  else
+   select @taxRate = .1
+
+  if isnull(@endDate,0) < 1 and isnull(@termYears,0) < 1
+   set @taxRate = .1
+ end
 
  if @loanAmount < 100.00
   set @taxRate = .1

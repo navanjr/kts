@@ -52,8 +52,12 @@ begin
  begin transaction
 
   -- add row to paid
-  insert paid (paycode,slink,amount,checkno,bankId,drawnon,location)
-   select @paycode,@slink,@amount,@checkNumber,@bankId,@drawnon,@location
+  if isnull(@paymentId,0) < 1
+   insert paid (paycode,slink,amount,checkno,bankId,drawnon,location)
+    select @paycode,@slink,@amount,@checkNumber,@bankId,@drawnon,@location
+  else
+   update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId,drawnon=@drawnon,location=@location where id=@paymentId
+
 
   -- add to the gl stage
   if @receiptType = 'TAX'
