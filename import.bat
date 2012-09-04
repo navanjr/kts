@@ -14,6 +14,7 @@ set dbname=%1
 set val=
 call :getIni ..\keyGit.ini git server
 set server=%val%
+set serverEsc=%val:\=\\%
 
 set val=
 call :getIni ..\keyGit.ini git path
@@ -28,6 +29,7 @@ call :getIni ..\keyGit.ini git dropdll
 set dropdll=%val%
 
 echo the server is %server%
+echo the escaped server is %serverEsc%
 echo the dbname is %dbname%
 echo the gitPath is %gitPath%
 echo the sapass is %sapass%
@@ -48,11 +50,11 @@ sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_Date
 GOTO:finish
 
 :ImportRepo
-dir SqlObjects\ | grep ~1.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~2.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~3.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~4.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~5.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
 sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
 if DEFINED dropdll goto dodropdll
 GOTO:finish
