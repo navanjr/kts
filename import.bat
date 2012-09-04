@@ -37,17 +37,31 @@ if "%dbname%"=="" goto blankdbname
 if "%gitPath%"=="" goto blankgitpath
 if "%sapass%"=="" goto blanksapass
 
-sqlcmd -S%server% -d%dbname% -U%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
+SET /P runmode=Please Choose ( [T]est connection, [I]mport from repo ): 
+IF "%runmode%"=="T" GOTO TestConnection
+IF "%runmode%"=="I" GOTO ImportRepo
+IF "%runmode%"=="N" GOTO Nate
 
+
+:TestConnection
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_DateTime"
+GOTO:finish
+
+:ImportRepo
+dir SqlObjects\ | grep ~1.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~2.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~3.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~4.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~5.TXT | gawk -v cmd="sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
 if DEFINED dropdll goto dodropdll
-
+GOTO:finish
 
 :finish
 echo finished
 popd
 endlocal
 GOTO:EOF
-
 
 :dodropdll
 del %dropdll%
@@ -66,7 +80,6 @@ GOTO:finish
 :blanksapass
 echo Sorry, your missing an sa password (check your ini)
 GOTO:finish
-
 
 :getIni
 set file=%1
