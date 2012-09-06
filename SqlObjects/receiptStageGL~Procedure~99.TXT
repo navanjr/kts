@@ -6,7 +6,8 @@ begin
   contraId int,
   amount money,
   comment varchar(100),
-  sourceCode varchar(60)
+  sourceCode varchar(60),
+  slink2 varchar(15)
  )
  declare @accounts table(
   accountId int,
@@ -14,12 +15,14 @@ begin
   amount money,
   comment varchar(100),
   sourceCode varchar(60),
-  id int identity (1,1)
+  id int identity (1,1),
+  slink2 varchar(15)
  )
  
  declare @styp char(1) = 'o'
  declare
   @slink varchar(15) = @styp + cast(@receiptId as varchar),
+  @slink2 varchar(15),
   @code int,
   @contraId int,
   @arAccountId int,
@@ -42,10 +45,10 @@ begin
  if @receiptType<>'OFFICIAL'
  begin
   insert @accountsWorking
-   select b.accountId, null, sum(a.amount)*-1,'', ''
+   select b.accountId, null, sum(a.amount)*-1,'', '', ''
    from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
-  insert @accountsWorking select @arAccountId, null, @tokenAmount,'',''
+  insert @accountsWorking select @arAccountId, null, @tokenAmount,'','',''
  end
 
  if exists(select * from paid where slink = @slink)
@@ -57,17 +60,17 @@ begin
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
   if @receiptType<>'OFFICIAL'
   begin
-   insert @accountsWorking select @arAccountId, null, @paidTotal,'',''
+   insert @accountsWorking select @arAccountId, null, @paidTotal,'','',''
   end
 
   -- debit suspense accounts
   insert @accountsWorking
-  select b.accountId, null, sum(a.amount),'',''
+  select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14))
   from paid a, paycodes b 
-  where a.paycode = b.paycode and a.slink = @slink group by b.accountId
+  where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
 
   -- debit tresurers receipt fund and credit fund receivables
-  insert @accountsWorking select @contraId, null, @paidTotal,'',''
+  insert @accountsWorking select @contraId, null, @paidTotal,'','',''
   if @receiptType<>'OFFICIAL'
   begin
    insert @ap
@@ -83,11 +86,11 @@ begin
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
-  insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode from @ap
+  insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode, '' from @ap
  end 
  
 
- insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment, sourceCode from @accountsWorking group by accountId, contraId, comment, sourceCode having sum(isnull(amount,0)) != 0
+ insert @accounts select accountId, contraId, sum(isnull(amount,0)), comment, sourceCode, slink2 from @accountsWorking group by accountId, contraId, comment, sourceCode, slink2 having sum(isnull(amount,0)) != 0
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
@@ -108,9 +111,10 @@ begin
    @tokenContraId = contraId,
    @tokenAmount = amount,
    @comment = left(rtrim(comment),49),
-   @sourceCode = sourceCode
+   @sourceCode = sourceCode,
+   @slink2 = slink2
   from @accounts
-  insert gldetailstage (slink,accountId,amount,contraId,comment,sourceCode) select @slink,@tokenAccountId,@tokenAmount,@tokenContraId, @comment, @sourceCode
+  insert gldetailstage (slink,accountId,amount,contraId,comment,sourceCode, slink2) select @slink,@tokenAccountId,@tokenAmount,@tokenContraId, @comment, @sourceCode, @slink2
   delete @accounts where id = @tokenId
  end
  
