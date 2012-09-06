@@ -120,9 +120,11 @@ lmode=2;
 \u002104;r
 \t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
 @seriesField=key3;
-\t003&Receipt Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted';
+\t003Deposit Date; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted'; \d004;
  \w00200455;r2
-\t005Receipt Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\t065&Receipt Date Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d066obj:a17='Posted';
+ \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
+\t005Receipt Date Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;  \w00570;
 \t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
 
 \t009detailId;\d009010;r \h009010;r
@@ -473,16 +475,12 @@ w078090100;r2
 
 @postAndPrint=if(obj:key3<>'OFFICIAL' and obj:c8+0<>0,m('This receipt still has an amount due, posting aborted.')),
  break(obj:key3<>'OFFICIAL' and obj:c8+0<>0),
+ if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),update,
  getRecNum=,
- if(obj:key2<>today(),fixDateFirst=),
  printRec=,
  postGL=,
  checkCert=,
  gccertId=0;
-
-@fixDateFirst=
- set(004,today()),
- update;
 
 @getRecNum=break(obj:key1>'00000'),
  sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
