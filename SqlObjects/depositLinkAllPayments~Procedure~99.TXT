@@ -6,11 +6,15 @@ begin
   @tally int,
   @curPaymentId int,
   @code int,
-  @message varchar(500)
+  @message varchar(500),
+  @bankId int,
+  @depositDate int
 
   select
    @tally = 0,
-   @receiptType = key3 
+   @receiptType = key3,
+   @bankId = link1,
+   @depositDate = cast(key2 as int) 
   from object where typ = 4513 and id = @depositId
 
  declare @linkCanidates table(
@@ -18,8 +22,24 @@ begin
   paymentId int
  )
 
- insert @linkCanidates
- select @depositId, id from dbo.depositPaidUnPosted() where receiptType = @receiptType
+ if @receiptType > '0'
+  begin
+   insert @linkCanidates
+   select @depositId, id from dbo.depositPaidUnPosted() 
+    where receiptType = @receiptType 
+     and depositDate <= @depositDate
+  end
+ else
+  begin
+   if @bankId > 0
+   begin
+    insert @linkCanidates
+    select @depositId, id from dbo.depositPaidUnPosted() 
+     where receiptType in (select key1 from object where typ=4503 and link1 = @bankId) 
+      and depositDate <= @depositDate
+   end
+  end
+ 
 
  while (select count(*) from @linkCanidates) > 0
  begin

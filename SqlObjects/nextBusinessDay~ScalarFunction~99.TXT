@@ -1,0 +1,21 @@
+CREATE FUNCTION nextBusinessDay
+             (@date  int) RETURNS int
+AS  
+  BEGIN
+    DECLARE  @date1 DATETIME,
+             @m     INT
+
+
+    SELECT @date1 = cast(dbo.date1(@date) as DATETIME),
+           @m = 0
+
+    WHILE @m < 1
+    BEGIN
+      SET @date1 = DATEADD(DD,1,@date1)
+      IF DATEPART(DW,@date1) NOT IN (1,7)
+        BEGIN
+          SET @m = @m + 1
+        END
+    END
+    RETURN dbo.clariondate(@date1)
+  END

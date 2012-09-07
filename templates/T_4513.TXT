@@ -7,10 +7,15 @@
  if(tier=3,linkAllTypes=),
  create(45,9),
  create(160,9,3,120,'Link &Type'),
- create(550,12,345,95,'&Show Un-Linked',78),
  brwstuff=;
 
+@dotier4=depositTypeCheck=,
+set(006,''),
+update,
+linkAllTypes=;
+
 @afterloadwindow=
+ if(tier=4,dotier4=),
  refreshbrw=;
  
 \t001Deposit #; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
@@ -38,15 +43,9 @@
 
 \t073Amount; \t074@n14.2;  \s074+'select sum(amount) from '&gcTable4513&' where amount > 0 and slink = ''o'&obj:id&''''; \p0740907cfah,13499135;r2 \p0740907c13h,700;r2 \p0740907c0ch,1;r2 \d074090;r2 \y073074+60;r \x073074-30;r
 
-\t077Show Hide Flag; \h077078;r 
-@acc550=refreshbrw=;
-
-@setBRWvars=
- lcShowGL=readstring(cur:options,'@showgl='),
- gcbrw1sql='select id,description,subdescription,amount from dbo.depositDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:c1=1,'1','0')&')order by ord';
-
 @brwstuff=
- setBRWvars=,
+ lcShowGL=readstring(cur:options,'@showgl='),
+ gcbrw1sql='select id,description,subdescription,amount from dbo.depositDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&')order by ord',
  brw(150,1,gcbrw1sql,65,81,270,200,
   '118L(2)~~#2#M
 100L(2)~~#3#M
@@ -73,12 +72,18 @@
 @linkAllTypes=
  update,
  d1select('exec dbo.depositLinkAllPayments '&obj:id),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'));
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
+ gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
+ doDepositDate=;
+
+@doDepositDate=m('Would you like to update the deposit date to '''&format(gcNextBusinessDay,@d2)&''' for... ',,,'All Receipts|Tax Receipts|Other Receipts|Manual|No'),
+   if(gcretval=1 or gcretval=2,sql('update object set b9='''&gcNextBusinessDay&''' where typ=40')),
+   if(gcretval=1 or gcretval=3,sql('update object set b8='''&gcNextBusinessDay&''' where typ=40')),
+   if(gcretval=4,change(kp('select top 1 id from object where typ=40'),3));
 
 @refreshbrw=
- setBRWvars=,
  gcTable4513=choose(obj:a17='Posted','gldetail','glDetailStage'),
- brwreload(1,gcbrw1sql);
+ brwreload(1);
 
 @postAndPrint=
  printDep=,
