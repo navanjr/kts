@@ -1,0 +1,21 @@
+create procedure dbo.adaSchoolImport(@year varchar(4))
+as 
+begin
+
+-- turn off the trigger on object
+  alter table object disable trigger keySqlObjectWriteToRepoTR
+
+
+insert object (typ,key1,key2) 
+ select 4013,
+        @year,
+        a.accountcode 
+ from glaccounts a 
+ where 
+  a.accountType='SCHOOL' 
+  and accountCode not in (select key2 from object where typ=4013 and key1=@year)
+
+-- turn the trigger back on
+  alter table object enable trigger keySqlObjectWriteToRepoTR
+
+end
