@@ -10,7 +10,8 @@ declare
   @objectName nvarchar(50),
   @objectType nvarchar(50),
   @objectDropType nvarchar(50),
-  @sqlMax nvarchar(max)
+  @sqlMax nvarchar(max),
+  @log varchar(max)
 
 -- Gather information about this Object
  select -- @loopcount=(datalength(e1)/4000)+1,
@@ -20,17 +21,28 @@ declare
   @sqlMax = e1
  from object where id = @id
 
+ set @log = '@objectName=Key1=' + @objectName + ';'
+  + '@objectType=' + @objectType + ';'
+  + '@objectDropType=' + @objectDropType + ';'
+
 -- Drop the Object
  if @objectType = 'Trigger'
  begin
   if OBJECT_ID (@objectName, 'TR') IS NOT NULL
+  begin
    exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+   exec dbo.logit @@procid, 'Dropping Trigger', @log
+  end
  end
  else
  begin
   if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+  begin
    exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
+   exec dbo.logit @@procid, 'Dropping object', @log
+  end
  end
+
 -- Bail if dropFlag = TRUE 
  if @dropFlag = 'TRUE'
  begin
@@ -41,6 +53,7 @@ declare
    if @silentMode = 'FALSE'
     select '@code=1;@message=Object was removed... Have a nice day.;'
    set @result = 0
+   exec dbo.logit @@procid, '@code=1;@message=Object was removed... Have a nice day.;'
    return 
   end
   else
@@ -48,6 +61,7 @@ declare
    if @silentMode = 'FALSE'
     select '@code=1;@message=object was not deleted. Something went horribly wrong;'
    set @result = 1
+   exec dbo.logit @@procid, '@code=1;@message=object was not deleted. Something went horribly wrong;'
    return
   end
  end
@@ -57,14 +71,18 @@ declare
    exec(@sqlMax)
   end try
   begin catch
+   select @log = '@code=1;@message='+ERROR_MESSAGE()+';'
    if @silentMode = 'FALSE'
-    select '@code=1;@message='+ERROR_MESSAGE()+';'
+    select @log
+    
    set @result = 1
+   exec dbo.logit @@procid, 'SQL Error Catch', @log
    return
   end catch
 
   if @silentMode = 'FALSE'
    select '@code=0;@message=OK;'
   set @result = 0
+  exec dbo.logit @@procid, '@code=0;@message=OK;'
   return
  end
