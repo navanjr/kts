@@ -1,4 +1,4 @@
-create function dbo.depositDetailBRW(@depositId int, @showGL int) returns 
+create function dbo.depositDetailBRW(@depositId int, @showGL int, @showUnLinked int) returns 
 @rt table(
  ord varchar(50),
  id int,
@@ -20,15 +20,17 @@ begin
   insert @rt
   select 'c ',0,'','',0
 
-  insert @rt
-  select 'ca',0,'Un-linked Payment(s)','',0
+  if @showUnLinked = 1
+  begin
+   insert @rt
+   select 'ca',0,'Un-linked Payment(s)','',0
 
-  insert @rt
-  select 'cb'+receiptType,0,'   ' + receiptType,'',0 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType
+   insert @rt
+   select 'cb'+receiptType,0,'   ' + receiptType,'',0 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType
 
-  insert @rt
-  select 'cb'+receiptType+slink,id*-1,'',lower(paycode),amount from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
-
+   insert @rt
+   select 'cb'+receiptType+slink,id*-1,'',lower(paycode),amount from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
+  end
  end
 
  if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId)
