@@ -5,9 +5,8 @@ REM this script is designed to just import the existing repo into your key envir
 
 pushd c:\client\key\kts
 
-REM set file=..\keyGit.ini
-REM set area=[git]
-REM set key=path
+set logFile=..\keyGit.log
+del %logFile%
 
 set dbname=%1
 
@@ -50,11 +49,11 @@ sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_Date
 GOTO:finish
 
 :ImportRepo
-dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
-dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd
+dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
 sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
 if DEFINED dropdll goto dodropdll
 GOTO:finish
