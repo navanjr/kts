@@ -8,7 +8,8 @@ begin
   @resultCode int,
   @newId int,
   @receiptSlink varchar(15) = '0' + cast(@receiptId as varchar),
-  @jeDescription varchar(50) = 'Credit/Void receipt id:' + cast(@receiptId as varchar)
+  @jeDescription varchar(50) = 'Credit/Void receipt id:' + cast(@receiptId as varchar),
+  @log varchar(max) 
 
 -- get the postdate
  select @postdate = dbo.clariondate(getDate())
@@ -26,12 +27,6 @@ begin
  -- TODO: dont forget a sql transaction
 
  -- create JE with Staged GL Detail and link it to the receipt and then post it
- exec dbo.journalEntryCRUD 0,
-  @description = @jeDescription,
-  @jeType = 'REFUND',
-  @postDate = @postDate,
-  @resultCode = @resultCode output,
-  @newId = @newId output
 
  declare @wt table(
   id int identity(1,1),
@@ -76,7 +71,26 @@ begin
    accountDesc = @accountDescToken,
    processFlag = 1 
   where id = @idToken
+
+-- wont need this anymore
+--  select @log = 'accountId=' + cast(@accountIdToken as varchar) + ';' + 'accountDesc=' + @accountDescToken + ';'
+--  exec dbo.logit @@procId, 'ran thru glAccountVerification', @log
+
+
  end
+
+-- check the wt for records sufficenat to proceed
+ select @log = 'wt count:' + cast(isnull(count(*),0) as varchar) from @wt
+ exec dbo.logit @@procid, @log
+ if not exists(select * from @wt)
+  return
+
+ exec dbo.journalEntryCRUD 0,
+  @description = @jeDescription,
+  @jeType = 'REFUND',
+  @postDate = @postDate,
+  @resultCode = @resultCode output,
+  @newId = @newId output
 
  insert glDetailStage (accountId,accountCode,accountDesc,amount,slink,contraId,targetAccountId) 
  select accountId, accountCode, accountDesc, amount, 'o' + cast(@newId as varchar), contraId, targetId from @wt

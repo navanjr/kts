@@ -6,7 +6,7 @@ REM this script is designed to just import the existing repo into your key envir
 pushd c:\client\key\kts
 
 set logFile=..\keyGit.log
-del %logFile%
+del %logFileim	%
 
 set dbname=%1
 
@@ -42,18 +42,29 @@ SET /P runmode=Please Choose ( [T]est connection, [I]mport from repo ):
 IF "%runmode%"=="T" GOTO TestConnection
 IF "%runmode%"=="I" GOTO ImportRepo
 IF "%runmode%"=="N" GOTO Nate
+IF "%runmode%"=="D" GOTO dropObjects
 
 
 :TestConnection
 sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_DateTime"
 GOTO:finish
 
+:dropObjects
+dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+GOTO:finish
+
 :ImportRepo
 dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~2.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~3.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~4.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.glCreateTables"
 sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
 if DEFINED dropdll goto dodropdll
 GOTO:finish
