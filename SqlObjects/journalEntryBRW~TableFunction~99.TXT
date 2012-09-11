@@ -1,20 +1,65 @@
 create function dbo.journalEntryBRW(@id int) returns @rt table(
+ ord varchar(50),
  id int,
+ accountid int,
  accountDesc varchar(50),
  amount money,
- comment varchar(100)
+ comment varchar(100),
+ importFlag int
 )
 begin
- declare @slink varchar(15) = 'o'+cast(@id as varchar)
+ declare 
+  @slink varchar(15) = 'o'+cast(@id as varchar),
+  @importData varchar(max)
 
  if exists(select * from glDetailStage where slink = @slink)
   insert @rt
-  select id*-1 as id,accountDesc,amount, comment2 
+  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0 
   from glDetailStage where slink = @slink
  else
   insert @rt
-  select id*-1 as id,accountDesc,amount, comment2 
+  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0
   from glDetail where slink = @slink
+
+-- import features
+ select @importData = e2 from object where id = @id and typ = 4512
+ if (@importData > '  0')
+ begin
+
+  declare @wt table(
+   id int identity(1,1),
+   rowData varchar(1000),
+   accountId int,
+   accountCode varchar(50),
+   accountDesc varchar(50),
+   amount varchar(50),
+   comments varchar(250)
+  )
+  insert @wt (rowData, accountDesc)
+  select replace(data,'"',''), 'Unknown Account' from dbo.split( @importData, char(10)) 
+
+  update @wt set
+   accountCode = (select data from dbo.split(rowData,',') where id = 1),
+   amount = (select data from dbo.split(rowData,',') where id = 2),
+   comments = (select data from dbo.split(rowData,',') where id = 3)
+
+  update a set a.accountDesc = b.accountDesc, a.accountId = b.accountId
+  from @wt a, glAccounts b where a.accountCode = b.accountCode
+ 
+  if exists(select * from @wt where isnumeric(amount) = 1 and accountDesc <> 'Unknown Account')
+  begin
+   insert @rt (ord, id, accountDesc) select 'b_0', 0, '' 
+   insert @rt (ord, id, accountDesc) select 'bb_0', 0, ' These Items can be Imported... '
+   insert @rt select 'bb_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 1 from @wt where isnumeric(amount) = 1 and accountDesc <> 'Unknown Account'
+  end
+  if exists(select * from @wt where isnumeric(amount) = 1 and accountDesc = 'Unknown Account')
+  begin
+   insert @rt (ord, id, accountDesc) select 'c_0', 0, '' 
+   insert @rt (ord, id, accountDesc) select 'cc_0', 0, ' These Items CAN''T be Imported... '
+   insert @rt select 'cc_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 0 from @wt where isnumeric(amount) = 1 and accountDesc = 'Unknown Account'
+  end
+ 
+ end
 
  return
 end
