@@ -1,0 +1,28 @@
+create proc dbo.keySetTag( @tagProvided varchar(50) ) as
+begin
+ set nocount on
+
+ declare
+  @title varchar(max), @tag varchar(max),
+  @oldTitle varchar(max), @oldTag varchar(max),
+  @newTitle varchar(max), @newTag varchar(max),
+  @options varchar(max)
+
+ select
+  @title = dbo.readKeyCode(1,'@title='),
+  @tag = dbo.readKeyCode(1,'@ktsTag='),
+  @oldTitle = '@title=' + dbo.readKeyCode(1,'@title=') + ';',
+  @oldTag = '@ktsTag=' + dbo.readKeyCode(1,'@ktsTag=') + ';'
+
+ select
+  @newTitle = '@title=' + REPLACE(@title,@tag,@tagProvided) + ';',
+  @newTag = '@ktsTag=' + @tagProvided + ';'
+
+ select @options = options from Template where id = 1
+
+ update Template set Options = replace(replace(@options,@oldTitle,@newTitle),@oldTag,@newTag) where id = 1
+ 
+ exec dbo.logit @@procid, @newTitle
+ exec dbo.logit @@procid, @newTag
+
+end
