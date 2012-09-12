@@ -39,7 +39,8 @@
  prop(153,7cfah,16777215),
  prop(153,font,Lucida Console),
  prop(153,fontsize,7),
- create(154,9,6,124,'Create &Tag',);
+ create(154,9,6,104,'&Tag Code',),
+ create(155,9,6,124,'Tag &Repo',);
 
 @acc154=
  lcTitle=kp('select dbo.readKeyCode(1,''@title='')'),
@@ -49,9 +50,14 @@
  lcNewTagName=obj7:d1,
  sql('exec dbo.keySetTag '''&lcNewTagName&''''),
  lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
- m('key template was updated to: '&lcTag&'||You need to commit this change and tag it in Git.');
+ m('key template was updated to: '&lcTag&'||You need to commit this change and tag it in Git.'),
+ gitStatus=;
 
- gcGitCmd='git tag '&lcTagName,
+@acc155=
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ m('Are you sure you want to tag this commit as: '&lcTag,'Git Tag '&lcTag,'question.ico',6,2),
+ break(gcretval<>2),
+ gcGitCmd='git tag '&lcTag,
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
@@ -64,7 +70,6 @@
  close('ok');
 
 @afterloadwindow=
- prop(0,text,'Git Repo: '&upper(gcRepoPath)),
  gitStatus=;
 
  gitFetchAll=,
@@ -235,6 +240,8 @@
  gitCommand=;
 
 @gitStatus=
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ prop(0,text,'Git Repo: '&upper(gcRepoPath)&' - KeyTemplate(@ktsTag='&lcTag&')'),
  readdos('gitStatus.txt'),
  prop(151,text,workmemo),
  readdos('gitLog.txt'),
