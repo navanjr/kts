@@ -18,7 +18,11 @@
  sql('exec dbo.journalEntryCRUD 3, @id='&obj:id);
 
 @loadwindow=
+ blankem=,
+ create(550,12,350,290,'&Import Tools',78),
  brwstuff=;
+@acc550=tsc,if(obj:c1=1,focus(104));
+\h550obj:a17='Posted';
 
 @afterloadwindow=
  gcToggleDb=14474460,
@@ -67,8 +71,18 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 \t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700; \d076;
  \s076+'select balance from glSummary('&obj:id&',''o'')';
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
-
-\t101Comments; \q102obj:a18='CORRECTION';
+\t077ImportToolsFlag; \h077078;r
+\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r
+\t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
+\t120Process; \h120obj:c1<>1; \y120305;
+@acc120=
+ lctally=kp('select count(*) from dbo.journalEntryBRW('&obj:id&') where importFlag = 1'),
+ break(lcTally+0<1),
+ m('There are '&lcTally&' records that can be imported to this JournalEntry.||Do you want to continue?','Process JournalEntry Import...','question.ico',6,2),
+ break(gcretval<>2),
+ sql('exec dbo.journalEntryDetailImport '&obj:id),
+ set(078,0),set(104,''),update,
+ tsc,refreshbrw=;
 
 \t109&Print; @acc109=gcJEReportWhere='where slink=''o'&obj:id&'''',trreport('glJournalEntryReport=');
 \t110Post to the &G/L; @acc110=postGL=; \d110obj:b15<>0; \h110obj:a17='Posted';
@@ -76,11 +90,11 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 \t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
 
 @brwstuff=
- gcsql='select id,accountDesc,comment,amount from dbo.journalEntryBRW('&obj:id&')',
- brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2@#4#|M',7,1),
+ gcsql='select id,accountDesc,comment,amount from dbo.journalEntryBRW('&obj:id&') order by ord',
+ brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2b@#4#|M',7,1),
  break(obj:a18<>'Appotion Protest'),
  gcsql='select id,a2,a3,a4,key3 from object where typ=4775 and link1='&obj:id,
- brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2@#5#|M',7,1), ;
+ brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2b@#5#|M',7,1), ;
 @lbrw1forecolor=obj7:c10<0,255;
 
 @brw1=
@@ -107,6 +121,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  tsc;
 
 @blankEm=
+ set(-03,0),
  set(-07,0),
  set(008,''),
  set(010,''),

@@ -39,13 +39,28 @@
  prop(153,7cfah,16777215),
  prop(153,font,Lucida Console),
  prop(153,fontsize,7),
- create(154,9,6,124,'Create &Tag',);
+ create(154,9,6,104,'&Tag Code',),
+ create(155,9,6,124,'Tag &Repo',);
 
 @acc154=
- iw(',.t000Please Enter the Tag Name...., ,.t097Tag Name., ,.w09850.,,.h097.,,.x0983.,,.y0983.,'),
+ lcTitle=kp('select dbo.readKeyCode(1,''@title='')'),
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ iw(',.t000ExistingTitle: '&lcTitle&', ,.t001Current Tag: '&lcTag&'., ,.w001150., ,.h002., ,.t097New Tag Name., ,.w09850.,,.h097.,,.x098103.,,.y0983.,'),
  break(gcretval<>'OK'),
- lcTagName=obj7:d1,
- gcGitCmd='git tag '&lcTagName,
+ lcNewTagName=obj7:d1,
+ sql('exec dbo.keySetTag '''&lcNewTagName&''''),
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ gcGitCmd='git commit templates\T_1.TXT -m"Updated Version Info in Key Template: '&lcTag&'"',
+ gitCommand=, 
+ m('key template was updated to: '&lcTag&'||You need to commit this change and tag it in Git.'),
+ gitCreateIni=,
+ gitStatus=;
+
+@acc155=
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ m('Are you sure you want to tag this commit as: '&lcTag,'Git Tag '&lcTag,'question.ico',6,2),
+ break(gcretval<>2),
+ gcGitCmd='git tag '&lcTag,
  gitCommand=,
  gitCreateIni=,
  gitStatus=;
@@ -58,7 +73,6 @@
  close('ok');
 
 @afterloadwindow=
- prop(0,text,'Git Repo: '&upper(gcRepoPath)),
  gitStatus=;
 
  gitFetchAll=,
@@ -229,6 +243,8 @@
  gitCommand=;
 
 @gitStatus=
+ lcTag=kp('select dbo.readKeyCode(1,''@ktsTag='')'),
+ prop(0,text,'Git Repo: '&upper(gcRepoPath)&' - KeyTemplate(@ktsTag='&lcTag&')'),
  readdos('gitStatus.txt'),
  prop(151,text,workmemo),
  readdos('gitLog.txt'),
@@ -252,6 +268,6 @@
  send(gcBatIni,'call sed -n -e ":a" -e "$ s/\n/|/gp;N;b a" ..\gitTags.txt > ..\gitTagsLine.txt',1),
  send(gcBatIni,'call git describe --tags > ..\gitStatus.txt',1),
  send(gcBatIni,'call git status >> ..\gitStatus.txt',1),
- send(gcBatIni,'call git log -n20 --date=short > ../gitLog.txt',1),
+ send(gcBatIni,'call git log --oneline --decorate -n20 --date=short > ../gitLog.txt',1),
  send(gcBatIni,'popd',1),
  runw(gcBatIni,,0);

@@ -1,0 +1,35 @@
+create procedure dbo.journalEntryDetailImport ( @jeId int ) as
+begin
+
+ exec dbo.logit @@procid, '@jeId', @jeId
+
+ declare @wt table(
+  id int identity(1,1),
+  accountId int,
+  amount money,
+  comment varchar(50),
+  processflag int
+ )
+ insert @wt select accountId, amount, comment, 0 from dbo.journalEntryBRW(@jeId) where importFlag = 1
+ 
+ declare 
+  @idToken int,
+  @accountIdToken int,
+  @amountToken money,
+  @commentToken varchar(500)
+
+ while exists( select * from @wt where processFlag = 0 )
+ begin
+  select top 1 
+   @idToken = id,
+   @accountIdToken = accountId,
+   @amountToken = amount,
+   @commentToken = comment
+  from @wt where processFlag = 0
+
+  exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken
+ 
+  update @wt set processFlag = 1 where id = @idToken
+ end
+
+end
