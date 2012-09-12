@@ -1,0 +1,30 @@
+create procedure kpsTaxrollImport as
+begin
+
+/*
+Here is how you create the taxroll table:
+
+SELECT * into taxroll FROM OPENROWSET('MSDASQL', 'DRIVER={Microsoft FoxPro VFP Driver (*.dbf)};UID=;Deleted=No;Null=No;Collate=Machine;BackgroundFetch=Yes;
+Exclusive=No;SourceType=DBF;SourceDB=L:\data\newtax\ROGERMIL', 
+'SELECT * from taxroll where unpaid > 0.00') 
+
+*/
+
+INSERT INTO [KTS].[dbo].[AdTax]
+           ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+           ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+           ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+           ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+           ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+           ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1],
+           [PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3])
+select      typ,parcel,cast(itm_nbr as numeric(7,1)),cast(taxyear as numeric(5,0)),name,addl1,addl2,addl3,city,[state],zip_1,zip_2
+           ,sch_n,c_schn,sch_c,c_cityc
+           ,0/*cast(mort_cd as numeric(7,0))*/,acres,mobile_hm,cast(g_per as money)+cast(g_lv as money)+cast(g_imp as money),cast(exemp as numeric(9,0)),cast(net_assd as numeric(8,0)),cast(levy as numeric(9,7)),cast(tax_due as numeric(19,2)),cast(ctax_due as numeric(19,2)),cast(unpaid as numeric(19,2))
+           ,left(cert_asgn,6),leg_l1+leg_l2+leg_l3+leg_l4+leg_l5+leg_l6,'','','','','','',''
+           ,'','','','','',0,0
+           ,0,0,0,0,0,0,'',0
+           ,'',0,0,0,'','','',''
+  FROM [MATT_LAPTOP\SQL2008].[KPS2KTS].[dbo].[taxroll]
+
+end
