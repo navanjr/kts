@@ -73,7 +73,7 @@ echo set @gitCommitter=%gcValue%
 GOTO:finish
 
 :TestConnection
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_DateTime"
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select b13 as gitPath, b14 as gitCommitter from Object where Link1 = -1 and TYP = 0"
 GOTO:finish
 
 :dropObjects
