@@ -38,12 +38,39 @@ if "%dbname%"=="" goto blankdbname
 if "%gitPath%"=="" goto blankgitpath
 if "%sapass%"=="" goto blanksapass
 
-SET /P runmode=Please Choose ( [T]est connection, [I]mport from repo ): 
-IF "%runmode%"=="T" GOTO TestConnection
-IF "%runmode%"=="I" GOTO ImportRepo
-IF "%runmode%"=="N" GOTO Nate
-IF "%runmode%"=="D" GOTO dropObjects
+echo ==============================
+echo     Options
+echo ==============================
+echo   [T]est Connection
+echo   [I]mport from repo
+echo   [G]it Committer
+echo   [S]erver's Path to the Repo
+echo ------------------------------
+SET /P runmode=Please Choose:
+IF /I "%runmode%"=="T" GOTO TestConnection
+IF /I "%runmode%"=="I" GOTO ImportRepo
+IF /I "%runmode%"=="G" GOTO SetGitCommitterQ
+IF /I "%runmode%"=="S" GOTO SetServerPath
+IF /I "%runmode%"=="N" GOTO Nate
+GOTO:finish
 
+:SetGitCommitterQ
+SET /P qanswer=set gitCommitter? ( [E]nable / [D]isable )
+IF /I "%qanswer%"=="E" call :SetGitCommitter TRUE
+IF /I "%qanswer%"=="D" call :SetGitCommitter FALSE
+GOTO:finish
+
+:SetServerPath
+SET /P newPath=Enter the Path to the Repo from the Server:
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"update object set b13='@gitPath=%newPath%;' where typ=0 and link1=-1"
+echo @gitPath=%newPath%
+GOTO:finish
+
+:SetGitCommitter
+set gcValue=%1
+sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"update object set b14='@gitCommitter=%gcValue%;' where typ=0 and link1=-1"
+echo set @gitCommitter=%gcValue%
+GOTO:finish
 
 :TestConnection
 sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select getDate() as current_DateTime"
