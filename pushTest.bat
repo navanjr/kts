@@ -16,7 +16,7 @@ set connString=-S%server% -U%user% -P%pass%
 
 :displayMenu
 echo.
-call git show --oneline --decorate
+rem call git show --oneline --decorate
 echo  =================================
 echo       Push to Testing Server
 echo   (%connString%)
@@ -41,6 +41,7 @@ call :pushObjects ~2.TXT %dbname%
 call :pushObjects ~3.TXT %dbname%
 call :pushObjects ~4.TXT %dbname%
 call :pushObjects ~5.TXT %dbname%
+sqlcmd %connString% -d%dbname% -Q"exec dbo.glCreateTables"
 GOTO:EOF
 
 :pushObjects
