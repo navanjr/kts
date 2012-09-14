@@ -50,9 +50,13 @@ begin
   where objectName = 'T_' + cast(@id as varchar)
 
 --TODO: we need to add the template name to the filename 
+  update @wt set template = replace(replace(reverse(left(reverse(fullpath),charindex('\',reverse(fullpath)))),'\T_',''),'.TXT','')
+  update @wt set id = (select data from dbo.split(template,'~') where id = 1)
+  update @wt set template = (select data from dbo.split(template,'~') where id = 2)
+
 -- gather data from template
- update a set a.id = b.id from @wt a, template b where cast(replace(replace(a.template,'T_',''),'.TXT','') as int) = b.id
- update a set a.template = b.template from @wt a, template b where a.id = b.id
+-- update a set a.id = b.id from @wt a, template b where cast(replace(replace(a.template,'T_',''),'.TXT','') as int) = b.id
+-- update a set a.template = b.template from @wt a, template b where a.id = b.id
 
  while exists(select * from @wt where processFlag = 0)
  begin
@@ -62,7 +66,7 @@ begin
  end
  
 -- bail if we dont have anything to import
- if not exists(select * from @wt where id > 0 and isnull(data,'') > '  0')
+ if not exists(select * from @wt where id > 0 and isnull(data,'') > '  0' and isnull(template,'') > '  0')
  begin
   exec dbo.logit @@procid, 'not ready to read from Repo...'
   select '@code=1;@message=Nothing to import;'
@@ -84,16 +88,20 @@ begin
 
 -- update existing Templates
   update a set
+   a.template = b.template,
    a.options = b.data
   from template a, @wt b
   where a.id = b.id
 
 -- add the Templates we dont have
   insert template (id, template, options)
-  select id, 'AAAlert - Rename Me', data from @wt where id not in (select id from template) and id > 0
+  select id, template, data from @wt where id not in (select id from template) 
 
 -- turn the trigger back on
   alter table template enable trigger keyTemplateWriteToRepoTR
+
+  select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from the repo;'
+
  end
 
  if @debugMode = 'TRUE'
@@ -102,6 +110,4 @@ begin
   order by id 
  end
 
- select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from the repo;'
-  
 end
