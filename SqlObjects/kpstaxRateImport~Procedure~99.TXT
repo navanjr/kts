@@ -57,7 +57,7 @@ SELECT * into appsch02 FROM OPENROWSET('MSDASQL', 'DRIVER={Microsoft FoxPro VFP 
 Exclusive=No;SourceType=DBF;SourceDB=L:\data\newtax\ROGERMIL', 
 'SELECT * from appsch02') 
 
-select * into txlv from appsch02 a, lineitems b where a.lineitem=b.iden
+select a.*,b.*,c.[postdist],c.[postvtec],c.[postcity],c.[dname] into txlv from appsch02 a, lineitems b, appsch01 c where a.lineitem=b.iden and a.sch_n=c.sch_n and a.city_c=c.city_c
 
 */
  
@@ -79,12 +79,12 @@ insert object (typ,key1)
 
 
 insert @districtNames 
-select sch_n,city_c,sum(mil),year,0 from txlv group by sch_n,city_c,year
+select postdist,city_c,sum(mil),year,0 from txlv group by postdist,city_c,year
 
 
 -- import rates
  insert @rates (impLink,district,rateName,rateCol,mill,rate,processFlag,year)
- select 0,b.sch_n,b.city_c,b.val1,b.mil,0.0,0,b.year from txlv b 
+ select 0,b.postdist,b.city_c,b.val1,b.mil,0.0,0,b.year from txlv b 
 
  update a set implink=b.id from @rates a, @districtnames b where a.district = b.district and a.rateName = b.rateName and a.year = b.year
 
@@ -97,7 +97,7 @@ declare
 
 declare @districtUnique table(id int identity(1,1),district varchar(50))
 insert @districtUnique 
- select distinct district from @rates
+ select distinct postdist from txlv where postdist>' 0'
 
 
 while (select COUNT(*) from @districtUnique) > 0
@@ -126,8 +126,6 @@ update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName)
 delete @rates where ISNULL(districtId,0)=0 
 delete @rates where ISNULL(rateNameId,0)=0 
 
-
--- drop table tempTaxImpData
 
 begin transaction
  while exists(select * from @rates)
