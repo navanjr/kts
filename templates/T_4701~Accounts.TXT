@@ -62,10 +62,15 @@
 \t035Account Balance;  \t036@n-14.2;  \s036+'select sum(amount) from glDetail where accountId='&obj:id;
   \p0367cfah,13499135; \p0367c13h,700; \p0367c0ch,1; \d036;
 
-\t039Change Acct #;  \w03970;  \x039-10;  
-@acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&format(obj:a17,'P#####Pb')&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
-@p039y=d1select('select count(*) from object where typ=204 and link2='&obj:id),m('There are '&obj7:d1&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&format(obj:a17,'P#####Pb')&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
-@p039y2=sql('update object set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
+\t039Change Acct #;  \w03970;  \x039-10;  \u040;
+@acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&obj:a17&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
+@p039y=lcCnt=kp('select count(*) from glDetail where accountId='&obj:id),m('There are '&lcCnt&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&obj:a17&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y2=
+ d1select('exec dbo.glAccountCodeChange '&obj:id&','''&obj:a17&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Code Change...')),
+ close('ok');
+
+sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
 
 \h023024obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0';r
 \t023Table Type; \u024; \w02412; @choose024:SAPLM;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
