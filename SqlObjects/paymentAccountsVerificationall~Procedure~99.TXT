@@ -1,0 +1,18 @@
+create procedure dbo.paymentAccountsVerificationall as
+begin
+ declare @wt table(id int identity(1,1),fundcode varchar(50))
+ declare @idToken int, @fundCodeToken varchar(50)
+
+ insert @wt
+  select a2 from object where typ=4704 and a2>' 0'
+
+ while exists(select id from @wt)
+  begin
+   select top 1 @idToken=id, @fundCodeToken=fundcode from @wt
+
+   exec dbo.paymentAccountsVerification @fundCodeToken
+
+   delete from @wt where id=@idToken
+  end
+
+end
