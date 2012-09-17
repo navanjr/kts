@@ -3,6 +3,7 @@ as
 begin
  set nocount on
 
+-- TAXROLLCORRECTIONS
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxrollCorrections]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table taxrollCorrections(
    id int identity(1,1),
@@ -14,6 +15,7 @@ begin
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100))    
   )
 
+-- GLDETAIL
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetail(
    id int identity(1,1),
@@ -67,7 +69,7 @@ begin
   alter table glDetail add sourcecode varchar(60)
  end
 
-
+-- GLDETAILSTAGE
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetailStage]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table gldetailStage(
    id int identity(1,1),
@@ -113,6 +115,7 @@ begin
   alter table glDetailStage add sourcecode varchar(60)
  end
 
+-- PAID
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[paid]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table paid(
    id int identity(1,1),
@@ -149,6 +152,7 @@ begin
    alter table paid add location varchar(50) not null default ''
  end
 
+-- AUDIT
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[audit]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table audit(
    id int identity(1,1),
@@ -159,6 +163,7 @@ begin
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
 
+-- RECEIPTDETAIL
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[receiptDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table receiptDetail(
    id int identity(1,1),
@@ -182,7 +187,7 @@ begin
     commit transaction
  end
 
-
+-- INVOICES
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[invoices]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[invoices](
 	[ID] [int] IDENTITY(1,1) NOT NULL,
@@ -208,6 +213,7 @@ begin
    alter table invoices add subInvoiceDue money not null default 0
  end
 
+-- RECEIPTLINK
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[receiptlink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[receiptlink](
    id int identity(1,1),
@@ -224,6 +230,7 @@ begin
    alter table receiptLink add protestAmount money not null default 0
  end
 
+-- ADTAX
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[AdTax](
 	[ID] [int] IDENTITY(1,1) NOT NULL,
@@ -287,50 +294,14 @@ begin
 	[LEGALDESCRIPTION] [ntext] NOT NULL
    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'pertyp')
- begin
-   alter table AdTax add pertyp varchar(1) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'proploc')
- begin
-   alter table AdTax add proploc varchar(51) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'mort_cd')
- begin
-   alter table AdTax add mort_cd varchar(5) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'morleg')
- begin
-   alter table AdTax add morleg varchar(1) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'bankrupt')
- begin
-   alter table AdTax add bankrupt varchar(1) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'treamort')
- begin
-   alter table AdTax add treamort varchar(5) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'chg_asmt')
- begin
-   alter table AdTax add chg_asmt varchar(1) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'cur_adr')
- begin
-   alter table AdTax add cur_adr varchar(8) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'trcode')
- begin
-   alter table AdTax add trcode varchar(51) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'kpsc_schn')
- begin
-   alter table AdTax add kpsc_schn varchar(5) not null default ''
- end
+ if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
+  begin
+   CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
+     ([ID] ASC)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF,
+      DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+  end
 
-
-
-
+-- TAXROLLDETAIL
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxRollDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   CREATE TABLE [dbo].[taxRollDetail](
 	[id] [int] IDENTITY(1,1) NOT NULL,
@@ -357,6 +328,18 @@ begin
    alter table taxRollDetail add dtype varchar(10) not null default ''
  end
 
+-- JOURNALLINK
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[journalLink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table dbo.journalLink (
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[jeId] [int] NULL,
+	[invoiceId] [int] NULL,
+	[methodRate] [money] NOT NULL default ((1.0))
+  ) ON [PRIMARY]
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'journalLink' and COLUMN_NAME = 'receiptId')
+   alter table journalLink add receiptId int null
+
+-- KEYLOG
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[keyLog]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   CREATE TABLE [dbo].[keyLog](
    id int IDENTITY(1,1) NOT NULL,
@@ -369,9 +352,4 @@ begin
    alter table keyLog add level int
  end
 
-if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
-  begin
-     CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
-     ([ID] ASC)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF,           ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
-  end
 end
