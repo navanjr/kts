@@ -9,7 +9,8 @@ begin
   @newId int,
   @receiptSlink varchar(15) = '0' + cast(@receiptId as varchar),
   @jeDescription varchar(50) = 'Credit/Void receipt id:' + cast(@receiptId as varchar),
-  @log varchar(max) 
+  @log varchar(max),
+  @jeId int 
 
 -- get the postdate
  select @postdate = dbo.clariondate(getDate())
@@ -23,7 +24,14 @@ begin
   return
  end
 
- -- TODO: bail if this has already been voided/canceled
+ -- bail if this has already been voided/canceled
+ if exists (select * from dbo.journalLink where receiptid = @receiptId)
+ begin
+  select top 1 @jeId = jeId from dbo.journalLink where @receiptId = @receiptId
+  exec dbo.logit @@procid, 'Appears Void already exists... @jeId', @jeId
+  select '@code=1;@message=Void already exists... Can not continue.'
+  return
+ end
 
  -- TODO: bail if there is no balance. like if it was done wrong
 
