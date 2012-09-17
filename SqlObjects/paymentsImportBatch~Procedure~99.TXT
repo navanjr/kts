@@ -10,14 +10,14 @@ begin
    @voucherDate int,
    @voucherNumber varchar(50),
    @payee varchar(50),
-   @amount varchar(50),
-   @debitAcct varchar(50),
-   @creditAcct varchar(50),
-   @officialsFundCode varchar(50),
+   @amount varchar(50) = 0,
+   @debitAcct varchar(50) = '',
+   @creditAcct varchar(50) = '',
+   @officialsFundCode varchar(50) = '',
    @resultStringToken varchar(100),
-   @officialName varchar(50),
-   @officialDepositCode varchar(50),
-   @officialBankCode varchar(50)
+   @officialName varchar(50) = '',
+   @officialDepositCode varchar(50) = '',
+   @officialBankCode varchar(50) = ''
 
   declare @wt table (
    id int,
@@ -44,7 +44,7 @@ begin
    @code = @code output,
    @message = @message output 
 
- if not @code = 0
+ if @code != 0 and @paymentType <> 'official warrant'
  begin
    select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
    return
@@ -112,7 +112,21 @@ begin
 
    if @debugMode = 'false'
    begin
+    if @paymentType = 'official warrant'
+    begin
     exec dbo.paymentCRUD 0,  
+     @paymentType = @paymentType,
+     @voucherDate = @voucherDate,
+     @voucherNumber = @voucherNumber,
+     @payee = @payee,
+     @amount = @amount,
+     @debitAcct = @debitAcct,
+     @creditAcct = @creditAcct,
+     @postResult = @resultStringToken output
+    end
+    else
+    begin
+     exec dbo.paymentCRUD 0,  
      @paymentType = @paymentType,
      @officialName = @officialName,
      @officialDepositCode = @officialDepositCode,
@@ -124,7 +138,7 @@ begin
      @debitAcct = @debitAcct,
      @creditAcct = @creditAcct,
      @postResult = @resultStringToken output
-
+    end
     insert @results select dbo.readString('@code=',@resultStringToken),@resultStringToken
 
     end
