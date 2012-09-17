@@ -38,6 +38,11 @@ begin
     '@debitFieldLabel=WR Fund;'
     + '@creditFieldLabel=ACP Fund;'
 
+  if right(@paymentType,5) = 'Check'
+   select @log = 
+    '@debitFieldLabel=ACP Fund;'
+    + '@creditFieldLabel=EXP Fund;'
+
   select @log
  end
 
@@ -93,13 +98,13 @@ begin
    select
     @paymentType = 'Treasurers Check',
     @voucherDate = dbo.clarionDate(getDate()),
-    @amount = a3,
-    @debitAcct = a5,
-    @creditAcct = a4,
-    @officialName = a7,
-    @officialDepositCode = a8,
-    @officialBankCode = a9
-   from object where typ = 4771 and id = @id
+    @amount = a.a3,
+    @debitAcct = a.a5,
+    @creditAcct = a.a4,
+    @officialName = a.a7,
+    @officialDepositCode = b.targetAccountCode,
+    @officialBankCode = a.a9
+   from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
     select @officialBankCode = key1 from object where typ = 4780 and id = @bankStatementId

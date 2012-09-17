@@ -10,7 +10,8 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  accountBlob varchar(1000),
  debitAcct varchar(50),
  creditAcct varchar(50),
- postCheck int
+ postCheck int,
+ expenseAcct varchar(50)
 )
 begin
 
@@ -27,7 +28,8 @@ begin
  accountBlob varchar(1000),
  debitAcct varchar(50),
  creditAcct varchar(50),
- postCheck int
+ postCheck int,
+ expenseAcct varchar(50)
 )
 
 -- TODO: ok at some point i want to add the officials bank account to the contraid on the Debit to the _WR account this will make the bankstatment work cooler!
@@ -77,7 +79,7 @@ begin
     (select data from dbo.split(@dataToken,',') where id = 5),
     (select data from dbo.split(@dataToken,',') where id = 6),
     (select data from dbo.split(@dataToken,',') where id = 7),
-    null,null,null,null
+    null,null,null,null,null
 
   delete @rows where id = @idToken
  end
@@ -88,12 +90,13 @@ begin
    update @wt set accountBlob = dbo.glAccountGetFundAccrualBlob(clerksFund, 'Clerks Fund')
    update @wt set 
     creditAcct = dbo.readString('@accrualCode=',accountBlob),
-    debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob)
+    debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob),
+    expenseAcct = dbo.readString('@expenseCode=',accountBlob) 
 
  update @wt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @wt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
 
- insert @rt
+ insert @rt 
   select
    fiscalYear,
    clerksFund,
@@ -105,7 +108,8 @@ begin
    accountBlob,
    debitAcct,
    creditAcct,
-   postCheck
+   postCheck,
+   expenseAcct
   from @wt 
   group by
    fiscalYear,
@@ -116,7 +120,8 @@ begin
    accountBlob,
    debitAcct,
    creditAcct,
-   postCheck
+   postCheck,
+   expenseAcct
   
 
  return 
