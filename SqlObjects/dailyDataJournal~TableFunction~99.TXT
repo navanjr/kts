@@ -1,4 +1,4 @@
-CREATE function dbo.dailyDataDeposits(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
+CREATE function dbo.dailyDataJournal(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
 @rt table (
  id int,
  ord varchar(10),
@@ -29,7 +29,7 @@ begin
   ord varchar(50),
   description varchar(50),
   subDescription varchar(50),
-  depositNumber varchar(50),
+  jeNumber varchar(50),
   amount money,
   slink2 varchar(15),
   typ int
@@ -56,7 +56,7 @@ begin
   c.typ
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
-  and c.typ in (4513,4771)
+  and c.typ in (4512)
   and dbo.slinkType(b.slink) = 'o'
   and dbo.slinkId(b.slink) = c.id
   and b.date between @theDate and @theDate + @days
@@ -69,9 +69,9 @@ begin
   ord,
   description,
   subDescription,
-  null,
-  null,
-  COUNT(depositNumber),
+  min(jeNumber),
+  max(jeNumber),
+  COUNT(jeNumber),
   abs(SUM(amount)),
   0
  from @wtRaw
@@ -80,28 +80,6 @@ begin
   ord,
   description,
   subDescription
- order by ord
-
--- this will get both the deposit and disburment rows
- insert @wt
- select
-  0,
-  ord + 'b',
-  ord,
-  description,
-  case when typ = 4771 then '   Disbursments' else '   Deposits' end, --subDescription,
-  min(depositNumber),
-  max(depositNumber),
-  COUNT(depositNumber),
-  abs(SUM(amount)),
-  0
- from @wtRaw
- group by
-  id,
-  ord,
-  description,
-  subDescription,
-  typ
  order by ord
 
 -- get the balance of the accounts
@@ -123,7 +101,7 @@ begin
 
  -- headers
  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed'
- insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursments','','  Deposits & Disbursments','','','','sHeader'
+ insert @rt select 0,@ordSeed+'00aa','  Transactions Effected by Journal Entry','','  Transactions Effected by Journal Entry','','','','sHeader'
  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line'
 
 -- insert subtotals
@@ -171,18 +149,6 @@ begin
  from @wt 
  group by reportOrder,description
 
-
-/*
- if exists(select * from @wt where description = 'Depository')
- begin
-  declare @reportSub varchar(50)
-  select @reportSub = max(ord) from @wt where description = 'Depository'
-  insert @rt select 0,@ordSeed+@reportSub+'a','','','','','','','lineFeed'
-  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers','','  Deposits by Officers','','','','sHeader'
-  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line'
- end
-*/ 
-
 -- insert grand total
  if exists(select * from @wt)
  begin
@@ -192,11 +158,11 @@ begin
   select
    0,
    @ordSeed + 'db',
-   dbo.padLeft('Total Deposits & Disburments ', ' ', 60)
+   dbo.padLeft('Total Journal Entry ', ' ', 60)
    + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
    + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
    dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
-   dbo.padLeft('Total Deposits & Disbursments  ', ' ', 50),
+   dbo.padLeft('Total Journal Entry  ', ' ', 50),
    '',
    dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
