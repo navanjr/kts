@@ -20,8 +20,12 @@ call :getIni ..\keyGit.ini git path
 set gitPath=%val%
 
 set val=
-call :getIni ..\keyGit.ini git saPass
-set sapass=%val%
+call :getIni ..\keyGit.ini git user
+set user=%val%
+
+set val=
+call :getIni ..\keyGit.ini git pass
+set pass=%val%
 
 set val=
 call :getIni ..\keyGit.ini git dropdll
@@ -31,12 +35,14 @@ echo the server is %server%
 echo the escaped server is %serverEsc%
 echo the dbname is %dbname%
 echo the gitPath is %gitPath%
-echo the sapass is %sapass%
+echo the user is %user%
+echo the pass is %pass%
 
 if "%server%"=="" goto blankserver
 if "%dbname%"=="" goto blankdbname
 if "%gitPath%"=="" goto blankgitpath
-if "%sapass%"=="" goto blanksapass
+if "%user%"=="" goto blankuser
+if "%pass%"=="" goto blankpass
 
 echo ==============================
 echo     Options
@@ -62,37 +68,37 @@ GOTO:finish
 
 :SetServerPath
 SET /P newPath=Enter the Path to the Repo from the Server:
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"update object set b13='@gitPath=%newPath%;' where typ=0 and link1=-1"
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"update object set b13='@gitPath=%newPath%;' where typ=0 and link1=-1"
 echo @gitPath=%newPath%
 GOTO:finish
 
 :SetGitCommitter
 set gcValue=%1
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"update object set b14='@gitCommitter=%gcValue%;' where typ=0 and link1=-1"
+sqlcmd -S%server% -d%dbname% %user% -P%pass% -Q"update object set b14='@gitCommitter=%gcValue%;' where typ=0 and link1=-1"
 echo set @gitCommitter=%gcValue%
 GOTO:finish
 
 :TestConnection
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"select b13 as gitPath, b14 as gitCommitter from Object where Link1 = -1 and TYP = 0"
+sqlcmd -S%server% -d%dbname% %user% -P%pass% -Q"select b13 as gitPath, b14 as gitCommitter from Object where Link1 = -1 and TYP = 0"
 GOTO:finish
 
 :dropObjects
-dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 GOTO:finish
 
 :ImportRepo
-dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~2.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~3.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~4.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -Usa -P%sapass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.glCreateTables"
-sqlcmd -S%server% -d%dbname% -Usa -P%sapass% -Q"exec dbo.keyUpdateAll" | grep @code=
+dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~2.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~3.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~4.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
+dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% %user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+sqlcmd -S%server% -d%dbname% %user% -P%pass% -Q"exec dbo.glCreateTables"
+sqlcmd -S%server% -d%dbname% %user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep @code=
 if DEFINED dropdll goto dodropdll
 GOTO:finish
 
@@ -116,8 +122,11 @@ GOTO:finish
 :blankgitpath
 echo Sorry, your missing a path to your git repo (check your ini)
 GOTO:finish
-:blanksapass
-echo Sorry, your missing an sa password (check your ini)
+:blankuser
+echo Sorry, your missing the user (check your ini)
+GOTO:finish
+:blankpass
+echo Sorry, your missing the password (check your ini)
 GOTO:finish
 
 :getIni
