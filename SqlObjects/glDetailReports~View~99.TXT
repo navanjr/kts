@@ -8,10 +8,53 @@ select
  credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
  date,
  slink,
- sourceKey1 = b.key1, 
+ sourceKey1 = b.key1,
+ sourceDate = b.key2, 
  sourceKey3 = b.key3,
+ sourceType = cast(b.typ as varchar(15)),
  accountType = c.a1
 from gldetail a, object b, object c
 where
  a.slink = 'o'+cast(b.id as varchar)
+ and a.accountId = c.id
+
+union all
+
+select
+ fpCode,fpDesc,
+ accountCode,accountDesc,
+ amount,
+ debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
+ credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
+ date,
+ slink,
+ sourceKey1 = b.item,
+ sourceDate = cast(b.postdate as varchar(50)), 
+ sourceKey3 = b.typ,
+ sourceType = 'Invoice',
+ accountType = c.a1
+from gldetail a, invoices b, object c
+where
+ a.slink = 't'+cast(b.id as varchar)
+ and a.accountId = c.id
+
+union all
+
+select
+ fpCode,fpDesc,
+ accountCode,accountDesc,
+ amount,
+ debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
+ credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
+ date,
+ slink,
+ sourceKey1 = d.key1,
+ sourceDate = d.key2, 
+ sourceKey3 = d.key3,
+ sourceType = cast(d.typ as varchar(15)),
+ accountType = c.a1
+from gldetail a, receiptLink b, object d, object c
+where
+ a.slink = 'l'+cast(b.id as varchar)
+ and d.id = b.receiptId
  and a.accountId = c.id
