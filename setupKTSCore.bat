@@ -1,11 +1,13 @@
 @echo off
-pushd c:\client\key\kts
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 set /P server=Where is the server?
 set /P dbname=What do you want to name this new database?
 set /P userpassentered=What do you want the key RID Password to use? (dont worry about caseing, i will convert to upper for you.)
 set /P kppass=What is the Kellpro Support SA Super Secret Password? (this one is case sensitive.)
+set /P gitpath=What is the path to the git repo?
+
+pushd %gitpath%
 
 call :UCase userpassentered userpass
 
@@ -20,25 +22,25 @@ rem CREATE THE APPLICATION USER
  sqlcmd -S%server% -d%dbname% -Usa -P%kppass% -Q"exec master..sp_addsrvrolemember @loginame = N'%dbname%User', @rolename = N'sysadmin'"
 
 rem TWEAK SQL ENVIRONMENT
- sqlcmd -S%server% -d%dbname% -Usa -P%kppass% -i C:\client\key\kts\SqlObjects\enableAdvancedSQLOptions~Procedure~1.txt
+ sqlcmd -S%server% -d%dbname% -Usa -P%kppass% -i %gitpath%\SqlObjects\enableAdvancedSQLOptions~Procedure~1.txt
  sqlcmd -S%server% -d%dbname% -Usa -P%kppass% -Q"exec dbo.enableAdvancedSQLOptions"
 
 rem SETUP CORE KEY AND KTS TABLES AND SUCH
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\keyCore~Script~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\keySQLObjectDispatcher~Procedure~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridread~ScalarFunction~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\ridwrite~ScalarFunction~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\getSiteBlob~ScalarFunction~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\spWriteStringToFile~Procedure~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\split~TableFunction~2.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\clariondate~ScalarFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\clariondate114~ScalarFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\dirRead~TableFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\SqlObjectCompare~TableFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\superTrim~ScalarFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\superLTrim~ScalarFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\superRTrim~ScalarFunction~3.txt
- sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i C:\client\key\kts\SqlObjects\logit~Procedure~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\keyCore~Script~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\keySQLObjectDispatcher~Procedure~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\ridread~ScalarFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\ridwrite~ScalarFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\getSiteBlob~ScalarFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\spWriteStringToFile~Procedure~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\split~TableFunction~2.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\clariondate~ScalarFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\clariondate114~ScalarFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\dirRead~TableFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\SqlObjectCompare~TableFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\superTrim~ScalarFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\superLTrim~ScalarFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\superRTrim~ScalarFunction~3.txt
+ sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -i %gitpath%\SqlObjects\logit~Procedure~3.txt
 
  sqlcmd -S%server% -d%dbname% -U%dbname%User -P%userpass% -Q"insert object (typ,link1) select 0,-1"
 
