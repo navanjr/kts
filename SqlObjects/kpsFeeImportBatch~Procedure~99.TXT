@@ -1,4 +1,4 @@
-CREATE procedure dbo.kpsFeeImportBatch
+CREATE procedure [dbo].[kpsFeeImportBatch]
 as
 
 begin
@@ -10,14 +10,13 @@ begin
 	sourcecode varchar(5) NOT NULL,
 	fundcode varchar(4) NOT NULL,
 	subInvoiceType varchar(1) NOT NULL,
-	amount numeric(9, 2) NOT NULL)
+	amount money NOT NULL)
 
 insert @wt
  select * from importfees
 
  declare 
   @idToken int,
-  @resultTally int,
   @maininvoiceId int,
   @date varchar(5),
   @description varchar(17),
@@ -26,25 +25,21 @@ insert @wt
   @subInvoiceType varchar(1),
   @amount numeric(9, 2)
 
- 
  while exists(select * from @wt)
  begin
   select top 1 
   @idToken = id, 
   @maininvoiceId=maininvoiceId,
-  @date=date,
-  @description=description,
+  @date=[date],
+  @description=[description],
   @sourcecode=sourcecode,
   @fundcode=fundcode,
   @subInvoiceType=subInvoiceType,
   @amount=amount
   from @wt
 
-  begin transaction
    exec dbo.subInvoiceCRUD @maininvoiceId,@date,@description,@sourcecode,@fundcode,@subInvoiceType,@amount
   
    delete @wt where id = @idToken
-
  end
-
 end
