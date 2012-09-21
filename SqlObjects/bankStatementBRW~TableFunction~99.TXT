@@ -52,6 +52,7 @@ begin
 -- add Warrants, Maybe
  if not @warrantFlag = 1
   return
+
  insert @rt (id,description,ord) select 0,'','w' 
  insert @rt (id,description,ord) select 0,'Warrants: ','ww' 
  insert @rt (id, description, subDescription, dbAmount, ord)
@@ -59,13 +60,25 @@ begin
    '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
    b.a2,
    sum(a.amount),
-   'ww' 
+   'ww' + a.accountCode + b.key3 
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
    and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT')
    and b.link1 = 0
-  group by a.accountDesc, b.key2, b.a2, b.key3, b.id
+  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id
   having sum(amount) > 0
+
+-- add header rows for fund
+ insert @rt (id, description, subDescription, ord)
+  select 0,
+   ' -- ' + a.accountCode + ' - ' + a.accountDesc,
+   '',
+   'ww' + a.accountCode
+  from dbo.glDetail a, object b
+  where a.slink = 'o' + cast(b.id as varchar)
+   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT')
+   and b.link1 = 0
+  group by a.accountCode, a.accountDesc
  
  return
 end
