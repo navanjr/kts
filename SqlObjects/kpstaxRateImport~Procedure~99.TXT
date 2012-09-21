@@ -57,7 +57,33 @@ SELECT * into appsch02 FROM OPENROWSET('MSDASQL', 'DRIVER={Microsoft FoxPro VFP 
 Exclusive=No;SourceType=DBF;SourceDB=L:\data\newtax\ROGERMIL', 
 'SELECT * from appsch02') 
 
+SELECT * into fee FROM OPENROWSET('MSDASQL', 'DRIVER={Microsoft FoxPro VFP Driver (*.dbf)};UID=;Deleted=No;Null=No;Collate=Machine;BackgroundFetch=Yes;
+Exclusive=No;SourceType=DBF;SourceDB=C:\support\newtax', 
+'SELECT * from fee') where taxyear+itm_nbr in (select taxyear+itm_nbr from taxroll)
+
 select a.*,b.*,c.[postdist],c.[postvtec],c.[postcity],c.[dname] into txlv from appsch02 a, lineitems b, appsch01 c where a.lineitem=b.iden and a.sch_n=c.sch_n and a.city_c=c.city_c and a.year=c.year
+
+How to build the fee import file
+
+select  
+(select top 1 id from invoices where taxrollId = adtax.id and invoiceId=0) as maininvoiceId,
+'77333' as date,
+case 
+when fee.type='A' then 'MAIL'
+when fee.type='B' then 'LIEN'
+when fee.type='C' then 'ADVERTISE'
+when fee.type='D' then 'MOWING'
+when fee.type='E' then 'RETURN CHECK'
+when fee.type='G' then 'TAX WARRANT'
+when fee.type='H' then 'ASSESSOR INTEREST'
+else 'OTHER' end as description,
+'9005A' as sourcecode,
+'0015' as fundcode,
+'F' as subInvoiceType,
+fee.amount
+into importfees
+from fee, adtax
+where fee.taxyear+fee.itm_nbr=cast(adtax.realtaxyear as varchar(4)) + right('000000'+cast(cast(adtax.ITEMNUMBER as int) as varchar(6)),6)
 
 */
  
