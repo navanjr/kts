@@ -1,0 +1,23 @@
+create proc dbo.glAccountUpdate (
+ @accountId int = 0,
+ @mode varchar(50) = 'default',
+ @accountsBlob varchar(max) = null
+) as
+begin
+ set nocount on
+
+--TODO: left the accountsBlob parameter incase we need a way to update specific accounts.  Like if we want to pass in all the accounts effected by an invoice or somthing
+
+ if @mode = 'ALL'
+ begin
+  update object set a15 = isnull((select sum(amount) from glDetail where accountId = object.id),'') where typ = 4701 
+  return
+ end
+
+ if @mode = 'default' and @accountId > 0
+ begin
+  update object set a15 = (select sum(amount) from glDetail where accountId = object.id) where typ = 4701 and id = @accountId
+  return
+ end
+
+end
