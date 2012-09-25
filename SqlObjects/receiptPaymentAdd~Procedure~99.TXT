@@ -51,7 +51,7 @@ begin
 
  begin transaction
 
-  -- add row to paid
+-- add or update paid
   if isnull(@paymentId,0) < 1
    insert paid (paycode,slink,amount,checkno,bankId,drawnon,location)
     select @paycode,@slink,@amount,@checkNumber,@bankId,@drawnon,@location
@@ -59,14 +59,13 @@ begin
    update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId,drawnon=@drawnon,location=@location where id=@paymentId
 
 
-  -- add to the gl stage
+-- add to the gl stage
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
    exec dbo.receiptStageGL @receiptId
 
-  -- get the balance of the glStage to check your work
-
+-- get the balance of the glStage to check your work
   if @receiptType = 'TAX'
    select @balance = isnull(balance,0) from dbo.glTaxSummary(@receiptId)
   else
@@ -83,6 +82,8 @@ begin
 
   if @balance != 0
   begin
+-- Nate was here
+
    rollback transaction
    select '@code=1;@message=Payment transaction was rolled back. Contact Support. {' + @receiptType + ':' + cast(@balance as varchar) + '};'
    return

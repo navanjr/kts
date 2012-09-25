@@ -68,12 +68,31 @@ begin
    insert @rettable (ord,id,description,subdescription,amount)
    select 'cb',0,'GL Detail (staged)','',0
 
+   declare @stageScratch table(accountId int, amount money, accountType varchar(50), accountDesc varchar(50), ord varchar(50))
+   insert @stageScratch
+   select accountId, sum(amount),'','','' 
+    from dbo.glDetailStage 
+    where slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
+    group by accountId 
+   update a set
+    a.accountType = b.accountType,
+    a.accountDesc = b.accountDesc,
+    a.ord = 'cc' + b.accountType
+   from @stageScratch a, dbo.glAccounts b where a.accountId = b.accountId
+   update @stageScratch set accountType = 'suspense', accountDesc = 'Temporary Suspense', ord = 'ccZsuspense' where isnull(accountId,0) = 0
+
+   insert @rettable (ord,id,description,subdescription,amount)
+   select ord,0,'   '+accountDesc,lower(accountType),sum(amount)
+   from @stageScratch
+   group by accountType, accountDesc, ord
+
+/*
    insert @rettable (ord,id,description,subdescription,amount)
    select 'cc'+b.accountType,0,'   '+a.accountDesc,lower(b.accountType),sum(a.amount)
    from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId
     and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
    group by b.accountType, a.accountDesc
-
+*/
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)
