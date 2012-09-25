@@ -1,0 +1,27 @@
+create function dbo.stripChars(
+ @data varchar(max),
+ @chars varchar(max) -- pass the chars like this '10,13' etc...
+) returns varchar(max) as 
+begin
+ -- this guy will strip all the chars you tell it too. 
+
+ declare
+  @retString varchar(max),
+  @idToken int,
+  @asciiCodeToken int
+ 
+ declare @charTable table( id int, asciiCode int )
+ 
+ insert @charTable select id, cast(data as int) from dbo.split(@chars, ',') where data > '  0'
+
+ set @retString = @data
+ while exists( select * from @charTable )
+ begin
+  select top 1 @idToken = id, @asciiCodeToken = asciiCode from @charTable order by id 
+  set @retString = replace( @retString, char(@asciiCodeToken), '')
+  delete @charTable where id = @idToken
+ end
+ 
+ return @retString
+
+end

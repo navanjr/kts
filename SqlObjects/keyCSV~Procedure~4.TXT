@@ -1,0 +1,112 @@
+create procedure dbo.keyCSV(
+ @mode varchar(10),
+ @objectTyp int = 0
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, 'Started CSV Proc @mode', @mode
+ if @objectTyp != 0
+  exec dbo.logit @@procid, '@objectTyp', @objectTyp
+
+ declare
+  @path varchar(1000),
+  @fullPath varchar(1000),
+  @data varchar(max) = ''
+ 
+ select @path = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
+ select @fullPath = @path + '\CSV\objData.csv'
+
+ if @mode = 'export'
+ begin
+  declare
+   @pre varchar(10) = '"',
+   @post varchar(10) = '",',
+   @lineEnding varchar(10) = '"' + char(13) + char(10)
+
+  declare @typs table( id int )
+  insert @typs select cast(key1 as int) from object where typ = 454 and cast(key1 as int) != 0
+
+  select @data = @data
+   + @pre + cast(typ as varchar) + @post   
+   + @pre + key1 + @post   
+   + @pre + key2 + @post   
+   + @pre + key3 + @post   
+   + @pre + a1 + @post   
+   + @pre + a2 + @post   
+   + @pre + a3 + @post   
+   + @pre + a4 + @lineEnding
+  from object where typ in (select id from @typs) 
+
+  exec dbo.spOverwriteTextFile @fileName = @fullPath, @text = @data
+
+  return
+ end
+
+ if @mode = 'import'
+ begin
+  declare @objectStage table(
+   typ int,
+   key1 varchar(50),
+   key2 varchar(50),
+   key3 varchar(50),
+   a1 varchar(50),
+   a2 varchar(50),
+   a3 varchar(50),
+   a4 varchar(50)
+  )
+  declare @split table(
+   csvId int,
+   csvRow varchar(max)
+  )
+  declare @idToken int = 0
+
+  exec dbo.spReadTextFile @fullPath, @fileContents = @data out
+
+  insert @split select id, dbo.stripChars(data,'10,13,34') from dbo.split(@data,char(13))
+
+  while exists ( select * from @split )
+  begin
+   set @idToken = @idToken + 1
+
+   insert @objectStage
+   select
+    (select data from dbo.split(csvRow,',') where id = 1),
+    (select data from dbo.split(csvRow,',') where id = 2),
+    (select data from dbo.split(csvRow,',') where id = 3),
+    (select data from dbo.split(csvRow,',') where id = 4),
+    (select data from dbo.split(csvRow,',') where id = 5),
+    (select data from dbo.split(csvRow,',') where id = 6),
+    (select data from dbo.split(csvRow,',') where id = 7),
+    (select data from dbo.split(csvRow,',') where id = 8)
+   from @split where csvId = @idToken
+
+   delete @split where csvId = @idToken
+  end 
+
+  -- if typ supplied remove all typs that dont match
+  if @objectTyp > 0
+   delete @objectStage where typ != @objectTyp
+
+  -- insert
+  insert object (typ,key1,key2,key3,a1,a2,a3,a4)
+  select * from @objectStage where cast(typ as varchar) + ',' + key1 not in (select cast(typ as varchar) + ',' + key1 from object)
+  delete @objectStage where cast(typ as varchar) + ',' + key1 not in (select cast(typ as varchar) + ',' + key1 from object)
+
+  -- update
+  update a set
+   a.key2 = case when b.key2 > '  0' then b.key2 else a.key2 end, 
+   a.key3 = case when b.key3 > '  0' then b.key3 else a.key3 end, 
+   a.a1 = case when b.a1 > '  0' then b.a1 else a.a1 end, 
+   a.a2 = case when b.a2 > '  0' then b.a2 else a.a2 end, 
+   a.a3 = case when b.a3 > '  0' then b.a3 else a.a3 end, 
+   a.a4 = case when b.a4 > '  0' then b.a4 else a.a4 end 
+  from object a, @objectStage b
+  where a.typ = b.typ and a.key1 = b.key1
+
+  -- delete
+
+  return
+ end
+
+end

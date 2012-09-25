@@ -17,16 +17,12 @@ lbrw1color=obj7:c10=1,32768;
 @gfwindow=
  if(obj:type=obj:key1,brwreload(1));
 
-\t001Type; \t002@n8; \w00240; \h001002obj:key1=obj:type;r
-\t003Import Flag; \h003004;r
-
-@createFolder=
- gcGitCmd='mkdir '&gcRepoPath&'\CSV',
- do(2,gitCommand=);
-
 @exportCsv1=
   lcId=kp('select id from object where typ=454 and key1=typ'),
   if(lcId+0>0,change(lcId),new(454));
+
+\t001Type; \t002@n8; \w00240; \h001002obj:key1=obj:type;r
+\t003Import Flag; \h003004;r
 
 \t105&Add; @acc105=new(obj:type);
 
@@ -37,32 +33,19 @@ lbrw1color=obj7:c10=1,32768;
 
 \t109&Export; 
 @acc109=
- if(kpexists(gcRepoPath&'\CSV')<>1,createFolder=),
- lcFile=gcRepoPath&'\CSV\objData.csv',
- sqlexport('select Typ,Link1,Link2,Link3,Link4,Link5,Key1,Key2,Key3,A1,A2,A3,A4 from object where typ in (select Key1 from Object where Typ=454)',lcFile,4);
-
+ d1select('exec dbo.keyCSV ''export'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Export CSV...')),
+ refreshbrw=;
 
 \t110&Import;
 @acc110=
- lcFile=gcRepoPath&'\CSV\objData.csv',
- scancsv(lcFile,loadem=,1);
+ d1select('exec dbo.keyCSV ''import'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import CSV...')),
+ refreshbrw=;
 
-@loadem=
- lcId=kp('select id from object where typ='&imp:fld01&'and key1='''&imp:fld07&''''),
- if(lcId>'  0',updateIt=,createIt=);
-
-@updateIt=
- fastmodify(lcId,004=choose(len(imp:fld08)>0,imp:fld08,obj1:key2),006=choose(len(imp:fld09)>0,imp:fld09,obj1:key3),008=choose(len(imp:fld10)>0,imp:fld10,obj1:a1),010=choose(len(imp:fld11)>0,imp:fld11,obj1:a2),012=choose(len(imp:fld12)>0,imp:fld12,obj1:a3));
-
-@createIt=
- fastinsert(-02=imp:fld01,002=imp:fld07,004=imp:fld08,006=imp:fld09,008=imp:fld10,010=imp:fld11,012=imp:fld12);
- 
 \t111&Import One;
 @acc111=
  gcType=kp('select key1 from object where id='&kpbrwid(1)),
- lcFile=gcRepoPath&'\CSV\objData.csv',
- scancsv(lcFile,loadem1=,1);
-
-@loadem1=
- if(imp:fld01=gcType,loadem=);
- m(imp:fld01&' - '&gcType),
+ d1select('exec dbo.keyCSV ''import'', @objectTyp='&gcType),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import CSV...')),
+ refreshbrw=;
