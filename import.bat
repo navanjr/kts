@@ -57,7 +57,7 @@ IF /I "%runmode%"=="T" GOTO TestConnection
 IF /I "%runmode%"=="I" GOTO ImportRepo
 IF /I "%runmode%"=="G" GOTO SetGitCommitterQ
 IF /I "%runmode%"=="S" GOTO SetServerPath
-IF /I "%runmode%"=="N" GOTO Nate
+IF /I "%runmode%"=="N" GOTO sendLog
 GOTO:finish
 
 :SetGitCommitterQ
@@ -101,6 +101,11 @@ sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables"
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep @code=
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import"
 if DEFINED dropdll goto dodropdll
+GOTO:sendLog
+
+:sendLog
+git log -n40 --oneline --decorate | sed s/\n/\r\n/ | sed s/\'//  | sed "1iupdate object set e1=\'" | sed "$a\' where typ=0 and link1=-1" > ..\importLog.sql
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -i ..\importLog.sql
 GOTO:finish
 
 :finish
