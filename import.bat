@@ -86,8 +86,6 @@ GOTO:finish
 dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 GOTO:finish
 
-:ImportCSV
-
 :ImportRepo
 dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
 dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
@@ -101,6 +99,7 @@ dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%server
 dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables"
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep @code=
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import"
 if DEFINED dropdll goto dodropdll
 GOTO:finish
 
