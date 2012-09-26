@@ -8,16 +8,23 @@ begin
   @post varchar(10) = ',',
   @lineEnding varchar(10) = char(13) + char(10),
   @data varchar(max) = ''
- 
+
  select @data = @data + 
-  + @pre + rtrim(wfy) + @post
-  + @pre + rtrim(fundid) + @post
-  + @pre + rtrim(warno) + @post
-  + @pre + rtrim(dteIssue) + @post
+  + @pre + rtrim(a.wfy) + @post
+  + @pre + rtrim(b.srt) + @post
+  + @pre + rtrim(a.warno) + @post
+  + @pre + rtrim(a.dteIssue) + @post
   + @pre + '' + @post
-  + @pre + cast(amnt as varchar) + @post
-  + @pre + rtrim(paywhom) + @lineEnding
- from dbo.mike_openWarrants()
+  + @pre + cast(a.amnt as varchar) + @post
+  + @pre + rtrim(a.paywhom) + @lineEnding
+ from
+  dbo.mike_WARRANTs() a,
+  dbo.mike_PICKLIST() b 
+ where
+  a.DTEPAID < '00000000'
+  and a.AMNT > 0.00
+  and b.TYPE = 'ASGN'
+  and left(b.VAL2,10) = a.fundid
 
  select @data
 
