@@ -44,6 +44,9 @@ if "%gitPath%"=="" goto blankgitpath
 if "%user%"=="" goto blankuser
 if "%pass%"=="" goto blankpass
 
+GOTO:display
+
+:display
 echo ==============================
 echo     Options
 echo ==============================
@@ -51,40 +54,42 @@ echo   [T]est Connection
 echo   [I]mport from repo
 echo   [G]it Committer
 echo   [S]erver's Path to the Repo
+echo    e[x]it
 echo ------------------------------
 SET /P runmode=Please Choose:
-IF /I "%runmode%"=="T" GOTO TestConnection
-IF /I "%runmode%"=="I" GOTO ImportRepo
-IF /I "%runmode%"=="G" GOTO SetGitCommitterQ
-IF /I "%runmode%"=="S" GOTO SetServerPath
-IF /I "%runmode%"=="N" GOTO sendLog
-GOTO:finish
+IF /I "%runmode%"=="T" call:TestConnection
+IF /I "%runmode%"=="I" call:ImportRepo
+IF /I "%runmode%"=="G" call:SetGitCommitterQ
+IF /I "%runmode%"=="S" call:SetServerPath
+IF /I "%runmode%"=="N" call:sendLog
+IF /I "%runmode%"=="X" GOTO finish
+GOTO:display
 
 :SetGitCommitterQ
 SET /P qanswer=set gitCommitter? ( [E]nable / [D]isable )
 IF /I "%qanswer%"=="E" call :SetGitCommitter TRUE
 IF /I "%qanswer%"=="D" call :SetGitCommitter FALSE
-GOTO:finish
+GOTO:EOF
 
 :SetServerPath
 SET /P newPath=Enter the Path to the Repo from the Server:
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"update object set b13='@gitPath=%newPath%;' where typ=0 and link1=-1"
 echo @gitPath=%newPath%
-GOTO:finish
+GOTO:EOF
 
 :SetGitCommitter
 set gcValue=%1
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"update object set b14='@gitCommitter=%gcValue%;' where typ=0 and link1=-1"
 echo set @gitCommitter=%gcValue%
-GOTO:finish
+GOTO:EOF
 
 :TestConnection
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"select b13 as gitPath, b14 as gitCommitter from Object where Link1 = -1 and TYP = 0"
-GOTO:finish
+GOTO:EOF
 
 :dropObjects
 dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-GOTO:finish
+GOTO:EOF
 
 :ImportRepo
 dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
@@ -101,12 +106,12 @@ sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables"
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep @code=
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import"
 if DEFINED dropdll goto dodropdll
-GOTO:sendLog
+GOTO:EOF
 
 :sendLog
 git log -n40 --oneline --decorate | sed s/\n/\r\n/ | sed s/\'//  | sed "1iupdate object set e1=\'" | sed "$a\' where typ=0 and link1=-1" > ..\importLog.sql
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -i ..\importLog.sql
-GOTO:finish
+GOTO:EOF
 
 :finish
 echo finished
@@ -117,7 +122,7 @@ GOTO:EOF
 :dodropdll
 del %dropdll%
 echo I dropped it like it was hot
-GOTO:finish
+GOTO:EOF
 
 :blankdbname
 echo Sorry, you gotta pass me a dbname
