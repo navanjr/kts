@@ -48,6 +48,8 @@ begin
 
  if @mode = 3
  begin
+  exec dbo.logit @@procid, 'start mode 3 - paymentType', @paymentType
+
   -- bail if we are already posted
   if dbo.isPosted(@slink) = 'TRUE'
    return 
@@ -116,11 +118,19 @@ begin
 
   exec dbo.nextObjectAutoNumber 4771, @paymentType, @nextVoucherNumber output
 
-  exec dbo.logit @@procid, 'NextVoucherNumber', @nextVoucherNumber
-  exec dbo.logit @@procid, 'debitAccount', @debitAcct
-  exec dbo.logit @@procid, 'creditAccount', @creditAcct
-  exec dbo.logit @@procid, 'officialBankCode', @officialBankCode
+-- bail if we don't have all the accounts we need...
+  if @debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0'
+  begin
+   exec dbo.logit @@procid,
+    'Oops, Missing one of the following...  @debitAcct', @debitAcct,
+    '@creditAcct', @creditAcct,
+    '@officialBankCode', @officialBankCode,
+    '@officialDepositCode', @officialDepositCode
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+   return
+  end
 
+  exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
  begin try
   insert object (
@@ -152,11 +162,14 @@ begin
   declare @newId int = @@identity
   declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
 
+  exec dbo.logit @@procid, '@newId', @newId
+
  end
 
  if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher')
  begin
   commit transaction    
+  exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
   return
  end
 
@@ -164,20 +177,20 @@ begin
  if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher')
  begin
 
-  declare @stageRows table(acctCode varchar(50), amount money)
+  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
   insert @stageRows 
-    select @debitAcct, @amount
+    select @debitAcct, @amount, 'debitAcct'
    union all
-    select @creditAcct, @amount * -1
+    select @creditAcct, @amount * -1, 'creditAcct'
 
   if @paymentType in ('Treasurers Check') and @bankStatementId > 0 
   begin
 
 -- add the extra side of this transaction we need for buying warrants
    insert @stageRows 
-     select @officialDepositCode, @amount
+     select @officialDepositCode, @amount, 'officialDepositCode'
     union all
-     select @officialBankCode, @amount * -1
+     select @officialBankCode, @amount * -1, 'officialBankCode'
 
 -- and mark the original warrant as bought!
    update object set 
@@ -190,15 +203,21 @@ begin
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
 
+  set @log = '@stageRows Table' + char(13) + char(10) + dbo.padRight('acctCode',' ',15) + dbo.padLeft('amount',' ',15) + ' ' + 'glType' + char(13) + char(10)
+  select @log = @log + dbo.padRight(acctCode,' ',15) + dbo.padLeft(cast(amount as varchar),' ',15) + glType + char(13) + char(10) from @stageRows
+  exec dbo.logit @@procid, @log
+
   insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
   select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @newslink
    from @stageRows a, glAccounts b 
    where a.acctCode = b.accountCode
 
- commit transaction    
+  commit transaction    
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
 
   -- post gl
   exec dbo.glPost @newId, 'o', @resultString = @postResult output
+  exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end
 

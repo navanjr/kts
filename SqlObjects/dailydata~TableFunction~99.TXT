@@ -7,7 +7,8 @@ CREATE function dbo.dailydata(@theDate int, @days int, @filterString varchar(50)
  rowstring1 varchar(250),
  sourceNo varchar(50),
  recordCnt varchar(50),
- sourceAmt varchar(50)
+ sourceAmt varchar(50),
+ brwBGColor int
 )
 begin
  declare @showDetail table(id int)
@@ -27,17 +28,24 @@ begin
 -- Collections
  if substring(@filterString,1,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt from dbo.dailyDataCollections(@theDate, @days, 'A', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
 
 -- Deposits & Disbursments
  if substring(@filterString,3,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt from dbo.dailyDataDeposits(@theDate, @days, 'B', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataDeposits(@theDate, @days, 'G', @filterString)
 
 -- Journal
  if substring(@filterString,4,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt from dbo.dailyDataJournal(@theDate, @days, 'C', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataJournal(@theDate, @days, 'H', @filterString)
+
+-- Warrants
+ if substring(@filterString,5,1) = '1'
+  insert @rt 
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataWarrants(@theDate, @days, 'I
+', @filterString)
+    
 
 -- Accural
 -- if substring(@filterString,2,1) = '1'

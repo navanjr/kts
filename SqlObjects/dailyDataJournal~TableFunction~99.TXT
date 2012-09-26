@@ -8,7 +8,8 @@ CREATE function dbo.dailyDataJournal(@theDate int, @days int, @ordSeed varchar(5
  sourceNo varchar(50),
  recordCnt varchar(50),
  sourceAmt varchar(50),
- rowType char(10)
+ rowType char(10),
+ brwBGColor int
 )
 begin
 
@@ -96,13 +97,13 @@ begin
   case when minControlNumber is null then '' else dbo.padLeft(minControlNumber, 0, 5) + ' - ' + dbo.padLeft(maxControlNumber, 0, 5) end,
   dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
   dbo.padLeft(convert(varchar,amount,1),' ',16),
-  'detail'
+  'detail',0
  from @wt
 
  -- headers
- insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed'
- insert @rt select 0,@ordSeed+'00aa','  Transactions Effected by Journal Entry','','  Transactions Effected by Journal Entry','','','','sHeader'
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line'
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
+ insert @rt select 0,@ordSeed+'00aa','  Transactions Effected by Journal Entry','','  Transactions Effected by Journal Entry','','','','sHeader',1
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
 -- insert subtotals
  insert @rt
@@ -115,7 +116,7 @@ begin
   replicate('-',22),
   replicate('-',10),
   replicate('-',16),
-  'line'
+  'line',0
  from @wt 
  group by reportOrder,description
 
@@ -131,7 +132,7 @@ begin
   '',
   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-  'gFooter'
+  'gFooter',0
  from @wt 
  group by reportOrder,description
 
@@ -145,14 +146,14 @@ begin
   '',
   '',
   '',
-  'lineFeed'
+  'lineFeed',0
  from @wt 
  group by reportOrder,description
 
 -- insert grand total
  if exists(select * from @wt)
  begin
-  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line'
+  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
   insert @rt
   select
@@ -166,7 +167,7 @@ begin
    '',
    dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-   'grandTotal'
+   'grandTotal',0
   from @wt 
  end
 
