@@ -25,8 +25,9 @@ begin
   insert @glTypes select accountType from dbo.glBankFundTypes('FUND')
  if charindex('P',@glTypeFilter) > 0
   begin
-   insert @glTypes select 'PAYABLE'
+   insert @glTypes select 'ACCRUED PAYABLE'
    insert @glTypes select 'RECEIVABLE'
+   insert @glTypes select 'ACCRUED RECEIVABLE'
   end
  if @glTypeFilter in ('A','AZ')
   insert @glTypes select a1 from object where typ = 4701 and a1 not in (select glType from @glTypes) group by a1 
@@ -68,7 +69,7 @@ begin
   delete @rettable where isnull(beginningbalance,0)=0 and isnull(debits,0)=0 and isnull(credits,0)=0 and isnull(endingbalance,0)=0
 
  update @rettable set
-  ord = ord + dbo.padRight(accountType,' ',5) + left(ltrim(accountDesc),4),
+  ord = ord + dbo.padRight(accountType,' ',9) + left(ltrim(accountDesc),4),
   rowString = '  '
    + dbo.padRight(accountDesc,' ',29)
    + ' ' + dbo.padLeft(case when recCount != 0 then cast(recCount as varchar) else '' end,' ',4)
@@ -92,15 +93,15 @@ begin
   select 0,'AB',' ' + replicate('-',99)
 
  insert @rettable (id,ord,rowString) 
-  select 0,'AZ' + dbo.padRight(glType,' ',5),' ' + glType from @glTypes 
+  select 0,'AZ' + dbo.padRight(glType,' ',9),' ' + glType from @glTypes 
 
  insert @rettable (id,ord,rowString) 
-  select 0,'AZ' + dbo.padRight(glType,' ',5) + 'ZZ', ' ' + replicate('-',99) from @glTypes 
+  select 0,'AZ' + dbo.padRight(glType,' ',9) + 'ZZ', ' ' + replicate('-',99) from @glTypes 
 
 -- update subtotals
 
  insert @rettable (id,ord,rowString)
-   select 0,'AZ' + dbo.padRight(accountType,' ',5) + 'ZZZ',
+   select 0,'AZ' + dbo.padRight(accountType,' ',9) + 'ZZZ',
    dbo.padLeft(accountType+' SUBTOTALS',' ',36)
    + dbo.padLeft(case when sum(isnull(beginningBalance,0)) != 0 then convert(varchar,sum(isnull(beginningBalance,0)),1) else '' end,' ',16)
    + dbo.padLeft(case when sum(isnull(debits,0)) != 0 then convert(varchar,sum(isnull(debits,0)),1) else '' end,' ',16)
