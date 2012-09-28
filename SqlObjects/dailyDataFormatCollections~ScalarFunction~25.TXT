@@ -6,13 +6,23 @@ create function dbo.dailyDataFormatCollections(
  @amount money
 ) returns varchar(100) as 
 begin
- declare @retval varchar(100)
+
+ declare
+  @retval varchar(100),
+  @rowCountString varchar(15) = '',
+  @amountString varchar(15) = ''
+
+ if @rowCount is not null
+  set @rowCountString = cast(@rowCount as varchar)
+
+ if @amount is not null
+  set @amountString = convert(varchar,@amount,1)
 
  select @retval = 
   '   ' + dbo.padRight(@description, ' ', 43)
   + case when @minControlNumber is null then replicate(' ',13) else dbo.padLeft(@minControlNumber, 0, 5) + ' - ' + dbo.padLeft(@maxControlNumber, 0, 5) end
-  + ' ' + dbo.padLeft(cast(@rowCount as varchar), ' ', 4)
-  + dbo.padLeft(convert(varchar,@amount,1),' ',16)
+  + ' ' + dbo.padLeft(@rowCountString, ' ', 4)
+  + dbo.padLeft(@amountString,' ',16)
 
  return @retval
 end
