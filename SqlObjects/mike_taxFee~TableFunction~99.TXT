@@ -1,0 +1,19 @@
+create function dbo.mike_taxFee() returns @rt TABLE(
+	[taxyear] [char](4) NULL,
+	[itm_nbr] [char](6) NULL,
+	[key_suf] [char](2) NULL,
+	[type] [char](1) NULL,
+	[amount] [numeric](8, 2) NULL,
+	[amt2] [numeric](6, 2) NULL,
+	[date] [char](8) NULL,
+	[desc] [char](30) NULL
+) as 
+begin
+
+ insert @rt
+ select * from 
+    openrowset('VFPOLEDB', 'c:\client\dosdata\newtax\data\fee.dbf';'';
+    '','SELECT * FROM fee where !deleted()') where taxyear+itm_nbr in (select taxyear+itm_nbr from dbo.mike_taxroll())
+
+ return
+end
