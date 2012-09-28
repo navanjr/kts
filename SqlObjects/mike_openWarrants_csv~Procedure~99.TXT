@@ -1,4 +1,8 @@
-create procedure dbo.mike_openWarrants_csv as
+create procedure dbo.mike_openWarrants_csv(
+ @mode varchar(50) = 'RETURN',
+ @id int = 0
+)
+as
 begin
 
  set nocount on
@@ -9,7 +13,7 @@ begin
   @lineEnding varchar(10) = char(13) + char(10),
   @data varchar(max) = ''
 
- select @data = @data + 
+ select @data = @data +
   + @pre + rtrim(a.wfy) + @post
   + @pre + rtrim(b.srt) + @post
   + @pre + rtrim(a.warno) + @post
@@ -19,13 +23,17 @@ begin
   + @pre + rtrim(a.paywhom) + @lineEnding
  from
   dbo.mike_WARRANTs() a,
-  dbo.mike_PICKLIST() b 
+  dbo.mike_PICKLIST() b
  where
   a.DTEPAID < '00000000'
   and a.AMNT > 0.00
   and b.TYPE = 'ASGN'
   and left(b.VAL2,10) = a.fundid
 
- select @data
+ if @mode = 'RETURN'
+  select @data
+
+ if @mode = 'UPDATE' and isnull(@id,0) > 0
+  update object set e1 = @data where typ = 4770 and id = @id
 
 end
