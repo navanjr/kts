@@ -1,0 +1,29 @@
+create procedure dbo.mike_taxRateNameImport as 
+begin
+
+ set nocount on
+
+ declare @rateNames table(
+  name varchar(50)
+ )
+
+-- first we get the column names from the import file
+ insert @rateNames
+ SELECT distinct city_c FROM dbo.mike_taxTXLV()
+
+
+-- turn off the trigger on object
+ alter table object disable trigger keySqlObjectWriteToRepoTR
+
+
+insert object (typ,key1) 
+ select 4011,
+        name
+ from @ratenames a 
+ where 
+  name not in (select key1 from object where typ=4011)
+
+-- turn the trigger back on object
+ alter table object enable trigger keySqlObjectWriteToRepoTR
+
+end
