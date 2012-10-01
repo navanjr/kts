@@ -13,8 +13,9 @@ begin
   + '@TAXYEAR=' + rtrim(max(TAXYEAR)) + ';'
   + '@POSTDATE=' + rtrim(max(case when invoiceId>0 then '' else POSTDATE end)) + ';'
   + '@STATUS=' + rtrim(max(case when invoiceId>0 then '' else [STATUS] end)) + ';'
-  + '@INVOICEAMT=' + rtrim(sum(case when typ='P' then 0 else invoiceAmount end)) + ';'
-  + '@PENALTY=' + rtrim(sum(case when typ='P' then invoiceAmount else 0 end)) + ';',
+  + '@INVOICEAMT=' + rtrim(sum(case when typ in ('P','F') then 0 else invoiceAmount end)) + ';'
+  + '@PENALTY=' + rtrim(sum(case when typ='P' then invoiceAmount else 0 end)) + ';'
+  + '@FEE' + rtrim(sum(case when typ='F' then invoiceAmount else 0 end)) + ';',
   @invoiceType = rtrim(max(case when invoiceId>0 then '' else TYP end)) 
   from invoices where (ID=@InvId or invoiceId=@InvId) 
   group by case when invoiceId>0 then invoiceId else ID end
@@ -49,10 +50,25 @@ select @retval = @retval
  + '@RNG=' + rtrim(RANGELOT) + ';'
  + '@TOTALDUE=' + rtrim(TOTALDUE) + ';'
  + '@LEGALDESCRIPTION=' + rtrim(replace(cast(LEGALDESCRIPTION as varchar(4000)),'''','')) + ';'
+ + dbo.readStringSanitizer('ORGSCHOOLDISTRICTMAIN', ORGSCHOOLDISTRICTMAIN)
+ + dbo.readStringSanitizer('MFGHOMEASSESSED', MFGHOMEASSESSED)
+
  from AdTax where ID = dbo.readstring('@taxrollid=',@retval)
 end
+if @invoiceType='P'
+ begin
+	select @retval = @retval
+	 +'@BACKTAX=' + CAST(SUM(invoiceDue) AS VARCHAR) +';'
+	 from invoices where NAME = dbo.readstring('@NAME=',@retval) and typ<>'R' and taxyear<dbo.readstring('@TAXYEAR=',@retval)
+ end
+ if @invoiceType='R'
+ begin
+	select @retval = @retval
+	 +'@BACKTAX=' + CAST(SUM(invoiceDue) AS VARCHAR) +';'
+	 from invoices where PARCEL = dbo.readstring('@PARCEL=',@retval) and typ='R' and taxyear<dbo.readstring('@TAXYEAR=',@retval)
+ end
  return @retval
 
 end
 
---select dbo.getTaxInvoiceBlob(8237)
+--select dbo.getTaxInvoiceBlob(433)
