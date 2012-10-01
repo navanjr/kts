@@ -17,7 +17,8 @@ begin
   @data varchar(max),
   @logBlob varchar(max),
   @idToken int,
-  @tally int,
+  @updateTally int,
+  @ImportTally int,
   @totalRepoFiles int
 
  declare @wt table(
@@ -76,9 +77,9 @@ begin
  update @wt set errors = 'dups' where id in (select id from @wt group by id having count(*) > 1)
 
  select @totalRepoFiles = count(*) from @wt
- select @tally = count(a.id) from template a, @wt b where a.id = b.id
+ select @updateTally = count(a.id) from template a, @wt b where a.id = b.id
 
- select @logBlob = 'importing ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
+ select @logBlob = 'updating ' + cast(@updateTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
  exec dbo.logit @@procid, @logBlob
 
  if not @debugMode = 'TRUE'
@@ -96,13 +97,16 @@ begin
   where a.id = b.id
 
 -- add the Templates we dont have
+  select @importTally = count(*) from @wt where id not in (select id from template)
+  select @logBlob = 'importing ' + cast(@importTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
+  exec dbo.logit @@procid, @logBlob
   insert template (id, template, options, security, securityLevel)
   select id, template, data, 'Key', 1 from @wt where id not in (select id from template) 
 
 -- turn the trigger back on
   alter table template enable trigger keyTemplateWriteToRepoTR
 
-  select '@code=0;@message=Just imported ' + cast(@tally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from the repo;'
+  select '@code=0;@message=Just updated/imported ' + cast(@updateTally as varchar) + ' + ' + cast(@importTally as varchar) + ' = ' + cast(@updateTally + @importTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from the repo;'
 
  end
 
