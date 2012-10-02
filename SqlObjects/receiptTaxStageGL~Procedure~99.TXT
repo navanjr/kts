@@ -70,7 +70,10 @@ begin
   @contraCodeSuffix varchar(50),
   @protestCodeSuffix varchar(50),
   @sourceCode varchar(60),
-  @slink2 varchar(15)
+  @slink2 varchar(15),
+  @applyTotal money,
+  @prorate decimal(19,18),
+  @processCount int
 
 
 --TODO: bail if there is already gldetail for these receiptLinks 
@@ -144,9 +147,9 @@ begin
 
  exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
 
- while exists(select * from @wt where processFlag = 0)
+ while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
-  select top 1 @idToken = linkId, @dueToken = due * methodRate from @wt where processFlag = 0 order by methodRate desc, linkId
+  select top 1 @idToken = linkId, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, linkId
   if @paidTotal > 0
   begin
    exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
@@ -157,11 +160,61 @@ begin
 
    exec dbo.logit @@procid, '@dueToken = ', @dueToken, @level = 2 
 
-   set @paidTotal = @paidTotal - @dueToken
+   if @dueToken <= @paidTotal
+    set @paidTotal = @paidTotal - @dueToken
+   else
+    set @paidTotal = 0
 
   end
   update @wt set processFlag = 1 where linkId = @idToken
  end
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select @processCount = count(*) from @wt where processFlag = 0
+   exec dbo.logit @@procid, '@processCount = ', @processCount, @level = 2 
+
+  select @applyTotal = sum(due*methodRate) from @wt where processFlag = 0
+   exec dbo.logit @@procid, '@applyTotal = ', @applyTotal, @level = 2 
+
+  if @paidTotal > @applyTotal and @paidTotal > 0.00
+   begin
+    set @prorate = @applyTotal/@paidTotal
+   end
+  else
+   begin
+    set @prorate = 1.0000000
+   end 
+
+   exec dbo.logit @@procid, '@prorate = ', @prorate, @level = 2 
+
+
+  select top 1 @idToken = linkId, @dueToken = round(due * methodRate * @prorate,2) from @wt where processFlag = 0 order by methodRate desc, linkId
+  if @paidTotal > 0
+  begin
+   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
+   if @dueToken <= @paidTotal
+    update @wt set applyAmount = @dueToken where linkId = @idToken
+   else
+    update @wt set applyAmount = @paidTotal where linkId = @idToken
+
+   exec dbo.logit @@procid, '@dueToken = ', @dueToken, @level = 2 
+
+   if @dueToken <= @paidTotal
+    set @paidTotal = @paidTotal - @dueToken
+   else
+    set @paidTotal = 0
+
+   if @processCount = 1 and @paidTotal>.004 
+    begin
+     update @wt set applyAmount = applyAmount + @paidTotal where linkId = @idToken and due > (applyAmount+@paidTotal)
+    end
+
+
+  end
+  update @wt set processFlag = 1 where linkId = @idToken
+ end
+
 
 -- Set source code on worktable for subinvoices
  update b set sourceCode = isnull((select top 1 a.sourceCode from receiptDetail a where a.slink=b.invoiceSLink),'') from @wt b where b.sourceCode='GETSOURCE'
