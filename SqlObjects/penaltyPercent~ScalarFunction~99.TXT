@@ -1,7 +1,10 @@
-Create Function penaltyPercent (@invoiceId int, @paydate varchar(10)) returns decimal(21,9) 
+Create Function penaltyPercent (
+ @invoiceId int,
+ @paydate varchar(10)
+) returns decimal(21,9) 
 as 
 begin
-declare @grace int,
+ declare @grace int,
         @months int,
         @days int,
         @rate int,
@@ -12,48 +15,50 @@ declare @grace int,
         @interestpercent decimal (21,9)
         
         
-set @calcMethod = (select top 1 a19 from object where typ=40)
-set @typ   = (select [typ] from invoices where id=@invoiceId)        
-set @grace = (select top 1 cast(a20 as int) from object where typ=40)
-set @rate  = (select top 1 cast(b1 as int) from object where typ=40)
+ select @typ = [typ] from invoices where id=@invoiceId
+ select top 1
+  @calcMethod = a19, 
+  @grace = cast(a20 as int),
+  @rate  = cast(b1 as int)
+ from object
+ where typ=40
 
-if @typ in ('P','R','B','I')
+ if @typ in ('P','R','B','I')
  begin
-  set @begindate = (select '12/31/'+cast(taxyear as varchar) from invoices where id=@invoiceId)
+  select @begindate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
  end 
-else
+ else
  begin
-  set @begindate = (select dbo.date1(postdate) from invoices where id=@invoiceId)
+  select @begindate = dbo.date1(postdate) from invoices where id = @invoiceId
  end
 
-if datepart(m,@paydate)=12
+ if datepart(m,@paydate) = 12
  begin
-  set @enddate = (select case when day(@paydate)<=16 then getdate() else '01/01/'+cast(year(@paydate+1) as varchar) end)
+  select @enddate = case when day(@paydate) <= 16 then getdate() else '01/01/' + cast(year(@paydate + 1) as varchar) end
  end
-else
+ else
  begin
-  set @enddate = (select case when day(@paydate)<=16 then cast(datepart(m,@paydate) as varchar)+'/'+cast(datepart(d,@paydate) as varchar)+'/'+cast(year(@paydate) as varchar) else cast(datepart(m,@paydate)+1 as varchar)+'/01/'+cast(year(@paydate) as varchar) end)
- end
-
-set @days = datediff(d,@begindate,@enddate)
-
-set @months = datediff(m,@begindate,@paydate) 
-if day(@paydate)<@grace
- begin
-  set @months=@months-1
+  select @enddate = case when day(@paydate)<=16 then cast(datepart(m,@paydate) as varchar)+'/'+cast(datepart(d,@paydate) as varchar)+'/'+cast(year(@paydate) as varchar) else cast(datepart(m,@paydate)+1 as varchar)+'/01/'+cast(year(@paydate) as varchar) end
  end
 
+ set @days = datediff(d, @begindate, @enddate)
 
-if @calcMethod = 'M'
+ set @months = datediff(m, @begindate, @paydate) 
+ if day(@paydate) < @grace
  begin
-  set @interestpercent = @months*@rate/12.0
+  set @months = @months - 1
  end
-else
+
+ if @calcMethod = 'M'
  begin
-  set @interestpercent = @days*@rate/365.0
+  set @interestpercent = @months * @rate / 12.0
+ end
+ else
+ begin
+  set @interestpercent = @days * @rate / 365.0
  end 
 
-if @interestpercent > 100 set @interestpercent = 100
+ if @interestpercent > 100 set @interestpercent = 100
 
-return @interestpercent
+ return @interestpercent
 end
