@@ -3,6 +3,7 @@
 @format=50L(2)~Deposit #~#1#|M50R(2)~Deposit Date~@d2@#2#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#54#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
+@seriesField=key3;
 @dk1;
 \u002104;r
 @loadwindow=
@@ -35,7 +36,7 @@
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&obj:key3&''')'))),update,
  blankEm=;
 
-\t001Deposit Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
+\t001Deposit Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; a002+; \00020500;
 \t003Post Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004;
  \w00200455;r2 
 \t065&Deposit Date Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d066obj:a17='Posted';
@@ -135,8 +136,14 @@
 
 @postAndPrint=
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&obj:key3&''')'))),update,
+ getRecNum=,
  printRec=,
  postGL=;
+
+@getRecNum=break(obj:key1>'00000'),
+ sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
+ rekey('id='&obj:id),
+ update;
 
 @printRec=
  update,
