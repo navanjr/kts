@@ -44,10 +44,18 @@ begin
 
  if lower(@method) = 'parcel'
  begin
-  insert receiptlink (receiptId, invoiceId, methodRate) 
-  select @receiptId, id, @methodRate from invoices 
-  where parcel = (select parcel from dbo.invoices where id = @invoiceId)
-   and id not in (select invoiceId from receiptlink where receiptId = @receiptId)
+  declare @parcel varchar(60)
+  select @parcel=parcel from dbo.invoices where id = @invoiceId
+
+  exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
+
+  if @parcel > ' 0'
+  begin
+   insert receiptlink (receiptId, invoiceId, methodRate) 
+   select @receiptId, id, @methodRate from invoices 
+   where parcel = @parcel
+    and id not in (select invoiceId from receiptlink where receiptId = @receiptId)
+  end
  end
 
  if lower(@method) = 'toggle'
