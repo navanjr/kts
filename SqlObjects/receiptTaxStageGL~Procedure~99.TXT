@@ -169,10 +169,6 @@ begin
   update @wt set processFlag = 1 where linkId = @idToken
  end
 
- while exists(select * from @wt where processFlag = 0)
- begin
-  select @processCount = count(*) from @wt where processFlag = 0
-   exec dbo.logit @@procid, '@processCount = ', @processCount, @level = 2 
 
   select @applyTotal = sum(due*methodRate) from @wt where processFlag = 0
    exec dbo.logit @@procid, '@applyTotal = ', @applyTotal, @level = 2 
@@ -187,6 +183,13 @@ begin
    end 
 
    exec dbo.logit @@procid, '@prorate = ', @prorate, @level = 2 
+
+
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+  select @processCount = count(*) from @wt where processFlag = 0
+   exec dbo.logit @@procid, '@processCount = ', @processCount, @level = 2 
 
 
   select top 1 @idToken = linkId, @dueToken = round(due * methodRate * @prorate,2) from @wt where processFlag = 0 order by methodRate desc, linkId
