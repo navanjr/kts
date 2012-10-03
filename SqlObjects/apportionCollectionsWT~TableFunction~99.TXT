@@ -1,4 +1,4 @@
-create function dbo.apportionCollectionsWT( @accountId int ) returns @wt table(
+create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int) returns @wt table(
   id int identity(1,1),
   accountId int,
   creditCode varchar(50),
@@ -80,8 +80,13 @@ declare @twt table(
       where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
    end
 
+  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
+  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b, receiptLink c where a.slink='l'+cast(c.id as varchar) and c.receiptId = b.id
+
+  delete from @twt where date > @apportionToDate
 
   delete from @twt where amount=0.00
+
 
 -- debit Collection Account
  insert @wt (accountId, debitCode, apTableType, amount)

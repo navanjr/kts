@@ -1,4 +1,4 @@
-create function dbo.apportionCollectionsBRW( @accountId int ) returns @rt table(
+create function dbo.apportionCollectionsBRW( @accountId int, @apportionToDate int ) returns @rt table(
  accountId int,
  accountCode varchar(50),
  accountDesc varchar(50),
@@ -14,13 +14,13 @@ begin
 -- debits
  insert @rt
  select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode
- from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
+ from dbo.apportionCollectionsWT( @accountId, @apportionToDate ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
   group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
  
 -- credits
  insert @rt
  select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode  
- from dbo.apportionCollectionsWT( @accountId ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
+ from dbo.apportionCollectionsWT( @accountId, @apportionToDate ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
   group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
 
  return
