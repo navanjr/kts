@@ -1,6 +1,6 @@
 create procedure dbo.api(
- @nodeScript varchar(100) = 'c:\client\key\kts\api.js',
- @scratchFile varchar(100) = 'c:\client\key\api.tmp',
+ @nodeScript varchar(100) = '',
+ @scratchFile varchar(100) = '',
  @apiKey varchar(50) = '',
  @method  varchar(10) = '',
  @resource varchar(50) = '',
@@ -11,6 +11,13 @@ create procedure dbo.api(
 ) as
 begin
  set nocount on
+ 
+ declare @gitPath varchar(150)
+ select @gitPath = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
+ set @nodeScript = @gitPath + '\api.js'
+
+ select @scratchFile = @scratchFile + data + '\' from dbo.split(@gitPath,'\') where id < (select COUNT(*) from dbo.split(@gitPath,'\'))
+ select @scratchFile = @scratchFile + 'api.tmp'
 
 -- node api.js [key] [method] [resource] [filter]
  
