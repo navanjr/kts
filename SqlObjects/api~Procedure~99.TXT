@@ -1,0 +1,29 @@
+create procedure dbo.api(
+ @nodeScript varchar(100) = 'c:\client\key\kts\api.js',
+ @scratchFile varchar(100) = 'c:\client\key\api.tmp',
+ @apiKey varchar(50) = '',
+ @method  varchar(10) = '',
+ @resource varchar(50) = '',
+ @filter varchar(500) = '',
+ @cmd varchar(1000) = null,
+ @cmdOutput int = null output,
+ @dump nvarchar(max) = null output
+) as
+begin
+ set nocount on
+
+-- node api.js [key] [method] [resource] [filter]
+ 
+ set @cmd = 'node ' + @nodeScript + ' ' + @apiKey + ' ' +  @method + ' ' + @resource + ' ' + @filter + ' > ' + @scratchFile
+
+ exec dbo.logit @@procid, '@cmd', @cmd
+
+ exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+
+ exec dbo.spReadTextFile
+  @fullPath = @scratchFile,
+  @fileContents = @dump output 
+
+ return
+
+end

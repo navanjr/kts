@@ -1,0 +1,86 @@
+create procedure dbo.apiSite (
+ @method varchar(10) = 'GET'
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, '@method', @method
+
+ declare
+   @wt JSONHierarchy,
+   @dump nvarchar(max),
+   @dumpOut nvarchar(max),
+   @apiKey varchar(50),
+   @apiCode varchar(50),
+   @filter varchar(500) 
+
+ declare @fields table (
+  name varchar(50),
+  objectName varchar(10)
+ )
+ insert @fields select 'name','key1'
+ insert @fields select 'tax_method','a19'
+ insert @fields select 'tax_grace','a20'
+ insert @fields select 'tax_rate','b1'
+
+ select top 1
+  @apiKey = b11,
+  @apiCode = b12,
+  @filter = 'code=' + b12
+ from object where typ = 40 order by id
+
+ if @method = 'GET'
+ begin
+
+  exec dbo.api
+   @apiKey = @apiKey,
+   @method = @method,
+   @resource = 'sites',
+   @filter = @filter,
+   @dump = @dump output
+ 
+  insert into @wt
+  select * from dbo.parseJSON(@dump)
+
+  declare @blob varchar(max) = '{'
+
+  select @blob = @blob + b.name + ':' + a.stringValue + ','
+  from @wt a, @fields b
+  where a.name = b.name
+
+  select left(@blob,len(@blob) - 1) + '}'
+
+  return
+ end
+
+ if @method = 'POST'
+ begin
+
+  select top 1
+   @dump = '"code=' + @apiCode + '&'
+    + 'name=' + key1 + '&'
+    + 'tax_method=' + a19 + '&'
+    + 'tax_grace=' + a20 + '&'
+    + 'tax_rate=' + b1 + '"'
+   from object where typ = 40 order by id
+
+  exec dbo.api
+   @apiKey = @apiKey,
+   @method = @method,
+   @resource = 'sites',
+   @filter = @dump,
+   @dump = @dump output
+  
+  if @dump is not null
+  begin
+   insert into @wt
+   select * from dbo.parseJSON(@dump)
+
+   if (select stringValue from @wt where name = 'code') = @apiCode
+    select '@code=0;@message=OK;'
+   else
+    select '@code=1;@message=Attempt to update the API failed.  Contact Support.;'
+  end
+ end
+
+end
