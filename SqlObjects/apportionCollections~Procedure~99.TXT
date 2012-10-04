@@ -11,11 +11,13 @@ begin
   @newId int,
   @slink varchar(15),
   @accountType int,
+  @accountTypeDesc varchar(50),
   @jeType varchar(50)
 
- select @accountType = typ from object where id = @accountId 
+  select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
- if @accountType = 4701 
+
+ if @accountType = 4701
   select @accountDesc = accountDesc from dbo.glAccounts where accountId = @accountId
 
  if @accountType = 4502
@@ -25,7 +27,7 @@ begin
 
  
 -- create new JE
-  set @jeType = 'APPORTIONMENT'+case when @accountType=4502 then ' SPECIAL' else '' end  
+  set @jeType = 'APPORTIONMENT'+case when (@accountType=4502 or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
  exec dbo.journalEntryCRUD
   @mode = 0,
   @description = @accountDesc,
@@ -47,15 +49,11 @@ begin
  
 
 -- link origional apportion postngs to this JE
- if @accountType = 4701
- begin
   update glDetail set bsId = @newId
   where 
-    contraId = @accountId
-    and ISNULL(bsId,0) = 0
- end
+    id in (select id from dbo.apportionCollectionsWTIds(@accountId, @apportionToDate)) 
 
- if @accountType = 4502
+/* if @accountType = 4502
  begin
   update glDetail set bsId = @newId
   where 
@@ -63,7 +61,7 @@ begin
     and slink in (select slink from dbo.receiptSLinks(@accountId))
     and ISNULL(bsId,0) = 0
  end
- 
+ */
  
  return
 end

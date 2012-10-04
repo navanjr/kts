@@ -86,6 +86,12 @@ begin
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
 
+  update a set subDescription=left(rtrim(c.accountDesc)+' Apportionment Receivable',49) from @wtRaw a, glaccounts b, glaccounts c
+  where description = 'Apportionment Receivable'
+   and a.Id=b.accountId
+   and b.targetAccountCode=c.accountCode
+   and b.targetAccountCode>' 0'
+
  insert @wt
  select
   id,
@@ -107,6 +113,7 @@ begin
   ord
 
  update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
+
 
 --insert main data
  insert @rt
