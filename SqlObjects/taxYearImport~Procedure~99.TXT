@@ -1,8 +1,9 @@
 create procedure dbo.taxYearImport as
 
 begin
- declare @wt table (taxYear varchar(10),invoices int)
+ 
  declare @x varchar(max)
+ declare @wt table (taxYear varchar(10),invoices varchar(20))
 
 insert into @wt
 	select 
@@ -11,14 +12,10 @@ insert into @wt
 	from adtax 
 		group by REALTAXYEAR 
 	order by REALTAXYEAR
-	
+
 delete from @wt where taxYear in (select key1 from Object where Typ=4000)
+insert into Object (typ,Key1,A1)
+	select 4000,taxYear, invoices from @wt
 
-insert into Object (Key1,A1)
-	select taxYear, invoices from @wt
-
-select @x = isnull(@x,'') + case when len(@x)>0 then + char(13) + char(10) else '' end + taxYear +' - '+ invoices from @wt order by taxYear
-
-return @x
 
 end
