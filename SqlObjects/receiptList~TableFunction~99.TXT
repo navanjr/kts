@@ -6,6 +6,7 @@ create function dbo.receiptList( @beginReceiptNo varchar(50),
 returns @wt table(id int identity(1,1),
                   recType varchar(50),
                   recNum varchar(50),
+                  recDate varchar(50),
                   recdate1 varchar(50),
                   recFrom varchar(50),
                   paid money,
@@ -23,13 +24,13 @@ returns @wt table(id int identity(1,1),
                   
 as 
 begin                  
-insert @wt (recType,recNum,recdate1,recFrom,paid,slink)
-select recType,recNum,recdate1,recFrom,paid,'o'+cast(recId as varchar) from receipt 
+insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink)
+select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar) from receipt 
 where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
  and recType<>'TAX'
 
-insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId)
-select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
+insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId)
+select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
   'l'+cast(linkId as varchar(15)),recId
  from taxReceipt where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
   and parentInvoiceId<1
@@ -73,6 +74,8 @@ insert @wt2
 update w set penalty=a.penalty, fee=a.fee from @wt w, @wt2 a where a.parentInvoiceId=w.invoiceId and a.parentInvoiceId>0 and w.recId=a.recId
 
 delete from @wt where parentInvoiceId>0
+
+update @wt set recType=recType+taxYear where recType='TAX'
 
 return 
 end
