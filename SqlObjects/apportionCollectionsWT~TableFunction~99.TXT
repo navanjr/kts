@@ -33,6 +33,7 @@ begin
   @tokenStepDesc varchar(50),
   @tokenComment varchar(50),
   @accountType int,
+  @accountTypeDesc varchar(50),
   @tokenSourceCode varchar(60)
 
 
@@ -56,13 +57,20 @@ declare @twt table(
 	[comment2] [varchar](50),
 	[sourceCode] [varchar](60))
 
-  select @accountType = typ from object where id = @accountId 
+  select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
-  if @accountType = 4701
+  if @accountType = 4701 and @accountTypeDesc<>'ACCRUED RECEIVABLE'
    begin
 -- Add glDetail when apportioning by account
     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
     where contraId = @accountId and ISNULL(bsId,0) = 0 
+   end
+
+  if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE'
+   begin
+-- Add glDetail when apportioning by accrued receivable account
+    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
+    where accountId = @accountId and contraId > 0 and contraId = (select top 1 contraId from glDetail where accountId = @accountId and ISNULL(bsId,0) = 0) and ISNULL(bsId,0) = 0 
    end
 
   if @accountType = 4512
