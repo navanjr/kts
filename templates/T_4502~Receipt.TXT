@@ -10,9 +10,8 @@ lmode=2;
 'typ=4502 and key3=''MTG'' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))',
 'typ=4502 and key3=''TAX'' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))',
 'typ=4502 and key3=''TRUST'' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))',
-'typ=4502 and key3=''INDIV'' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))',;
+'typ=4502 and key3=''INDIV'' and id in (select id from dbo.receiptSearch('''&filterfield1&'''))';
 
-a17=''Posted''
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
 @ordername=Receipt No Only,Date Newest on Top;
@@ -317,12 +316,16 @@ w078090100;r2
  evalPaycode=,break(lcBreak),
  evalAmount=,break(lcBreak),
  evalCheck=,break(lcBreak),
+ cashoverpay=,
  d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  break(readstring(obj7:d1,'@code=')=1),
  refreshDetail=,
  blankEm=,
  focus(020);
+@cashoverpay=lcdiff=kp('select dbo.receiptBalanceDue('&obj:id&')')-obj:a8,
+ break(lcdiff+0>-0.005),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''',''''');
 
 @evalPaycode=if(obj:a7<'  0',focus(020)),if(obj:a7<'  0',lcBreak=1);
 @evalAmount=if(obj:a8<'  0',focus(022)),if(obj:a8<'  0',lcBreak=1);
