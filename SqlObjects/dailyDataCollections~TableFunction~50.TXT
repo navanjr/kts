@@ -1,10 +1,10 @@
 CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
 @rt table (
  id int,
- ord varchar(10),
+ ord varchar(250),
  rowstring varchar(250),
  glBalanceString varchar(50),
- rowstring1 varchar(100),
+ rowstring1 varchar(250),
  sourceNo varchar(50),
  recordCnt varchar(50),
  sourceAmt varchar(50),
@@ -50,7 +50,7 @@ begin
  insert @accounts 
   select accountId, 'Apportionment Receivable', '02z' 
    from dbo.glAccounts where accountId not in (select accountId from paycodes)
-   and accountType in ('ACCRUED RECEIVABLE','FUND') 
+   and accountType in ('RECEIVABLE','FUND') 
    and accountId not in (select accountId from @accounts)
 
 -- insert all raw receipt data
@@ -86,12 +86,6 @@ begin
   and substring(b.slink,2,14) = c.id
   and b.date between @theDate and @theDate + @days
 
-  update a set subDescription=left(rtrim(c.accountDesc)+' Apportionment Receivable',49) from @wtRaw a, glaccounts b, glaccounts c
-  where description = 'Apportionment Receivable'
-   and a.Id=b.accountId
-   and b.targetAccountCode=c.accountCode
-   and b.targetAccountCode>' 0'
-
  insert @wt
  select
   id,
@@ -113,7 +107,6 @@ begin
   ord
 
  update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
-
 
 --insert main data
  insert @rt
