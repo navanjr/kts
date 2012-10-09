@@ -48,7 +48,7 @@ GOTO:display
 
 :display
 echo ==============================
-echo     Options
+echo     Options for %dbname%
 echo ==============================
 echo   [T]est Connection
 echo   [I]mport from repo
