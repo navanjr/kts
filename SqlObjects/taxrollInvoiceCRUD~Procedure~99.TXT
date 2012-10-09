@@ -1,5 +1,12 @@
-create procedure dbo.taxrollInvoiceCRUD(@id int, @smode int = 0, @invoiceType varchar (1) = '') as
+create procedure dbo.taxrollInvoiceCRUD(
+ @taxrollId int,
+ @smode int = 0,
+ @invoiceType varchar (1) = '',
+ @invoiceId int = null
+) as
 begin
+
+ exec dbo.logit @@procid, 'Started @invoiceId', @invoiceId
 
  declare @styp char(1) = 't'
  declare
@@ -12,8 +19,15 @@ begin
   @rateName varchar(15),
   @accountBlob varchar(2000),
   @accrualcode varchar(50),
-  @targetcode varchar(50)
+  @targetcode varchar(50),
+  @taxrollCheckBlob varchar(max)
 
+ if isnull(@invoiceId,0) > 0 and @taxrollId is null
+  select @taxrollId = taxrollId from invoices where id = @invoiceId
+ 
+ exec dbo.logit @@procid, '@taxrollId', @taxrollId
+
+--TODO: We wants this check to use the postdate from the invoice however we are too lazy to fix this now.
 
  select
   @code = code,
@@ -23,7 +37,19 @@ begin
   @taxYear = taxYear,
   @district = district,
   @rateName = rateName
- from dbo.taxrollCheck(@id,@invoiceType,null)
+ from dbo.taxrollCheck(@taxrollId,@invoiceType,@invoiceId)
+
+ select @taxrollCheckBlob = 
+  '@code=' + isnull(cast(@code as varchar),'null') + ';'
+  + '@message=' + isnull(@message,'null') + ';'
+  + '@arAccountId=' + isnull(cast(@arAccountId as varchar),'null') + ';'
+  + '@slink=' + isnull(@slink,'null') + ';'
+  + '@taxYear=' + isnull(@taxYear,'null') + ';'
+  + '@district=' + isnull(@district,'null') + ';'
+  + '@rateName=' + isnull(@rateName,'null') + ';'
+
+ exec dbo.logit @@procid, 'taxrollCheck', @taxrollCheckBlob
+
  if @code = 1 
  begin
   if @smode=0
@@ -31,6 +57,13 @@ begin
     select '@code=1;@message=' + @message + ';'
    end
   return
+ end
+
+--TODO: this is necessary cause our taxroll check it not smart enought to handle invoice corrections.
+ if isnull(@invoiceId,0) > 0
+ begin
+  set @slink = 't' + cast(@invoiceId as varchar)
+  exec dbo.logit @@procid, 'reset @slink', @slink
  end
 
  if @invoiceType='S'
@@ -65,7 +98,7 @@ begin
   amount money
  )
  insert @invd
-   select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@id,@invoiceType)
+   select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@taxrollId,@invoiceType)
 
 
  if not exists(select * from @invd)
