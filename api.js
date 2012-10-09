@@ -7,17 +7,18 @@ var querystring = require('querystring');
 
 var auth = process.argv[2] + ':';
 var method = process.argv[3].toLowerCase();
-var pathSeed = '/v2/treasurer/' + process.argv[4] + '.json';
-var data = process.argv[5];
+var host = process.argv[4].toLowerCase();
+var pathSeed = process.argv[5] + '.json';
+var data = process.argv[6];
 if (method == 'get'){
- var path = (process.argv[5])? pathSeed + '?' + data:pathSeed;
+ var path = (process.argv[6])? pathSeed + '?' + data:pathSeed;
 }
 if (method == 'post'){
  var path = pathSeed;
 }
 
 var options = {
-  host: 'api.kellpro.com',
+  host: host,
   port: 80,
   path: path,
   method: method,
@@ -43,7 +44,7 @@ function getData(){
 
 function postData(data){
     var post_options = {
-      host: 'api.kellpro.com',
+      host: host,
       port: '80',
       path: path,
       method: method,
