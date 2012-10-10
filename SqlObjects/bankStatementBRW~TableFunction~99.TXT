@@ -52,6 +52,10 @@ begin
 -- add Warrants, Maybe
  if not @warrantFlag = 1
   return
+ 
+ declare @limitfundcode varchar(50)
+ 
+ select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
 
  insert @rt (id,description,ord) select 0,'','w' 
  insert @rt (id,description,ord) select 0,'Warrants: ','ww' 
@@ -63,7 +67,7 @@ begin
    'ww' + a.accountCode + b.key3 
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
-   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT')
+   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode))
    and b.link1 = 0
   group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id
   having sum(amount) > 0
@@ -71,14 +75,14 @@ begin
 -- add header rows for fund
  insert @rt (id, description, subDescription, ord)
   select 0,
-   ' -- ' + a.accountCode + ' - ' + a.accountDesc,
+   ' -- ' + a.accountCode + ' - ' + isnull((select d.accountDesc from glAccounts c, glAccounts d where d.accountCode=c.targetAccountCode and c.accountId=a.accountId),''),
    '',
    'ww' + a.accountCode
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
-   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT')
+   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode))
    and b.link1 = 0
-  group by a.accountCode, a.accountDesc
+  group by a.accountCode, a.accountDesc, a.accountId
  
  return
 end
