@@ -20,25 +20,26 @@ returns @wt table(id int identity(1,1),
                   invoiceId int,
                   parentInvoiceId int,
                   slink varchar(16),
-                  recId int)
+                  recId int,
+                  deputy varchar(50))
                   
 as 
 begin                  
-insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink)
-select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar) from receipt 
+insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy)
+select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy from receipt 
 where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
  and recType<>'TAX'
 
-insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId)
+insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
 select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId
+  'l'+cast(linkId as varchar(15)),recId,Deputy
  from taxReceipt where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
   and parentInvoiceId<1
   order by recNum
 
-insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId)
+insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
 select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId
+  'l'+cast(linkId as varchar(15)),recId, Deputy
  from taxReceipt where recId in (select recId from @wt)
   and parentInvoiceId>0
   order by recNum
