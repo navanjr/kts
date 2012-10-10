@@ -1,0 +1,32 @@
+create proc dbo.depositCRUD( 
+ @mode int,
+ @depositId int
+) as
+begin
+ 
+ declare 
+  @slink varchar(15) = 'o' + cast(@depositId as varchar),
+  @fpStatus varchar(10)
+
+ select @fpStatus = fpStatus from glStatus(@slink)
+
+ exec dbo.logit @@procid, '@mode', @mode, '@depositId', @depositId, '@fpStatus', @fpStatus
+
+ if @mode = 3
+ begin
+
+-- period Check status
+  if @fpStatus = 'locked'
+   return
+
+  begin transaction
+
+  delete dbo.glDetailStage where slink = @slink
+  delete dbo.glDetail where slink = @slink
+  delete object where typ = 4513 and id = @depositId
+
+  commit transaction
+  
+ end
+ 
+end

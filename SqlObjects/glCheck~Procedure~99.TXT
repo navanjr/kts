@@ -10,6 +10,8 @@ begin
 
  -- TODO: come back and make sure this fails on a properly posted tax receipt with sub invoices.
 
+ exec dbo.logit @@procid, '@id', @id, '@styp', @styp
+
  declare 
   @rowCount int,
   @objTyp int,
@@ -20,24 +22,26 @@ begin
 
  set @slink = @styp + cast(@id as varchar)
 
+ -- check to see if the fiscal period is open
+ exec dbo.glGetPostDate @id, @styp, @postDate OUTPUT
+ select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+
  -- we dont post if there are already records with this sourceId
  if exists(select * from glDetail where slink = @slink)
  begin
   select
    @code = 1,
    @message = 'Posting data already exists for this instrument.'
+   exec dbo.logit @@procid, '@code', @code, '@message', @message
   return
  end
-
- -- check to see if the fiscal period is open
- exec dbo.glGetPostDate @id, @styp, @postDate OUTPUT
- select @fpid = dbo.glGetFiscalPeriodId(@postDate)
  
  if not @fpid > 0
  begin
   select
    @code = 1, 
    @message = 'Fiscal period does not exist or period is locked for postdate:' + isnull(cast(@postDate as varchar),'null')
+   exec dbo.logit @@procid, '@code', @code, '@message', @message
   return 
  end
 
@@ -48,6 +52,7 @@ begin
   select
    @code = 1, 
    @message = 'Not enough records to post.  We need more than one.'
+   exec dbo.logit @@procid, '@code', @code, '@message', @message
   return
  end
 
@@ -57,6 +62,7 @@ begin
   select
    @code = 1, 
    @message = 'This posting is out of balance'
+   exec dbo.logit @@procid, '@code', @code, '@message', @message
   return
  end
 
