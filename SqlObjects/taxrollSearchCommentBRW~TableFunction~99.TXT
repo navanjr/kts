@@ -4,7 +4,8 @@ create function dbo.taxrollSearchCommentBRW(
  Id int,
  noteDate nvarchar(50),
  actionDate nvarchar(12),
- comment text
+ comment text,
+ commentType varchar(20)
 )
 begin
 
@@ -22,7 +23,7 @@ begin
  from invoices where id = @selectedId
  
   insert @rt
-  select id,a2,a3,e1
+  select id,a2,a3,e1,'COMMENT'
   from dbo.object
   where typ=4002 and (key3=left(@name,len(key3)) or len(key3)<1) and (key2=left(@parcel,len(key2)) or len(key2)<1) and (case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end=@item or case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end<1) and (case when isnumeric(a1)=1 then cast(a1 as numeric (5,0)) else 0 end =@taxyear or len(a1)<2)
 
@@ -39,7 +40,8 @@ insert @rt
 		+case when city>'  0' then city else '' end
 		+case when state>'  0' then ', '+state else '' end
 		+case when zip1>'  0' then ' '+zip1 else '' end
-		+case when zip2>'  0' then '-'+zip2 else '' end
+		+case when zip2>'  0' then '-'+zip2 else '' end,
+                'ADDRESS'
 	from dbo.taxRollDetail
 	where	(name=@name or len(name)<1) 
 		and (parcelNumber=@parcel or len(parcelNumber)<1) 
@@ -48,6 +50,6 @@ insert @rt
         order by id desc 
 
 insert @rt
-  select Id*-1,key2,'','Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;' then dbo.date1(a2) else a2 end from object where typ=4005 and link1 in (select taxrollId from invoices where id=@selectedId) order by key1 desc
+  select Id*-1,key2,'','Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;' then dbo.date1(a2) else a2 end,'CORRECTION' from object where typ=4005 and link1 in (select taxrollId from invoices where id=@selectedId) order by key1 desc
  return
 end
