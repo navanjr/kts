@@ -1,8 +1,17 @@
+@noins;
 @fastinsert;
 @save;
 @loadbrowse=if(tier=-3,dbrowse=);
 @format=100L(2)~Account Code~#1#|M150L(2)~Description~#2#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M;
 @format2=150L(2)~Description~#2#|M100L(2)~Account Code~#1#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M;
+
+@bb1=&Insert,,WIZINS.ICO;
+@bbproc1=
+ lcAcctType=choose(filter,'','BANK','SUSPENSE','SOURCE','FUND','','WARRANT','OFFICIAL','PURPOSE','SCHOOL','CITY'),
+ lcTypeDesc=kp('select key2 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
+ lcTypeRptCode=kp('select key3 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
+ new(4701,,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode);
+
 @bb6=&Print Account;  
 @bbproc6=
  m('Coming Soon!...Stay Tuned!','Under Construction');
@@ -32,9 +41,6 @@
  d1select('exec dbo.glAccountUpdate @mode=''ALL'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Update Account Balances...')),
  refreshbrw=;
-
-
-;
 
 @filtername=All,Bank Accounts,Suspense Accounts,Source Accounts,Fund Accounts,Accural Accounts,Warrants Registered,Official Accounts,Trust Purposes, Schools, Cities;
 @filter='1=1','a1=''BANK''','a1=''SUSPENSE''','a1=''SOURCE''','a1=''FUND''','a1 in (''ACCRUED PAYABLE'',''RECEIVABLE'',''ACCRUED RECEIVABLE'')','a1=''WARRANT''','a1=''OFFICIAL''','a1=''PURPOSE''','a1=''SCHOOL''','a1=''CITY''';
