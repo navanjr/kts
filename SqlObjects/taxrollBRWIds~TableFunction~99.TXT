@@ -1,0 +1,73 @@
+create function dbo.taxrollBRWIds(
+ @receiptId int,
+ @taxYear varchar(10),
+ @searchString varchar(50)
+) returns @rt table(
+ invoiceId int
+)
+Begin
+
+--get the tax years we will return
+  declare @taxYears table(yr varchar(4))
+  if lower(@taxYear) = 'all'
+   insert @taxYears select cast(taxyear as varchar (4)) from invoices group by taxyear
+  else
+   insert @taxYears select @taxYear
+
+
+  if isnumeric(@searchString)=1
+   insert @rt
+   select 
+    id
+   from dbo.invoices
+   where item=cast(@searchString as numeric(7,1)) 
+    and cast(taxYear as varchar) in (select yr from @taxYears)
+    and invoiceId = 0
+
+  else
+   insert @rt
+   select 
+    id
+   from dbo.invoices
+   where name+' '+parcel like '%'+@searchString+'%'
+    and cast(taxYear as varchar) in (select yr from @taxYears)
+    and invoiceId = 0
+
+  insert @rt 
+  select i.id
+  from dbo.invoices i, adtax a
+  where i.invoiceId = 0 
+   and cast(taxYear as varchar) in (select yr from @taxYears)
+   and i.taxrollId=a.id
+   and a.OWNERNAME+a.BUSINESSNAME+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+a.mort_cd+a.treamort+a.trcode like '%'+@searchString+'%'
+  insert @rt 
+  select i.id
+  from dbo.invoices i, adtax a
+  where i.invoiceId = 0 
+   and cast(taxYear as varchar) in (select yr from @taxYears)
+   and i.taxrollId=a.id
+   and a.LEGALDESCRIPTION like '%'+@searchString+'%'
+
+  insert @rt
+  select 
+   i.id
+  from dbo.taxRollDetail td, invoices i
+  where i.invoiceId = 0 
+   and cast(i.taxYear as varchar) in (select yr from @taxYears)
+   and i.item=td.itemNumber
+   and i.taxyear=td.taxyear
+   and td.name+td.businessName+td.address1+td.address2+td.address3+td.city+td.state+td.zip1+td.zip2 like '%'+@searchString+'%'
+
+  insert @rt
+  select 
+   i.id
+  from object o, invoices i
+  where o.typ=4005 
+   and o.link1 = i.taxrollId
+   and i.invoiceId = 0 
+   and cast(i.taxYear as varchar) in (select yr from @taxYears)
+   and a3 like '%'+@searchString+'%'
+
+return
+end
+
