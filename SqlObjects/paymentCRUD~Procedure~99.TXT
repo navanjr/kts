@@ -28,20 +28,23 @@ begin
 
  if @mode = 4
  begin
-  if @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher')
-   select @log = 
+   select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher') then 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
 
-  if @paymentType = 'Warrant'
-   select @log = 
+  when  @paymentType = 'Warrant'
+   then 
     '@debitFieldLabel=WR Fund;'
     + '@creditFieldLabel=ACP Fund;'
 
-  if right(@paymentType,5) = 'Check'
-   select @log = 
+  when right(@paymentType,5) = 'Check'
+   then
     '@debitFieldLabel=ACP Fund;'
     + '@creditFieldLabel=EXP Fund;'
+   else
+    '@debitFieldLabel=Deposit Account;'
+    + '@creditFieldLabel=Bank Account;'
+   end
 
   select @log
  end
