@@ -1,5 +1,4 @@
 create function dbo.taxrollBRWIds(
- @receiptId int,
  @taxYear varchar(10),
  @searchString varchar(50)
 ) returns @rt table(
@@ -15,21 +14,11 @@ Begin
    insert @taxYears select @taxYear
 
 
-  if isnumeric(@searchString)=1
    insert @rt
    select 
     id
    from dbo.invoices
-   where item=cast(@searchString as numeric(7,1)) 
-    and cast(taxYear as varchar) in (select yr from @taxYears)
-    and invoiceId = 0
-
-  else
-   insert @rt
-   select 
-    id
-   from dbo.invoices
-   where name+' '+parcel like '%'+@searchString+'%'
+   where name+' '+parcel+' '+cast(item as varchar) like '%'+@searchString+'%'
     and cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
 
