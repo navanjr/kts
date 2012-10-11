@@ -42,10 +42,13 @@ begin
 */
  begin transaction
 
-  -- add row to paid
+  -- add or update paid
+  if isnull(@paymentId,0) < 1
   insert paid (paycode,slink,amount,checkno,bankId)
    select @paycode,@slink,@amount,@checkNumber,@bankId
-   
+  else
+   update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId where id=@paymentId
+
   -- add to the gl stage
   exec dbo.officialDepositStageGL @receiptId
 
