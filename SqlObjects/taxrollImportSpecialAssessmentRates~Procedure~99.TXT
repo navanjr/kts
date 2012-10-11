@@ -4,7 +4,7 @@ declare @specialAssessmentMillageName varchar(50)
 
 select @specialAssessmentMillageName = key1 from object where typ=4008 and left(upper(key1),4)='SPEC'
 
-if @specialAssessmentMillageName < ' 0'
+if isnull(@specialAssessmentMillageName,' ') < ' 0'
  begin
   set @specialAssessmentMillageName = 'SPECIAL ASSESSMENT'
   insert into object (typ,key1,a4) select 4008,@specialAssessmentMillageName,'1'
@@ -13,19 +13,20 @@ if @specialAssessmentMillageName < ' 0'
 if exists(select * from adtax where recordtype='O' and schooldistricttaxrate not in (select key1 from object where typ=4011))
  begin
   insert object (typ,key1)
-    select 4011,schooldistricttaxrate from adtax where recordtype='O' and schooldistricttaxrate not in (select key1 from object where typ=4011)
+    select distinct 4011,schooldistricttaxrate from adtax where recordtype='O' and schooldistricttaxrate not in (select key1 from object where typ=4011)
  end
 
 if exists(select * from adtax where recordtype='O' and cast(realtaxyear as varchar(4))+schooldistrictmain+schooldistricttaxrate not in (select key3+key1+key2 from object where typ=4012))
  begin
-  insert object (typ,key1,key2,key3,a1,a2,a3)
-    select 4012,
-      schooldistrictmain,
+  insert object (typ,key1,key2,key3,a1,a2,a3,k2)
+    select distinct 4012,
+      case when isnull(schooldistrictmain,' ') > ' 0' then schooldistrictmain else schooldistricttaxrate end,
       schooldistricttaxrate,
       cast(realtaxyear as varchar(4)),
       @specialAssessmentMillageName,
       '1',
-      '100'
+      '100',
+      cast(realtaxyear as varchar(4))+case when isnull(schooldistrictmain,' ') > ' 0' then schooldistrictmain else schooldistricttaxrate end+schooldistricttaxrate
  from adtax where recordtype='O' and cast(realtaxyear as varchar(4))+schooldistrictmain+schooldistricttaxrate not in (select key3+key1+key2 from object where typ=4012)
  end
 
