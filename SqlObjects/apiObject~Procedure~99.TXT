@@ -1,0 +1,86 @@
+create procedure dbo.apiObject(
+ @typ int,
+ @id int,
+ @method varchar(10)
+) as
+begin
+
+ exec dbo.logit @@procid, '@id', @id, '@typ', @typ
+ 
+ declare 
+  @apiwt JSONHierarchy,
+  @filter varchar(500),
+  @apiHost varchar(50),
+  @apiKey varchar(50),
+  @apiResource varchar(50),
+  @apiFields varchar(max),
+  @dump varchar(max)
+ 
+ declare @wt table(
+  objField varchar(50),
+  apiField varchar(50),
+  value varchar(500)
+ )
+
+ select @apiHost = dbo.readKeyCode(@typ,'@apiHost=')
+ select @apiKey = dbo.readKeyCode(@typ,'@apiKey=')
+ select @apiResource = dbo.readKeyCode(@typ,'@apiResource=')
+ select @apiFields = dbo.readKeyCode(@typ,'@apiFields=')
+ 
+ exec dbo.logit @@procid, '@apiHost', @apiHost, '@apiKey', @apiKey, '@apiResource', @apiResource
+ exec dbo.logit @@procid, '@apifields', @apiFields
+
+ insert into @wt (objField) select data from dbo.split(@apiFields,',')
+ update @wt set apiField = (select data from dbo.split(objField,':') where id = 2)
+ update @wt set objField = (select data from dbo.split(objField,':') where id = 1)
+
+ if @method = 'GET'
+ begin
+
+  set @filter = 'id=' + cast(@id as varchar)
+
+  exec dbo.logit @@procid, '@method', @method, '@filter', @filter
+
+  exec dbo.api
+   @apiKey = @apiKey,
+   @apiHost = @apiHost,
+   @method = @method,
+   @resource = @apiResource,
+   @filter = @filter,
+   @dump = @dump output
+ 
+  if len(@dump) > 10
+  begin
+
+
+   insert into @apiwt
+   select * from dbo.parseJSON(@dump) where name is not null
+   
+   update a set a.value = case when b.stringValue = 'null' then '' else b.stringValue end
+   from @wt a, @apiwt b
+   where a.apiField = b.name
+
+
+   update object set 
+    key1 = (select value from @wt where objField = 'key1'),
+    key2 = (select value from @wt where objField = 'key2'),
+    a1 = (select value from @wt where objField = 'a1'),
+    a17 = (select value from @wt where objField = 'a17'),
+    a18 = (select value from @wt where objField = 'a18'),
+    e1 = (select value from @wt where objField = 'e1'),
+    e2 = (select value from @wt where objField = 'e2')
+   where typ = @typ and key1 = cast(@id as varchar)
+
+   select * from @wt
+
+  end
+  else
+  begin
+
+   select @dump
+
+  end
+
+ end
+
+end
