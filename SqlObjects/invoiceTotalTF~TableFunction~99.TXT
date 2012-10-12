@@ -5,7 +5,8 @@ create function dbo.invoiceTotalTF(@invoiceId int) returns @rt table(
  accountType varchar(50),
  amount money,
 -- subAmount money,
- status varchar(10)
+ status varchar(10),
+ accountCode varchar(60)
 )
 
 -- TODO: not sure about this one... it appears that there would be duplicates in @rt as invoiceSlinks will grab all invoice, receipts and receiptLink
@@ -14,7 +15,7 @@ create function dbo.invoiceTotalTF(@invoiceId int) returns @rt table(
 begin
 
  insert @rt
- select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount, 'Posted'
+ select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount, 'Posted', b.accountCode
  from glDetail a, glAccounts b
  where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
 

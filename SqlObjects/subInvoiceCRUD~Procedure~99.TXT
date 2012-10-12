@@ -17,7 +17,9 @@ begin
   @smode int = 0,
   @targetcode varchar(50) = '',
   @accrualcode varchar(50) = '',
-  @accountBlob varchar(1000)
+  @accountBlob varchar(1000),
+  @targetAmount money
+
 
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@invoiceDate) 
@@ -27,16 +29,34 @@ begin
   return
  end
 
+
+ if @subInvoiceType = 'A'
+ begin
+  if @description like 'ADJUST TO%'
+  begin
+   select @targetAmount=@amount, @description = 'ADJUST BY:'
+   select @amount = @targetAmount-sum(amount) from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'RECEIVABLE'
+  end
+
+  select top 1 @sourceCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'SOURCE'
+  select top 1 @fundCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'ACCRUED RECEIVABLE'
+
+ end
+
+
  begin transaction
+ if @subInvoiceType <> 'A'
+ begin
 
   --run fund accrued receivable account verification
+
   select @accountBlob = dbo.glAccountGetFundAccrualBlob(@fundcode, 'ACCRUED RECEIVABLE')
   select 
    @accrualcode = dbo.readString('@accrualcode=', @accountBlob),
    @targetcode = dbo.readString('@fundcode=', @accountBlob)
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
-  
+ end  
    insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS])
     select 
      @subInvoiceType,
