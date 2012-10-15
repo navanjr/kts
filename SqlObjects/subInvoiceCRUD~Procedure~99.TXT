@@ -1,7 +1,7 @@
 CREATE procedure [dbo].[subInvoiceCRUD](
  @mainInvoiceId int,
  @invoiceDate varchar(10),
- @description varchar(50),
+ @description varchar(60),
  @sourceCode varchar(50),
  @fundCode varchar(50),
  @subInvoiceType varchar(1) = 'F',
@@ -32,9 +32,9 @@ begin
 
  if @subInvoiceType = 'A'
  begin
-  if @description like 'ADJUST TO%'
+  if @description like 'ADJUST TO:%'
   begin
-   select @targetAmount=@amount, @description = 'ADJUST BY:'
+   select @targetAmount=@amount, @description = substring(@description+replicate(' ',50),11,50)
    select @amount = @targetAmount-sum(amount) from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'RECEIVABLE'
   end
 

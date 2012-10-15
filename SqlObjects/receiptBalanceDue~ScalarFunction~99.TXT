@@ -8,17 +8,20 @@ begin
   linkid int,
   invoiceId int,
   due money default 0,
-  methodRate money
+  methodRate money,
+  mainInvoiceid int,
+  invoiceType varchar(1)
  )
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, methodRate)
-  select a.id, a.invoiceId, a.methodRate
+ insert @wt (linkId, invoiceId, methodRate,mainInvoiceId,invoiceType)
+  select a.id, a.invoiceId, a.methodRate,b.invoiceId,b.typ
   from receiptLink a, invoices b 
   where a.invoiceId = b.id and a.receiptId = @receiptId
 
 -- calculate the balance due
- update @wt set due = dbo.invoiceTotalAR(invoiceId) * methodrate where invoiceId > 0
+ update @wt set due = dbo.invoiceTotalAR(invoiceId) * methodrate where invoiceId > 0 and invoiceType <> 'A'
+ update @wt set due = 0 where invoiceId > 0 and invoiceType = 'A'
 
  set @totalDue = (select sum(due) from @wt)
 

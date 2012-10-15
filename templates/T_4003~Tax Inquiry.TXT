@@ -8,10 +8,11 @@
  create(151,10,220,3,'Order By:'),
  create(152,12,260,3,'Name',32),
  create(153,12,300,3,'Parcel',34),
- create(352,9,513,300,'&Print(F9)'),
+ create(352,9,513,302,'&Print(F9)'),
  create(353,9,513,316,'&Address(F10)'),
- create(354,9,513,284,'Mort Code(F8)'),
- create(355,9,513,268,'Interest Date(F7)'),
+ create(354,9,513,286,'Mort Code(F8)'),
+ create(355,9,513,272,'Interest Date(F7)'),
+ create(356,9,513,258,'Adjust Balance(F6)'),
  halfToggle=,
  createbrw=;
 
@@ -46,6 +47,18 @@
   iw('\t000Set Interest Date;,\t001Interest Date; \t002@d2; \w00245; \f002'&gcInterestDate&';'),
   break(gcretval='esc'),
   sql('update invoices set interestDate = '&obj7:key1&' where id='&gcInvoiceId),
+  refreshBRW=;
+
+\v356117; \w356=119;
+ @acc356=
+  gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1),
+  iw('\t000Adjust Balance; \t001Description; \t003Adj Amount By; \w00450; \t004@n-19.2; @acc004=set(006,0),tsc; \t005Adj Amount To; \w00650; \t006@n-19.2;  @acc006=set(004,0),tsc;'),
+  break(gcretval='esc'),
+  lcamount=obj7:key2+obj7:key3,
+  if(obj7:key3+0>0.00,lcDesc='ADJUST TO:'&obj7:key1,lcDesc=obj7:key1),
+  sql('exec dbo.subInvoiceCRUD '&gcInvoiceId&', '&today()&', '''&lcDesc&''', '''', '''', ''A'', '&lcamount+0),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
   refreshBRW=;
 
 @halfToggle=
