@@ -1,0 +1,25 @@
+create function dbo.taxrollInvoiceAmountsBlob(@invoiceId int) returns varchar(max)
+as begin
+
+ declare
+  @taxrollId int,
+  @retval varchar(max) = '@invoiceId=' + cast(@invoiceId as varchar) + ';'
+
+ select 
+  @taxrollId = taxrollid,
+  @retval = @retval
+   + '@taxrollId=' + cast(taxrollid as varchar) + ';'
+   + '@invoiceAmount=' + cast(invoiceAmount as varchar) + ';'
+   + '@invoiceDue=' + cast(invoiceDue as varchar) + ';'
+   + '@interestDate=' + cast(interestDate as varchar) + ';'
+ from invoices where id = @invoiceId
+
+ select 
+  @retval = @retval
+   + '@adtaxTotalDue=' + cast(totalDue as varchar) + ';'
+   + '@adtaxBalanceDue=' + cast(balanceDue as varchar) + ';'
+ from adtax where id = @taxrollid
+ 
+ return @retval
+
+end

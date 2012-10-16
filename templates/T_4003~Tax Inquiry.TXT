@@ -107,10 +107,15 @@
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
  break(lcId<1),
- m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|Release Protest|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle Half Pay|Release Protest|Show Detail|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
  if(gcretval=2,selectedRateToggle=),
- if(gcretval=3,releaseProtest=);
+ if(gcretval=3,releaseProtest=),
+ if(gcretval=4,showFeePenalty=);
+
+@showFeePenalty=
+ lcBlob=kp('select dbo.taxrollInvoiceAmountsBlob('&lcId&')'),
+ m('id: '&lcid&'||AdTax Total: '&readstring(lcBlob,'@adtaxTotalDue')&'|AdTax Balance: '&readstring(lcBlob,'@adtaxBalanceDue')&'|Invoice Total: '&readstring(lcBlob,'@invoiceAmount=')&'|Invoice Due: '&readstring(lcBlob,'@invoiceDue=')&'|Interest Date: '&readstring(lcBlob,'@interestDate=')&'|','Fees and Penalty Details...');
 
 @selectedRateToggle=
  sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
