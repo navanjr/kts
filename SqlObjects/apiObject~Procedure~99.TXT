@@ -54,7 +54,7 @@ begin
   set @dump = '"'
   
   select 
-   @dump = @dump + apiField + '=' + dbo.stripChars(value,'39,34') + '&'
+   @dump = @dump + apiField + '=' + replace(dbo.stripChars(value,'39,34,13'),char(10),'|') + '&'
    from @wt 
 
   set @dump = @dump + '"'
@@ -138,8 +138,8 @@ begin
     a1 = (select value from @wt where objField = 'a1'),
     a17 = (select value from @wt where objField = 'a17'),
     a18 = (select value from @wt where objField = 'a18'),
-    e1 = (select value from @wt where objField = 'e1'),
-    e2 = (select value from @wt where objField = 'e2')
+    e1 = (select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e1'),
+    e2 = (select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e2')
    where typ = @typ and key1 = cast(@id as varchar)
 
   end
