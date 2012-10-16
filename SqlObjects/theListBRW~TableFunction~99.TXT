@@ -1,0 +1,22 @@
+create function dbo.theListBRW(@id int) returns @rt table(
+ id int,
+ dateTime varchar(50),
+ who varchar(10),
+ description varchar(1000),
+ raw varchar(max),
+ ord varchar(50)
+) as
+begin
+ declare @data varchar(max)
+ select @data = e2 from object where id = @id
+
+ insert @rt (id,raw) select id,data from dbo.split(@data, char(13))
+
+ update @rt set
+  ord = (select data from dbo.split(raw,',') where id = 1),
+  dateTime = dbo.date1((select dbo.stripChars(data,'10,13') from dbo.split((select data from dbo.split(raw,',') where id = 1),'.') where id = 1)),
+  who = (select data from dbo.split(raw,',') where id = 2),
+  description = (select data from dbo.split(raw,',') where id = 3)
+
+ return
+end

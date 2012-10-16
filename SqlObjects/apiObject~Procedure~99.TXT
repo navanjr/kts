@@ -40,17 +40,29 @@ begin
 
  exec dbo.logit @@procid, '@method', @method, '@filter', @filter
 
+ if @method in ('POST','SHOW')
+ begin
+ 
+  update @wt set value = isnull((select key1 from object where id = @objectId),'') where objField = 'key1'
+  update @wt set value = isnull((select key2 from object where id = @objectId),'') where objField = 'key2'
+  update @wt set value = isnull((select key3 from object where id = @objectId),'') where objField = 'key3'
+  update @wt set value = isnull((select a1 from object where id = @objectId),'') where objField = 'a1'
+  update @wt set value = isnull((select a17 from object where id = @objectId),'') where objField = 'a17'
+  update @wt set value = isnull((select a18 from object where id = @objectId),'') where objField = 'a18'
+  update @wt set value = isnull((select e1 from object where id = @objectId),'') where objField = 'e1'
+  update @wt set value = isnull((select e2 from object where id = @objectId),'') where objField = 'e2'
+
+ end
+
+ if @method = 'SHOW'
+ begin
+  select * from @wt
+  return
+ end
+
  if @method = 'POST'
  begin
  
-  update @wt set value = (select key1 from object where id = @objectId) where objField = 'key1'
-  update @wt set value = (select key2 from object where id = @objectId) where objField = 'key2'
-  update @wt set value = (select a1 from object where id = @objectId) where objField = 'a1'
-  update @wt set value = (select a17 from object where id = @objectId) where objField = 'a17'
-  update @wt set value = (select a18 from object where id = @objectId) where objField = 'a18'
-  update @wt set value = (select e1 from object where id = @objectId) where objField = 'e1'
-  update @wt set value = (select e2 from object where id = @objectId) where objField = 'e2'
-
   set @dump = '"'
   
   select 
@@ -133,13 +145,14 @@ begin
     insert object (typ,key1) select @typ, @id
 
    update object set 
-    key1 = (select value from @wt where objField = 'key1'),
-    key2 = (select value from @wt where objField = 'key2'),
-    a1 = (select value from @wt where objField = 'a1'),
-    a17 = (select value from @wt where objField = 'a17'),
-    a18 = (select value from @wt where objField = 'a18'),
-    e1 = (select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e1'),
-    e2 = (select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e2')
+    key1 = isnull((select value from @wt where objField = 'key1'),''),
+    key2 = isnull((select value from @wt where objField = 'key2'),''),
+    key3 = isnull((select value from @wt where objField = 'key3'),''),
+    a1 = isnull((select value from @wt where objField = 'a1'),''),
+    a17 = isnull((select value from @wt where objField = 'a17'),''),
+    a18 = isnull((select value from @wt where objField = 'a18'),''),
+    e1 = isnull((select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e1'),''),
+    e2 = isnull((select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e2'),'')
    where typ = @typ and key1 = cast(@id as varchar)
 
   end
