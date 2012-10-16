@@ -8,6 +8,7 @@ begin
  exec dbo.logit @@procid, '@id', @id, '@typ', @typ
  
  declare 
+  @objectId int,
   @apiwt JSONHierarchy,
   @filter varchar(500),
   @apiHost varchar(50),
@@ -22,6 +23,7 @@ begin
   value varchar(500)
  )
 
+ select @objectId = id from object where typ = @typ and cast(key1 as int) = @id
  select @apiHost = dbo.readKeyCode(@typ,'@apiHost=')
  select @apiKey = dbo.readKeyCode(@typ,'@apiKey=')
  select @apiResource = dbo.readKeyCode(@typ,'@apiResource=')
@@ -34,12 +36,79 @@ begin
  update @wt set apiField = (select data from dbo.split(objField,':') where id = 2)
  update @wt set objField = (select data from dbo.split(objField,':') where id = 1)
 
- if @method = 'GET'
+ set @filter = 'id=' + cast(@id as varchar)
+
+ exec dbo.logit @@procid, '@method', @method, '@filter', @filter
+
+ if @method = 'POST'
+ begin
+ 
+  update @wt set value = (select key1 from object where id = @objectId) where objField = 'key1'
+  update @wt set value = (select key2 from object where id = @objectId) where objField = 'key2'
+  update @wt set value = (select a1 from object where id = @objectId) where objField = 'a1'
+  update @wt set value = (select a17 from object where id = @objectId) where objField = 'a17'
+  update @wt set value = (select a18 from object where id = @objectId) where objField = 'a18'
+  update @wt set value = (select e1 from object where id = @objectId) where objField = 'e1'
+  update @wt set value = (select e2 from object where id = @objectId) where objField = 'e2'
+
+  set @dump = '"'
+  
+  select 
+   @dump = @dump + apiField + '=' + dbo.stripChars(value,'39,34') + '&'
+   from @wt 
+
+  set @dump = @dump + '"'
+
+  exec dbo.api
+   @apiKey = @apiKey,
+   @apiHost = @apiHost,
+   @method = @method,
+   @resource = @apiResource,
+   @filter = @dump,
+   @dump = @dump output
+
+ end
+
+
+ if @method = 'GETINDEX'
  begin
 
-  set @filter = 'id=' + cast(@id as varchar)
+  set @filter = '"' + @filter + '&index=true' + '"'
 
-  exec dbo.logit @@procid, '@method', @method, '@filter', @filter
+  exec dbo.api
+   @apiKey = @apiKey,
+   @apiHost = @apiHost,
+   @method = 'GET',
+   @resource = @apiResource,
+   @filter = @filter,
+   @dump = @dump output
+
+  if len(@dump) > 0
+  begin
+   insert into @apiwt
+   select * from dbo.parseJSON(@dump) where name is not null
+
+   declare
+    @elementId int,
+    @indexToken int
+
+   while exists(select stringValue as id from @apiwt where name = 'id')
+   begin
+    select top 1 
+     @elementId = element_id,
+     @indexToken = cast(stringValue as int) from @apiwt where name = 'id'
+    exec dbo.apiObject @typ, @indexToken, 'GET'
+    delete @apiwt where element_id = @elementId
+   end
+
+  end
+
+  return
+ end
+
+
+ if @method = 'GET'
+ begin
 
   exec dbo.api
    @apiKey = @apiKey,
