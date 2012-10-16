@@ -1,0 +1,33 @@
+create function dbo.paycodeReceiptChk(@receiptId int) returns int as
+	
+begin
+
+
+        declare @pCode varchar(50),
+		@amt money,
+		@checkNum varchar(50),
+		@Bank varchar(50),
+		@location varchar(50),
+		@x int,
+		@checkReq int,
+		@bankReq int
+		
+	select	@pCode = a7,
+		@amt = cast(isnull(a8,0) as money),
+		@checkNum = isnull(a9,''),
+		@bank = isnull(a10,''),
+		@location = isnull(a11,'')
+		from object where id = @receiptId
+		
+
+	select @checkReq = isnull(a16,0) , @bankReq = isnull(a15,0) from object where typ=4505 and key1 = @pCode	
+	
+	
+	select @x = case when   @pCode > '  0' and @amt <> 0 and
+							(@checkReq = 1 and @checkNum > '  0' or @checkReq <> 1)
+							and (@bankReq = 1 and @bank > '  0' and @location > '  0' or @bankReq <> 1) 
+							then 1 else 0 end 
+	
+ return @x
+		
+end

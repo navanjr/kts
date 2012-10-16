@@ -1,16 +1,22 @@
 create procedure dbo.receiptPaymentAdd(
  @receiptId int,
- @paycode varchar(50),
- @amount money,
+ @paycode varchar(50) = '',
+ @amount money = 0,
  @checkNumber varchar(50) = '',
  @bankId int = 0,
  @paymentId int = 0,
  @mode int = 0,
  @drawnon varchar(50) = '',
- @location varchar(50) = ''
+ @location varchar(50) = '',
+ @field int = 0
 )
 as
 begin
+
+if  @paycode = '' or isnull(@amount,0) = 0
+  begin
+    return
+  end
 
  declare @styp char(1) = 'o'
 
@@ -23,7 +29,9 @@ begin
   @contraId int,
   @fpId int,
   @objectTyp int,
-  @balance money
+  @balance money,
+  @checkReq int,
+  @bankReq int
 
  select
   @code = code,
@@ -35,6 +43,11 @@ begin
   @objectTyp = objectTyp
  from dbo.receiptCheck(@receiptId,@paycode)
 
+select 
+  @checkReq = isnull(a16,0),
+  @bankReq = isnull(a15,0)
+  from object where typ=4505 and key1 = @paycode	
+
  -- bail if we dont have enough data
  if @code = 1
  begin
@@ -42,12 +55,27 @@ begin
   return
  end
 
- -- bail if paycode is CHECK and no check number is offered
- if @paycode = 'CHECK' and @checkNumber < '  0'
+ -- bail if CHECK # required and no check number is offered
+ if @checkReq = 1 and @checkNumber < '  0'-- and @field >= 24
  begin
-  select '@code=1;@message=Sorry, Check number is required.;'
+  select '@code=2;@message=Sorry, Check number is required.;@field=024;'
   return
  end
+
+ -- bail if bank required and no bank  offered
+ if @bankReq = 1 and @drawnon < '  0' --and @field >= 26
+ begin
+  select '@code=2;@message=Sorry, Bank Information is required.;@field=026;'
+  return
+ end
+
+ -- bail if bank required and no bank location offered
+ if @bankReq = 1 and @location < '  0'-- and @field >= 28
+ begin
+  select '@code=2;@message=Sorry, Bank location is required.;@field=028;'
+  return
+ end
+
 
  -- Add Returned for negative cash totals
  if @paycode = 'CASH' and @amount < 0 and @checkNumber < '  0'

@@ -89,6 +89,7 @@ lmode=2;
  reate(45,9),
  brwstuff=,
  brwstuffMort=;
+ tabord('002004066006008098012014016018020022024026028')
 
 @disableIt=
  prop(002,'7C5FH',1),
@@ -137,10 +138,10 @@ lmode=2;
 \t003Post Date; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
  \w00200455;r2
 \t065&Receipt Date Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d066obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
- \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
+ \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \w06570;
 \t005Receipt Date Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;  \w00570;
 \t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted';
-\o098008; \o012098;
+
 \t009detailId;\d009010;r \h009010;r
 \t011new detail; \l0124504;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE'' and a9<>''M''',2;
@@ -161,10 +162,10 @@ lmode=2;
 \t045paycodeId;\d045046;r \h045046;r
 
 \t019Paycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=);
-\t021Amount Paid; \t022@n-14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
-\t023Check #; \w02450; 
-\t025Bank Drawn On; \w02650; \l0264509;r026002028004;@acc026=acc165=; lmode026=2; @nopop026;
-\t027Location; \w02850;@acc028=acc165=;
+\t021Amount Paid; \t022@n-14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,acc165=;
+\t023Check #; \w02450; @acc024=lcField=24,acc165=;
+\t025Bank Drawn On; \w02650; \l0264509;r026002028004; @acc026=lcField=26,acc165=;  lmode026=2; @nopop026;
+\t027Location; \w02850; @acc028=lcField=28,acc165=; len(obj:a7&obj:a8&obj:a9&obj:a10&obj:a11)>0
  \h019028obj:a17='Posted';r
  \y019306; \x01965; \y020317; \x02065;
  \y021306; \x021120; \y022317; \x022120;
@@ -277,7 +278,6 @@ lmode=2;
 \t059In Trust; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
 \t061Year; \t062@n4; \w06230;
 \t063Item; \w06460;
-\o068064;
 \t067Decal#; \y067068-13;r
 \*TODO: when writing a trust voucher for receipts tied to year and item pull the tax items identified onto the tax inquiry screen.*\
 \h101102obj:key3<>'TRUST';r
@@ -317,29 +317,21 @@ lmode=2;
  @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
  if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
 
+
 @acc165=update,
- lcBreak=0,
- break(obj:a17='Posted'),
- evalPaycode=,break(lcBreak),
- evalAmount=,break(lcBreak),
- evalCheck=,break(lcBreak),
- if(obj:key3<>'OFFICIAL',cashoverpay=),
- d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''''),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
- break(readstring(obj7:d1,'@code=')=1),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''','&lcField+0),
+ if(readstring(obj7:d1,'@code=')=2,acc165a=),
+ break(readstring(obj7:d1,'@code=')<>0),
  refreshDetail=,
  blankEm=,
  focus(020);
-@cashoverpay=lcdiff=kp('select dbo.receiptBalanceDue('&obj:id&')')-obj:a8,
- break(lcdiff+0>-0.005),
- d1select('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''',''''');
 
-@evalPaycode=if(obj:a7<'  0',focus(020)),if(obj:a7<'  0',lcBreak=1);
-@evalAmount=if(obj:a8<'  0',focus(022)),if(obj:a8<'  0',lcBreak=1);
-@evalCheck=break(obj:a7<>'CHECK'),
-  if(obj:a9<'  0',focus(024)),if(obj:a9<'  0',lcBreak=1),
-  if(obj:a10<'  0',focus(026)),if(obj:a10<'  0',lcBreak=1),
-  if(obj:a11<'  0',focus(028)),if(obj:a11<'  0',lcBreak=1);
+@acc165a=
+ if(readstring(obj7:d1,'@field=')='024',focus(024)), 
+ if(readstring(obj7:d1,'@field=')='026',focus(026)), 
+ if(readstring(obj7:d1,'@field=')='028',focus(028)); 
+ m(readstring(obj7:d1,'@message='),'Receipt Payment...');
+ 
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
 \t041Received by;  \f042=cur:fullname; 
@@ -557,6 +549,8 @@ lmode=2;
  neww(4101,,-03=lccertid,002=lctaxyear,004=lcitem,008=lcname,010=lctyp,012=lctaxamount,020='E',022=today()),
  calcrecord(lccertid),
  change(lccertid);
+
+\o066004; \o006066; \o098008; \o012098; \o068064;
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)
