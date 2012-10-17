@@ -54,10 +54,11 @@ echo   [T]est Connection
 echo   [I]mport from repo
 echo   [G]it Committer
 echo   [S]erver's Path to the Repo
-echo   Git [C]ommit
-echo   Git [P]ull
-echo   Git Stat[u]s
-echo   Git [L]og
+echo   [C] Git Commit
+echo   [P] Git Pull
+echo   [H] Git Push
+echo   [U] Git Status
+echo   [L] Git Log
 echo    e[x]it
 echo ------------------------------
 SET /P runmode=Please Choose:
@@ -68,10 +69,15 @@ IF /I "%runmode%"=="S" call:SetServerPath
 IF /I "%runmode%"=="C" call:gitCommit
 IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="U" call:gitStatus
+IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
 IF /I "%runmode%"=="N" call:sendLog
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:gitPush
+call git push orgin dev --tags
+GOTO:EOF
 
 :gitCommit
 SET /P gitmsg=Commit message:
