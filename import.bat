@@ -54,6 +54,7 @@ echo   [T]est Connection
 echo   [I]mport from repo
 echo   [G]it Committer
 echo   [S]erver's Path to the Repo
+echo   Git [C]ommit
 echo   Git [P]ull
 echo   Git Stat[u]s
 echo   Git [L]og
@@ -64,12 +65,18 @@ IF /I "%runmode%"=="T" call:TestConnection
 IF /I "%runmode%"=="I" call:ImportRepo
 IF /I "%runmode%"=="G" call:SetGitCommitterQ
 IF /I "%runmode%"=="S" call:SetServerPath
+IF /I "%runmode%"=="C" call:gitCommit
 IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="U" call:gitStatus
 IF /I "%runmode%"=="L" call:gitLog
 IF /I "%runmode%"=="N" call:sendLog
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:gitCommit
+SET /P gitmsg=Commit message:
+call git commit -a -m "key_commit: %gitmsg% "
+GOTO:EOF
 
 :gitLog
 call git log
