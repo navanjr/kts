@@ -32,7 +32,9 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
 			cash  money,
 			change  money,
 			blob varchar(max),
-                        deputy varchar(50)                 )
+                        deputy varchar(50),
+                        invoiceLink int,
+                        checkno varchar(50)                 )
 begin		
 	insert @rt (recId,invoiceId)
 					select  @recId, right(slink,LEN(slink)-1) from dbo.receiptSLinks(@recId) where LEFT(slink,1)='t'
@@ -43,11 +45,12 @@ begin
                   r.parcel = i.parcel,
                   r.item = i.ITEM,
                   r.taxYear = i.taxyear,
-                  r.paidBy = i.NAME
+                  r.paidBy = i.NAME,
+                  r.invoiceLink = i.invoiceId
                 from invoices i, @rt r where r.InvoiceId = i.ID
                   
 					
-	--delete from @rt where typ='P'
+	delete from @rt where typ in ('P','F') and invoiceLink > 0
 	
 	update @rt set receiptNo = key1, receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18 from Object where ID = @recid
 
@@ -74,7 +77,7 @@ begin
 			lien = 0,
 			adv = 0,
 			mowing = 0,
-			other = 0			
+			other = cast(dbo.readstring('FEE=',blob) as money)						
 			
 	update @rt set
 			TotPaid = TaxDue + Penalty + mail + lien + adv + mowing + other
@@ -82,14 +85,14 @@ begin
 --Update Paid
 
 	declare @paidBlob varchar(max) 
-			set @paidBlob = ''
-			select @paidBlob = @paidBlob + '@'+paycode+'='+cast(SUM(amount) as varchar)+';'
-		from paid where slink = 'o'+@recid group by paycode
+			select @paidBlob = isnull(@paidBlob,'') + '@'+paycode+'='+cast(SUM(amount) as varchar)+';@'+paycode+'NO='+checkno+';'
+		from paid where slink = 'o'+@recid group by paycode,checkno
 			
 	update r set
 			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
 			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
-			r.change =  cast(dbo.readstring('@coin=',@paidBlob) as money)
+			r.change =  cast(dbo.readstring('@coin=',@paidBlob) as money),
+                        r.checkno = dbo.readstring('@checkno=',@paidBlob)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 							
  return					
