@@ -76,7 +76,7 @@ IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
 
 :gitPush
-call git push orgin dev --tags
+call git push origin dev --tags
 GOTO:EOF
 
 :gitCommit
