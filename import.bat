@@ -54,6 +54,7 @@ echo   [T]est Connection
 echo   [I]mport from repo
 echo   [G]it Committer
 echo   [S]erver's Path to the Repo
+echo   [P]ull
 echo    e[x]it
 echo ------------------------------
 SET /P runmode=Please Choose:
@@ -61,9 +62,14 @@ IF /I "%runmode%"=="T" call:TestConnection
 IF /I "%runmode%"=="I" call:ImportRepo
 IF /I "%runmode%"=="G" call:SetGitCommitterQ
 IF /I "%runmode%"=="S" call:SetServerPath
+IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="N" call:sendLog
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:gitPull
+call git pull origin dev
+GOTO:EOF
 
 :SetGitCommitterQ
 SET /P qanswer=set gitCommitter? ( [E]nable / [D]isable )
