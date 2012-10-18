@@ -14,15 +14,14 @@
 \t001Tax Year; \t002@p####p;
 
 \t007Taxroll Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
-\t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''')';
+\t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''',''I'')';
+\t011Printed; \s012+'select dbo.taxYearInvoiced('''&obj:key1&''',''P'')';
 
 \e002010;r2
 
-\t105In&voice; 
+\t105In&voice; \y105+9;
 @acc105=
- iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
- break(gcretval<>'OK'),
- lcCount=obj7:key1,
+ howMany=,
  invoiceit=;
  
 @invoiceit=
@@ -31,3 +30,35 @@
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Taxroll Invoicing...')),
  calcfld(010),
  kpmc();
+
+
+\t108&Print;  \y108+9;
+@acc108=
+ howMany=,
+ printIt=;
+
+
+@printIt=
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ sqlloop('select id from invoices where printed = '''' and taxyear = '&obj:key1&'and invoiceid = 0 order by item',printIt1=),
+ calcfld(012),
+ kpmc();
+ 
+
+
+
+@printIt1=
+ lcCnt=lcCnt+1,
+ break(lcCnt>lcCount),
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcCount),
+ gcInvoiceId=obj5:a1,
+ sql('dbo.taxRolladdressCheck '&gcInvoiceId),
+ trreport('TaxStatement',5001,'taxStatementJn=',1,'N','N','Y'),
+ sql('update invoices set printed=getdate() where id='&gcInvoiceId);
+ 
+
+@howMany=
+ iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1;
