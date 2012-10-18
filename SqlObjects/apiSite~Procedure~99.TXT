@@ -1,5 +1,6 @@
 create procedure dbo.apiSite (
- @method varchar(10) = 'GET'
+ @method varchar(10) = 'GET',
+ @postData varchar(max) = ''
 ) as
 begin
  set nocount on
@@ -62,21 +63,21 @@ begin
 
  if @method = 'POST'
  begin
-
-  select top 1
-   @dump = '"code=' + @apiCode + '&'
-    + 'name=' + key1 + '&'
-    + 'tax_method=' + a19 + '&'
-    + 'tax_grace=' + a20 + '&'
-    + 'tax_rate=' + b1 + '"'
-   from object where typ = 40 order by id
+  if @postData < '  0' 
+   select top 1
+    @postData = '"code=' + @apiCode + '&'
+     + 'name=' + key1 + '&'
+     + 'tax_method=' + a19 + '&'
+     + 'tax_grace=' + a20 + '&'
+     + 'tax_rate=' + b1 + '"'
+    from object where typ = 40 order by id
 
   exec dbo.api
    @apiKey = @apiKey,
    @apiHost = 'api.kellpro.com',
    @method = @method,
    @resource = @resource,
-   @filter = @dump,
+   @filter = @postData,
    @dump = @dump output
 
   exec dbo.logit @@procid, '@dump', @dump
