@@ -36,15 +36,16 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount
 
-  insert @rettable (ord,id,description)
+  insert @rettable (ord,id,description,subdescription)
   select 'aa'+cast(c.id as varchar)+'aa',cast('6'+cast(c.id as varchar) as int)*-1,
+   'Tax Year: '+cast(c.taxyear as varchar(4)),
    'Tax Receipt: '+a.receiptNumber
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
    and c.invoiceId < 1
-  group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber
+  group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
 
   insert @rettable (ord,id,description,subdescription,amount)
   select 'aa'+cast(c.invoiceId as varchar)+'b',cast('7'+cast(max(c.id) as varchar) as int)*-1,
