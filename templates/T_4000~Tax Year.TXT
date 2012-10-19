@@ -31,32 +31,35 @@
  calcfld(010),
  kpmc();
 
-
 \t108&Print;  \y108+9;
 @acc108=
+ loopn('counter<5',testit=); 
+
  howMany=,
  printIt=;
 
-
+@testit=
+ m('Test '&counter),
+ trpassthru,
+ tr(prn('TaxStatement '&counter,t1));
+ 
 @printIt=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
- sqlloop('select id from invoices where printed = '''' and taxyear = '&obj:key1&'and invoiceid = 0 order by item',printIt1=),
+ sqlloop('select id from invoices where printed = '''' and taxyear = '&obj:key1&'and invoiceid = 0 order by item',printIt1=)
  calcfld(012),
  kpmc();
- 
-
-
 
 @printIt1=
  lcCnt=lcCnt+1,
- break(lcCnt>lcCount),
  kpmm('Printing Invoices...'&lcCnt&' of '&lcCount),
+ break(lcCnt>lcCount),
  gcInvoiceId=obj5:a1,
  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
- trreport('TaxStatement',5001,'taxStatementJn=',1,'N','N','Y'),
+ trreport('TaxStatement'),
  sql('update invoices set printed=getdate() where id='&gcInvoiceId);
- 
+
+
 
 @howMany=
  iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
