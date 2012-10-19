@@ -68,7 +68,7 @@ begin
   and c.typ in (4502) --,4512,4522
   and dbo.slinkType(b.slink) = 'o'
   and substring(b.slink,2,14) = c.id
-  and b.date between @theDate and @theDate + @days
+  and c.key2 between @theDate and @theDate + @days
 
 -- insert all raw receipt data
  insert @wtRaw
@@ -80,11 +80,13 @@ begin
   c.receiptNumber,
   b.amount,
   b.slink
- from @accounts a, glDetail b, receiptLink c
+ from @accounts a, glDetail b, receiptLink c, object d
  where a.accountId = b.accountId
+  and d.typ in (4502)
   and dbo.slinkType(b.slink) = 'l'
   and substring(b.slink,2,14) = c.id
-  and b.date between @theDate and @theDate + @days
+  and c.receiptId=d.id
+  and d.key2 between @theDate and @theDate + @days
 
  insert @wt
  select
