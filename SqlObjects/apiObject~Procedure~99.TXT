@@ -1,21 +1,23 @@
 create procedure dbo.apiObject(
- @typ int,
- @id int,
- @method varchar(10)
+ @objectId int = null,
+ @controlId int = null,
+ @method varchar(10) = 'GET',
+ @insertIntoObject varchar(10) = 'false'
 ) as
 begin
 
- exec dbo.logit @@procid, '@id', @id, '@typ', @typ
+ exec dbo.logit @@procid, '@objectId', @objectId, '@method', @method
  
  declare 
-  @objectId int,
+  @typ int = 4,
   @apiwt JSONHierarchy,
   @filter varchar(500),
   @apiHost varchar(50),
   @apiKey varchar(50),
   @apiResource varchar(50),
   @apiFields varchar(max),
-  @dump varchar(max)
+  @dump varchar(max),
+  @log varchar(max)
  
  declare @wt table(
   objField varchar(50),
@@ -23,7 +25,9 @@ begin
   value varchar(500)
  )
 
- select @objectId = id from object where typ = @typ and cast(key1 as int) = @id
+ if isnull(@objectId,0) > 0
+  select @typ = typ, @controlId = key1 from object where id = @objectId 
+
  select @apiHost = dbo.readKeyCode(@typ,'@apiHost=')
  select @apiKey = dbo.readKeyCode(@typ,'@apiKey=')
  select @apiResource = dbo.readKeyCode(@typ,'@apiResource=')
@@ -36,7 +40,10 @@ begin
  update @wt set apiField = (select data from dbo.split(objField,':') where id = 2)
  update @wt set objField = (select data from dbo.split(objField,':') where id = 1)
 
- set @filter = 'id=' + cast(@id as varchar)
+ if @controlId = 0
+  set @filter = ''
+ else
+  set @filter = 'id=' + cast(@controlId as varchar)
 
  exec dbo.logit @@procid, '@method', @method, '@filter', @filter
 
@@ -60,16 +67,24 @@ begin
   return
  end
 
+
+
+
+
+
+
  if @method = 'POST'
  begin
  
   set @dump = '"'
-  
-  select 
-   @dump = @dump + apiField + '=' + replace(dbo.stripChars(value,'39,34,13'),char(10),'|') + '&'
-   from @wt 
+
+  if @controlId = 0
+   select @dump = @dump + apiField + '=' + replace(dbo.stripChars(value,'39,34,13'),char(10),'|') + '&' from @wt where objField != 'key1'
+  else
+   select @dump = @dump + apiField + '=' + replace(dbo.stripChars(value,'39,34,13'),char(10),'|') + '&' from @wt 
 
   set @dump = @dump + '"'
+  exec dbo.logit @@procId, '@dump=', @dump
 
   exec dbo.api
    @apiKey = @apiKey,
@@ -79,13 +94,29 @@ begin
    @filter = @dump,
    @dump = @dump output
 
+-- if the controlId was zero we need to write the control number to key1
+  if @controlId = 0
+  begin
+   declare @newControlNumber varchar(50)
+   select @newControlNumber = stringValue from dbo.parseJSON(@dump) where name = 'id'
+   if isnumeric(@newControlNumber) = 1
+    update object set key1 = @newControlNumber where id = @objectId
+  end
+
+  return
  end
+
+
+
+
+
+
 
 
  if @method = 'GETINDEX'
  begin
 
-  set @filter = '"' + @filter + '&index=true' + '"'
+  set @filter = ''
 
   exec dbo.api
    @apiKey = @apiKey,
@@ -98,8 +129,64 @@ begin
   if len(@dump) > 0
   begin
    insert into @apiwt
-   select * from dbo.parseJSON(@dump) where name is not null
+   select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
 
+   declare @token int, @tally int
+
+   declare @theList table(
+    controlId varchar(50),
+    title varchar(50),
+    dateentered varchar(50),
+    category varchar(50),
+    priority varchar(50),
+    datecompleted varchar(50),
+    description varchar(max),
+    history varchar(max)
+   )
+   while exists(select * from @apiwt)
+   begin
+    select @token = min(parent_id) from @apiwt
+    insert @theList select 
+     (select stringValue from @apiwt where parent_id = @token and name = 'id'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'title'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'dateentered'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'category'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'priority'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'datecompleted'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'description'),
+     (select stringValue from @apiwt where parent_id = @token and name = 'history')
+    delete @apiwt where parent_id = @token
+   end
+
+   select @tally = count(*) from @thelist
+   exec dbo.logit @@procid, 'total rows received from the API', @tally   
+
+-- update rows
+   update a set
+    a.key2 = b.dateentered,
+    a.key3 = b.category,
+    a.a1 = b.title,
+    a.a17 = b.priority,
+    a.a18 = b.datecompleted,
+    a.e1 = b.description,
+    a.e2 = b.history
+   from object a, @theList b
+   where a.key1 = b.controlId
+    and a.typ = 4
+
+   select @tally = count(*) from @thelist where controlId in (select key1 from object where typ = 4)
+   exec dbo.logit @@procid, '@theList updated', @tally   
+
+-- insert rows
+   insert object (typ,key1,key2,key3,a1,a17,a18,e1,e2)
+   select 4, controlId, dateentered, category,title,priority,datecompleted,description,history
+   from @theList where controlId not in (select key1 from object where typ = 4)
+
+   select @tally = count(*) from @thelist where controlId not in (select key1 from object where typ = 4)
+   exec dbo.logit @@procid, '@theList inserted', @tally   
+
+
+/*
    declare
     @elementId int,
     @indexToken int
@@ -108,10 +195,14 @@ begin
    begin
     select top 1 
      @elementId = element_id,
-     @indexToken = cast(stringValue as int) from @apiwt where name = 'id'
-    exec dbo.apiObject @typ, @indexToken, 'GET'
+     @indexToken = cast(stringValue as int)
+    from @apiwt where name = 'id' order by cast(stringValue as int) desc
+
+    exec dbo.apiObject @controlId = @indexToken, @method = 'GET'
+
     delete @apiwt where element_id = @elementId
    end
+*/
 
   end
 
@@ -119,8 +210,23 @@ begin
  end
 
 
+
+
+
+
+
+
+
+
+
+
+
+
  if @method = 'GET'
  begin
+
+  if @controlId = 0 and @insertIntoObject = 'false'
+   return
 
   exec dbo.api
    @apiKey = @apiKey,
@@ -133,7 +239,6 @@ begin
   if len(@dump) > 10
   begin
 
-
    insert into @apiwt
    select * from dbo.parseJSON(@dump) where name is not null
    
@@ -141,11 +246,16 @@ begin
    from @wt a, @apiwt b
    where a.apiField = b.name
 
-   if isnull(@objectId,0) = 0
-    insert object (typ,key1) select @typ, @id
+   declare @apiControlId varchar(50)
+    set @apiControlId = isnull((select value from @wt where objField = 'key1'),'')
+
+   if @apiControlId < '  0'
+    return
+
+   if not exists(select * from object where typ = 4 and key1 = @apiControlId)
+    insert object (typ,key1) select @typ, @apiControlId
 
    update object set 
-    key1 = isnull((select value from @wt where objField = 'key1'),''),
     key2 = isnull((select value from @wt where objField = 'key2'),''),
     key3 = isnull((select value from @wt where objField = 'key3'),''),
     a1 = isnull((select value from @wt where objField = 'a1'),''),
@@ -153,7 +263,7 @@ begin
     a18 = isnull((select value from @wt where objField = 'a18'),''),
     e1 = isnull((select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e1'),''),
     e2 = isnull((select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e2'),'')
-   where typ = @typ and key1 = cast(@id as varchar)
+   where typ = @typ and key1 = @apiControlId
 
   end
   else
@@ -163,6 +273,10 @@ begin
 
   end
 
+  return
  end
+
+
+
 
 end

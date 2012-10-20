@@ -24,6 +24,9 @@ var options = {
   method: method,
   auth: auth
 };
+
+//console.log(options);
+
 function getData(){
     var req = http.request(options, function(res) {
     //  console.log('STATUS: ' + JSON.stringify(res.statusCode));
