@@ -1,0 +1,32 @@
+create function dbo.taxYearBrw(@taxYear varchar(10),@switch int) 
+
+returns @rt table 
+ (invoiceId int,
+  name nvarchar(60),
+  parcel nvarchar(34),
+  taxYear numeric(5,0),
+  item numeric(22,1),
+  taxType nvarchar(1),
+  amount money,
+  due money,
+  slink varchar(15),
+  selectedFlag char(4),
+  methodRate money,
+  ord varchar(80),
+  fees money,
+  penalty money,
+  toPay money,
+  treamort varchar(5),
+  taxrollId int)
+as
+begin
+ insert @rt
+   select 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+   from dbo.invoices
+   where taxYear = @taxYear and printed>'  0'
+   order by printed 
+
+return
+
+end
