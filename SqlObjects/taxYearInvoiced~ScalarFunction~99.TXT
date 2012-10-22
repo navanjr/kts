@@ -4,17 +4,32 @@ as begin
 declare @x int
 declare @wt table(id int)
 
+
+---count the invoiced
+
  if @switch='I'
   begin  
     insert into @wt
        select  i.id from invoices i, gldetail g where i.TAXYEAR=@taxYear and i.invoiceid=0 and 't'+cast(i.ID as varchar)=slink 
   end
 
+---count the printed
+
  if @switch='P'
   begin  
     insert into @wt
        select  i.id from invoices i, gldetail g where i.TAXYEAR=@taxYear and i.invoiceid=0 and printed>'  0' and 't'+cast(i.ID as varchar)=slink 
   end
+
+---count with mortgage codes
+
+ if @switch='M'
+  begin  
+    insert into @wt
+       select  i.id from invoices i, gldetail g where i.TAXYEAR=@taxYear and i.invoiceid=0 and 't'+cast(i.ID as varchar)=slink 
+                         and taxrollid in (select id from adtax where realtaxyear=@taxYear and mortgagecode>0) 
+  end
+
 
 
   select @x = COUNT(distinct id) from @wt
