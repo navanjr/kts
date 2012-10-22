@@ -1,0 +1,72 @@
+create procedure dbo.taxRateMillageCRUD ( @objectId int ) as
+begin
+ 
+ exec dbo.logit @@procId, '@objectId', @objectId
+
+ declare
+  @year varchar(50),
+  @rateName varchar(50),
+  @district varchar(50),
+  @tally int
+
+ declare @wt table(
+  millageName varchar(50),
+  millageAmount varchar(50)
+ )
+ 
+ select 
+  @year = key1,
+  @district = key2,
+  @rateName = key3
+ from object where typ = 4018 and id = @objectId
+
+ exec dbo.logit @@procid, '@year', @year, '@rateName', @rateName, '@district', @district
+
+ insert @wt select a2, b1 from object where typ = 4018 and id = @objectId
+ insert @wt select a3, b2 from object where typ = 4018 and id = @objectId
+ insert @wt select a4, b3 from object where typ = 4018 and id = @objectId
+ insert @wt select a5, b4 from object where typ = 4018 and id = @objectId
+ insert @wt select a6, b5 from object where typ = 4018 and id = @objectId
+ insert @wt select a7, b6 from object where typ = 4018 and id = @objectId
+ insert @wt select a8, b7 from object where typ = 4018 and id = @objectId
+ insert @wt select a9, b8 from object where typ = 4018 and id = @objectId
+ insert @wt select a10, b9 from object where typ = 4018 and id = @objectId
+ insert @wt select a11, b10 from object where typ = 4018 and id = @objectId
+ insert @wt select a12, b11 from object where typ = 4018 and id = @objectId
+ insert @wt select a13, b12 from object where typ = 4018 and id = @objectId
+ insert @wt select a14, b13 from object where typ = 4018 and id = @objectId
+ insert @wt select a15, b14 from object where typ = 4018 and id = @objectId
+ insert @wt select a16, b15 from object where typ = 4018 and id = @objectId
+
+ -- update 
+ update a set 
+  a.a2 = b.millageAmount
+ from object a, @wt b 
+ where a.typ=4012
+  and a.key1 = @district 
+  and a.key2 = @rateName 
+  and a.key3 = @year 
+  and a.a1 = b.millageName
+
+ select @tally = count(a.id) 
+ from object a, @wt b 
+ where a.typ=4012
+  and a.key1 = @district 
+  and a.key2 = @rateName 
+  and a.key3 = @year 
+  and a.a1 = b.millageName
+
+ exec dbo.logit @@procid, 'tax rate records updated', @tally
+
+ -- insert
+ insert object (typ,key1,key2,key3,a1,a2)
+ select 4012, @district, @rateName, @year, millageName, millageAmount from @wt
+  where millageName not in (select a1 from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @year)
+
+ select @tally = count(*) from @wt
+  where millageName not in (select a1 from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @year)
+ 
+ exec dbo.logit @@procid, 'tax rate records inserted', @tally
+
+
+end
