@@ -20,7 +20,8 @@ begin
   @accountBlob varchar(2000),
   @accrualcode varchar(50),
   @targetcode varchar(50),
-  @taxrollCheckBlob varchar(max)
+  @taxrollCheckBlob varchar(max),
+  @log varchar(max)
 
  if isnull(@invoiceId,0) > 0 and @taxrollId is null
   select @taxrollId = taxrollId from invoices where id = @invoiceId
@@ -106,6 +107,10 @@ begin
   if @smode = 0
    begin
     select '@code=1;@message=No tax rate detail available.;'
+    exec dbo.logit @@procid, '@code=1;@message=No tax rate detail available.;'
+    set @log = 'select * from dbo.getRates(''taxinvoice'',null,null,' + cast(@taxrollId as varchar) + ',' + '@invoiceType)'
+    exec dbo.logit @@procid, @log
+
    end
   return
  end
