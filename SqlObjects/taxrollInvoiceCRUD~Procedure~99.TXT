@@ -2,7 +2,8 @@ create procedure dbo.taxrollInvoiceCRUD(
  @taxrollId int,
  @smode int = 0,
  @invoiceType varchar (1) = '',
- @invoiceId int = null
+ @invoiceId int = null,
+ @debugMode varchar(10) = 'false'
 ) as
 begin
 
@@ -151,28 +152,34 @@ begin
  
   if exists(select * from @invd where isnull(sourceId,0) = 0)
   begin
+   exec dbo.logit @@procid, '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
+   if @debugMode = 'TRUE'
+    select * from invd
    if @smode = 0
     begin
      select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
-     exec dbo.logit @@procid, '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.1);'
     end
    return
   end
   if exists(select * from @invd where isnull(fundId,0) = 0 and @invoiceType<>'S')
   begin
+   exec dbo.logit @@procid, '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+   if @debugMode = 'TRUE'
+    select * from invd
    if @smode = 0
     begin
      select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
-     exec dbo.logit @@procid, '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
     end
    return
   end
   if (select sum(amount) from @invd) = 0
   begin
+   exec dbo.logit @@procid, '@code=1;@message=No amount exists to stage GL.;'
+   if @debugMode = 'TRUE'
+    select * from invd
    if @smode = 0
     begin
      select '@code=1;@message=No amount exists to stage GL.;'
-     exec dbo.logit @@procid, '@code=1;@message=No amount exists to stage GL.;'
     end
    return
   end
