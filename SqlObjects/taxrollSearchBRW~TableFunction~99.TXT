@@ -26,13 +26,13 @@ begin
  
  if @name > '  0'
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),''
+  select id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),''
   from dbo.invoices
   where name = @name and id != @selectedId
 
  if @parcel > '  0'
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,0,0,'t'+cast(id as varchar),''
+  select id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),''
   from dbo.invoices
   where parcel = @parcel and id != @selectedId and id not in (select invoiceId*-1 from @rt)
 
@@ -54,9 +54,10 @@ begin
    a.amount = b.srcAmount 
   from @rt a, @glSum b where a.slink = b.slink
 */  
-  update @rt set
-   due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0),
-   amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE'),0)
+-- removed this for performance. TODO: keep an eye on this...  also, replaced 0,0 with invoiceAmount,invoiceDue in the two inserts above
+--  update @rt set
+--   due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0),
+--   amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE'),0)
   
  delete from @rt where due < 0.01
   
