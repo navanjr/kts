@@ -58,8 +58,9 @@
 \t105In&voice; \y105+9;
 @acc105=
  howMany=,
+ break(gcretval<>'OK'),
  invoiceit=;
- 
+
 @invoiceit=
  kpmo('Creating Invoices...'),
  d1select('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount),
@@ -70,8 +71,11 @@
 \t108&Print;  \y108+9;
 @acc108=
  howMany=,
+ if(obj:b2+0=0,howMany=,printFromQ=),
+ break(gcretval<>'OK' and gcretval<>'2'),
+ if(gcretval='OK',sql('update invoices set queue = '''&cur:ini&''' where taxrollid in (select top '&lcCount&' taxrollid from invoices where taxyear = '''&obj:key1&''' and printed = '''' and queue = '''' and invoiceId = 0 order by item)')),
  printIt=;
- 
+
 @printIt=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
