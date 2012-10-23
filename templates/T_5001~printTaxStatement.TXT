@@ -1,7 +1,7 @@
-@bb1=&Print; @bbproc1=taxStatmentJn=;
+@bb1=&Print; @bbproc1=trreport('TaxStatement');
 @bb2=&Test; @bbproc2=
  gcInvoiceId=17105,
- taxStatmentJn=;
+ trreport('TaxStatement');
 
 @taxStatmentRM=
  do(452,getSiteInfo=),
@@ -83,6 +83,7 @@
  gcAdd=kp('select dbo.parseAddress('''&gcInvoiceBlob&''')'),
  gcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
  gcsql5001a='select year,unPaidDue from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0',
+ gcUnPaid=kp('select sum(unPaidDue) from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0'),
  lcDetFont='Courier New',
  lcFont='Arial',
  tr(
@@ -121,10 +122,11 @@
   prn(,lcx,lcy,,,lcFont),
   bnd(,readstring(gcInvoiceBlob,'@PARCEL='),3050C),
   nl,
+  if(gcUnPaid>0),do(
   bnd(,'UNPAID BACK TAXES',3050C),
   det(gcsql5001a),
   bnd(,obj5:a1,700R,format(obj5:a2,@n$-14.2),1700R),
-  edt,
+  edt),
   prn(,lcx+4000,lcy),
   bnd(,readstring(gcInvoiceBlob,'@ORGSCHOOLDISTRICTMAIN='),750C,readstring(gcInvoiceBlob,'@TAXYEAR='),750R),
   bnd(,readstring(gcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),750C),
