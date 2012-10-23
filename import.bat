@@ -54,6 +54,9 @@ echo   [T]est Connection
 echo   [I]mport from repo
 echo   [G]it Committer
 echo   [S]erver's Path to the Repo
+echo   ---------
+echo   L[o]gging
+echo   ---------
 echo   [C] Git Commit
 echo   [P] Git Pull
 echo   [H] Git Push
@@ -72,6 +75,7 @@ IF /I "%runmode%"=="U" call:gitStatus
 IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
 IF /I "%runmode%"=="N" call:sendLog
+IF /I "%runmode%"=="O" call:ConfigureLogging
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
 
@@ -106,6 +110,22 @@ GOTO:EOF
 SET /P newPath=Enter the Path to the Repo from the Server:
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"update object set b13='@gitPath=%newPath%;' where typ=0 and link1=-1"
 echo @gitPath=%newPath%
+GOTO:EOF
+
+:ConfigureLogging
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control=status"
+SET /P qanswer=set logging? ( [E]nable / [D]isable )
+IF /I "%qanswer%"=="E" call :SetLoggingE 
+IF /I "%qanswer%"=="D" call :SetLoggingD
+GOTO:EOF
+
+:SetLoggingE
+SET /P qanswer=Enter Logging path and filename:
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control='start|1|%qanswer%'"
+GOTO:EOF
+
+:SetLoggingD
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control=stop"
 GOTO:EOF
 
 :SetGitCommitter
