@@ -11,9 +11,10 @@
  brw(150,1,gcbrwsql4000,65,95,240,100,'50C(2)~Count~#2#M50C(2)~Printed~#3#M80L(2)~~#4#M',7,1),
  prop(150,7CFAH,13499135);
 @lbrw1forecolor=obj7:c10<0,255;
-@brwclick=
- lcid=kpbrwid(1)*-1,
- m(lcid);
+@brw1=
+ gcMortId=kpbrwid(1)*-1,
+ gcMortCode=kp('select therealmortcode from dbo.taxYearPrintBRW('''&obj:key1&''') where id = '&lcid*-1),
+ printRoutine=;
 
 @acc011=
  gcTaxYear=obj:key1,
@@ -64,6 +65,10 @@
  break(gcretval<>'OK'),
  invoiceit=;
 
+@printFromQ=
+ m('Do you want to print '&obj:b2&' invoice(s)?',,,6,2),
+ lcCount=obj:b2;
+
 @invoiceit=
  kpmo('Creating Invoices...'),
  d1select('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount),
@@ -71,19 +76,18 @@
  calcfld(010),
  kpmc();
 
-\t108&Print;  \y108+9;
-@acc108=
- m(kpbrwid(1));
- howMany=,
+\t108&Print;  \y108+9; \h108;
+
+@printRoutine=
  if(obj:b2+0=0,howMany=,printFromQ=),
  break(gcretval<>'OK' and gcretval<>'2'),
- if(gcretval='OK',sql('update invoices set queue = '''&cur:ini&''' where taxrollid in (select top '&lcCount&' taxrollid from invoices where taxyear = '''&obj:key1&''' and printed = '''' and queue = '''' and invoiceId = 0 order by name)')),
+ if(gcretval='OK',sql('update invoices set queue = '''&cur:ini&''' where taxrollid in (select top '&lcCount&' i.taxrollid from invoices i, adtax x where i.taxrollid = x.id '&choose(gcMortCode>'  0','and x.mortgageCode = '''&gcMortCode&''' ','')&' and i.taxyear = '''&obj:key1&''' and i.printed = '''' and i.queue = '''' and i.invoiceId = 0 order by i.name)')),
  printIt=;
 
 @printIt=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
- sqlloop('select id from invoices where printed = '''' and taxyear = '&obj:key1&'and invoiceid = 0 order by name',printIt1=)
+ sqlloop('select id from invoices where printed = '''' and taxyear = '''&obj:key1&''' and queue = '''&cur:ini&''' order by name',printIt1=),
  calcfld(012),
  kpmc();
 
@@ -97,8 +101,7 @@
  sql('update invoices set printed=cast(getdate() as varchar(50)) where id='&gcInvoiceId);
 
 @howMany=
- iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
- break(gcretval<>'OK'),
+ iw(',.t000Please Enter Number of items to process....('&gcMortCode&'), ,.t001Process Count., ,.w00230.,'),
  lcCount=obj7:key1;
 
 \t115AdTax Dist/Rates;
