@@ -28,7 +28,7 @@
  gcIni=cur:ini,
  gcSwitch='M',
  lcId=kp('select top 1 id from object where typ=4019'),if(lcId+0>0,change(lcId),new(4019));
-
+ 
 
 @bb5=SetUpTaxYrs; 
  @bbproc5=
@@ -64,6 +64,7 @@
 \t105In&voice; \y105+9;
 @acc105=
  howMany=,
+ break(gcretval<>'OK'),
  invoiceit=;
  
 @invoiceit=
@@ -75,20 +76,26 @@
 
 \t108&Print;  \y108+9;
 @acc108=
- howMany=,
+ if(obj:b2+0=0,howMany=,printFromQ=),
+ break(gcretval<>'OK' and gcretval<>'2'),
+ if(gcretval='OK',sql('update invoices set queue = '''&cur:ini&''' where taxrollid in (select top '&lcCount&' taxrollid from invoices where taxyear = '''&obj:key1&''' and printed = '''' and queue = '''' and invoiceId = 0 order by item)')),
  printIt=;
  
+@printFromQ=
+ m('Do you want to print '&obj:b2&' invoice(s)?',,,6,2),
+ lcCount=obj:b2;
+
 @printIt=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
- sqlloop('select id from invoices where printed = '''' and taxyear = '&obj:key1&'and invoiceid = 0 order by item',printIt1=)
+ sqlloop('select top '&lcCount&' id from invoices where queue = '''&cur:ini&''' and taxyear = '''&obj:key1&'''  and printed='''' order by item',printIt1=),
  calcfld(012),
+ calcfld(050),
  kpmc();
 
 @printIt1=
  lcCnt=lcCnt+1,
  kpmm('Printing Invoices...'&lcCnt&' of '&lcCount),
- break(lcCnt>lcCount),
  gcInvoiceId=obj5:a1,
  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
  trreport('TaxStatement'),
@@ -96,7 +103,6 @@
 
 @howMany=
  iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
- break(gcretval<>'OK'),
  lcCount=obj7:key1;
 
 \t115AdTax Dist/Rates;
