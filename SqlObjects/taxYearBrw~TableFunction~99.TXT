@@ -17,7 +17,9 @@ returns @rt table
   penalty money,
   toPay money,
   treamort varchar(5),
-  taxrollId int)
+  taxrollId int,
+  queue varchar(50),
+  printed varchar(50))
 as
 begin
 
@@ -25,7 +27,7 @@ if @switch='p'
  begin
    insert @rt
      select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
        from dbo.invoices
       where taxYear = @taxYear and printed>'  0'
      order by printed 
@@ -36,7 +38,7 @@ if @switch='q'
  begin
    insert @rt
      select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
        from dbo.invoices
       where taxYear = @taxYear and printed='' and queue=@ini
      order by printed 
@@ -47,7 +49,7 @@ if @switch='M'
  begin
    insert @rt
      select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
        from dbo.invoices
       where taxYear = @taxYear and taxrollid in (select id from adtax where realtaxyear=@taxyear and (mortgagecode>0 or treamort>0))
      order by printed 
