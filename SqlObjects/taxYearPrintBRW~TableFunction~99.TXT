@@ -2,12 +2,20 @@ create function dbo.taxYearPrintBRW( @taxYear varchar(50) ) returns @rt table(
  id int,
  ord varchar(50),
  code varchar(50),
- tally int
+ tally int,
+ tallyPrinted int
 ) as 
 begin
 
+
+-- all invoices
  insert @rt 
- select 0,1,'Total Invoices',count(*) from invoices where taxyear = @taxyear
+ select 0,1,'Total Invoices',count(*),sum(case when printed > '  0' then 1 else 0 end) from invoices where taxyear = @taxyear
+
+-- mortgage codes
+ insert @rt 
+ select 0,2,mortgageCode,count(*),sum(case when printed > '  0' then 1 else 0 end) from taxYearPrintMortCodeView where taxyear = @taxyear
+  group by mortgageCode
 
  return
 end
