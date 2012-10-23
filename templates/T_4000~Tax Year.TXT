@@ -5,6 +5,11 @@
  create(49,9),
  create(13,9);
 
+@brwstuff=
+ gcbrwsql4000='select id,mortgagecode from dbo.mortgageCodesBRW('''&obj:key1&''')',
+ brw(150,1,gcbrw1sql4000,65,81,270,200,'138L(2)~~#2#M80L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10<0,255;
 
 @acc011=
  gcTaxYear=obj:key1,
@@ -87,8 +92,7 @@
  gcInvoiceId=obj5:a1,
  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
  trreport('TaxStatement'),
- sql('update invoices set printed=getdate() where id='&gcInvoiceId);
-
+ sql('update invoices set printed=cast(getdate() as varchar(50)) where id='&gcInvoiceId);
 
 @howMany=
  iw(',.t000Please Enter Number of items to process...., ,.t001Process Count., ,.w00230.,'),
@@ -114,4 +118,28 @@
   det('select count(*), SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE from adtax where realtaxyear = '''&gcTaxYear4000&''' group by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE'),
    bnd('D',obj5:a1,200,obj5:a2,1000,obj5:a3,1000)
   edt,
+ );
+
+@acc013=
+ gcTaxYear4000=obj:key1,
+ trreport('mortgageCodeReport',4000,'mortgageCodeReport=');
+
+@mortgageCodeReport=
+ do(452,getSiteInfo=),
+ lctot=0,
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Adtax District/RateName Summary',t1),
+  prn(gcCounty&' County',t2),
+  prn(gcCity&', '&gcState,t3),
+  prn('Tax Year: '&gcTaxYear4000,t4),
+  prn(,1500),
+  bnd('HU','Count',500C,'Code',200,'Name',1000),
+  det('select cast(count(*) as varchar), mortgageCode from adtax where realtaxyear = '''&gcTaxYear4000&''' group by mortgageCode'),
+   bnd('D',format(obj5:a1,@n12.0b),500C,obj5:a2,1000,obj5:a3,1000),
+   lctot=lctot+0+obj5:a1+0,
+  edt,
+  nl,
+  bnd('D',format(lctot,@n12.0b),500C),
  );
