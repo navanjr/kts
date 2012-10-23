@@ -1,4 +1,4 @@
-create function dbo.taxYearBrw(@taxYear varchar(10),@switch int) 
+create function dbo.taxYearBrw(@taxYear varchar(10),@switch varchar(4),@ini varchar(4)) 
 
 returns @rt table 
  (invoiceId int,
@@ -20,12 +20,43 @@ returns @rt table
   taxrollId int)
 as
 begin
- insert @rt
-   select 
-    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
-   from dbo.invoices
-   where taxYear = @taxYear and printed>'  0'
-   order by printed 
+
+if @switch='p'
+ begin
+   insert @rt
+     select 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+       from dbo.invoices
+      where taxYear = @taxYear and printed>'  0'
+     order by printed 
+end
+
+
+if @switch='q'
+ begin
+   insert @rt
+     select 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+       from dbo.invoices
+      where taxYear = @taxYear and printed='' and queue=@ini
+     order by printed 
+end
+
+
+if @switch='M'
+ begin
+   insert @rt
+     select 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId 
+       from dbo.invoices
+      where taxYear = @taxYear and taxrollid in (select id from adtax where realtaxyear=@taxyear and (mortgagecode>0 or trcode>0))
+     order by printed 
+end
+
+
+update @rt set treamort=case when a.treamort>'  0' then a.treamort else mortgagecode end from adtax a where taxrollid=a.id
+
+
 
 return
 
