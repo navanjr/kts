@@ -5,8 +5,9 @@ create procedure dbo.apiObject(
  @insertIntoObject varchar(10) = 'false'
 ) as
 begin
+ set nocount on
 
- exec dbo.logit @@procid, '@objectId', @objectId, '@method', @method
+ exec dbo.logit @@procid, '@objectId', @objectId, '@method', @method, '@insertIntoObject', @insertIntoObject
  
  declare 
   @typ int = 4,
@@ -151,13 +152,13 @@ begin
     select @token = min(parent_id) from @apiwt
     insert @theList select 
      (select stringValue from @apiwt where parent_id = @token and name = 'id'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'title'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'dateentered'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'category'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'priority'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'datecompleted'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'description'),
-     (select stringValue from @apiwt where parent_id = @token and name = 'history')
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'title'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'dateentered'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'category'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'priority'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'datecompleted'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'description'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'history'),'')
     delete @apiwt where parent_id = @token
    end
 
