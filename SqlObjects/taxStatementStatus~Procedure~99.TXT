@@ -1,0 +1,58 @@
+create proc dbo.taxStatementStatus(
+ @invoiceId int,
+ @status varchar(50),
+ @lcContinue varchar(50) = '' output ) as
+begin
+
+ set nocount on
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status
+
+ declare
+  @queue varchar(50),
+  @taxYear varchar(50),
+  @InvoiceStatus varchar(50)
+
+ select
+  @queue = queue,
+  @taxYear = taxyear,
+  @invoiceStatus = printed
+ from invoices where id = @invoiceId
+
+-- Pre check
+ if @status = 'initialize'
+ begin
+
+  if exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+   set @lcContinue = 'False'
+  else
+   set @lcContinue = 'True'
+
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return
+ end
+
+ if @status = 'Failed'
+ begin
+
+  if not exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+   update invoices set printed = 'Failed' where id = @invoiceId
+
+  set @lcContinue = 'False'
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return
+
+ end
+
+ if @status = 'Success'
+ begin
+  update invoices set printed = getdate() where id = @invoiceId
+  set @lcContinue = 'True'
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return  
+ end
+
+
+end
