@@ -29,9 +29,10 @@ print@fastinsert;
 @printRoutine=
  lcScope=readstring(lcBlob,'@scope='),
  lcCode=readstring(lcBlob,'@code='),
+ gcIni=cur:ini,
  if(obj:b2+0=0,howMany=,printFromQ=),
  break(gcretval<>'OK' and gcretval<>'2'),
- if(gcretval='OK',sql('update invoices set queue = '''&cur:ini&''' where taxrollid in (select top '&lcCount&' i.taxrollid from invoices i, adtax x where i.taxrollid = x.id and x.mortgageCode = '''&lcCode&''' and i.taxyear = '''&obj:key1&''' and i.printed = '''' and i.queue = '''' and i.invoiceId = 0 order by i.name)')),
+ if(gcretval='OK',sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''','&lcCount&','''&lcCode&'''')),
  printIt=;
 
 @acc049=
@@ -105,7 +106,7 @@ print@fastinsert;
 @printItCore=
  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
  trreport('TaxStatement'),
- d1select('exec dbo.taxStatementStatus '&gctaxInvoiceId&',''Success''');
+ d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''Success''');
 
 @howMany=
  iw(',.t000Please Enter Number of items to process....('&lcCode&'), ,.t001Process Count., ,.w00230.,'),

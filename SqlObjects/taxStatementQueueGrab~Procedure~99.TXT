@@ -1,0 +1,24 @@
+create proc dbo.taxStatementQueueGrab (
+ @taxYear varchar(50),
+ @ini varchar(10),
+ @count int,
+ @mortCode varchar(50)
+) as
+
+begin
+ exec dbo.logit @@procid, '@taxyear', @taxyear, '@ini', @ini, '@count', @count
+
+ declare @sql nvarchar(max)
+
+ set @sql = 'update invoices set '
+  + ' queue = ''' + @ini + '''' 
+  + ' where taxrollid in '
+  + ' (select top ' + cast(@count as varchar) +' i.taxrollid '
+  + '  from invoices i, adtax x where i.taxrollid = x.id and x.mortgageCode = cast(''' + @mortCode + ''' as int) ' 
+  + '   and i.taxyear = ''' + @taxyear + ''' and i.printed = '''' and i.queue = '''' and i.invoiceId = 0 order by i.name)'
+
+ exec dbo.logit @@procid, @sql
+
+ exec sp_executesql @sql
+
+end
