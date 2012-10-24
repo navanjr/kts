@@ -76,11 +76,22 @@
   rn(readstring(gcInvoiceBlob,'@TAXYEAR=')&readstring(gcInvoiceBlob,'@ITEM='),lcx+2900,lcy,12,,'IDAutomationHC39M'),
 );
 
+
+@failedProc=
+ d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''Failed'''),
+ lcContinue=obj7:d1;
+ 
+
 @taxStatmentJn=
+ d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
+ lcContinue=obj7:d1,
+ break(lcContinue='False'),
  do(452,getSiteInfo=),
  gcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
  gcName=readstring(gcInvoiceBlob,'@NAME='),
  gcAdd=kp('select dbo.parseAddress('''&gcInvoiceBlob&''')'),
+ if(gcAdd<'  0',failedProc=),
+ break(lcContinue='False'),
  gcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
  gcsql5001a='select year,unPaidDue from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0',
  gcUnPaid=kp('select sum(unPaidDue) from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0'),
