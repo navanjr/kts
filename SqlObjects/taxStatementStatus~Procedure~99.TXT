@@ -5,7 +5,6 @@ create proc dbo.taxStatementStatus(
 begin
 
  set nocount on
- exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status
 
  declare
   @queue varchar(50),
@@ -17,6 +16,16 @@ begin
   @taxYear = taxyear,
   @invoiceStatus = printed
  from invoices where id = @invoiceId
+
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@taxYear', @taxYear, '@queue', @queue
+
+ if @invoiceStatus = 'Failed'
+ begin
+  set @lcContinue = 'False'
+  select @lcContinue
+  exec dbo.logit @@procid, '@invoiceStatus', @invoiceStatus, '@lcContinue', @lcContinue
+  return  
+ end
 
 -- Pre check
  if @status = 'initialize'
