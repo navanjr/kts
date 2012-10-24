@@ -9,7 +9,11 @@ begin
  declare
   @queue varchar(50),
   @taxYear varchar(50),
-  @InvoiceStatus varchar(50)
+  @InvoiceStatus varchar(50),
+  @name varchar(50),
+  @item varchar(50),
+  @tally int,
+  @log varchar(max)
 
  select
   @queue = queue,
@@ -19,9 +23,16 @@ begin
 
  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@taxYear', @taxYear, '@queue', @queue
 
- if @status = 'resetPrintedStage'
+ if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
  begin
-  select '@name=' + name + ';@item=' + cast(item as varchar) + ';' from invoices where id = @invoiceId
+  select @name = name, @item = cast(item as varchar) from invoices where id = @invoiceId
+  select @tally = count(*) from invoices where name + cast(item as varchar) >= @name + @item and queue = @queue and taxyear = @taxyear
+  select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
+  exec dbo.logit @@procid, @log
+  if @status = 'resetPrintedStage'
+   select @log 
+  if @status = 'resetPrintedCommit'
+   update invoices set printed = '' where name + cast(item as varchar) >= @name + @item and queue = @queue and taxyear = @taxyear
   return
  end
 

@@ -18,7 +18,7 @@
 @acc114=
  lcbatchitemid=kpbrwid(1)*-1,
  d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedStage'''),
- m('Are you sure you wish to reset the printed flag for all tax statements greater than...|'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item='),'Reset Printed Tax Statments...','question.ico',6,4),
+ m('Are you sure you wish to reset the printed flag for all tax statements greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Tax Statments...','question.ico',6,4),
  break(gcretval<>2),
  d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedCommit'''),
  refreshTheBrw=;
@@ -26,8 +26,8 @@
 @loadwindow=
  create(550,12,550,48,'&Show Printed',78),
  set(78,0),
- gcsql4019='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort from dbo.taxYearBrw('''&gcTaxYear&''','''&gcSwitch&''','''&gcBatchName&''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by name,item',
- brw(160,1,gcsql4019,3,15,535,220,'100L(2)~Name~#2#|M40R(2)~Item~#5#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|MM65L(2)~Printed~#10#|M',7,1);
+ gcsql4019='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort from dbo.taxYearBrw('''&gcTaxYear&''','''&gcSwitch&''','''&gcBatchName&''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by name+cast(item as varchar)',
+ brw(160,1,gcsql4019,3,15,535,220,'130L(2)~Name~#2#|M40R(2)~Item~#5#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|MM65L(2)~Printed~#10#|M',7,1);
 
 @acc550=refreshTheBrw=;
 
@@ -37,5 +37,5 @@
 
 
 @refreshTheBrw=
- gcsql4019='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort from dbo.taxYearBrw('''&gcTaxYear&''','''&gcSwitch&''','''&gcBatchName&''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by name,item', 
+ gcsql4019='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort from dbo.taxYearBrw('''&gcTaxYear&''','''&gcSwitch&''','''&gcBatchName&''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by name+cast(item as varchar)', 
  brwreload(1,gcsql4019);
