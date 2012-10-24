@@ -132,8 +132,17 @@ begin
 
   if len(@dump) > 0
   begin
-   insert into @apiwt
-   select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
+
+   begin try
+    insert into @apiwt
+    select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
+   end try
+   begin catch
+    set @log = error_message()
+    exec dbo.logit @@procid, 'Failed Insert in to @apiwt', @log
+    select '@code=1;@message=Failed Insert in to @apiwt:' + @log + ';'
+    return
+   end catch
 
    declare @token int, @tally int
 
