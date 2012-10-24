@@ -13,7 +13,7 @@ begin
 -- all invoices
  insert @rt 
  select
-  'a','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=print;@scope=all;'
+  'a','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;'
  from invoices
  where taxyear = @taxyear
 
@@ -23,19 +23,28 @@ begin
 
  insert @rt 
  select
-  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=print;@scope=mortgage;@code=' + theRealMortCode + ';'
+  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=mortgage;@code=' + theRealMortCode + ';'
  from taxYearPrintMortCodeView
  where taxyear = @taxyear
  group by mortgageCode,brwid,theRealMortCode
 
--- Queues
+-- Batches
  insert @rt (ord) select 'ca'
- insert @rt (ord,code) select 'cb', '--Queues--'
+ insert @rt (ord,code) select 'cb', '--Print Batches--'
 
  insert @rt (ord,code,tally,tallyPrinted,blob)
  select
-  'cc', '   ' + queue, count(*), sum(case when printed > '  0' and printed <> 'Failed' then 1 else 0 end), '@mode=queue;@code=' + queue + ';'
+  'cc', '   ' + queue, count(*),
+  sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),
+  '@mode=queue;@code=' + queue + ';@unPrinted=' + cast(sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end) as varchar) + ';'
  from invoices where queue > '  0' and taxyear = @taxYear group by queue
+
+ insert @rt (ord) select 'cd'
+
+ insert @rt (ord,code,tally,tallyPrinted)
+ select
+  'ce', '', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end)
+ from invoices where queue > '  0' and taxyear = @taxYear
 
  return
 end

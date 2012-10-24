@@ -2,13 +2,12 @@ print@fastinsert;
 @nolock;
 
 @loadwindow=
- create(49,9),
  create(13,9),
  brwstuff=;
 
 @brwstuff=
- gcbrwsql4000='select brwid,tally,tallyprinted,code,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord',
- brw(150,1,gcbrwsql4000,65,95,240,100,'160L(2)~~#4#|M40C(2)~Count~#2#|M40C(2)~Printed~#3#|M',7,1),
+ gcbrwsql4000='select brwid,tally-tallyPrinted,tally,code,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord',
+ brw(150,1,gcbrwsql4000,65,95,240,200,'160L(2)~~#4#|M40C(2)~Un-Printed~#2#|M40C(2)~Total~#3#|M100L(2)~~#5#|M',7,1),
  prop(150,7CFAH,13499135);
 @lbrw1forecolor=obj7:c10<0,255;
 @brw1=
@@ -16,26 +15,40 @@ print@fastinsert;
  lcBlob=kp('select blob from dbo.taxYearPrintBRW('''&obj:key1&''') where brwid = '&lcId),
  break(lcBlob<'  0'),
  lcMode=readstring(lcBlob,'@mode='),
- if(lcMode='print',printRoutine=),
+ if(lcMode='batch',batchRoutine=),
  if(lcMode='queue',queueRoutine=),
  brwreload(1);
 
 @gfwindow=brwreload(1);
 
 @queueRoutine=
+ m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print &All Un-Printed Tax Statements|&Open Print Batch|&Cancel'),
+ break(gcretval=3),
  gcTaxYear=obj:key1,
- gcIni=readstring(lcBlob,'@code='),
+ gcBatchName=readstring(lcBlob,'@code='),
  gcSwitch='p',
+ lcUnPrinted=readstring(lcBlob,'@unPrinted='),
+ if(gcretval=1,printBatch=),
+ if(gcretval=2,openBatch=);
+
+@printBatch=
+ m('Are you ready to print all '&lcUnPrinted&' invoice(s)?','Print Batch...','question.ico',6,2),
+ break(gcretval<>2),
+ lcCount=lcUnPrinted,
+ printIt=,
+ brwreload(1);
+
+@openBatch=
  lcId=kp('select top 1 id from object where typ=4019'),if(lcId+0>0,change(lcId),new(4019));
 
-@printRoutine=
+@batchRoutine=
  lcScope=readstring(lcBlob,'@scope='),
  lcCode=readstring(lcBlob,'@code='),
  gcIni=cur:ini,
- if(obj:b2+0=0,howMany=,printFromQ=),
- break(gcretval<>'OK' and gcretval<>'2'),
- if(gcretval='OK',sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''','&lcCount&','''&lcCode&'''')),
- printIt=;
+ iw(',.t000Create Batch...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''','&lcCount&','''&lcCode&'''');
 
 @acc049=
  gcTaxYear=obj:key1,
@@ -69,18 +82,11 @@ print@fastinsert;
 \t047Total Invoiced; \s048+'select sum(invoiceAmount) from invoices where [TAXYEAR]='''&obj:key1&''''; \w04860; \t048@n$14,2;
 \p0487cfah,13499135; \p0487c13h,700; \p0487c0ch,1;
 
-\t049My Queue; \s050+'select count(id) from invoices where [TAXYEAR]='''&obj:key1&''' and printed='''' and queue='''&cur:ini&''''; \w05060; \t050@n14;
-\p0507cfah,13499135; \p0507c13h,700; \p0507c0ch,1;
-
 \t105In&voice; \y105+9;
 @acc105=
  howMany=,
  break(gcretval<>'OK'),
  invoiceit=;
-
-@printFromQ=
- m('Do you want to print '&obj:b2&' invoice(s)?',,,6,2),
- lcCount=obj:b2;
 
 @invoiceit=
  kpmo('Creating Invoices...'),
@@ -94,7 +100,7 @@ print@fastinsert;
 @printIt=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
- sqlloop('select id from invoices where printed = '''' and taxyear = '''&obj:key1&''' and queue = '''&cur:ini&''' order by name,item',printIt1=),
+ sqlloop('select id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by name,item',printIt1=),
  calcfld(012),
  calcfld(050),
  kpmc();
@@ -109,10 +115,6 @@ print@fastinsert;
  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
  trreport('TaxStatement'),
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''Success''');
-
-@howMany=
- iw(',.t000Please Enter Number of items to process....('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
- lcCount=obj7:key1;
 
 \t115AdTax Dist/Rates;
 @acc115=

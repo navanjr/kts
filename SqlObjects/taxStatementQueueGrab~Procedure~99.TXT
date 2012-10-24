@@ -6,19 +6,45 @@ create proc dbo.taxStatementQueueGrab (
 ) as
 
 begin
- exec dbo.logit @@procid, '@taxyear', @taxyear, '@ini', @ini, '@count', @count
+ exec dbo.logit @@procid, '@taxyear', @taxyear, '@ini', @ini, '@count', @count, '@mortCode', @mortcode
+
+ declare @batchName varchar(50) 
+ select
+  @batchName = @ini + '.' + right('000' +cast(cast(max(dbo.splitF(queue,'.',2)) as int) + 1 as varchar),3)
+ from invoices where dbo.splitF(queue,'.',1) = @ini
 
  declare @sql nvarchar(max)
 
- set @sql = 'update invoices set '
-  + ' queue = ''' + @ini + '''' 
-  + ' where taxrollid in '
-  + ' (select top ' + cast(@count as varchar) +' i.taxrollid '
-  + '  from invoices i, adtax x where i.taxrollid = x.id and x.mortgageCode = cast(''' + @mortCode + ''' as int) ' 
-  + '   and i.taxyear = ''' + @taxyear + ''' and i.printed = '''' and i.queue = '''' and i.invoiceId = 0 order by i.name, i.item)'
+ if @mortCode = 'Grouped'
 
- exec dbo.logit @@procid, @sql
+  update invoices set queue = @batchName where taxrollid in 
+   (select top( @count ) i.taxrollid 
+    from invoices i, adtax x 
+    where i.taxrollid = x.id
+     and x.mortgageCode in (select cast(key1 as int) from object where typ = 4030 and c1 != '1')
+     and i.taxyear = @taxyear
+     and i.printed = ''
+     and i.queue = ''
+     and i.invoiceId = 0
+    order by i.name, i.item)
 
- exec sp_executesql @sql
+ else
+
+  if isnumeric(@mortCode) = 1
+ 
+   update invoices set queue = @batchName where taxrollid in 
+    (select top( @count ) i.taxrollid 
+     from invoices i, adtax x 
+     where i.taxrollid = x.id
+      and x.mortgageCode = cast(@mortCode as int)  
+      and i.taxyear = @taxyear
+      and i.printed = ''
+      and i.queue = ''
+      and i.invoiceId = 0
+     order by i.name, i.item)
+  
+  else
+   
+   exec dbo.logit @@procid, 'oops... invalid mortgagecode in object.key1 non numeric', @mortCode 
 
 end
