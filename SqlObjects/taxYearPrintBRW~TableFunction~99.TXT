@@ -1,22 +1,41 @@
 create function dbo.taxYearPrintBRW( @taxYear varchar(50) ) returns @rt table(
- id int,
+ brwid int identity(-1,-1),
  ord varchar(50),
  code varchar(50),
  theRealMortCode varchar(50),
  tally int,
- tallyPrinted int
+ tallyPrinted int,
+ blob varchar(max)
 ) as 
 begin
 
 
 -- all invoices
  insert @rt 
- select -1,1,'Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end) from invoices where taxyear = @taxyear
+ select
+  'a','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=print;@scope=all;'
+ from invoices
+ where taxyear = @taxyear
 
 -- mortgage codes
+ insert @rt (ord) select 'ba'
+ insert @rt (ord,code) select 'bb', '--Mortgage Codes--'
+
  insert @rt 
- select cast('-9'+cast(max(id) as varchar) as int),2,mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end) from taxYearPrintMortCodeView where taxyear = @taxyear
-  group by mortgageCode
+ select
+  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=print;@scope=mortgage;@code=' + theRealMortCode + ';'
+ from taxYearPrintMortCodeView
+ where taxyear = @taxyear
+ group by mortgageCode,brwid,theRealMortCode
+
+-- Queues
+ insert @rt (ord) select 'ca'
+ insert @rt (ord,code) select 'cb', '--Queues--'
+
+ insert @rt (ord,code,tally,tallyPrinted,blob)
+ select
+  'cc', '   ' + queue, count(*), sum(case when printed > '  0' then 1 else 0 end), '@mode=queue;@code=' + queue + ';'
+ from invoices where queue > '  0' and taxyear = @taxYear group by queue
 
  return
 end
