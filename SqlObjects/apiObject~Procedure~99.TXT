@@ -243,8 +243,17 @@ begin
   if len(@dump) > 10
   begin
 
-   insert into @apiwt
-   select * from dbo.parseJSON(@dump) where name is not null
+   begin try
+    insert into @apiwt
+    select * from dbo.parseJSON(@dump) where name is not null
+   end try
+   begin catch
+    set @log = error_message()
+    exec dbo.logit @@procid, @log
+    update object set a19 = 'Warning, API Unreachable' 
+    where typ = @typ and id = @objectId
+    return
+   end catch
    
    update a set a.value = case when b.stringValue = 'null' then '' else b.stringValue end
    from @wt a, @apiwt b
