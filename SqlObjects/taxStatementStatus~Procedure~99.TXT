@@ -19,7 +19,14 @@ begin
 
  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@taxYear', @taxYear, '@queue', @queue
 
- if @invoiceStatus = 'Failed'
+ if @status = 'reset'
+ begin
+  update invoices set printed = '' where taxyear = @taxYear and queue = @queue and printed = 'Failed' 
+  exec dbo.logit @@procid, 'reset Complete'
+  return
+ end
+
+ if isnull(@invoiceStatus,'') = 'Failed'
  begin
   set @lcContinue = 'False'
   select @lcContinue
@@ -56,8 +63,16 @@ begin
 
  if @status = 'Success'
  begin
-  update invoices set printed = getdate() where id = @invoiceId
-  set @lcContinue = 'True'
+  if exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+  begin
+   set @lcContinue = 'False'
+  end
+  else
+  begin
+   update invoices set printed = getdate() where id = @invoiceId
+   set @lcContinue = 'True'
+  end
+
   select @lcContinue
   exec dbo.logit @@procid, '@lcContinue', @lcContinue
   return  
