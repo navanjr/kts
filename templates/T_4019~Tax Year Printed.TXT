@@ -1,5 +1,6 @@
 @nolock;
 @noupdate;
+
 \t110&Print;
 @acc110=
  m('Are you sure you wish to print/reprint this Tax Statement?','Print/Reprint Tax Statement...','Question.ico',6,2),
@@ -8,14 +9,18 @@
  do(4000,printItCore=),
  refreshTheBrw=;
 
-\t111Print &All;
-@acc111=
- do(4000,printFromQ=),
- refreshTheBrw=;
-
 \t113Reset Failed;
 @acc113=
- d1select('exec dbo.taxStatementStatus '&kpbrwid(1)*-1&',''Reset'''),
+ d1select('exec dbo.taxStatementStatus '&kpbrwid(1)*-1&',''ResetFailed'''),
+ refreshTheBrw=;
+
+\t114Reset Printed;
+@acc114=
+ lcbatchitemid=kpbrwid(1)*-1,
+ d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedStage'''),
+ m('Are you sure you wish to reset the printed flag for all tax statements greater than...|'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item='),'Reset Printed Tax Statments...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedCommit'''),
  refreshTheBrw=;
 
 @loadwindow=

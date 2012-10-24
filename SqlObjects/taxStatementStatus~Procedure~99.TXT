@@ -19,7 +19,13 @@ begin
 
  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@taxYear', @taxYear, '@queue', @queue
 
- if @status = 'reset'
+ if @status = 'resetPrintedStage'
+ begin
+  select '@name=' + name + ';@item=' + cast(item as varchar) + ';' from invoices where id = @invoiceId
+  return
+ end
+
+ if @status = 'resetFailed'
  begin
   update invoices set printed = '' where taxyear = @taxYear and queue = @queue and printed = 'Failed' 
   exec dbo.logit @@procid, 'reset Complete'

@@ -16,6 +16,7 @@ begin
  declare @sql nvarchar(max)
 
  if @mortCode = 'Grouped'
+ begin
 
   update invoices set queue = @batchName where taxrollid in 
    (select top( @count ) i.taxrollid 
@@ -28,23 +29,33 @@ begin
      and i.invoiceId = 0
     order by i.name, i.item)
 
- else
+  return
+ end
 
-  if isnumeric(@mortCode) = 1
- 
+ if cast(isnull(@mortCode,'') as int) > 0
+ begin
    update invoices set queue = @batchName where taxrollid in 
     (select top( @count ) i.taxrollid 
      from invoices i, adtax x 
      where i.taxrollid = x.id
-      and x.mortgageCode = cast(@mortCode as int)  
+      and x.mortgageCode = cast(isnull(@mortCode,'') as int)  
       and i.taxyear = @taxyear
       and i.printed = ''
       and i.queue = ''
       and i.invoiceId = 0
      order by i.name, i.item)
-  
-  else
-   
-   exec dbo.logit @@procid, 'oops... invalid mortgagecode in object.key1 non numeric', @mortCode 
+  return
+ end
+
+  update invoices set queue = @batchName where taxrollid in 
+   (select top( @count ) i.taxrollid 
+    from invoices i, adtax x 
+    where i.taxrollid = x.id
+     and x.mortgageCode = ''  
+     and i.taxyear = @taxyear
+     and i.printed = ''
+     and i.queue = ''
+     and i.invoiceId = 0
+    order by i.name, i.item)
 
 end
