@@ -1,19 +1,20 @@
 @bb1=&Print; @bbproc1=trreport('TaxStatement');
 @bb2=&Test; @bbproc2=
- gcInvoiceId=18183,
- taxStatmentJnNew=;
+ gcInvoiceId=11232,
+ taxStatment=;
 16521
 17336 - 900
 9242 - 490
+18183
 
 @taxStatment=
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
   lcContinue=obj7:d1,
  break(lcContinue='False'),
- do(452,getSiteInfo=),
   lcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
   lcName=readstring(lcInvoiceBlob,'@NAME='),
-  lcAdd=kp('select dbo.parseAddress('''&lcInvoiceBlob&''')'),
+  d1select('exec dbo.taxstatementAddressCheck '&gcInvoiceId),
+  lcAdd=kp('select dbo.parseAddress('''&gcInvoiceBlob&''')'),
  if(lcAdd<'  0',failedProc=),
  break(lcContinue='False'),
   lcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
@@ -29,14 +30,11 @@
    lcy=1000,
    lcx=1000,
    img(kpexepath()&'\kts\statement.gif',0,-50,8500,8502),
-   rn(gcOfficial,lcx+4500,lcy-500,12,bold),
-   rn(,,,11,regular),
-   xt(gcCounty&' COUNTY TREASURER'&chr(13)&chr(10)&gcOfficeAdd&chr(13)&chr(10)&'TELEPHONE '&gcPhone,lcx+4000,lcy-300,4000,1000,1),
    prn(,,,lcFontSize,,'Arial'),
    txt(lcName&chr(13)&chr(10)&lcAdd,lcx,lcy,3000,1000,1),
    lcy=lcy+1150,
    prn(,lcx-550,lcy,lcFontSize),
-   bnd(,readstring(lcInvoiceBlob,'@ITEM='),1300C,readstring(lcInvoiceBlob,'@PARCEL='),3050C,readstring(lcInvoiceBlob,'@TAXYEAR='),500,choose(readstring(lcInvoiceBlob,'@TYP=')='R','	REAL ESTATE','PERSONAL'),1350C,readstring(lcInvoiceBlob,'@MFGHOMEASSESSED='),925C),
+   bnd(,readstring(lcInvoiceBlob,'@ITEM='),1300C,readstring(lcInvoiceBlob,'@PARCEL='),3050C,readstring(lcInvoiceBlob,'@TAXYEAR='),500,choose(readstring(lcInvoiceBlob,'@TYP=')='R','	REAL ESTATE','PERSONAL'),1350C,,925C),
    lcy=lcy+750,
    prn(,,lcy),
    bnd(,readstring(lcInvoiceBlob,'@GROSSASSESSED='),1850C,readstring(lcInvoiceBlob,'@EXEMPTION3='),1200C,readstring(lcInvoiceBlob,'@NETASSESSEDVALUE='),1800C,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),650C),
@@ -57,16 +55,12 @@
   bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE='),@n-14.2),1150R),
   lcy=lcy+775,
   prn(,lcx-550,lcy),
-  bnd(,readstring(lcInvoiceBlob,'@PARCEL='),3050,readstring(lcInvoiceBlob,'@TYP='),650C,readstring(lcInvoiceBlob,'@ACRES='),550C,left(readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),9),750C,readstring(lcInvoiceBlob,'@TAXYEAR='),500C,readstring(lcInvoiceBlob,'@ITEM='),1200C),
+  bnd(,readstring(lcInvoiceBlob,'@PARCEL='),3050,readstring(lcInvoiceBlob,'@TYP='),650C,choose(readstring(lcInvoiceBlob,'@ACRES=')+0>0,readstring(lcInvoiceBlob,'@ACRES='),''),550C,left(readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),9),750C,readstring(lcInvoiceBlob,'@TAXYEAR='),500C,readstring(lcInvoiceBlob,'@ITEM='),1200C),
    prn(,lcx-825,lcy+300),
-  if(lcUnPaid>0),do(
-    bnd(,'UNPAID BACK TAXES',3050C),
-    det(lcsql5001a),
-    bnd(,obj5:a1,700R,format(obj5:a2,@n$-14.2),1700R),
-    edt),
+  if(lcUnPaid+0>0),do(
+    bnd(,'BACK TAX DUE GOOD THRU DEC 15',3050C),
+    bnd(,,700R,format(lcUnPaid,@n$-14.2),1700R)),
   lcy=lcy+950,
-  prn(,,,7),
-  xt(gcOfficial&chr(13)&chr(10)&gcCounty&' COUNTY TREASURER'&chr(13)&chr(10)&gcOfficeAdd,lcx+3300,lcy-700,4000,1000,1),
   prn(,lcx+3500,lcy,lcFontSize),
   bnd(,readstring(lcInvoiceBlob,'@TAXYEAR=')&' FULL AMOUNT DUE   '&format(readstring(lcInvoiceBlob,'@TOTALDUE='),@n$-14.2),2500),
   if(readstring(lcInvoiceBlob,'@TOTALDUE=')+0>25),bnd(,readstring(lcInvoiceBlob,'@TAXYEAR=')&' HALF AMOUNT DUE   '&format(readstring(lcInvoiceBlob,'@TOTALDUE=')/2,@n$-14.2),2500),
@@ -162,7 +156,8 @@
  do(452,getSiteInfo=),
  lcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
  lcName=readstring(lcInvoiceBlob,'@NAME='),
- lcAdd=kp('select dbo.parseAddress('''&lcInvoiceBlob&''')'),
+ d1select('exec dbo.taxstatementAddressCheck '&gcInvoiceId),
+  lcAdd=obj7:d1,
  if(lcAdd<'  0',failedProc=),
  break(lcContinue='False'),
  lcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
@@ -222,7 +217,7 @@
   bnd(,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),750C,readstring(lcInvoiceBlob,'@TAXYEAR='),750R),
   lcy=lcy+1125,
   prn(,lcx+6200,lcy,lcFontSize-2),
-  bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE='),@n$-14.2),1500R),
+  bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE=')/choose(readstring(lcInvoiceBlob,'@TOTALDUE=')+0<25,1,2),@n$-14.2),1500R),
   lcy=lcy+350,
   prn(,,lcy),
   if(readstring(lcInvoiceBlob,'@TOTALDUE=')+0>25),bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE=')/2,@n$-14.2),1500R),
@@ -242,7 +237,8 @@
  do(452,getSiteInfo=),
  lcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
  lcName=readstring(lcInvoiceBlob,'@NAME='),
- lcAdd=kp('select dbo.parseAddress('''&lcInvoiceBlob&''')'),
+ d1select('exec dbo.taxstatementAddressCheck '&gcInvoiceId),
+  lcAdd=obj7:d1,
  if(lcAdd<'  0',failedProc=),
  break(lcContinue='False'),
  lcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
@@ -296,8 +292,8 @@
   prn(,lcx+4100,lcy),
   bnd(,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),750C,readstring(lcInvoiceBlob,'@TAXYEAR='),750R),
   lcy=lcy+1225,
-  prn(,lcx+6200,lcy,lcFontSize-2),
-  bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE='),@n$-14.2),1500R),
+  prn(,lcx+6200,lcy,lcFontSize-2), 
+  bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE=')/choose(readstring(lcInvoiceBlob,'@TOTALDUE=')+0<25,1,2),@n$-14.2),1500R),
   lcy=lcy+325,
   prn(,,lcy),
   if(readstring(lcInvoiceBlob,'@TOTALDUE=')+0>25),bnd(,format(readstring(lcInvoiceBlob,'@TOTALDUE=')/2,@n$-14.2),1500R),

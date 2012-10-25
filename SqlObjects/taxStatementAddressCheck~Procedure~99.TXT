@@ -1,0 +1,21 @@
+create proc dbo.taxStatementAddressCheck(
+ @invoiceId int,
+ @lcAddress varchar(max) = '' output ) as
+begin
+ 
+set nocount on
+
+ declare @invoiceBlob varchar(max)
+
+
+  select @invoiceBlob = dbo.getTaxInvoiceBlob(@invoiceId)
+        
+  select @lcAddress = dbo.parseAddress(@invoiceBlob)  
+
+
+  select @lcAddress = case when charindex('[Microsoft]',@lcAddress)>0 then '' else @lcAddress end
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId , '@lcAddress', @lcAddress, '@invoiceBlob', @invoiceBlob 
+  
+
+end
