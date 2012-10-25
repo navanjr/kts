@@ -1,0 +1,35 @@
+create function dbo.pivotRow(
+ @objectId int
+) returns @rt table(
+ id int identity(1,1),
+ pivotString varchar(50) default '',
+ objectName varchar(50) default '',
+ label varchar(50) default '',
+ value varchar(50) default ''
+) as 
+begin 
+
+ declare
+  @typ int,
+  @rows dbo.splitWt,
+  @objwt dbo.pivotObjectWt
+ 
+ select @typ = typ from object where id = @objectId
+ insert @objwt select * from dbo.pivotObject(@objectId)
+
+ insert @rt (pivotString) 
+ select
+  ltrim(dbo.stripchars(data,'13,10'))
+ from dbo.split(dbo.readkeycode(@typ,'@pivotRows='),',')
+ 
+ update @rt set
+ objectName = dbo.splitF(pivotString,':',1),
+ label = dbo.splitF(pivotString,':',2)
+
+ update a set 
+  a.value = b.value
+ from @rt a, @objwt b
+ where a.objectName = b.field  
+
+ return 
+end

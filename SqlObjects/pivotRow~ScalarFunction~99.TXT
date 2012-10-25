@@ -1,0 +1,21 @@
+create function dbo.pivotRow(
+ @objectId int
+) returns @rt table(
+ id int identity(1,1),
+ value varchar(50) default '',
+ name varchar(50) default ''
+) as 
+begin 
+
+ declare
+  @typ int,
+  @rows dbo.splitWt
+ 
+ select @typ = typ from object where id = @objectId
+
+ insert @rows select * from dbo.split(dbo.keycode(@typ,'@pivotRows='),',')
+
+ insert @rt select id,data from @rows
+
+ return 
+end
