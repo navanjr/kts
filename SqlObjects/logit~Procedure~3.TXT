@@ -24,11 +24,15 @@ begin
  
  insert @controlArray select * from dbo.split(@control,'|')
 
+-- Start and Stop
  if (select data from @controlArray where id = 1) in ('start','stop')
  begin
 
   select @level = cast(data as int) from @controlArray where id = 2 
   select @tailPath = data from @controlArray where id = 3 
+
+  if isnull(@tailPath,'') < '  0'
+   select @tailPath = path from dbo.paths() where name = 'log'
 
   update object set
    b15 = case when (select data from @controlArray where id = 1) = 'start' then 'logging on|'

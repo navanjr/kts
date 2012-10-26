@@ -1,0 +1,25 @@
+create function dbo.paths() returns @rt table(
+ name varchar(50),
+ path varchar(max)
+) as 
+begin
+
+ declare
+  @position int,
+  @length int,
+  @gitpath varchar(50)
+
+ select @gitpath = dbo.readstring('@gitpath=',b13) from object where typ = 0 and link1 = -1
+
+ insert @rt 
+ select 'gitRepo', @gitpath
+
+ select 
+  @length = len(reverse(@gitpath)),
+  @position = charindex('\',reverse(@gitpath),1)
+
+ insert @rt 
+ select 'log', left(@gitpath,@length - @position + 1) + db_name() + '.log'
+
+ return 
+end
