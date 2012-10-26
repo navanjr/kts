@@ -95,11 +95,17 @@ begin
    @filter = @dump,
    @dump = @dump output
 
+  exec dbo.logit @@procId, 'api post returned... @dump=', @dump
+
 -- if the controlId was zero we need to write the control number to key1
   if @controlId = 0
   begin
+
    declare @newControlNumber varchar(50)
    select @newControlNumber = stringValue from dbo.parseJSON(@dump) where name = 'id'
+
+   exec dbo.logit @@procId, 'update object set key1 = ?', @newControlNumber
+
    if isnumeric(@newControlNumber) = 1
    begin
     update object set key1 = @newControlNumber where id = @objectId

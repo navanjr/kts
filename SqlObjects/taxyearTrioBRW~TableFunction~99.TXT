@@ -1,0 +1,41 @@
+create function dbo.taxyearTrioBRW(@taxyear varchar(50)) returns @rt table(
+ count int,
+ district varchar(50),
+ rateName varchar(50),
+ millcount int,
+ millTotal decimal(19,10)
+) as 
+begin
+ insert @rt 
+ select
+  count(*),
+  SCHOOLDISTRICTMAIN,
+  SCHOOLDISTRICTTAXRATE,
+  null,null
+ from adtax 
+ where realtaxyear = @taxyear 
+ group by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE 
+ order by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE
+ 
+ declare @wt table(
+  district varchar(50),
+  rateName varchar(50),
+  millcount int,
+  millTotal decimal(19,10)
+ )
+ insert @wt
+ select
+  key1,
+  key2,
+  COUNT(*),
+  SUM(case when isnumeric(a2)=1 then CAST(a2 as decimal(19,10)) else 0 end) 
+ from Object
+ where typ = 4012 and key3 = @taxyear
+ group by Key1,key2
+
+ update a set a.millCount = b.millCount, a.millTotal = b.millTotal 
+ from @rt a, @wt b
+ where a.district = b.district and a.rateName = b.rateName
+ 
+ return
+end
