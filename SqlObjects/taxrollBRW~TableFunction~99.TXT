@@ -23,7 +23,8 @@ create function dbo.taxrollBRW(
  taxrollId int
 )
 Begin
-
+  declare @sSLen int
+   select @sSLen = LEN(@searchString)
 --get the tax years we will return
   declare @taxYears table(yr varchar(4))
   if lower(@taxYear) = 'all'
@@ -31,8 +32,11 @@ Begin
   else
    insert @taxYears select @taxYear
 
-  declare @showPaidFlag char(1) = substring(@orderString,3,1)
-  declare @protest varchar(10) = ''
+  declare @showPaidFlag char(1) = substring(@orderString,3,1),
+          @protest varchar(10) = '',
+          @AdvSrch varchar(1)
+   
+  select  @AdvSrch = substring(@orderString,5,1)
 
   if substring(@orderString,4,1) = '1' 
   begin
@@ -43,14 +47,14 @@ Begin
 
 -- get the first 1000 rows that match the search string. IF we have a search string ordered by name
 
-  if left(@orderString,2) = '10'
-  begin
-  if @searchString > '  0'
+ if left(@orderString,2) = '10'
+ begin
+ if @searchString > '  0'
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+NAME,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
    from dbo.invoices
-   where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString))
+   where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
@@ -59,7 +63,7 @@ Begin
   else
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+name,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
    from dbo.invoices
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
@@ -75,9 +79,9 @@ Begin
   if @searchString > '  0'
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+parcel,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
    from dbo.invoices
-   where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString))
+   where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
@@ -86,7 +90,7 @@ Begin
   else
    insert @rt
    select top 1000 
-    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+    id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+parcel,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
    from dbo.invoices
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
@@ -103,20 +107,20 @@ Begin
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId
   from dbo.invoices a, receiptLink b 
   where a.id = b.invoiceId and b.receiptId = @receiptId
-
+/*
 -- order the result set by name or by parcel
   if left(@orderString,2) = '10'
    update @rt set ord = isnull(ord,'')+name
   else
    update @rt set ord = isnull(ord,'')+parcel
-
+*/
   if @protest='PROTEST'
   begin
    update a set amount=p.amount from @rt a, dbo.protestDetail p where a.invoiceId=p.invoiceId*-1
   end
 
 -- Set Mortgage Codes
-  update a set treamort = b.treamort from @rt a, adtax b where a.taxrollId = b.id
+   update @rt set treamort=case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end from adtax a where taxrollid=a.id
 
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
@@ -133,7 +137,7 @@ Begin
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
   end
 
- update @rt set treamort=case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end from adtax a where taxrollid=a.id
+
 
  return
 

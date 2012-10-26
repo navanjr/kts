@@ -1,3 +1,4 @@
+@select=078;
 @menuprocess=
  lcinquiry=kp('select id from object where typ=4003 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''''),
  if(lcinquiry+0>0,change(lcinquiry),new(4003));
@@ -8,16 +9,17 @@
  create(151,10,220,3,'Order By:'),
  create(152,12,260,3,'Name',32),
  create(153,12,300,3,'Parcel',34),
- create(352,9,513,302,'&Print(F9)'),
- create(353,9,513,316,'&Address(F10)'),
+ create(155,12,460,3,'Adv Srch',36), 
+ create(352,9,513,300,'&Print(F9)'),
+ create(353,9,513,314,'&Address(F10)'),
  create(354,9,513,286,'Mort Code(F8)'),
  create(355,9,513,272,'Interest Date(F7)'),
  create(356,9,513,258,'Adjust Balance(F6)'),
  halfToggle=,
- createbrw=,
- gcClearFilter=readstring(gcSiteBlob,'@clearFilter=');
-
-@afterloadwindow=if(gcClearFilter='Y',set(078,''));
+ lcClearFilter=readstring(gcSiteBlob,'@clearFilter='),
+ if(lcClearFilter='1',set(078,'')),
+ createbrw=;
+ 
 
 @lbrw3forecolor=obj7:c10='COMMENT',255;
 
@@ -77,10 +79,12 @@
  if(gcTaxToggle=gcTaxToggleF,gcTaxToggle=gcTaxToggleH,gcTaxToggle=gcTaxToggleF),
  prop(351,7cfah,gcTaxToggle);
 
+gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&''') order by ord',
+
 @dk1;
 @createbrw=
   kpmo('Selecting Taxroll Data...'),
-  gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13&obj:a14&obj:a11&''') order by ord',
+  gcsql='select top 1 0,'''','''','''','''','''',0,0,'''',0,0,0 from object',
   brw(160,1,gcsql,3,15,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M35C(2)~Sel~#9#|M',7,1),
   gcsql2='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag from dbo.taxrollSearchBRW('&obj:id&',0)',
   brw(161,2,gcsql2,3,145,400,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n14.2@#7#|M45R(2)~Unpaid~@n14.2@#8#|M35C(2)~Sel~#9#|M',7,1),
@@ -135,7 +139,7 @@
   sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
   if(lcchange<>'dont',change(gcjeid));
 
-@newje=fastinsert(-02=4512,004=today(),006='Protest Release',042='Appotion Protest'),
+@newje=fastinsert(-02=4512,004=today(),006='Protest Release',042='Apportion Protest'),
   gcjeid=obj1:id;
 
 @gfwindow=
@@ -157,16 +161,18 @@
 @acc152=if(obj:a13+0>0,set(34,0),set(34,1)),tsc,refreshBRW=;
 @acc153=if(obj:a14+0>0,set(32,0),set(32,1)),tsc,refreshBRW=;
 @acc154=tsc,refreshBRW=;
+@acc155=tsc,refreshBRW=;
 
 @refreshBRW=
   kpmo('Selecting Taxroll Data...'),
-  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&''') order by ord',
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&obj:c1&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&''') order by ord',
   brwreload(1,gcsql),
   brwreload(2),
+  refreshBRW3=,
   kpmc();
 
 @refreshBRW3=
-  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&lcSearchId&')',
+  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&lcSearchId+0&')',
   brwreload(3,gcsql3);
 
 \t001&Year; \w00230; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
@@ -174,13 +180,17 @@
 \t027Unpaid;\f0281;
 \t031OrderName;\f0321;
 \t033OrderParcel;
-\h027034;r
+\t035AdvanceSearch;
+\h027036;r
 
 \t077&Filter;
- \x077-20;
- \x078-54;
+ \x077-30;
+ \x078-71;
  \w078+40;
- @acc078=createbrw=,focus(160);
+
+ @acc078=
+   refreshBRW=,
+   focus(160);
 
 \t108New &Receipt;
 @acc108=

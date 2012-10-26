@@ -1,6 +1,7 @@
 create function dbo.taxrollBRWIds(
  @taxYear varchar(10),
- @searchString varchar(50)
+ @searchString varchar(50),
+ @AdvancedSearch varchar(1)
 ) returns @rt table(
  invoiceId int
 )
@@ -22,20 +23,19 @@ Begin
     and cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
 
+
+if @AdvancedSearch = '1'
+
+begin
+
   insert @rt 
   select i.id
   from dbo.invoices i, adtax a
   where i.invoiceId = 0 
    and cast(taxYear as varchar) in (select yr from @taxYears)
    and i.taxrollId=a.id
-   and a.OWNERNAME+a.BUSINESSNAME+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+a.mort_cd+a.treamort+a.trcode like '%'+@searchString+'%'
-  insert @rt 
-  select i.id
-  from dbo.invoices i, adtax a
-  where i.invoiceId = 0 
-   and cast(taxYear as varchar) in (select yr from @taxYears)
-   and i.taxrollId=a.id
-   and a.LEGALDESCRIPTION like '%'+@searchString+'%'
+   and a.OWNERNAME+a.BUSINESSNAME+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+a.mort_cd+a.treamort+a.trcode+cast(a.LEGALDESCRIPTION as varchar(8000)) like '%'+@searchString+'%'
+
 
   insert @rt
   select 
@@ -56,6 +56,8 @@ Begin
    and i.invoiceId = 0 
    and cast(i.taxYear as varchar) in (select yr from @taxYears)
    and a3 like '%'+@searchString+'%'
+
+end
 
 return
 end
