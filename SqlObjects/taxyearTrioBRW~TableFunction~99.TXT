@@ -3,7 +3,9 @@ create function dbo.taxyearTrioBRW(@taxyear varchar(50)) returns @rt table(
  district varchar(50),
  rateName varchar(50),
  millcount int,
- millTotal decimal(19,10)
+ millTotal decimal(19,10),
+ adtaxBalanceDue money,
+ invoiceBalanceDue money
 ) as 
 begin
  insert @rt 
@@ -11,7 +13,9 @@ begin
   count(*),
   SCHOOLDISTRICTMAIN,
   SCHOOLDISTRICTTAXRATE,
-  null,null
+  null,null,
+  sum(balancedue),
+  null
  from adtax 
  where realtaxyear = @taxyear 
  group by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE 
@@ -36,6 +40,14 @@ begin
  update a set a.millCount = b.millCount, a.millTotal = b.millTotal 
  from @rt a, @wt b
  where a.district = b.district and a.rateName = b.rateName
- 
+
+ update @rt set 
+  invoiceBalanceDue = (
+   select sum(a.invoiceDue)
+   from invoices a, adtax b
+   where a.taxrollid = b.id
+    and b.SCHOOLDISTRICTMAIN = district
+    and b.SCHOOLDISTRICTTAXRATE = rateName
+  )
  return
 end

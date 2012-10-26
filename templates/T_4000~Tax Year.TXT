@@ -2,7 +2,9 @@
 @nolock;
 
 @loadwindow=
+ create(9,9),
  create(13,9),
+ create(37,9),
  brwstuff=;
 
 @brwstuff=
@@ -63,7 +65,7 @@
    recalc('tem:id=4000');
 
 @bb7=Trio Report; 
-@bbproc7=ratetrioreport=;
+@bbproc7=acc115=;
 
 \t001Tax Year; \t002@p####p;
 
@@ -73,6 +75,10 @@
 \t013Mrtg Code; \s014+'select dbo.taxYearInvoiced('''&obj:key1&''',''M'')';
 
 \e002010;r2
+
+\t037Logging; \y037298; \y038298; \d038; \w038242; \s038-'select b15 from object where typ=0 and link1=-1';
+ @acc037=
+ m('Choose one of the logging options...','Logging Options...','question.ico','&Disable|&Enable|&Cancel');
 
 \t045Total Due; \s046+'select sum(totaldue) from adtax where [REALTAXYEAR]='''&obj:key1&''''; \w04660; \t046@n$14,2;
 \p0467cfah,13499135; \p0467c13h,700; \p0467c0ch,1;
@@ -124,6 +130,7 @@
 
 @ratetrioreport=
  do(452,getSiteInfo=),
+ lcA1=0,lcA6=0,lcA7=0,
  tr(
   prn(printed),
   prn(pages),
@@ -132,10 +139,15 @@
   prn(gcCity&', '&gcState,t3),
   prn('realtaxyear: '&gcTaxYear4000,t4),
   prn(,1500),
-  bnd('HU','Count',500,'District',1500,'RateName',1500,'Mill Total (count)',600R),
+  bnd('HU','Count',500,'District',1500,'RateName',1500,'Mill Total (count)',600R,'adtx Due',600R,'Invoice Due',600R),
   det('select * from dbo.taxyearTrioBRW('''&gcTaxYear4000&''') order by district, rateName'),
-   bnd('D',obj5:a1,500,obj5:a2,1500,obj5:a3,1500,obj5:a5&' ('&obj5:a4&')',600R)
+   bnd('D',obj5:a1,500,obj5:a2,1500,obj5:a3,1500,obj5:a5&' ('&obj5:a4&')',600R,obj5:a6,600R,obj5:a7,600R)
+   lcA1=lcA1+obj5:a1,
+   lcA6=lcA6+obj5:a6,
+   lcA7=lcA7+obj5:a7,
   edt,
+  nl,
+  bnd('D',lcA1,500,,1500,,1500,,600R,format(lcA6,@n$14.2),600R,format(lcA7,@n$14.2),600R)
  );
 
 @acc013=
