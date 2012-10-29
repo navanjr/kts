@@ -7,6 +7,7 @@
 @print=
  do(452,getSiteInfo=),
  lca3=0,
+ lcid=kp('select id from object where typ=4030 and key1='''&gcMortCode&''''),
  tr(
   prn(printed),
   prn(pages),
@@ -14,14 +15,21 @@
   prn(gcCounty&' County',t2), 
   prn(gcCity&', '&gcState,t3), 
   prn('Tax Year: '&gcTaxYear,t4),
-  prn('Mortgage Code: '&gcMortCode,t5),  
-  bnd('HU','Name',1500,'Parcel',1000,'Amount Due',600R),
+  if(curpag=1),
+  do(
+   bnd('HU','Mortgage Code:',1000R,gcMortCode,2000),  
+   det('select label,value from dbo.pivotRow('&lcid&') where value > ''  0'' and label not in (''code'') order by id'),
+    bnd(D,obj5:a1&':',1000R,obj5:a2,1000),
+   edt,  
+   nl,
+  ),
+  bnd('HU','Name',2000,'Parcel',2000,'Amount Due',700R),
   det('select name,parcel,due from dbo.taxyearbrw('''&gctaxyear&''',''M'','''') where treamort = '''&gcMortCode&''''),
-   bnd('D',obj5:a1,1500,obj5:a2,1000,format(obj5:a3,@n14.2b),600R),
+   bnd('D',obj5:a1,2000,obj5:a2,2000,format(obj5:a3,@n14.2b),700R),
    lca3=lca3+obj5:a3,
   edt,
   nl,
-  bnd('H',,1500,'Report Total',1000R,format(lca3,@n$14.2b),600R), 
+  bnd('H',,2000,'Report Total',2000R,format(lca3,@n$14.2b),700R), 
  );
 
 
