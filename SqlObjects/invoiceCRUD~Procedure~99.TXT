@@ -1,4 +1,4 @@
-create procedure dbo.invoiceCRUD( @mode int, @invoiceId int, @postCheckOverride int = 1 ) as
+create procedure dbo.invoiceCRUD( @mode int, @invoiceId int = null, @postCheckOverride int = 1, @taxyear varchar(10) = null ) as
 /*
  remember
   C = 0
@@ -7,6 +7,27 @@ create procedure dbo.invoiceCRUD( @mode int, @invoiceId int, @postCheckOverride 
   D = 3
 */
 begin
+
+
+-- delete all invoices in a tax year
+ if @mode = 3 and isnull(@taxyear,'') > '  0'
+ begin
+  declare @tokenId int
+  declare @wt table(invoiceid int)
+  insert @wt select id from invoices where taxyear = @taxyear
+  while exists(select * from @wt)
+  begin
+
+   select top 1 @tokenId = invoiceId from @wt 
+   exec dbo.invoiceCRUD @mode=3, @invoiceId = @tokenId, @postCheckOverride = 0
+   delete @wt where invoiceId = @tokenId
+
+  end
+  return
+ end
+
+
+
  
  declare 
   @slink varchar(15) = 't' + cast(@invoiceId as varchar),
@@ -26,13 +47,16 @@ begin
     return
   
   -- delete invoice, stage and gl
-  begin transaction
-  delete glDetailStage where slink = @slink
-  delete glDetail where slink = @slink
-  delete invoices where id = @invoiceId
-  commit transaction
-    
-
+  if isnull(@invoiceId,0) > 0
+  begin
+   begin transaction
+   delete glDetailStage where slink = @slink
+   delete glDetail where slink = @slink
+   delete invoices where id = @invoiceId
+   commit transaction
+   return
+  end
+  
   return
  end
 

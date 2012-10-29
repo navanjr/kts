@@ -71,6 +71,14 @@
 
 \t007Taxroll Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
 \t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''',''I'')';
+ @acc009=
+ m(obj:key1&' Invoice options...','Invoice','question.ico','&Delete All|&Cancel'),
+ break(gcretval=2),
+ if(gcretval=1,deleteInvoices=);
+
+@deleteInvoices=
+ sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&'''');
+
 \t011Printed; \s012+'select dbo.taxYearInvoiced('''&obj:key1&''',''P'')';
 \t013Mrtg Code; \s014+'select dbo.taxYearInvoiced('''&obj:key1&''',''M'')';
 
@@ -100,7 +108,7 @@
 
 @invoiceit=
  kpmo('Creating Invoices...'),
- d1select('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount),
+ d1select('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount&','''&cur:ini&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Taxroll Invoicing...')),
  calcfld(010),
  kpmc();

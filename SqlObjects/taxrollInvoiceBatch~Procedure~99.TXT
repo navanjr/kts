@@ -1,6 +1,7 @@
 CREATE procedure [dbo].[taxrollInvoiceBatch](
  @taxYear varchar(4),
- @processCount int
+ @processCount int,
+ @initials varchar(50)
 )
 as
 
@@ -12,18 +13,18 @@ begin
   @sql varchar(500),
   @idToken int,
   @slink varchar(15),
-  @resultTally int
- 
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_taxrollInvoice')
- begin
-  drop table temp_taxrollInvoice
- end
+  @resultTally int,
+  @processCode varchar(50) = @taxYear + '.' + @initials
 
+-- TODO: we could have some resume batch options here
 
- set @sql = 'select top ' + cast(@processCount as varchar) + ' id into temp_taxrollInvoice from adtax where [RealTaxYear] = ''' + @taxYear + '''
-  and [BALANCEDUE] > 0 and id not in (select taxrollId from invoices where taxyear = '+@taxYear+')'
-
- exec( @sql )
+ insert taxrollInvoiceProcessing
+ select top(@processCount)
+  id, @taxYear, @processCode 
+ from adtax where [RealTaxYear] = @taxYear
+  and [BALANCEDUE] > 0
+  and id not in (select taxrollId from invoices where taxyear = @taxYear)
+  and id not in (select id from taxrollInvoiceProcessing where taxyear = @taxYear)
 
  exec dbo.createAdtaxMillageSources
  exec dbo.createAdtaxMillageReceivables
@@ -31,10 +32,13 @@ begin
 
  declare @rt table(id int, resultInt int) 
 
- while exists(select * from temp_taxrollInvoice)
+ while exists(select * from taxrollInvoiceProcessing where processCode = @processCode)
  begin
-  select top 1 @idToken = id from temp_taxrollInvoice
+  select top 1 @idToken = id from taxrollInvoiceProcessing where processCode = @processcode
+exec dbo.logit @@procid, @processCode
+
   begin transaction
+
    exec dbo.taxReferenceCRUD @idToken
    exec dbo.taxrollInvoiceCRUD @idToken, 1, 'B'
    exec dbo.taxRollAddressInsert @idToken, ''
@@ -51,11 +55,9 @@ begin
     rollback transaction
    end
 
-   delete temp_taxrollInvoice where id = @idToken
+   delete taxrollInvoiceProcessing where id = @idToken and processCode = @processCode
 
  end
-
- drop table temp_taxrollInvoice
 
  select @resultTally = count(*) from @rt where resultInt = 0
 
