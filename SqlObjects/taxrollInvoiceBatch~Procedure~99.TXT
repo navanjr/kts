@@ -7,6 +7,8 @@ as
 
 begin
 
+ set nocount on
+
  exec dbo.logit @@procid, '@taxYear', @taxYear, '@processCount', @processCount
 
  declare 
@@ -35,7 +37,6 @@ begin
  while exists(select * from taxrollInvoiceProcessing where processCode = @processCode)
  begin
   select top 1 @idToken = id from taxrollInvoiceProcessing where processCode = @processcode
-exec dbo.logit @@procid, @processCode
 
   begin transaction
 
@@ -47,11 +48,13 @@ exec dbo.logit @@procid, @processCode
    if dbo.glPostCheck(@slink) = 0
    begin
     insert @rt select @idToken, 0
+    exec dbo.logit @@procid, 'Commit Transaction - @idToken', @idToken
     commit transaction
    end
    else
    begin 
     insert @rt select @idToken, 1
+    exec dbo.logit @@procid, 'rollback Transaction - @idToken', @idToken
     rollback transaction
    end
 
