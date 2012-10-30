@@ -157,7 +157,7 @@ call:sendLog
 GOTO:EOF
 
 :sendLog
-git log -n40 --oneline --decorate | sed s/\n/\r\n/ | sed s/\'//  | sed "1iupdate object set e1=\'" | sed "$a\' where typ=0 and link1=-1" > ..\importLog.sql
+git log -n40 --oneline --decorate | sed s/\n/\r\n/ | sed "s|'||g"  | sed "1iupdate object set e1=\'" | sed "$a\' where typ=0 and link1=-1" > ..\importLog.sql
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -i ..\importLog.sql
 GOTO:EOF
 
