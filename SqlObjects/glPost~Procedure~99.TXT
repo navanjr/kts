@@ -2,6 +2,7 @@ create procedure dbo.glPost (
  @id int,
  @styp char(1),
  @smode int = 0,
+ @updateInvoice varchar(5) = 'TRUE',
  @resultString varchar(100) = null output
 ) as 
 begin
@@ -17,10 +18,10 @@ begin
 
  -- first we look to see if this is good to post
  exec dbo.glCheck @id, @styp, @code output, @message output, @fpId output, @postDate output
+ exec dbo.logit @@procid, '@code', @code, '@message', @message, '@fpid', @fpid
  if @code = 1
  begin
   select @resultString = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
-  exec dbo.logit @@procid, '@code', @code, '@message', @message, '@fpid', @fpid
   return
  end
 
@@ -60,18 +61,21 @@ begin
   from glDetailStage 
   where slink in (select slink from @slinks)
 
+  exec dbo.logit @@procid, 'begin transaction - @slink', @slink, '@rowCount', @rowCount, '@absValue', @absValue
   begin transaction
    
    while exists(select * from @slinks where processFlag = 0)
    begin
     select top 1 @idToken = id, @slinkToken = slink from @slinks where processFlag = 0
-    exec dbo.glPostGuts @slinkToken, @result output
+    exec dbo.glPostGuts @slinkToken, @updateInvoice = @updateInvoice
     update @slinks set processFlag = 1 where id = @idToken
    end
 
    -- if you are a receipt update the related Invoices
    if @styp = 'o' and exists(select * from receiptLink where receiptId = @id)
+   begin
     exec dbo.invoiceUpdateAll @receiptId = @id
+   end
 
    -- check to see if the post was successful
    select
@@ -79,10 +83,13 @@ begin
     @absValue2 = sum(abs(amount)) 
    from glDetail 
    where slink in (select slink from @slinks)
+
+   exec dbo.logit @@procid, '@rowCount2', @rowCount2, '@absValue2', @absValue2
    
    if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
    begin
     set @message = 'Posting complete.'
+    exec dbo.logit @@procid, 'commit transaction - @slink', @slink
     commit transaction
    end
    else
@@ -90,6 +97,7 @@ begin
     select
      @code = 1,
      @message = 'Posting transaction was rolled back.  oops.  please contact support.'
+    exec dbo.logit @@procid, 'rollback transaction - @slink', @slink
     rollback transaction
    end
 

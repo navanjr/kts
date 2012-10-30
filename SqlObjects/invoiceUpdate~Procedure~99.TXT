@@ -15,11 +15,19 @@ begin
    @feeDue = sum(case when accountType = 'RECEIVABLE' then feeamount else 0 end)
    from dbo.invoiceGLTotalTF(@invoiceId)
 
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@amount', @amount --, '@due', @due, '@feeDue', @feeDue
+
   update invoices set
    invoiceAmount = isnull(@amount,0),
    invoiceDue = isnull(@due,0),
    subInvoiceDue = isnull(@feeDue,0)
   where id = @invoiceId
+ end
+ else 
+ begin
+
+  exec dbo.logit @@procid, 'no invoice to update... @invoiceId', @invoiceId
+
  end
 
  return

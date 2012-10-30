@@ -1,0 +1,40 @@
+create procedure dbo.glPostCheckProc(
+ @slink varchar(15),
+ @result int = null output
+) as
+begin
+
+ declare
+  @rowCount int,
+  @absValue money,
+  @balance money 
+
+  select
+   @rowCount = count(*),
+   @absValue = sum(abs(amount)),
+   @balance = sum(amount) 
+  from glDetail 
+  where slink = @slink
+   
+  if @rowCount < 2
+  begin
+   set @result = 1
+   return
+  end
+
+  if @absValue < .02
+  begin
+   set @result = 1
+   return
+  end
+
+  if @balance != 0 
+  begin
+   set @result = 1
+   return
+  end
+
+ set @result = 0
+ return
+
+end

@@ -1,6 +1,7 @@
 create procedure dbo.glPostGuts (
  @slink varchar(15),
- @result int output
+ @result int = null output,
+ @updateInvoice varchar(5) = 'TRUE'
 ) as
 begin
 /*
@@ -12,6 +13,8 @@ begin
   update: (nate) this routine also updates object records status
   update: (nate) this routine also updates invoices sub totals
 */
+
+ exec dbo.logit @@procid, '@slink', @slink
 
  set @result = 1
 
@@ -26,6 +29,7 @@ begin
 
 -- make sure the fiscal period is open
  exec dbo.glGetPostDateFromSlink @slink, @postDate output, @fpid output, @fpCode output, @fpDesc output, @styp output, @id output 
+ exec dbo.logit @@procid, '@fpid', @fpid, '@postDate', @postDate
  if isnull(@fpid,0) = 0
   return
 
@@ -61,7 +65,7 @@ begin
  delete glDetailStage where slink = @slink
 
 -- if your an invoice, then update the sub totals on the invoice
- if @styp = 't'
+ if @styp = 't' and @updateInvoice = 'TRUE'
  begin
   exec dbo.invoiceUpdate @id
  end

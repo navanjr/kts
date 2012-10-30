@@ -3,7 +3,8 @@ create procedure dbo.taxrollInvoiceCRUD(
  @smode int = 0,
  @invoiceType varchar (1) = '',
  @invoiceId int = null,
- @debugMode varchar(10) = 'false'
+ @updateInvoice varchar(5) = 'TRUE',
+ @debugMode varchar(10) = 'FALSE'
 ) as
 begin
 
@@ -33,17 +34,6 @@ begin
 
 --TODO: We wants this check to use the postdate from the invoice however we are too lazy to fix this now.
 
-/*
- select
-  @code = code,
-  @message = message,
-  @arAccountId = debitId,
-  @slink = slink,
-  @taxYear = taxYear,
-  @district = district,
-  @rateName = rateName
- from dbo.taxrollCheck(@taxrollId,@invoiceType,@invoiceId)
-*/
  exec dbo.taxrollCheckProc @taxrollId,@invoiceType,@invoiceId,
   @code = @code output,
   @message = @message output,
@@ -240,10 +230,12 @@ begin
   -- post to the gl
   declare @test int = substring(@slink,2,14)
   exec dbo.logit @@procid, 'prepare to glPost - @slink', @slink, '@test', @test
-  exec dbo.glPost @test, @styp, @smode
-  
+  exec dbo.glPost @test, @styp, @smode, @updateInvoice
+ 
   -- Check glDetail for good data
-  if (select dbo.glPostCheck(@slink)) = 1 
+  declare @postCheckVar int
+  exec dbo.glPostCheckProc @slink, @result = @postCheckVar
+  if @postCheckVar = 1 
   begin
    exec dbo.logit @@procid, 'rollback transaction'
    rollback transaction
@@ -255,9 +247,6 @@ begin
    return
   end
 
-  -- flag as posted
---  update taxReference set [status] = 'Posted' where id = @taxrollId
-  
  exec dbo.logit @@procid, 'commit transaction'
  commit transaction
 

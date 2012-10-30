@@ -15,6 +15,7 @@ begin
  declare 
   @sql varchar(500),
   @idToken int,
+  @newInvoiceId int,
   @slink varchar(15),
   @resultTally int,
   @processCode varchar(50) = @taxYear + '.' + @initials
@@ -45,10 +46,11 @@ begin
  begin
   select top 1 @idToken = id from taxrollInvoiceProcessing where processCode = @processcode
 
+  exec dbo.logit @@procid, 'Begin Transaction - @idToken', @idToken
   begin transaction
 
-   exec dbo.taxReferenceCRUD @idToken
-   exec dbo.taxrollInvoiceCRUD @idToken, 1, 'B'
+   exec dbo.taxReferenceCRUD @idToken, @newInvoiceId = @newInvoiceId output
+   exec dbo.taxrollInvoiceCRUD @idToken, 1, 'B', @updateInvoice = 'FALSE'
    exec dbo.taxRollAddressInsert @idToken, ''
   
    select @slink = slink from dbo.taxrollCheck(@idToken,'',null)
@@ -57,6 +59,7 @@ begin
     insert @rt select @idToken, 0
     exec dbo.logit @@procid, 'Commit Transaction - @idToken', @idToken
     commit transaction
+    exec dbo.invoiceUpdate @newInvoiceId
    end
    else
    begin 
