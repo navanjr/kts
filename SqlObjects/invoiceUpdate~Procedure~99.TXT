@@ -1,6 +1,25 @@
-create procedure dbo.invoiceUpdate(@invoiceId int) as
+create procedure dbo.invoiceUpdate(
+ @invoiceId int = null,
+ @taxyear varchar(4) = null
+) as
 -- this proc is used by post routines to keep invoice sub totals accurate
 begin
+
+ -- if @taxyear passed. update all invoices in this taxyear with invoiceDue of Zero
+ if isnull(@taxyear,'') > '  0'
+ begin
+  exec dbo.logit @@procid, 'update all Zero invoices in @taxyear', @taxyear
+  declare @tokenId int
+  declare @wt table(id int)
+  insert @wt select id from invoices where taxyear = @taxyear and invoiceDue = 0
+  while exists(select * from @wt)
+  begin
+   select @tokenId = min(id) from @wt
+   exec dbo.invoiceUpdate @tokenId
+   delete @wt where id = @tokenId
+  end   
+
+ end
 
  if exists(select * from invoices where id = @invoiceId)
  begin

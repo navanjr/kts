@@ -20,10 +20,11 @@ begin
 
 -- all invoices
  insert @rt 
- select
-  'a','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;'
- from invoices
- where taxyear = @taxyear
+  select 'aa','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
+ insert @rt (ord,code,tally,blob) 
+  select 'ab','   Zero Balance Issue', count(*),'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';' from invoices where taxyear = @taxyear and invoiceDue = 0
+ insert @rt (ord,code,tally,blob) 
+  select 'ac','   Invoice(s) without glDetail', count(*),'' from invoices where 't'+cast(id as varchar) not in (select slink from gldetail)
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
