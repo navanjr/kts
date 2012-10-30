@@ -18,11 +18,19 @@
  lcBlob=kp('select blob from dbo.taxYearPrintBRW('''&obj:key1&''') where brwid = '&lcId),
  break(lcBlob<'  0'),
  lcMode=readstring(lcBlob,'@mode='),
+ if(lcMode='invoice',invoicebatchRoutine=),
  if(lcMode='batch',batchRoutine=),
  if(lcMode='queue',queueRoutine=),
  brwreload(1);
 
 @gfwindow=brwreload(1);
+
+@invoicebatchRoutine=
+ gcTaxYear=obj:key1,
+ gcBatchName=readstring(lcBlob,'@code='),
+ m('Choose one of the following options...','Invoice Batch: '&gcBatchName,'question.ico','&Blow it up!|&Process Remaining Invoices|&Cancel'),
+ if(gcretval=1,sql('delete taxrollinvoiceprocessing where processcode='''&gcBatchName&'''')),
+ if(gcretval=2,sql('exec dbo.taxrollInvoiceBatch '''&gcTaxYear&''',0,'''&cur:ini&''''));
 
 @queueRoutine=
  m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print &All Un-Printed Tax Statements|&Open Print Batch|&Cancel'),
@@ -72,9 +80,17 @@
 \t007Taxroll Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
 \t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''',''I'')';
  @acc009=
- m(obj:key1&' Invoice options...','Invoice','question.ico','&Delete All|&Cancel'),
- break(gcretval=2),
- if(gcretval=1,deleteInvoices=);
+ m(obj:key1&' Invoice options...','Invoice','question.ico','Create Invoice Batch|&Delete All|&Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,createInvoiceBatch=),
+ if(gcretval=2,deleteInvoices=),
+ brwreload(1);
+
+@createInvoiceBatch=
+ iw(',.t000Create Invoices...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ sql('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount&','''&cur:ini&''',''TRUE''');
 
 @deleteInvoices=
  sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&'''');
@@ -97,14 +113,6 @@
 
 \t047Total Invoiced; \s048+'select sum(invoiceAmount) from invoices where [TAXYEAR]='''&obj:key1&''''; \w04860; \t048@n$14,2;
 \p0487cfah,13499135; \p0487c13h,700; \p0487c0ch,1;
-
-\t105In&voice; \y105+9;
-@acc105=
- iw(',.t000Create Invoices...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
- break(gcretval<>'OK'),
- lcCount=obj7:key1,
- invoiceit=,
- brwreload(1);
 
 @invoiceit=
  kpmo('Creating Invoices...'),

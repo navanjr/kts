@@ -1,4 +1,7 @@
-create procedure [dbo].[taxReferenceCRUD](@taxrollId int) as
+create procedure [dbo].[taxReferenceCRUD](
+ @taxrollId int,
+ @newInvoiceId int = null output
+) as
 begin
 
  -- insert tax reference invoice
@@ -17,6 +20,15 @@ begin
     '',
     dbo.clariondate('12/31/' + cast([REALTAXYEAR] as varchar))
    from adtax where id = @taxrollId
-  end
 
+   set @newInvoiceId = @@identity
+   exec dbo.logit @@procid, 'Created new invoice - @invoiceId', @newInvoiceId
+
+  end
+  else
+  begin
+
+   exec dbo.logit @@procid, 'invoice already exists... sorry something happened.  last time it was a hung SQL Transaction. you will need to erase all bad invoices'
+
+  end
 end

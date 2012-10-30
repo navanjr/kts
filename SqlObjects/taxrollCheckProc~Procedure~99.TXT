@@ -1,0 +1,117 @@
+CREATE procedure [dbo].[taxrollCheckProc](
+ @taxrollId int,
+ @invoiceType varchar(1) = '',
+ @invoiceId int,
+ @code int = null output,
+ @message varchar(500) = null  output,
+ @slink varchar(15) = null  output,
+ @taxyear varchar(4) = null  output,
+ @district varchar(15) = null  output,
+ @rateName varchar(15) = null  output,
+ @amount money = null  output,
+ @fpid int = null  output,
+ @debitId int = null output,
+ @status varchar(50) = null output
+) as
+
+begin
+ declare @styp char(1) = 't'
+
+ declare
+  @cdate int,
+  @debitCode varchar(50),
+  @recordtype varchar(1)
+
+  set @fpid=0
+
+  if @invoiceType='S'
+   begin 
+    select 
+     @taxyear = a18,
+     @district = a19,
+     @rateName = a20,
+     @amount = b1,
+     @cdate = key2
+    from object where id = @taxrollId
+   end
+  else
+   begin
+-- TODO: allow for an "as of" date for importing and posting of tax rolls
+    select 
+     @taxyear = [REALTAXYEAR],
+     @district = [SCHOOLDISTRICTMAIN],
+      @rateName = [SCHOOLDISTRICTTAXRATE],
+-- TODO: we need to allow for calculating the new balance due from
+     @amount = [BalanceDUE],
+     @cdate = dbo.clariondate(getdate()),
+     @recordtype = recordtype
+    from adtax where id = @taxrollId
+
+    if @recordtype='O' and @district<' 0'
+     select @district=@ratename
+
+   end 
+
+-- if we have corrections ...
+-- TOTALDUE
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'TOTALDUE')
+  select @amount = cast(latestValue as money) from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'TOTALDUE'
+-- REALTAXYEAR
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'REALTAXYEAR')
+  select @taxyear = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'REALTAXYEAR'
+-- SCHOOLDISTRICTMAIN
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTMAIN')
+  select @district = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTMAIN'
+-- SCHOOLDISTRICTTAXRATE
+ if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTTAXRATE')
+  select @rateName = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTTAXRATE'
+
+--TODO: remove this hack later
+ if isnull(@invoiceId,0) = 0
+ begin
+  select top 1 @slink = @styp + cast(id as varchar) from invoices where taxrollid = @taxrollId order by id
+  exec dbo.logit @@procid, 'hack - @slink',@slink
+ end
+ else
+ begin
+  select @slink = 't' + cast(@invoiceId as varchar)
+ end
+
+ -- check for open Fiscal Period
+ select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
+ if @fpid = 0
+ begin
+  select @code = 1,@message = 'Fiscal Period is locked or does not exist.' --,@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ -- check for valid tax Year
+ if @taxYear < '  0'
+ begin
+  select @code = 1, @message = 'Tax Year invalid' --,@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ -- check for debit account
+ set @debitCode = @taxYear+'_ADVALOREM_AR'
+ select @debitId = accountId from glAccounts where accountCode = @debitCode and accountType = 'RECEIVABLE'
+ if isnull(@debitId,0) = 0
+ begin
+  select @code = 1, @message = 'Missing Ad Valorem AR Account. Contact Support. (txchk.1)' --,@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ if dbo.isPosted(@slink) = 'TRUE'
+  set @status = 'Posted'
+ 
+ -- check for status of Posted
+ if exists(select * from glDetail where slink = @slink)
+ begin
+  select @code = 1, @message = 'Tax item has already been posted.' --,@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  return
+ end
+
+ select @code = 0, @message = 'OK' --,@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+ return
+
+end
