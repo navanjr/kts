@@ -9,6 +9,8 @@ create function dbo.taxYearPrintBRW( @taxYear varchar(50) ) returns @rt table(
 ) as 
 begin
 
+ declare @tally int
+
 -- invoices processing
  if exists(select * from taxrollInvoiceProcessing where taxyear = @taxyear)
  begin
@@ -21,10 +23,15 @@ begin
 -- all invoices
  insert @rt 
   select 'aa','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
- insert @rt (ord,code,tally,blob) 
-  select 'ab','   Zero Balance Issue', count(*),'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';' from invoices where taxyear = @taxyear and invoiceDue = 0
- insert @rt (ord,code,tally,blob) 
-  select 'ac','   Invoice(s) without glDetail', count(*),'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';' from invoices where 't'+cast(id as varchar) not in (select slink from gldetail)
+ -- Zero Balance Issue
+ select @tally = count(*) from invoices where taxyear = @taxyear and invoiceDue = 0
+ if @tally > 0
+  insert @rt (ord,code,tally,blob) select 'ab','   Zero Balance Issue', @tally,'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';'
+ -- no GL Detail Issue
+ select @tally = count(*) from invoices where 't'+cast(id as varchar) not in (select slink from gldetail)
+ if @tally > 0
+  insert @rt (ord,code,tally,blob)
+   select 'ac','   Invoice(s) without glDetail', @tally,'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';'
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
