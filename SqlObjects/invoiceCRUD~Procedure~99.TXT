@@ -1,4 +1,10 @@
-create procedure dbo.invoiceCRUD( @mode int, @invoiceId int = null, @postCheckOverride int = 1, @taxyear varchar(10) = null ) as
+create procedure dbo.invoiceCRUD(
+ @mode int,
+ @invoiceId int = null,
+ @postCheckOverride int = 1,
+ @taxyear varchar(10) = null,
+ @noGLDetailIssue varchar(5) = 'FALSE' 
+) as
 /*
  remember
   C = 0
@@ -9,12 +15,17 @@ create procedure dbo.invoiceCRUD( @mode int, @invoiceId int = null, @postCheckOv
 begin
 
 
--- delete all invoices in a tax year
+-- delete all invoices in a tax year or just the ones with the no gl issue
  if @mode = 3 and isnull(@taxyear,'') > '  0'
  begin
   declare @tokenId int
   declare @wt table(invoiceid int)
-  insert @wt select id from invoices where taxyear = @taxyear
+
+  if @noGLDetailIssue = 'FALSE'
+   insert @wt select id from invoices where taxyear = @taxyear
+  else
+   insert @wt select id from invoices where taxyear = @taxyear and 't' + cast(id as varchar) not in (select slink from gldetail)
+
   while exists(select * from @wt)
   begin
 
