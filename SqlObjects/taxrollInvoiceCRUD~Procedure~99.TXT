@@ -4,7 +4,8 @@ create procedure dbo.taxrollInvoiceCRUD(
  @invoiceType varchar (1) = '',
  @invoiceId int = null,
  @updateInvoice varchar(5) = 'TRUE',
- @debugMode varchar(10) = 'FALSE'
+ @debugMode varchar(10) = 'FALSE',
+ @skipSQLTransaction varchar(5) = 'FALSE'
 ) as
 begin
 
@@ -186,8 +187,11 @@ begin
    return
   end
 
-  exec dbo.logit @@procid, 'begin transaction - @slink', @slink
-  begin transaction
+  if @skipSQLTransaction = 'FALSE'
+  begin
+   exec dbo.logit @@procid, 'begin transaction - @slink', @slink
+   begin transaction
+  end
 
   -- insert invoice detail
   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount)
@@ -230,15 +234,18 @@ begin
   -- post to the gl
   declare @test int = substring(@slink,2,14)
   exec dbo.logit @@procid, 'prepare to glPost - @slink', @slink, '@test', @test
-  exec dbo.glPost @test, @styp, @smode, @updateInvoice
+  exec dbo.glPost @test, @styp, @smode, @updateInvoice, @skipSQLTransaction
  
   -- Check glDetail for good data
   declare @postCheckVar int
   exec dbo.glPostCheckProc @slink, @result = @postCheckVar
   if @postCheckVar = 1 
   begin
-   exec dbo.logit @@procid, 'rollback transaction'
-   rollback transaction
+   if @skipSQLTransaction = 'FALSE'
+   begin
+    exec dbo.logit @@procid, 'rollback transaction'
+    rollback transaction
+   end
    if @smode = 0
     begin
      select '@code=1;@message=Failed post GL check. Contact Support. (txinv.3);'
@@ -247,7 +254,10 @@ begin
    return
   end
 
- exec dbo.logit @@procid, 'commit transaction'
- commit transaction
+ if @skipSQLTransaction = 'FALSE'
+ begin
+  exec dbo.logit @@procid, 'commit transaction'
+  commit transaction
+ end
 
 end

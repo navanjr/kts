@@ -3,6 +3,7 @@ create procedure dbo.glPost (
  @styp char(1),
  @smode int = 0,
  @updateInvoice varchar(5) = 'TRUE',
+ @skipSQLTransaction varchar(5) = 'FALSE',
  @resultString varchar(100) = null output
 ) as 
 begin
@@ -61,8 +62,11 @@ begin
   from glDetailStage 
   where slink in (select slink from @slinks)
 
-  exec dbo.logit @@procid, 'begin transaction - @slink', @slink, '@rowCount', @rowCount, '@absValue', @absValue
-  begin transaction
+  if @skipSQLTransaction = 'FALSE'
+  begin
+   exec dbo.logit @@procid, 'begin transaction - @slink', @slink, '@rowCount', @rowCount, '@absValue', @absValue
+   begin transaction
+  end
    
    while exists(select * from @slinks where processFlag = 0)
    begin
@@ -89,16 +93,22 @@ begin
    if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
    begin
     set @message = 'Posting complete.'
-    exec dbo.logit @@procid, 'commit transaction - @slink', @slink
-    commit transaction
+    if @skipSQLTransaction = 'FALSE'
+    begin
+     exec dbo.logit @@procid, 'commit transaction - @slink', @slink
+     commit transaction
+    end
    end
    else
    begin 
     select
      @code = 1,
      @message = 'Posting transaction was rolled back.  oops.  please contact support.'
-    exec dbo.logit @@procid, 'rollback transaction - @slink', @slink
-    rollback transaction
+    if @skipSQLTransaction = 'FALSE'
+    begin
+     exec dbo.logit @@procid, 'rollback transaction - @slink', @slink
+     rollback transaction
+    end
    end
 
   select @resultString = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@fpid=' + cast(@fpId as varchar) + ';'
