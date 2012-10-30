@@ -1,0 +1,21 @@
+create proc dbo.sqlBackup as 
+begin
+
+ declare
+  @backupFile varchar(max),
+  @sql varchar(max)
+
+ select @backupFile = path from dbo.paths() where name = 'backup'
+
+ select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0,INIT'
+ exec dbo.logit @@procid, @sql
+ exec(@sql)
+
+-- TODO: lets add com zip utility here at some point
+-- select @sql = 'compact /c ' + @backupFile 
+-- exec dbo.logit @@procid, @sql
+-- exec(@sql)
+
+ return
+
+end
