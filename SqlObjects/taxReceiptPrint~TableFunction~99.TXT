@@ -34,7 +34,8 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
 			blob varchar(max),
                         deputy varchar(50),
                         invoiceLink int,
-                        checkno varchar(50)                 )
+                        checkno varchar(50),
+                        grandTotal money                 )
 begin		
 	insert @rt (recId,invoiceId)
 					select  @recId, right(slink,LEN(slink)-1) from dbo.receiptSLinks(@recId) where LEFT(slink,1)='t'
@@ -54,6 +55,7 @@ begin
 	
 	update @rt set receiptNo = key1, receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18 from Object where ID = @recid
 
+        update r set receiptNo = a.receiptNumber from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
 
 	update r set 
 				r.schoolDistrict = a.SCHOOLDISTRICTMAIN,

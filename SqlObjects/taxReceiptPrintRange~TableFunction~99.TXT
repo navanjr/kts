@@ -1,0 +1,59 @@
+create function [dbo].[taxReceiptPrintRange](@d1 int,@d2 int) returns   
+          @rt table(
+			recId varchar(50),
+			InvoiceId int,
+			taxRollid int,
+			typ varchar(10),
+			parcel varchar(50),
+			item varchar(50),
+			taxyear varchar(50),
+			receiptNo varchar(20),
+			receiptDate varchar(20),
+			schoolDistrict varchar(50),
+			legal varchar(max),
+			acres varchar(10),
+			blk varchar(10),
+			sec varchar(10),
+			twp varchar(10),
+			rng varchar(10),
+			recOf varchar(max),
+			paidBy varchar(100),
+			TaxAmt money,
+			TaxDue money,
+			TaxPaid money,
+			TotPaid money,
+			Penalty  money,
+			mail  money,
+			lien  money,
+			adv  money,
+			mowing  money,
+			other  money,
+			ckoth  money,
+			cash  money,
+			change  money,
+			blob varchar(max),
+                        deputy varchar(50),
+                        invoiceLink int,
+                        checkno varchar(50) ,
+                        GrandTotal money               )
+begin		
+
+  declare @wt table (receiptId int)
+
+    insert into @wt
+        select id from object where typ=4502 and key3='TAX' and b10 between d1 and d2
+
+  declare @recId int
+
+
+ while exists (select * from @wt)
+  begin
+   select top 1 @recId = receiptId from @wt
+
+   insert @rt select * from dbo.taxReceiptPrint(@recId)
+
+   delete from @wt where receiptId=@recId
+  end
+						
+ return					
+end
