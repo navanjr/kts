@@ -20,9 +20,22 @@ begin
   insert @rt (ord) select '9c'
  end
 
+-- un-invoiced
+ if exists(select * from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices))
+ begin
+  insert @rt (ord,code) select 'a0 ','Un-Invoiced'
+  insert @rt 
+   select 'a0'+recordType,'   Type: ' + recordType,'',count(*),0, '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
+   group by recordType
+
+  insert @rt 
+   select 'a1','      Total','',count(*),0, '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices)
+ end
+
 -- all invoices
+ insert @rt (ord,code) select 'aa1 ',''
  insert @rt 
-  select 'aa','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
+  select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
  -- Zero Balance Issue
  select @tally = count(*) from invoices where taxyear = @taxyear and invoiceDue = 0
  if @tally > 0
