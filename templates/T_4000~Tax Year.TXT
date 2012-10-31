@@ -22,9 +22,16 @@
  if(lcMode='batch',batchRoutine=),
  if(lcMode='queue',queueRoutine=),
  if(lcMode='pass',passRoutine=),
- brwreload(1);
+ refreshbrw=;
 
-@gfwindow=brwreload(1);
+@refreshbrw=
+ brwreload(1),
+ calcfld(008),
+ calcfld(010),
+ calcfld(012),
+ calcfld(014);
+
+@gfwindow=refreshIt=;
 
 @passRoutine=
  lcCmd=readstring(lcBlob,'@code='), 
@@ -32,7 +39,9 @@
  break(gcretval<>2),
  d1select(lcCmd),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Pass Routine...')),
- brwreload(1);
+ refreshbrw=;
+
+
  
 @invoicebatchRoutine=
  gcTaxYear=obj:key1,
@@ -56,7 +65,7 @@
  break(gcretval<>2),
  lcCount=lcUnPrinted,
  printIt=,
- brwreload(1);
+ refreshbrw=;
 
 @openBatch=
  lcId=kp('select top 1 id from object where typ=4019'),if(lcId+0>0,change(lcId),new(4019));
@@ -93,7 +102,7 @@
  break(gcretval=3),
  if(gcretval=1,createInvoiceBatch=),
  if(gcretval=2,deleteInvoices=),
- brwreload(1);
+ refreshbrw=;
 
 @createInvoiceBatch=
  iw(',.t000Create Invoices...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
@@ -104,8 +113,17 @@
 @deleteInvoices=
  sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&'''');
 
-\t011Printed; \s012+'select dbo.taxYearInvoiced('''&obj:key1&''',''P'')';
-\t013Mrtg Code; \s014+'select dbo.taxYearInvoiced('''&obj:key1&''',''M'')';
+\t011Mike_Fee; \s012-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''mike_fee''';
+\t013SubInvoice; \s014-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''subInvoice''';
+\p0120147c10h,'Courier New';r2 \p0120147c11h,8;r2
+@acc013=
+ m('Choose one of the following options...','Import Fees...','question.ico','&Import from mike_fees|&Delete Imported Fees|&Cancel'),
+ if(gcretval=1,importMikeFees=);
+
+@importMikeFees=
+ d1select('exec dbo.mike_taxFeeImport @taxyear='''&obj:key1&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import mike_fee...')),
+ refreshbrw=;
 
 \e002010;r2
 
@@ -152,6 +170,11 @@
  trreport('TaxStatement'),
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''Success''');
 
+\t114Mortgage Codes;
+@acc114=
+ gcTaxYear4000=obj:key1,
+ trreport('mortgageCodeReport',4000,'mortgageCodeReport=');
+
 \t115AdTax Dist/Rates;
 @acc115=
  gcTaxYear4000=obj:key1,
@@ -177,10 +200,6 @@
   nl,
   bnd('D',lcA1,500,,1500,,1500,,600R,format(lcA6,@n$14.2),800R,format(lcA7,@n$14.2),800R)
  );
-
-@acc013=
- gcTaxYear4000=obj:key1,
- trreport('mortgageCodeReport',4000,'mortgageCodeReport=');
 
 @mortgageCodeReport=
  do(452,getSiteInfo=),
