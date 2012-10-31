@@ -1,0 +1,111 @@
+create function [dbo].[unpaidTF](
+ @invoiceId int
+) returns @rt table(
+ invoiceid int,
+ origin varchar(50),
+ year varchar(4),
+ invoiceDue Money,
+ interestAsOfDate varchar(50),
+ penaltyPercent decimal(19,9),
+ penalty Money,
+ link2parentInvoice int
+)
+
+as
+begin
+
+ declare 
+  @parcel varchar(50),
+  @year varchar(4),
+  @typ varchar,
+  @name varchar(50),
+  @asOf varchar(10)
+
+-- get variables from our invoice
+ select
+  @parcel = parcel,
+  @name = name, 
+  @year = taxyear,
+  @typ = TYP 
+ from invoices 
+ where ID = @invoiceId
+
+-- get all the other related invoices by parcel or name
+ if @typ = 'R'
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+  select  
+   ID,
+   'Parcel Search',
+   taxyear,
+   invoiceDue,
+   invoiceId
+  from invoices
+  where PARCEL = @parcel
+   and TYP = 'R'
+   and invoiceDue != 0
+   and id not in (select invoiceId from @rt)
+ 
+ if @typ = 'P'
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+  select  
+   ID,
+   'Parcel Search',
+   taxyear,
+   invoiceDue,
+   invoiceId
+  from invoices
+  where name = @name
+   and TYP != 'R'
+   and invoiceDue != 0
+   and id not in (select invoiceId from @rt)
+
+-- get the sub or fee invoices
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+ select 
+  id,
+  'fee search',
+  taxyear,
+  invoicedue,
+  invoiceId
+ from invoices 
+ where invoiceId in (select invoiceId from @rt)
+
+ set @asof = '01/15/' + cast(@year as varchar)
+
+ update @rt set
+  interestAsOfDate = @asof,
+  penaltyPercent = dbo.penaltyPercent(invoiceId,@asof)
+
+ update @rt set
+  penalty = invoicedue*(penaltypercent/100)
+ 
+
+
+
+
+/*
+           --and i.TAXYEAR<@year
+--				(i.invoiceDue*((dbo.penaltyPercent(i.ID,@asOf)/100)+1))+
+--					(select sum(invoicedue) from invoices where invoiceId=i.ID and TYP='f') 
+
+
+
+
+
+   	
+   		insert into @rt
+			select  
+				0,
+				0,  
+				sum(unPaidDue)
+   				from @rt where YEAR<=@year-4
+   				
+   		delete from @rt where YEAR<=@year-4 and YEAR<>0
+   		
+   		update @rt set Year='PREV' where YEAR=0
+   	
+*/
+--THE INTEREST CANNOT EXCEED THE ORIGINAL TAX AMOUNT 	
+   	
+ return
+end
