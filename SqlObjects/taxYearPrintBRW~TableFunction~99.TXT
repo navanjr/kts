@@ -3,8 +3,9 @@ create function dbo.taxYearPrintBRW( @taxYear varchar(50) ) returns @rt table(
  ord varchar(50),
  code varchar(50),
  theRealMortCode varchar(50),
- tally int,
- tallyPrinted int,
+ tally  varchar(50),
+ tallyPrinted varchar(50),
+ amount varchar(50),
  blob varchar(max)
 ) as 
 begin
@@ -20,9 +21,22 @@ begin
   insert @rt (ord) select '9c'
  end
 
+-- un-invoiced
+ if exists(select * from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices))
+ begin
+  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','count','amount'
+  insert @rt 
+   select 'a0'+recordType,'   Type: ' + recordType,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
+   group by recordType
+
+  insert @rt 
+   select 'a1','      Total','',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices)
+ end
+
 -- all invoices
+ insert @rt (ord,code) select 'aa1 ',''
  insert @rt 
-  select 'aa','Total Invoices','',count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
+  select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
  -- Zero Balance Issue
  select @tally = count(*) from invoices where taxyear = @taxyear and invoiceDue = 0
  if @tally > 0
@@ -39,7 +53,7 @@ begin
 
  insert @rt 
  select
-  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end), '@mode=batch;@scope=mortgage;@code=' + theRealMortCode + ';'
+  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end),0, '@mode=batch;@scope=mortgage;@code=' + theRealMortCode + ';'
  from taxYearPrintMortCodeView
  where taxyear = @taxyear
  group by mortgageCode,brwid,theRealMortCode
