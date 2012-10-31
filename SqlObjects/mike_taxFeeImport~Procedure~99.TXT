@@ -1,0 +1,99 @@
+create proc dbo.mike_taxFeeImport(
+ @taxyear varchar(4) 
+) as
+begin
+ exec dbo.logit @@procid, 'Started...'
+
+ declare @wt TABLE(
+    [id] int identity(1,1),
+	[mainIvoiceId] int NOT NULL,
+	[invoiceDate] varchar(10) NULL,
+	[Desc] varchar(11) NOT NULL,
+	[sourceCode] varchar(50) NOT NULL,
+	[fundCode] varchar(50) NOT NULL,
+	[subInvoiceType] varchar(1) NOT NULL,
+	[amount] numeric(9, 2) NOT NULL
+)
+
+ declare 
+  @otherSource varchar(50),
+  @otherFund varchar(50)
+ 
+ select 
+  @otherSource = key2,
+  @otherFund  = key3
+ from object
+ where typ = 4504
+  and key1 = 'OTHER'
+  and a1 = 'TAX'
+
+ if isnull(@otherSource,'') < '  0' or isnull(@otherFund,'') < '  0'
+ begin
+  exec dbo.logit @@procid, 'missing needed tax description. OTHER/TAX', 'Failing gracefully... :)'
+  select '@code=1;@message=Missing needed tax description. OTHER/TAX;'
+  return
+ end
+
+ declare @tokenId int,
+  @mainIvoiceIdToken int,
+  @invoiceDateToken varchar(10),
+  @DescToken varchar(11),
+  @sourceCodeToken varchar(50),
+  @fundCodeToken varchar(50),
+  @subInvoiceTypeToken varchar(1),
+  @amountToken numeric(9, 2),
+  @log varchar(max)
+
+
+ insert @wt
+ select i.id as mainIvoiceId,dbo.clariondate(GETDATE()) as [invoiceDate],
+ case when a.[type]='C' then 'ADVERTISE' 
+  when a.[type]='A' then 'MAIL'
+  when a.[type]='B' then 'LIEN'
+  when a.[type]='G' then 'TAX WARRANT'
+  when a.[type]='O' then 'OTHER'
+  else 'OTHER FEE'
+  end as [Desc],
+ @otherSource as sourceCode,
+ @otherFund as fundCode,
+ 'F' as subInvoiceType,
+ a.amount
+  from invoices i, mike_fee a
+ where a.taxyear+a.itm_nbr = cast(i.taxyear as varchar(4))+right('000000'+cast(cast(i.item as int) as varchar(6)),6)
+  and i.id not in (select invoiceId from invoices)
+  and a.taxyear = @taxyear
+  
+ delete from @wt where amount = 0.00
+
+ select @log = count(*) from @wt
+ exec dbo.logit @@procid, 'fixing to process @wt, rows', @log
+
+ while exists(select * from @wt)
+ begin
+  select top 1 
+   @tokenId = id,
+   @mainIvoiceIdToken =mainIvoiceId,
+   @invoiceDateToken =invoiceDate,
+   @DescToken =[Desc],
+   @sourceCodeToken =sourceCode,
+   @fundCodeToken =fundCode,
+   @subInvoiceTypeToken =subInvoiceType,
+   @amountToken =amount
+ from @wt
+
+  exec dbo.subInvoiceCRUD
+   @mainIvoiceIdToken,
+   @invoiceDateToken,
+   @DescToken,
+   @sourceCodeToken,
+   @fundCodeToken,
+   @subInvoiceTypeToken,
+   @amountToken,
+   @smode = 1,
+   @origin = 'mike_fee'
+
+ delete from @wt where id=@tokenId
+ end
+
+
+end

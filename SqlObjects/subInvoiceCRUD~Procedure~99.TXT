@@ -5,7 +5,9 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @sourceCode varchar(50),
  @fundCode varchar(50),
  @subInvoiceType varchar(1) = 'F',
- @amount money
+ @amount money,
+ @smode int = 0,
+ @origin varchar(50) = ''
 ) as
 begin
 
@@ -14,7 +16,6 @@ begin
   @styp char(1) = 't',
   @slink varchar(15),
   @fpid int,
-  @smode int = 0,
   @targetcode varchar(50) = '',
   @accrualcode varchar(50) = '',
   @accountBlob varchar(1000),
@@ -43,7 +44,7 @@ begin
 
  end
 
-
+ exec dbo.logit @@procid, 'Begin Transaction... @mainInvoiceId', @mainInvoiceId
  begin transaction
  if @subInvoiceType <> 'A'
  begin
@@ -57,7 +58,7 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS])
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin)
     select 
      @subInvoiceType,
      @invoiceDate,
@@ -68,7 +69,8 @@ begin
      0.0 as [ITEM],
      '' as [NAME],
      '' as [BUSINESSNAME],
-     '' as [STATUS]
+     '' as [STATUS],
+     @origin
      from invoices where id=@mainInvoiceId
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
@@ -88,6 +90,7 @@ begin
 
  if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
   begin
+   exec dbo.logit @@procid, 'Rollback Transaction... @mainInvoiceId', @mainInvoiceId
    rollback transaction
    return
   end
@@ -108,6 +111,7 @@ begin
    return
   end
 
+  exec dbo.logit @@procid, 'Commit Transaction... @mainInvoiceId', @mainInvoiceId
   commit transaction
 
 end

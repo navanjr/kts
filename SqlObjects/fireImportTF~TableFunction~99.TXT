@@ -1,0 +1,23 @@
+create function dbo.fireImportTF(@taxyear varchar(4)) returns @rt table(
+ code varchar(50),
+ value varchar(50)
+) as
+begin
+
+ insert @rt
+ select 'firt',
+  convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(balanceDue) as money),1)
+ from firt_2012 
+ where
+  taxyear + cast(itemnumber as varchar) in (select taxyear+item from invoices)
+  and taxyear = @taxyear and balanceDue != 0
+
+ insert @rt
+ select 'subInvoice',
+  convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(invoiceDue) as money),1)
+ from invoices where taxyear = @taxyear and origin = 'mike_fee'
+
+
+ return
+
+end
