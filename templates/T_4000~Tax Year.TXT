@@ -2,15 +2,18 @@
 @nolock;
 
 @loadwindow=
+ create(3,9),
+ create(5,9),
  create(9,9),
  create(13,9),
  create(37,9),
+ create(49,9),
  create(51,9),
  brwstuff=;
 
 @brwstuff=
  gcbrwsql4000='select brwid,tally-tallyPrinted,tally,code,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord',
- brw(150,1,gcbrwsql4000,65,95,240,200,'160L(2)~~#4#|M40C(2)~Un-Printed~#2#|M40C(2)~Total~#3#|M100L(2)~~#5#|M',7,1),
+ brw(150,1,gcbrwsql4000,65,95,240,175,'160L(2)~~#4#|M40C(2)~Un-Printed~#2#|M40C(2)~Total~#3#|M100L(2)~~#5#|M',7,1),
  prop(150,7CFAH,13499135);
 @lbrw1forecolor=obj7:c10<0,255;
 @brw1=
@@ -41,8 +44,6 @@
  d1select(lcCmd),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Pass Routine...')),
  refreshbrw=;
-
-
  
 @invoicebatchRoutine=
  gcTaxYear=obj:key1,
@@ -80,7 +81,7 @@
  lcCount=obj7:key1,
  sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''','&lcCount&','''&lcCode&'''');
 
-@acc049=
+acc049=
  gcTaxYear=obj:key1,
  gcIni=cur:ini,
  gcSwitch='q',
@@ -96,7 +97,10 @@
 
 \t001Tax Year; \t002@p####p;
 
-\t007Taxroll Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
+\t003adtx_(TaxYear); \s004-'select count(*) from adtx_'&obj:key1;
+\t005mike_taxroll; \s006-'select count(*) from mike_taxroll where realtaxyear = '&obj:key1;
+
+\t007adtax Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
 \t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''',''I'')';
  @acc009=
  m(obj:key1&' Invoice options...','Invoice','question.ico','Create Invoice Batch|&Delete All|&Cancel'),
@@ -143,9 +147,22 @@
 \t047Total Invoiced; \s048+'select sum(invoiceAmount) from invoices where [TAXYEAR]='''&obj:key1&''' and taxrollId > 0'; \w04860; \t048@n$14,2;
 \p0487cfah,13499135; \p0487c13h,700; \p0487c0ch,1;
 
-\t049FireDist; \s050-'select value from dbo.fireImportTF('''&obj:key1&''') where code = ''firt''';
-\t051SubInv; \w05123;
-\x049051-20;r2 \x050052-55;r2 \w050052115;r2
+\t049FireDist; \s050-'select value from dbo.taxrollSAImportTF('''&obj:key1&''') where code = ''mike_taxroll_fire''';  'select value from dbo.fireImportTF('''&obj:key1&''') where code = ''firt''';
+\t051Special; \s052-'select value from dbo.taxrollSAImportTF('''&obj:key1&''') where code = ''mike_taxroll_special''';
+\x049051-20;r2 \x050052-40;r2 \w04905140;r2 \w050052100;r2
+
+@acc049=lcCode='mike_taxroll_fire',specialsClick=;
+@acc051=lcCode='mike_taxroll_special',specialsClick=;
+
+@specialsClick=
+ lcimportcmd='exec dbo.mike_specialsImport @taxyear='''&obj:key1&''', @code='''&lcCode&'''',
+ m('Choose one of the '&lcCode&' import options...||'&lcimportcmd,'Import Specials...','question.ico','&Import|&Delete|&Cancel'),
+ if(gcretval=1,importSpecials=);
+
+@importSpecials=
+ d1select(lcimportcmd),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import mike Specials...')),
+ refreshbrw=;
 
 @invoiceit=
  kpmo('Creating Invoices...'),

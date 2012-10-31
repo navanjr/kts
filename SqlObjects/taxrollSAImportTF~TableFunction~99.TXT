@@ -1,0 +1,27 @@
+create function dbo.taxrollSAImportTF(
+ @taxyear varchar(4)
+) returns @rt table(
+ code varchar(50),
+ value varchar(50)
+) as
+begin
+
+ insert @rt
+ select 'mike_taxroll_special',
+  convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(balancedue) as money),1)
+ from mike_taxroll where realtaxyear = @taxyear
+  and balanceDue != 0
+  and recordtype = 'O' 
+  and pertyp != 'F'
+
+ insert @rt
+ select 'mike_taxroll_fire',
+  convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(balancedue) as money),1)
+ from mike_taxroll where realtaxyear = @taxyear
+  and balanceDue != 0
+  and recordtype = 'O' 
+  and pertyp = 'F'
+
+ return
+
+end

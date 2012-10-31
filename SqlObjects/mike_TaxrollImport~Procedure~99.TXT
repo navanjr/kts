@@ -1,41 +1,80 @@
 create procedure dbo.mike_TaxrollImport as
 begin
+           
+ select 
+  a.typ as [RECORDTYPE],
+  a.parcel as [FULLPIDNUMBER],
+  cast(a.itm_nbr as numeric(7,1)) as [ITEMNUMBER],
+  cast(a.taxyear as numeric(5,0)) as [REALTAXYEAR],
+  a.name as [OWNERNAME],
+  a.addl1 as [ADDRESS1],
+  a.addl2 as [ADDRESS2],
+  a.addl3 as [ADDRESS3],
+  a.city as [CITY],
+  a.[state] as [STATE],
+  a.zip_1 as [ZIP1],
+  a.zip_2 as [ZIP2],
+  a.sch_n as [ORGSCHOOLDISTRICTMAIN],
+  b.postdist as [SCHOOLDISTRICTMAIN],
+  a.sch_c as [ORGSCHOOLDISTRICTTAXRATE],
+  a.c_cityc as [SCHOOLDISTRICTTAXRATE],
+  0 as [MORTGAGECODE],
+  a.acres as [ACRES],
+  a.mobile_hm as [MFGHOMEASSESSED],
+  cast(a.g_per as money)+cast(a.g_lv as money)+cast(a.g_imp as money) as [GROSSASSESSED],
+  cast(a.exemp as numeric(9,0)) as [EXEMPTION1],
+  cast(a.net_assd as numeric(8,0)) as [NETASSESSEDVALUE],
+  cast(a.levy as numeric(9,7)) as [TOTALTAXRATE],
+  cast(a.tax_due as numeric(19,2)) as [ORIGINALTOTALDUE],
+  cast(a.ctax_due as numeric(19,2)) as [TOTALDUE],
+  cast(a.unpaid as numeric(19,2)) as [BALANCEDUE],
+  left(a.cert_asgn,6) as [CERTIFICATENUMBER],
+  a.leg_l1+a.leg_l2+a.leg_l3+a.leg_l4+a.leg_l5+a.leg_l6 as [LEGALDESCRIPTION],
+  '' as	[ADDITIONNUMBER], 
+  '' as	[TOWNSHIPBLOCK], 
+  '' as	[RANGELOT], 
+  '' as	[SECTIONNUMBER], 
+  '' as	[QTRSECTIONNUMBER], 
+  '' as	[PARCELNUMBER], 
+  '' as	[PROPERTYSPLIT],
+  '' as [PIDSORTNUMBER],
+  '' as [BUSINESSNAME],
+  '' as [ZIP3],
+  '' as [COUNTRY],
+  '' as [FIREDISTRICT],
+  0 as [OWNERNUMBER],
+  0 as [LOTS],
+  0 as [FREEPORTEXEMPTION],
+  0 as [BASEEXEMPTION],
+  0 as [DBLEXEMPTION],
+  0 as [EXEMPTION2],
+  0 as [EXEMPTION3],
+  0 as [PAIDOFFDATE],
+  '' as [PROPERTYLIENCODE1],
+  0 as [PROPERTYLIENAMOUNT1],
+  '' as [PROPERTYLIENCODE2],
+  0 as [PROPERTYLIENAMOUNT2],
+  0 as [LASTTRANDATE],
+  0 as [TAXCORRECTIONDATE],
+  '' as [TAXCORRECTIONINITIALS],
+  '' as [FLAG1],
+  '' as [FLAG2],
+  '' as [FLAG3],
+  a.[pertyp] as [pertyp],
+  a.proploc as [proploc],
+  a.[mort_cd] as [mort_cd],
+  a.[morleg] as [morleg],
+  a.[bankrupt] as [bankrupt],
+  a.[treamort] as [treamort],
+  a.[chg_asmt] as [chg_asmt],
+  a.[cur_adr]as [cur_adr],
+  a.[trcode] as [trcode],
+  a.[c_schn] as [kpsc_schn]
+ into mike_taxroll
+ FROM dbo.mike_taxrollVFP() a, dbo.mike_taxAppsch01() b
+ where a.c_schn=b.sch_n and a.c_cityc=b.city_c and a.taxyear=b.year
 
-
-INSERT INTO [AdTax]
-           ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
-           ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
-           ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
-           ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
-           ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
-           ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
-           ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
-           ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn])
-
-select      a.typ,a.parcel,cast(a.itm_nbr as numeric(7,1)),cast(a.taxyear as numeric(5,0)),a.name,a.addl1,a.addl2,a.addl3,a.city,a.[state],a.zip_1,a.zip_2
-           ,a.sch_n,b.postdist,a.sch_c,a.c_cityc
-           ,0,a.acres,a.mobile_hm,cast(a.g_per as money)+cast(a.g_lv as money)+cast(a.g_imp as money),cast(a.exemp as numeric(9,0)),cast(a.net_assd as numeric(8,0)),cast(a.levy as numeric(9,7)),cast(a.tax_due as numeric(19,2)),cast(a.ctax_due as numeric(19,2)),cast(a.unpaid as numeric(19,2))
-           ,left(a.cert_asgn,6),a.leg_l1+a.leg_l2+a.leg_l3+a.leg_l4+a.leg_l5+a.leg_l6,'','','','','','',''
-           ,'','','','','',0,0
-           ,0,0,0,0,0,0,'',0
-           ,'',0,0,0,'','','','',a.[pertyp],a.proploc,a.[mort_cd]
-           ,a.[morleg],a.[bankrupt],a.[treamort],a.[chg_asmt],a.[cur_adr],a.[trcode],a.[c_schn]
-  FROM dbo.mike_taxroll() a, dbo.mike_taxAppsch01() b
-  where a.c_schn=b.sch_n and a.c_cityc=b.city_c and a.taxyear=b.year
-
-  exec dbo.taxrollImportSpecialAssessmentRates  
-
-insert into object (typ,a1,key1,olink1,e1,olink2)
-
-  SELECT 4002,[taxyear]
-      ,case when isnumeric([itm_nbr])=1 then cast(cast([itm_nbr] as numeric(9,1)) as varchar) else [itm_nbr] end
-      ,[key_suf]
-      ,[comment]
-      ,'MAK Import'
-  FROM dbo.mike_comments()
-  where isnumeric([itm_nbr])=1
- 
-
+--  exec dbo.taxrollImportSpecialAssessmentRates
 
 
 
