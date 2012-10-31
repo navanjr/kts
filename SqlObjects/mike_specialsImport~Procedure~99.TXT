@@ -3,9 +3,18 @@ create proc dbo.mike_specialsImport(
  @code varchar(50)
 ) as
 begin
- exec dbo.logit @@procid, 'Started .... @taxyear', @taxyear, '@code', @code
+ 
+ declare @tally int
+ 
+ declare @wt table(itemNumber numeric(7,1))
 
- if @code = 'mike_taxroll_specials' 
+ insert @wt select itemNumber from adtax where realtaxyear = @taxyear and origin = @code
+ 
+ select @tally = count(*) from @wt
+ exec dbo.logit @@procid, 'Started .... @taxyear', @taxyear, '@code', @code, '@tally', @tally 
+ 
+
+ if @code = 'mike_taxroll_special' 
   insert adtax 
            ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
            ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
@@ -16,8 +25,7 @@ begin
            ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
            ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn],[origin])
   select *,@code from mike_taxroll where realtaxyear = @taxyear and recordtype = 'O' and pertyp != 'F'
-   and cast(realtaxyear as varchar(4))+right('000000'+cast(cast(itemnumber as int) as varchar(6)),6)
-    not in (select cast(realtaxyear as varchar(4))+right('000000'+cast(cast(itemnumber as int) as varchar(6)),6) from adtax)
+   and itemNumber not in (select itemNumber from @wt)
 
  if @code = 'mike_taxroll_fire' 
   insert adtax 
@@ -29,9 +37,8 @@ begin
            ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
            ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
            ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn],[origin])
-  select *,@code from mike_taxroll where realtaxyear = @taxyear and recordtype = 'O' and pertyp = 'F'
-   and cast(realtaxyear as varchar(4))+right('000000'+cast(cast(itemnumber as int) as varchar(6)),6)
-    not in (select cast(realtaxyear as varchar(4))+right('000000'+cast(cast(itemnumber as int) as varchar(6)),6) from adtax)
+  select top 100 *,@code from mike_taxroll where realtaxyear = @taxyear and recordtype = 'O' and pertyp = 'F'
+   and itemNumber not in (select itemNumber from @wt)
 
  return
 end
