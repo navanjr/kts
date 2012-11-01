@@ -9,7 +9,8 @@ create function [dbo].[unpaidTF](
  penaltyPercent decimal(19,9),
  penalty Money,
  link2parentInvoice int,
- trcode varchar(50)
+ trcode varchar(50),
+ trSection int
 )
 
 as
@@ -20,7 +21,8 @@ begin
   @year varchar(4),
   @typ varchar,
   @name varchar(50),
-  @asOf varchar(10)
+  @asOf varchar(10),
+  @totalTax money
 
 -- get variables from our invoice
  select
@@ -33,14 +35,15 @@ begin
 
 -- get all the other related invoices by parcel or name
  if @typ = 'R'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
   select  
    ID,
    'Parcel Search',
    taxyear,
    invoiceDue,
    invoiceId,
-   case when ID = @invoiceID then 'Current Tax Due:' else 'Past Tax Due:' end 
+   case when ID = @invoiceID then 'Current Yr Tax' else 'Past Due' end,
+   1
   from invoices
   where PARCEL = @parcel
    and TYP = 'R'
@@ -48,14 +51,15 @@ begin
    and id not in (select invoiceId from @rt)
  
  if @typ = 'P'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
   select  
    ID,
    'Name Search',
    taxyear,
    invoiceDue,
    invoiceId,
-   case when ID = @invoiceID then 'Current Tax Due:' else 'Past Tax Due:' end 
+   case when ID = @invoiceID then 'Current Yr Tax' else 'Past Due' end,
+   1
   from invoices
   where name = @name
    and TYP != 'R'
@@ -63,14 +67,15 @@ begin
    and id not in (select invoiceId from @rt)
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
  select 
   id,
   'fee search',
   taxyear,
   invoicedue,
   invoiceId,
-  'Fees Due:'
+  'Past Due',
+   1
  from invoices 
  where invoiceId in (select invoiceId from @rt)
 
@@ -83,21 +88,24 @@ begin
  update @rt set
   penalty = invoicedue*(penaltypercent/100)
   
- 
-
 --Need to NOT insert penalities into the table if there are no penalties.  Check for nulls.
   if isnull((select sum(penalty) from @rt),0) != 0 
   begin
-    insert @rt (invoiceDue,trcode) select sum(penalty), 'Penalty Due:' from @rt
+    insert @rt (invoiceDue,trcode,trSection) select sum(penalty), 'Past Due',1 from @rt
   end
 
-
-
+--Grand Total Section 1
+ select @totalTax = sum(invoiceDue) from @rt
+ insert @rt (invoiceDue,trcode,trSection)
+  select @totalTax, 'Total Tax',1
 --Grand Total
- insert @rt (invoiceDue,trcode)
-  select sum(invoiceDue), 'Total' from @rt
+ insert @rt (invoiceDue,trcode,trSection)
+  select @totalTax, 'Total Tax',2
 
-
+--Half Tax Section 2
+ if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25
+  insert @rt (invoiceDue,trcode,trSection)
+   select sum(invoiceDue)*.5, 'Half Tax',2 from @rt where trcode = 'Current Yr Tax'
  	
  return
 end
