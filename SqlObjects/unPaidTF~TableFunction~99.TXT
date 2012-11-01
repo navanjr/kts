@@ -40,7 +40,7 @@ begin
    taxyear,
    invoiceDue,
    invoiceId,
-   case when ID = @invoiceID then 'Current Tax Due' else 'Past Tax Due' end 
+   case when ID = @invoiceID then 'Current Tax Due:' else 'Past Tax Due:' end 
   from invoices
   where PARCEL = @parcel
    and TYP = 'R'
@@ -55,14 +55,14 @@ begin
    taxyear,
    invoiceDue,
    invoiceId,
-   case when ID = @invoiceID then 'Current Tax Due' else 'Past Tax Due' end 
+   case when ID = @invoiceID then 'Current Tax Due:' else 'Past Tax Due:' end 
   from invoices
   where name = @name
    and TYP != 'R'
    and invoiceDue != 0
    and id not in (select invoiceId from @rt)
 
--- get the sub or fee invoices
+-- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
   insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
  select 
   id,
@@ -70,7 +70,7 @@ begin
   taxyear,
   invoicedue,
   invoiceId,
-  'fee'
+  'Fees Due:'
  from invoices 
  where invoiceId in (select invoiceId from @rt)
 
@@ -84,12 +84,13 @@ begin
   penalty = invoicedue*(penaltypercent/100)
  
 
+--Need to NOT insert penalities into the table if there are no penalties
  insert @rt (invoiceDue,trcode)
-select sum(penalty), 'Penalty' from @rt
+select sum(penalty), 'Penalty Due:' from @rt
  
-
+--Grand Total
  insert @rt (invoiceDue,trcode)
-select sum(invoiceDue), 'Total Due' from @rt
+select sum(invoiceDue), 'Total' from @rt
 
 
 

@@ -322,6 +322,7 @@ break(lcContinue='False'),
 lcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
 lcsql5001a='select year,unPaidDue from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0',
 lcUnPaid=kp('select sum(unPaidDue) from dbo.unPaid('&gcInvoiceId&') where unPaidDue>0'),
+lcUnPaidTF='select trcode,SUM(invoiceDue)from dbo.unpaidTF('&gcInvoiceId&') group by trcode',
 lcLegal=kp('select dbo.getLegalDescription('&gcInvoiceId&')'),
 lcDetFont='Courier New',
 lcFont='Arial',
@@ -342,13 +343,11 @@ prn(,lcx+100,lcy),
 bnd(,readstring(lcInvoiceBlob,'@GROSSASSESSED='),1850C,readstring(lcInvoiceBlob,'@EXEMPTION3='),1200C,readstring(lcInvoiceBlob,'@NETASSESSEDVALUE='),1800C,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),650C),
 lcy=lcy+750,
 prn(,lcx+3500,lcy,,,lcFont),
-
 det(lcSql),
   bnd(,obj5:a1,1400,format(obj5:a2,@n-14.2),1150C,format(obj5:a3,@n-14.2),850R),
   lcMil=lcMil+obj5:a2,
   lcTot=lcTot+obj5:a3,
 edt,
-
 prn(,lcx+5000,lcy-700,,,lcFont),
 bnd(,,750C,format(lcMil,@n-14.2),1600C),
 lcy=lcy+400,
@@ -360,10 +359,15 @@ lcy=lcy+1800,
 prn('PAY TAXES ONLINE AT:',lcx,lcy),
 lcy=lcy+150,
 prn('WWW.OKCOUNTYRECORDS.COM',lcx,lcy),
-bnd(,,4200,'CURRENT YR DUE:',1000,format(readstring(lcInvoiceBlob,'@TOTALDUE='),@n$-14.2),2000),
-if(lcUnPaid+0>0),do(
-    bnd(,,4200,'PAST DUE TAX & PENALTY:',1650,format(lcUnPaid,@n$-14.2),2000)
-                   ),
+lcy=lcy-300,
+prn(,,lcy),
+
+
+det(lcUnPaidTF),
+ bnd(,,4800,obj5:a1,1000C,format(obj5:a2,@n$-14.2),1000C),
+edt,
+
+
 lcy=lcy+1450,
 prn('',lcx,lcy),
 bnd(,readstring(lcInvoiceBlob,'@PARCEL='),3550,format(lcMil,@n-14.2),820C,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTMAIN='),600C,readstring(lcInvoiceBlob,'@TAXYEAR='),750C,readstring(lcInvoiceBlob,'@ITEM='),600C),
