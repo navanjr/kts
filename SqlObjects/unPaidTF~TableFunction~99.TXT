@@ -82,15 +82,18 @@ begin
 
  update @rt set
   penalty = invoicedue*(penaltypercent/100)
+  
  
 
---Need to NOT insert penalities into the table if there are no penalties
- insert @rt (invoiceDue,trcode)
-select sum(penalty), 'Penalty Due:' from @rt
- 
+--Need to NOT insert penalities into the table if there are no penalties.  Check for nulls.
+  if isnull((select sum(penalty) from @rt),0) != 0 
+  begin
+    insert @rt (invoiceDue,trcode) select sum(penalty), 'Penalty Due:' from @rt
+  end
+
 --Grand Total
  insert @rt (invoiceDue,trcode)
-select sum(invoiceDue), 'Total' from @rt
+  select sum(invoiceDue), 'Total' from @rt
 
 
 
