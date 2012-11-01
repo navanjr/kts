@@ -8,7 +8,8 @@ create function [dbo].[unpaidTF](
  interestAsOfDate varchar(50),
  penaltyPercent decimal(19,9),
  penalty Money,
- link2parentInvoice int
+ link2parentInvoice int,
+ trcode varchar(50)
 )
 
 as
@@ -32,13 +33,14 @@ begin
 
 -- get all the other related invoices by parcel or name
  if @typ = 'R'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
   select  
    ID,
    'Parcel Search',
    taxyear,
    invoiceDue,
-   invoiceId
+   invoiceId,
+   case when ID = @invoiceID then 'Current Tax Due' else 'Past Tax Due' end 
   from invoices
   where PARCEL = @parcel
    and TYP = 'R'
@@ -46,13 +48,14 @@ begin
    and id not in (select invoiceId from @rt)
  
  if @typ = 'P'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
   select  
    ID,
-   'Parcel Search',
+   'Name Search',
    taxyear,
    invoiceDue,
-   invoiceId
+   invoiceId,
+   case when ID = @invoiceID then 'Current Tax Due' else 'Past Tax Due' end 
   from invoices
   where name = @name
    and TYP != 'R'
@@ -60,17 +63,18 @@ begin
    and id not in (select invoiceId from @rt)
 
 -- get the sub or fee invoices
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice)
+  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode)
  select 
   id,
   'fee search',
   taxyear,
   invoicedue,
-  invoiceId
+  invoiceId,
+  'fee'
  from invoices 
  where invoiceId in (select invoiceId from @rt)
 
- set @asof = '01/15/' + cast(@year as varchar)
+ set @asof = '01/15/' + cast(@year + 1 as varchar)
 
  update @rt set
   interestAsOfDate = @asof,
@@ -80,32 +84,15 @@ begin
   penalty = invoicedue*(penaltypercent/100)
  
 
+ insert @rt (invoiceDue,trcode)
+select sum(penalty), 'Penalty' from @rt
+ 
+
+ insert @rt (invoiceDue,trcode)
+select sum(invoiceDue), 'Total Due' from @rt
 
 
 
-/*
-           --and i.TAXYEAR<@year
---				(i.invoiceDue*((dbo.penaltyPercent(i.ID,@asOf)/100)+1))+
---					(select sum(invoicedue) from invoices where invoiceId=i.ID and TYP='f') 
-
-
-
-
-
-   	
-   		insert into @rt
-			select  
-				0,
-				0,  
-				sum(unPaidDue)
-   				from @rt where YEAR<=@year-4
-   				
-   		delete from @rt where YEAR<=@year-4 and YEAR<>0
-   		
-   		update @rt set Year='PREV' where YEAR=0
-   	
-*/
---THE INTEREST CANNOT EXCEED THE ORIGINAL TAX AMOUNT 	
-   	
+ 	
  return
 end
