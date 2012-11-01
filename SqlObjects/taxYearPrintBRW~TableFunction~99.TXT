@@ -15,7 +15,7 @@ begin
 -- invoices processing
  if exists(select * from taxrollInvoiceProcessing where taxyear = @taxyear)
  begin
-  insert @rt (ord,code) select '9a', '--Invoice Batches--'
+  insert @rt (ord,code,tally,amount) select '9a', '--Invoice Batches--','Count','Amount'
   insert @rt (ord,code,tally,blob)
    select '9b', '   ' + processCode, count(*), '@mode=invoice;@code=' + processCode + ';' from taxrollInvoiceProcessing where taxyear = @taxyear group by processCode
   insert @rt (ord) select '9c'
@@ -24,7 +24,7 @@ begin
 -- un-invoiced
  if exists(select * from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices))
  begin
-  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','count','amount'
+  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','Count','Amount'
   insert @rt 
    select 'a1'+recordType+pertyp,'   Type: ' + recordType+','+pertyp,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
    group by recordType,pertyp

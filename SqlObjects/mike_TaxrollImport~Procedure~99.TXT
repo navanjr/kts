@@ -3,7 +3,12 @@ begin
 
 -- Drpo Mike's taxroll table
  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_taxroll]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+ begin
+  exec dbo.logit @@procid, 'Dropping table mike_taxroll'
   drop table mike_taxroll
+ end
+
+ exec dbo.logit @@procid, 'Creating mike_taxroll from VFP Drivers...'
 
  select 
   a.typ as [RECORDTYPE],
@@ -77,6 +82,8 @@ begin
  into mike_taxroll
  FROM dbo.mike_taxrollVFP() a, dbo.mike_taxAppsch01() b
  where a.c_schn=b.sch_n and a.c_cityc=b.city_c and a.taxyear=b.year
+
+ exec dbo.logit @@procid, 'Complete'
 
 --  exec dbo.taxrollImportSpecialAssessmentRates
 
