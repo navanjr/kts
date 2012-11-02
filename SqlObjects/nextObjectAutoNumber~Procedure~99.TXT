@@ -1,7 +1,8 @@
 create procedure dbo.nextObjectAutoNumber(
  @typ int,
  @seriesString varchar(50),
- @retval nvarchar(max) output 
+ @ignoreDeleted varchar(10) = 'FALSE',
+ @newNumber nvarchar(max) output 
 ) as
 -- this function looks for \0002 in the template code to know what format to return the next number as
 --  also, looks for @seriesField= to know what object column to find the series data
@@ -26,25 +27,26 @@ begin
 
   select @sql = 
   N' select @returnThis =  cast(cast(max(case when isnumeric(key1) = 1 then cast(key1 as int) else 0 end) as int) + 1 as varchar) ' + 
-  N' from object where abs(typ) = ' + cast(@typ as varchar) 
+  N' from object where ' + case when @ignoreDeleted = 'TRUE' then 'typ' else 'abs(typ)' end + ' = ' + cast(@typ as varchar) 
 
   if isNull(@seriesString,'') > '  0'
    select @sql = @sql + N'  and ' + @seriesField + ' = ''' + @seriesString + ''''
 
   select @params = N'@returnThis varchar(50) output'
 
-  exec sp_executesql @sql, @params, @returnThis = @retval output
+  exec sp_executesql @sql, @params, @returnThis = @newNumber output
 
-  select @retval = dbo.padLeft(isnull(@retval,'1'),'0',@padLength)
+  select @newNumber = dbo.padLeft(isnull(@newNumber,'1'),'0',@padLength)
  
  declare @blob varchar(1000) = '@keyCodeOptions=' + isnull(@keyCodeOptions,'null')
   + ';@seriesField=' + isnull(@seriesField,'null')
   + ';@seriesString=' + isnull(@seriesString,'null')
-  + ';@retval=' + isnull(@retval,'null')
+  + ';@newNumber=' + isnull(@newNumber,'null')
   + ';@sql=' + isnull(@sql,'null')
   + ';'
--- exec dbo.logit @@procid, 'blob', @blob
-  exec dbo.logit @@procid, '@retval', @retval  
+
+ exec dbo.logit @@procid, 'blob', @blob
+ exec dbo.logit @@procid, '@newNumber', @newNumber  
 
  return
 end
