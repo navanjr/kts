@@ -68,9 +68,9 @@ declare @wt2 table(penalty money,
                    recId int)
 
 insert @wt2
- select case when invoiceType='P' then sum(paid) else 0 end,
- case when invoiceType<>'P' and invoiceType<>'A' then sum(paid) else 0 end,
- invoiceType, parentInvoiceId, recId from @wt group by invoiceType, parentInvoiceId, recId
+ select sum(case when invoiceType='P' then paid else 0 end),
+ sum(case when invoiceType<>'P' and invoiceType<>'A' then paid else 0 end),
+ '', parentInvoiceId, recId from @wt group by parentInvoiceId, recId
 
 update w set penalty=a.penalty, fee=a.fee from @wt w, @wt2 a where a.parentInvoiceId=w.invoiceId and a.parentInvoiceId>0 and w.recId=a.recId
 
