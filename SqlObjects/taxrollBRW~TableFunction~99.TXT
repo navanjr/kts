@@ -110,6 +110,53 @@ Begin
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId
   from dbo.invoices a, receiptLink b 
   where a.id = b.invoiceId and b.receiptId = @receiptId
+
+  if @showPaidFlag = '1'
+  begin
+ if left(@orderString,2) = '10'
+ begin
+ if @searchString > '  0'
+   insert @rt
+   select top 1000 
+    cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+OWNERNAME,0.00 ,0,0,'',id 
+   from dbo.adtax
+   where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
+   order by OWNERNAME
+-- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
+  else
+   insert @rt
+   select top 1000 
+    cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+OWNERNAME,0.00 ,0,0,'',id 
+   from dbo.adtax
+   where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,'%',@AdvSrch))
+   order by OWNERNAME
+  end
+  else
+  begin
+-- get the first 1000 rows that match the search string. IF we have a search string ordered by parcel
+  if @searchString > '  0'
+   insert @rt
+   select top 1000 
+    cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+FULLPIDNUMBER,0.00,0,0,'',Id 
+   from dbo.adtax
+   where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
+   order by FULLPIDNUMBER
+-- get the first 1000 rows with out using a search string.  ordered by parcel  why would you ever do this?
+  else
+   insert @rt
+   select top 1000 
+    cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+FULLPIDNUMBER,0.00,0,0,'',Id 
+   from dbo.adtax
+   where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,'%',@AdvSrch))
+   order by FULLPIDNUMBER
+  end
+ 
+
+
+  end
+
+
+
 /*
 -- order the result set by name or by parcel
   if left(@orderString,2) = '10'
