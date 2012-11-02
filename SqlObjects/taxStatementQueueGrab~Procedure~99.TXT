@@ -9,9 +9,12 @@ begin
  exec dbo.logit @@procid, '@taxyear', @taxyear, '@ini', @ini, '@count', @count, '@mortCode', @mortcode
 
  declare @batchName varchar(50) 
- select
-  @batchName = @ini + '.' + right('000' +cast(cast(max(dbo.splitF(queue,'.',2)) as int) + 1 as varchar),3)
- from invoices where dbo.splitF(queue,'.',1) = @ini
+ if exists(select * from invoices where dbo.splitF(queue,'.',1) = @ini)
+  select
+   @batchName = @ini + '.' + right('000' +cast(cast(max(dbo.splitF(queue,'.',2)) as int) + 1 as varchar),3)
+  from invoices where dbo.splitF(queue,'.',1) = @ini
+ else
+  set @batchName = @ini + '.001'
 
  declare @sql nvarchar(max)
 

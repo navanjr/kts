@@ -1,6 +1,22 @@
-create procedure receiptNew( @receiptType varchar(50) ) as 
+create procedure receiptNew(
+ @receiptType varchar(50), 
+ @receiptId int = null 
+) as 
 -- this is a proc wrapper. it uses receiptCRUD to do the heavy lifting and just returns the new object id number of the receipt
 begin
+
+ -- if this is a tax receipt, check to see if there are items select first.
+ if @receiptType = 'TAX'
+ begin
+ 
+  if not exists(select * from dbo.invoices a, receiptLink b where a.id = b.invoiceId and b.receiptId = @receiptId)
+  begin
+   exec dbo.logit @@procid, 'Someone tried to create a new Tax receipt with out taxroll items selected'
+   select '@code=1;@message=Sorry, No Taxroll items were selected for this New Receipt.;'
+   return
+  end 
+
+ end
 
  declare @newId int
 

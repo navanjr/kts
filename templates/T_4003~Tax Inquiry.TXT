@@ -210,9 +210,13 @@ gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,sel
 
 \t108New &Receipt;
 @acc108=
- d1select('exec dbo.receiptNew ''TAX'''),
+ d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
+@newReceiptRocks=
  sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj7:d1),
  change(obj7:d1);
+@newReceiptFail=
+ m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
 
 \t109Add Comment;
   @acc109=lcSearchId=kpbrwid(1)*-1,

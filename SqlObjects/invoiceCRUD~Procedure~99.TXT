@@ -13,12 +13,12 @@ create procedure dbo.invoiceCRUD(
   D = 3
 */
 begin
-
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@taxyear', @taxyear
 
 -- delete all invoices in a tax year or just the ones with the no gl issue
  if @mode = 3 and isnull(@taxyear,'') > '  0'
  begin
-  declare @tokenId int
+  declare @tokenId int, @tally int
   declare @wt table(invoiceid int)
 
   if @noGLDetailIssue = 'FALSE'
@@ -26,12 +26,17 @@ begin
   else
    insert @wt select id from invoices where taxyear = @taxyear and 't' + cast(id as varchar) not in (select slink from gldetail)
 
+  select @tally = count(*) from @wt
+
   while exists(select * from @wt)
   begin
+   exec dbo.logit @@procid, 'Countdown... @tally', @tally
 
    select top 1 @tokenId = invoiceId from @wt 
    exec dbo.invoiceCRUD @mode=3, @invoiceId = @tokenId, @postCheckOverride = 0
    delete @wt where invoiceId = @tokenId
+ 
+   set @tally = @tally - 1
 
   end
   return

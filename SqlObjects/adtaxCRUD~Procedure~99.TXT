@@ -1,0 +1,20 @@
+create proc dbo.adtaxCRUD(
+ @mode int,
+ @taxyear varchar(4) = ''
+) as
+begin
+
+ exec dbo.logit @@procid, 'Started... @mode', @mode, '@taxyear', @taxyear
+
+ declare @tally int
+
+-- delete all adtax records that are not invoiced
+ if @mode = 3 and isnull(@taxyear,'') > '  0'
+ begin
+  select @tally = count(*) from adtax where realtaxyear = @taxyear and id not in (select taxrollId from invoices)
+  exec dbo.logit @@procid, 'Preparing to delete rows: @tally', @tally
+  delete adtax where realtaxyear = @taxyear and id not in (select taxrollId from invoices)
+
+ end
+
+end

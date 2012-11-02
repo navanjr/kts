@@ -17,6 +17,7 @@ begin
   @idToken int,
   @newInvoiceId int,
   @slink varchar(15),
+  @tally int,
   @resultTally int,
   @processCode varchar(50) = @taxYear + '.' + @initials
 
@@ -42,11 +43,14 @@ begin
 
  declare @rt table(id int, resultInt int) 
 
+ select @tally = count(*) from taxrollInvoiceProcessing where processCode = @processCode
+
  while exists(select * from taxrollInvoiceProcessing where processCode = @processCode)
  begin
   select top 1 @idToken = id from taxrollInvoiceProcessing where processCode = @processcode
 
-  exec dbo.logit @@procid, 'Begin Transaction - @idToken', @idToken
+  exec dbo.logit @@procid, 'Begin Transaction - @idToken', @idToken, 'Countdown @tally', @tally
+  set @tally = @tally - 1
   begin transaction
 
    exec dbo.taxReferenceCRUD @idToken, @newInvoiceId = @newInvoiceId output

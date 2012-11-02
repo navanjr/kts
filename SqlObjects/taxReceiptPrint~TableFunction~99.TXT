@@ -34,7 +34,8 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
 			blob varchar(max),
                         deputy varchar(50),
                         invoiceLink int,
-                        checkno varchar(50)                 )
+                        checkno varchar(50),
+                        grandTotal money                 )
 begin		
 	insert @rt (recId,invoiceId)
 					select  @recId, right(slink,LEN(slink)-1) from dbo.receiptSLinks(@recId) where LEFT(slink,1)='t'
@@ -52,8 +53,9 @@ begin
 					
 	delete from @rt where typ in ('P','F') and invoiceLink > 0
 	
-	update @rt set receiptNo = key1, receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18 from Object where ID = @recid
+	update @rt set receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18, grandTotal = cast(c9 as money)  from Object where ID = @recid
 
+        update r set receiptNo = a.receiptNumber from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
 
 	update r set 
 				r.schoolDistrict = a.SCHOOLDISTRICTMAIN,
@@ -65,6 +67,8 @@ begin
 				r.rng = a.RANGELOT,
 				r.blob = dbo.getTaxInvoiceBlob(r.invoiceId)			
 			from @rt r, AdTax a where r.taxRollid = a.ID
+
+
 				
 	update @rt set
 			recOf = dbo.readstring('@NAME=',blob)+CHAR(13)+CHAR(10)+dbo.parseAddress(blob),

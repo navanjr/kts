@@ -15,7 +15,7 @@ begin
 -- invoices processing
  if exists(select * from taxrollInvoiceProcessing where taxyear = @taxyear)
  begin
-  insert @rt (ord,code) select '9a', '--Invoice Batches--'
+  insert @rt (ord,code,tally,amount) select '9a', '--Invoice Batches--','Count','Amount'
   insert @rt (ord,code,tally,blob)
    select '9b', '   ' + processCode, count(*), '@mode=invoice;@code=' + processCode + ';' from taxrollInvoiceProcessing where taxyear = @taxyear group by processCode
   insert @rt (ord) select '9c'
@@ -24,13 +24,13 @@ begin
 -- un-invoiced
  if exists(select * from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices))
  begin
-  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','count','amount'
+  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','Count','Amount'
   insert @rt 
-   select 'a0'+recordType,'   Type: ' + recordType,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
-   group by recordType
+   select 'a1'+recordType+pertyp,'   Type: ' + recordType+','+pertyp,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
+   group by recordType,pertyp
 
   insert @rt 
-   select 'a1','      Total','',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices)
+   select 'a2','      Total','',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices)
  end
 
 -- all invoices
@@ -49,23 +49,23 @@ begin
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
- insert @rt (ord,code) select 'bb', '--Mortgage Codes--'
+ insert @rt (ord,code,tally,amount) select 'bb', '--Mortgage Codes--','Count','To Print'
 
  insert @rt 
  select
-  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed > '  0' then 1 else 0 end),0, '@mode=batch;@scope=mortgage;@code=' + theRealMortCode + ';'
+  'bb', '   ' + mortgageCode,max(theRealMortCode),count(*),sum(case when printed < '  0' then 1 else 0 end),0, '@mode=batch;@scope=mortgage;@code=' + theRealMortCode + ';'
  from taxYearPrintMortCodeView
  where taxyear = @taxyear
  group by mortgageCode,brwid,theRealMortCode
 
 -- Batches
  insert @rt (ord) select 'ca'
- insert @rt (ord,code) select 'cb', '--Print Batches--'
+ insert @rt (ord,code,tally,amount) select 'cb', '--Print Batches--','Count','To Print'
 
  insert @rt (ord,code,tally,tallyPrinted,blob)
  select
   'cc', '   ' + queue, count(*),
-  sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),
+  sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end),
   '@mode=queue;@code=' + queue + ';@unPrinted=' + cast(sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end) as varchar) + ';'
  from invoices where queue > '  0' and taxyear = @taxYear group by queue
 
