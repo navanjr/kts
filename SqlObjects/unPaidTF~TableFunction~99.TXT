@@ -4,13 +4,17 @@ create function [dbo].[unpaidTF](
  invoiceid int,
  origin varchar(50),
  year varchar(4),
+ recordType varchar(10),
+ perTyp varchar(10),
  invoiceDue Money,
  interestAsOfDate varchar(50),
+ subjectToPenalty int,
  penaltyPercent decimal(19,9),
  penalty Money,
  link2parentInvoice int,
  trcode varchar(50),
- trSection int
+ trSection int,
+ ord int
 )
 
 as
@@ -35,31 +39,33 @@ begin
 
 -- get all the other related invoices by parcel or name
  if @typ = 'R'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
+  insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
   select  
-   ID,
+   i.ID,
    'Parcel Search',
-   taxyear,
-   invoiceDue,
-   invoiceId,
-   case when ID = @invoiceID then 'Current Yr Tax' else 'Past Due' end,
-   1
-  from invoices
-  where PARCEL = @parcel
-   and TYP = 'R'
-   and invoiceDue != 0
-   and id not in (select invoiceId from @rt)
+   i.taxyear,
+   i.typ,
+   a.pertyp,
+   i.invoiceDue,
+   i.invoiceId,
+   1,1
+  from invoices i, adtax a
+  where i.taxrollId = a.id
+   and i.PARCEL = @parcel
+   and i.TYP in ('R','O')
+   and i.invoiceDue != 0
+   and i.id not in (select invoiceId from @rt)
  
  if @typ = 'P'
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
+  insert into @rt (invoiceId,origin,year,recordType,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
   select  
    ID,
    'Name Search',
    taxyear,
+   typ,
    invoiceDue,
    invoiceId,
-   case when ID = @invoiceID then 'Current Yr Tax' else 'Past Due' end,
-   1
+   1,1
   from invoices
   where name = @name
    and TYP != 'R'
@@ -67,15 +73,14 @@ begin
    and id not in (select invoiceId from @rt)
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
-  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trcode,trSection)
+ insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
  select 
   id,
   'fee search',
   taxyear,
   invoicedue,
   invoiceId,
-  'Past Due',
-   1
+   1,0
  from invoices 
  where invoiceId in (select invoiceId from @rt)
 
@@ -84,28 +89,39 @@ begin
  update @rt set
   interestAsOfDate = @asof,
   penaltyPercent = dbo.penaltyPercent(invoiceId,@asof)
+ where subjectToPenalty = 1
 
  update @rt set
   penalty = invoicedue*(penaltypercent/100)
-  
+ where subjectToPenalty = 1
+
 --Need to NOT insert penalities into the table if there are no penalties.  Check for nulls.
   if isnull((select sum(penalty) from @rt),0) != 0 
   begin
-    insert @rt (invoiceDue,trcode,trSection) select sum(penalty), 'Past Due',1 from @rt
+    insert @rt (invoiceDue,trSection,origin) select sum(penalty),1,'penalty' from @rt
   end
+
+-- set the trcode for proper grouping on the report !! maintain this order to resolve any issues
+ update @rt set trcode = 'Fire District', ord = 2 where recordType = 'O'
+ update @rt set trcode = 'Weed/Demo', ord = 3 where recordType = 'O' and perTyp != 'F' 
+ update @rt set trcode = 'Current Yr Tax', ord = 1 where invoiceid = @invoiceId
+ update @rt set trcode = 'Past Due', ord = 3 where recordType = 'R' and year != @year
+ update @rt set trcode = 'Weed/Demo', ord = 2 where origin = 'fee search'
+ update @rt set trcode = 'Past Due', ord = 3 where origin = 'fee search' and year != @year
+ update @rt set trcode = 'Past Due', ord = 3 where origin = 'penalty'
 
 --Grand Total Section 1
  select @totalTax = sum(invoiceDue) from @rt
- insert @rt (invoiceDue,trcode,trSection)
-  select @totalTax, 'Total Tax',1
+ insert @rt (invoiceDue,trcode,trSection,origin,ord)
+  select @totalTax, 'Total Tax',1,'sub total',4
 --Grand Total
- insert @rt (invoiceDue,trcode,trSection)
-  select @totalTax, 'Total Tax',2
+ insert @rt (invoiceDue,trcode,trSection,origin,ord)
+  select @totalTax, 'Total Tax',2,'sub total',4
 
 --Half Tax Section 2
  if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25
-  insert @rt (invoiceDue,trcode,trSection)
-   select sum(invoiceDue)*.5, 'Half Tax',2 from @rt where trcode = 'Current Yr Tax'
+  insert @rt (invoiceDue,trcode,trSection,origin,ord)
+   select sum(invoiceDue)*.5, 'Half Tax',2,'sub total',5 from @rt where trcode = 'Current Yr Tax'
  	
  return
 end
