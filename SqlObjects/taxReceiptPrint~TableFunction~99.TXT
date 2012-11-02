@@ -34,28 +34,44 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
 			blob varchar(max),
                         deputy varchar(50),
                         invoiceLink int,
-                        checkno varchar(50),
-                        grandTotal money                 )
-begin		
-	insert @rt (recId,invoiceId)
-					select  @recId, right(slink,LEN(slink)-1) from dbo.receiptSLinks(@recId) where LEFT(slink,1)='t'
-					
-    update r set
-                  r.taxRollid = i.TAXROLLID,
-                  r.typ = i.typ,
-                  r.parcel = i.parcel,
-                  r.item = i.ITEM,
-                  r.taxYear = i.taxyear,
-                  r.paidBy = i.NAME,
-                  r.invoiceLink = i.invoiceId
-                from invoices i, @rt r where r.InvoiceId = i.ID
-                  
-					
-	delete from @rt where typ in ('P','F') and invoiceLink > 0
-	
-	update @rt set receiptDate = Key2, paidBy = case when a1>'  0' then a1 else paidBy end, deputy = a18, grandTotal = cast(c9 as money)  from Object where ID = @recid
+                        checkno varchar(50) ,
+                        GrandTotal money )             
 
-        update r set receiptNo = a.receiptNumber from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
+as 
+begin
+
+	insert @rt (recId,invoiceId,taxRollid,parcel,item,taxyear,paidBy,TaxAmt,TaxDue,taxPaid,Penalty,mail,lien,adv,mowing,other,typ)
+					select  @recId, 
+					case when invoiceId>0 then invoiceId else ID end,
+					max(i.TAXROLLID),
+					max(i.PARCEL),
+					max(i.ITEM),
+					i.TAXYEAR,
+					max(i.NAME),
+					sum(case when i.invoiceId=0 then i.invoiceAmount else 0 end),
+					sum(case when i.invoiceId=0 then i.invoiceAmount else 0 end),
+                                        0,
+                                        sum(case when i.invoiceId>0 and i.TYP='P' then i.invoiceamount else 0 end),
+					0,
+					0,
+					0,
+					0,
+					sum(case when i.invoiceId>0 and i.TYP<>'P' then i.invoiceamount else 0 end),
+                                        max(case when invoiceId>0 then '' else typ end)
+					
+					 from dbo.receiptSLinks(@recId),invoices i where LEFT(slink,1)='t' and right(slink,LEN(slink)-1)=i.id 
+					  group by case when invoiceId>0 then invoiceId else ID end,i.TAXYEAR
+	
+	update @rt set 
+                                receiptDate = Key2,
+                                paidBy = case when a1>'  0' then a1 else paidBy end,
+                                deputy = a18,
+                                grandTotal = cast(c9 as money)
+                         from Object where ID = @recid
+
+        update r set 
+                                receiptNo = a.receiptNumber 
+                         from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
 
 	update r set 
 				r.schoolDistrict = a.SCHOOLDISTRICTMAIN,
@@ -64,40 +80,38 @@ begin
 				r.blk = a.TOWNSHIPBLOCK,
 				r.sec = a. SECTIONNUMBER,
 				r.twp = '',
-				r.rng = a.RANGELOT,
-				r.blob = dbo.getTaxInvoiceBlob(r.invoiceId)			
+				r.rng = a.RANGELOT
+				
 			from @rt r, AdTax a where r.taxRollid = a.ID
 
 
 				
-	update @rt set
-			recOf = dbo.readstring('@NAME=',blob)+CHAR(13)+CHAR(10)+dbo.parseAddress(blob),
-			TaxAmt = cast(dbo.readstring('INVOICEAMT=',blob) as money),
-			TaxDue =  cast(dbo.readstring('INVOICEAMT=',blob) as money),
-			TaxPaid =  cast(dbo.readstring('INVOICEAMT=',blob) as money),
-			TotPaid = 0,
-			Penalty = cast(dbo.readstring('PENALTY=',blob) as money),
-			mail = 0,
-			lien = 0,
-			adv = 0,
-			mowing = 0,
-			other = cast(dbo.readstring('FEE=',blob) as money)						
+						
 			
 	update @rt set
-			TotPaid = TaxDue + Penalty + mail + lien + adv + mowing + other
+			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId),TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + Penalty + mail + lien + adv + mowing + other
 
 --Update Paid
 
 	declare @paidBlob varchar(max) 
-			select @paidBlob = isnull(@paidBlob,'') + '@'+paycode+'='+cast(SUM(amount) as varchar)+';@'+paycode+'NO='+checkno+';'
-		from paid where slink = 'o'+@recid group by paycode,checkno
+			select @paidBlob = isnull(@paidBlob,'') 
+                                           + '@'+case when paycode='Cash' then paycode else 'Check' end+'='+cast(SUM(amount) as varchar)+';'
+                                           + '@checkno=  '+checkno+';'
+		                      from paid where slink = 'o'+@recid 
+                                         group by case when paycode='Cash' then paycode else 'Check' end,checkno
 			
 	update r set
 			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
 			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
-			r.change =  cast(dbo.readstring('@coin=',@paidBlob) as money),
-                        r.checkno = dbo.readstring('@checkno=',@paidBlob)
+			r.checkno = dbo.readstring('@checkno=',@paidBlob)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
+---figure Change
+ declare @totalApplied money 
+       
+        select @totalApplied = isnull(@totalApplied,0) + TotPaid from @rt 
+
+        update @rt set
+              change = grandTotal - @totalApplied 
 							
  return					
 end
