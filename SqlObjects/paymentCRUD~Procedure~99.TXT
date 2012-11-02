@@ -12,7 +12,8 @@ create proc dbo.paymentCRUD(
  @creditAcct varchar(50) = '',
  @id int = 0,
  @bankStatementId int = 0,
- @postResult varchar(100) = null output 
+ @postResult varchar(100) = null output,
+ @postOverride varchar(5) = 'FALSE'
 ) as 
 begin
 
@@ -51,10 +52,10 @@ begin
 
  if @mode = 3
  begin
-  exec dbo.logit @@procid, 'start mode 3 - paymentType', @paymentType
+  exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride
 
   -- bail if we are already posted
-  if dbo.isPosted(@slink) = 'TRUE'
+  if dbo.isPosted(@slink) = 'TRUE' and @postOverride != 'TRUE'
    return 
 
   -- bail if id is not greater than 0
