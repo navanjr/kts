@@ -7,6 +7,7 @@ create function [dbo].[unpaidTF](
  recordType varchar(10),
  perTyp varchar(10),
  invoiceDue Money,
+ halfRate Money,
  interestAsOfDate varchar(50),
  subjectToPenalty int,
  penaltyPercent decimal(19,9),
@@ -102,13 +103,26 @@ begin
   end
 
 -- set the trcode for proper grouping on the report !! maintain this order to resolve any issues
- update @rt set trcode = 'Fire District', ord = 2 where recordType = 'O'
- update @rt set trcode = 'Weed/Demo', ord = 3 where recordType = 'O' and perTyp != 'F' 
- update @rt set trcode = 'Current Yr Tax', ord = 1 where invoiceid = @invoiceId
- update @rt set trcode = 'Past Due', ord = 3 where recordType in ('P','I','B','R') and year != @year
- update @rt set trcode = 'Weed/Demo', ord = 2 where origin = 'fee search'
- update @rt set trcode = 'Past Due', ord = 3 where origin = 'fee search' and year != @year
- update @rt set trcode = 'Past Due', ord = 3 where origin = 'penalty'
+--TODO: nate come back and make this site configurable
+/* declare @siteSettings table(
+  trCode varchar(50),
+  halfRate money,
+  ord int
+ )
+ insert @siteSettings select 
+*/
+
+ update @rt set 
+  trcode = 'Fire District',
+  halfRate = .5,
+  ord = 2 
+ where recordType = 'O'
+ update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 3 where recordType = 'O' and perTyp != 'F' 
+ update @rt set trcode = 'Current Yr Tax', halfRate = .5, ord = 1 where invoiceid = @invoiceId
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('P','I','B','R') and year != @year
+ update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 2 where origin = 'fee search'
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'fee search' and year != @year
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'penalty'
 
 --Grand Total Section 1
  select @totalTax = sum(invoiceDue) from @rt
@@ -121,7 +135,7 @@ begin
 --Half Tax Section 2
  if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25
   insert @rt (invoiceDue,trcode,trSection,origin,ord)
-   select sum(invoiceDue)*.5, 'Half Tax',2,'sub total',5 from @rt where trcode = 'Current Yr Tax'
+   select sum(invoiceDue*halfRate), 'Half Tax',2,'sub total',5 from @rt where trcode != 'Total Tax'
  	
  return
 end

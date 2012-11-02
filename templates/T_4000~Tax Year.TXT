@@ -7,9 +7,11 @@
  create(9,9),
  create(13,9),
  create(37,9),
+ create(43,9),
  create(49,9),
  create(51,9),
- brwstuff=;
+ brwstuff=,
+ updateMikeMort=;
 
 @brwstuff=
  gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord',
@@ -35,7 +37,12 @@
  calcfld(012),
  calcfld(014);
 
-@gfwindow=refreshIt=;
+@updateMikeMort=
+ d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1&''''),
+ lcMortImp=readstring(obj7:d1,'@tally='),
+ set(44,lcMortImp);
+
+@gfwindow=refreshbrw=,updateMikeMort=;
 
 @passRoutine=
  lcCmd=readstring(lcBlob,'@code='), 
@@ -151,6 +158,14 @@ acc049=
  if(gcretval=1,sql('exec dbo.logit @control=''stop''')),
  if(gcretval=2,sql('exec dbo.logit @control=''start|1''')),
  calcfld(038);
+
+\t043Mike Mort; \w04460; \d044; 
+@acc043=
+ m('Choose one of the following Mortgage Code Options...','Mortgage Code Options...','question.ico','&Update from mike_taxroll|&Cancel'),
+ break(gcretval=2),
+ d1select('exec dbo.mike_mortImport @mode=''updateThem'',@taxyear='''&obj:key1&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1,'Mike Mort Import...')),
+ refreshbrw=,updateMikeMort=;
 
 \t045Total Due; \s046+'select sum(totaldue) from adtax where [REALTAXYEAR]='''&obj:key1&''''; \w04660; \t046@n$14,2;
 \p0467cfah,13499135; \p0467c13h,700; \p0467c0ch,1;
