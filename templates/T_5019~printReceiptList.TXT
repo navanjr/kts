@@ -2,6 +2,36 @@
 
 @printReceiptList=
  do(452,getSiteInfo=),
+ lca4=0,
+ lcg4=0,
+ lcgrpToken='',
+ lcsql='select recType,recnum,recdate1,recfrom,paid,deputy from dbo.receiptList(''00000'',''99999'',''77376'',''77376'') order by rectype,recnum',
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Receipt Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  if(curpag=1),
+  grp(1,obj5:a1,
+   do(bnd('H',obj5:a1,1000)),
+   do(  bnd('H',,400,lcgrpToken&' Total',500,,2500,format(lcg4,@n$14.2b),700R),nl,lcg4=0),
+  ),
+  bnd('HU',,400,'Date',500,'',2500,'Amount',700R,'Deputy',1000),
+  det(lcsql),
+   bnd('D',obj5:a2,400,obj5:a3,500,obj5:a4,2500,format(obj5:a5,@n14.2),700R,obj5:a6,1000),
+   lca4=lca4+obj5:a5,
+   lcg4=lcg4+obj5:a5,
+   lcgrpToken=obj5:a1,
+  edt,
+  nl,
+  bnd('H',,400,'Report Total',500,,2500,format(lca4,@n$14.2b),700R), 
+ );
+
+
+
+@JunkprintReceiptList=
+ do(452,getSiteInfo=),
   if(gcBeginDate+0<5,gcBeginDate=today()-30),
   if(gcEndDate+0<5,gcEndDate=today()),
   lcLm=600,

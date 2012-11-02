@@ -1,7 +1,9 @@
-create function dbo.receiptList( @beginReceiptNo varchar(50),
+create function dbo.receiptList( 
+ @beginReceiptNo varchar(50),
         @endReceiptNo varchar(50),
         @beginDate varchar(50),
-        @endDate varchar(50))
+        @endDate varchar(50)
+)
 
 returns @wt table(id int identity(1,1),
                   recType varchar(50),
@@ -25,43 +27,44 @@ returns @wt table(id int identity(1,1),
                   
 as 
 begin                  
-insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy)
-select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy from receipt 
-where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
- and recType<>'TAX'
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy)
+ select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy from receipt 
+ where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+  and recType<>'TAX'
 
-insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
-select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId,Deputy
- from taxReceipt where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
-  and parentInvoiceId<1
-  order by recNum
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
+ select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
+   'l'+cast(linkId as varchar(15)),recId,Deputy
+  from taxReceipt where recNum>=@beginReceiptNo and recNum<=@endReceiptNo and postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+   and parentInvoiceId<1
+   order by recNum
 
-insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
-select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
+ insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
+ select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
   'l'+cast(linkId as varchar(15)),recId, Deputy
- from taxReceipt where recId in (select recId from @wt)
-  and parentInvoiceId>0
-  order by recNum
+  from taxReceipt where recId in (select recId from @wt)
+   and parentInvoiceId>0
+   order by recNum
 
 
-update w 
-set paid = amount, 
-    taxYear = apyear, 
-    school = apdistrict, 
-    rate = aprate 
-from @wt w,gldetail a, glaccounts b 
-where a.accountCode=b.accountCode 
-  and b.accountType='ACCRUED RECEIVABLE' 
-  and a.slink=w.slink 
+ update w 
+ set paid = amount, 
+     taxYear = apyear, 
+     school = apdistrict, 
+     rate = aprate 
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and left(w.recType,3) = 'TAX'
 
-update w
- set itemNumber=cast(b.ITEMNUMBER as varchar(50))
-from @wt w, invoices a, adtax b
-where w.invoiceId=a.id 
- and a.taxrollId=b.id
+ update w
+  set itemNumber=cast(b.ITEMNUMBER as varchar(50))
+ from @wt w, invoices a, adtax b
+ where w.invoiceId=a.id 
+  and a.taxrollId=b.id
 
-declare @wt2 table(penalty money,
+ declare @wt2 table(penalty money,
                    fee money,
                    invoiceType varchar(50),
                    parentInvoiceId int,
