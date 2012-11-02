@@ -36,7 +36,7 @@ begin
 -- all invoices
  insert @rt (ord,code) select 'aa1 ',''
  insert @rt 
-  select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear
+  select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '' from invoices where taxyear = @taxyear
  -- Zero Balance Issue
  select @tally = count(*) from invoices where taxyear = @taxyear and invoiceDue = 0
  if @tally > 0
@@ -46,6 +46,10 @@ begin
  if @tally > 0
   insert @rt (ord,code,tally,blob)
    select 'ac','   Invoice(s) without glDetail', @tally,'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';'
+
+-- print Ready
+ insert @rt 
+  select 'aa2','Ready to Print','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear and typ not in ('O')
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
