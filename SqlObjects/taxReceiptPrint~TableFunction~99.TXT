@@ -35,7 +35,8 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
                         deputy varchar(50),
                         invoiceLink int,
                         checkno varchar(50) ,
-                        GrandTotal money )             
+                        GrandTotal money,
+                        Comments varchar(250) )             
 
 as 
 begin
@@ -58,6 +59,7 @@ begin
 					0,
 					sum(case when i.invoiceId>0 and i.TYP<>'P' then i.invoiceamount else 0 end),
                                         max(case when invoiceId>0 then '' else typ end)
+                                       
 					
 					 from dbo.receiptSLinks(@recId),invoices i where LEFT(slink,1)='t' and right(slink,LEN(slink)-1)=i.id 
 					  group by case when invoiceId>0 then invoiceId else ID end,i.TAXYEAR
@@ -66,7 +68,8 @@ begin
                                 receiptDate = Key2,
                                 paidBy = case when a1>'  0' then a1 else paidBy end,
                                 deputy = a18,
-                                grandTotal = cast(c9 as money)
+                                grandTotal = cast(c9 as money),
+                                comments = d1
                          from Object where ID = @recid
 
         update r set 
@@ -96,9 +99,9 @@ begin
 	declare @paidBlob varchar(max) 
 			select @paidBlob = isnull(@paidBlob,'') 
                                            + '@'+case when paycode='Cash' then paycode else 'Check' end+'='+cast(SUM(amount) as varchar)+';'
-                                           + '@checkno=  '+checkno+';'
+                                           + '@checkno=  '+case when count(id)>1 then cast(count(id) as varchar(10))+' Chks' else max(checkno) end+';'
 		                      from paid where slink = 'o'+@recid 
-                                         group by case when paycode='Cash' then paycode else 'Check' end,checkno
+                                         group by case when paycode='Cash' then paycode else 'Check' end
 			
 	update r set
 			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
