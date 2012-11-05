@@ -12,8 +12,10 @@ create procedure dbo.receiptPaymentAdd(
 )
 as
 begin
-
-if  @paycode = '' or isnull(@amount,0) = 0
+ 
+ set nocount on
+ 
+ if  @paycode = '' or isnull(@amount,0) = 0
   begin
     return
   end
@@ -31,7 +33,9 @@ if  @paycode = '' or isnull(@amount,0) = 0
   @objectTyp int,
   @balance money,
   @checkReq int,
-  @bankReq int
+  @bankReq int,
+  @receiptBalanceDue money,
+  @changeAmount money
 
  select
   @code = code,
@@ -40,7 +44,8 @@ if  @paycode = '' or isnull(@amount,0) = 0
   @suspenseAccountId = suspenseAccountId,
   @contraId =contraId,
   @fpId = fpId,
-  @objectTyp = objectTyp
+  @objectTyp = objectTyp,
+  @receiptBalanceDue = balanceDue
  from dbo.receiptCheck(@receiptId,@paycode)
 
 select 
@@ -92,6 +97,15 @@ select
     select @paycode,@slink,@amount,@checkNumber,@bankId,@drawnon,@location
   else
    update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId,drawnon=@drawnon,location=@location where id=@paymentId
+
+-- add or update CASH RETURNED
+  set @changeAmount = isnull(@receiptBalanceDue,0) - isnull(@amount,0)
+  if @changeAmount < 0
+  begin
+   exec dbo.logit @@procid, 'Hang on, we are making change...'
+   insert paid (paycode,slink,amount,checkno)
+    select 'CASH', @slink, @changeAmount - @receiptBalanceDue, 'CASH RETURNED'
+  end
 
 
 -- add to the gl stage

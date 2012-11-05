@@ -173,10 +173,12 @@ begin
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
   select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, linkId
--- changed this from > 0 (nate) 
+
+  exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
+
+-- @paidTotal > 0 are normal items...
   if @paidTotal > 0
   begin
-   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
    if @dueToken <= @paidTotal
     update @wt set applyAmount = @dueToken where id = @idToken
    else
