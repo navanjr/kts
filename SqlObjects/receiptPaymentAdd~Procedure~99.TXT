@@ -103,8 +103,11 @@ select
   if @changeAmount < 0
   begin
    exec dbo.logit @@procid, 'Hang on, we are making change...'
-   insert paid (paycode,slink,amount,checkno)
-    select 'CASH', @slink, @changeAmount, 'CASH RETURNED'
+   if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
+    update paid set amount = @changeAmount where checkno = 'CASH RETURNED' and slink = @slink
+   else
+    insert paid (paycode,slink,amount,checkno)
+     select 'CASH', @slink, @changeAmount, 'CASH RETURNED'
   end
 
 
