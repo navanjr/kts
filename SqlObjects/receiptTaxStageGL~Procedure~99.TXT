@@ -173,7 +173,8 @@ begin
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
   select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, linkId
-  if @paidTotal > 0
+-- changed this from > 0 (nate) 
+  if @paidTotal != 0
   begin
    exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
    if @dueToken <= @paidTotal
@@ -323,10 +324,19 @@ begin
   select slink,accountId,amount,null,'suspense',slink2,'' from @glSuspense
 
 
+ declare
+  @balance money,
+  @tally int
+ select @balance = sum(amount), @tally = count(*) from @glStage
+ if @balance != 0
+ exec dbo.logit @@procid, 'oops we have a problem... @glStage.@balance', @balance, '@tally', @tally
+
+
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
  begin
-  select a.*,b.accountDesc,b.accountType from @glStage a, glAccounts b where a.accountId = b.accountId order by a.processType
+--  select a.*,b.accountDesc,b.accountType from @glStage a, glAccounts b where a.accountId = b.accountId order by a.processType
+  select * from @glStage
   return
  end
 
@@ -343,4 +353,7 @@ begin
  where a.accountId = b.accountId
   and a.slink in (select slink from @glStage)
 
+ select @balance = sum(amount) from gldetailstage where slink in (select slink from @glStage)
+ if @balance != 0
+  exec dbo.logit @@procid, 'Oops, we have a problem...  @balance', @balance
 end

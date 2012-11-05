@@ -83,6 +83,7 @@ select
   select @checkNumber='CASH RETURNED'
  end
 
+ exec dbo.logit @@procid, 'Begin transaction...'
  begin transaction
 
 -- add or update paid
@@ -110,6 +111,7 @@ select
 -- TEST Mode we bail
   if @mode = 1
   begin
+   exec dbo.logit @@procid, 'in TEST mode, Rollback transaction...'
    rollback transaction
    return
   end
@@ -118,11 +120,13 @@ select
   begin
 -- Nate was here
 
+   exec dbo.logit @@procid, 'Rollback transaction... @balance', @balance
    rollback transaction
    select '@code=1;@message=Payment transaction was rolled back. Contact Support. {' + @receiptType + ':' + cast(@balance as varchar) + '};'
    return
   end
   else
+   exec dbo.logit @@procid, 'Commit transaction...'
    commit transaction
 
  select '@code=0;@message=Payment applied OK.;'

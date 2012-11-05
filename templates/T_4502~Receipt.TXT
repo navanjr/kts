@@ -330,8 +330,15 @@ lmode=2;
  @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
  if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
 
+@cashoverpay=
+ lcdiff=kp('select dbo.receiptBalanceDue('&obj:id&')')-obj:a8,
+ break(lcdiff+0>-0.005),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''','''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Make Change...'));
 
-@acc165=update,
+@acc165=
+ update,
+ cashoverpay=,
  d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''','&lcField+0),
  if(readstring(obj7:d1,'@code=')=2,acc165a=),
  break(readstring(obj7:d1,'@code=')<>0),
@@ -406,6 +413,7 @@ lmode=2;
 
 \t120TestCheck=; @acc120=testCheck=; \h120gcadmin=0;
 @testCheck=
+ m('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''',''''');
  m('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0');
 
 @miscDetail= if(obj:key3='TRUST',set(12,obj:b2)),

@@ -1,0 +1,62 @@
+create proc dbo.keyReportMaintenance(
+ @mode varchar(50),
+ @templateID int = null
+) as 
+begin
+
+-- creates report module records...  
+/* here is how it works. if you place an @keyReportMaintenance; in your report template, then any procedure that below that command in your template will be inserted into report module automatically.  this is done during the keyUpdateTemplatesFromRepo procedure.
+*/
+
+
+  declare @reportTemplates table( id int, template varchar(50), code varchar(max) )
+  declare @modules table( id int, template varchar(50), module varchar(50) )
+  declare 
+   @tokenId int,
+   @tokenTemplate varchar(50),
+   @tokenCode varchar(max),
+   @code splitWT
+
+  declare @exclude table( code varchar(50) )
+  insert @exclude select 'bb'
+ 
+-- update/insert report control modules
+ if @mode = 'UpdateModules'
+ begin
+
+  declare 
+   @reportModulesId int
+
+  select 
+   @reportModulesId = id from template where template = 'Report Modules'
+
+-- we bail if we dont have the required report control templates
+  if isnull(@reportModulesId,0) < 0
+   return
+
+  insert @reportTemplates select top 1 id, template, options from template where id between 5000 and 5999
+ 
+  while exists(select * from @reportTemplates)
+  begin
+   select top 1
+    @tokenId = id,
+    @tokenTemplate = template,
+    @tokenCode = code
+   from @reportTemplates
+   delete @reportTemplates where id = @tokenId
+
+   insert @code select
+    id, dbo.stripChars(dbo.splitF(data,'=',1),'10,32') + '=' 
+   from dbo.split( @tokenCode, char(13) )
+    where left(data,3) like '%@%'
+  
+   insert @modules select @tokenId, @tokenTemplate, data from @code
+
+   delete @code where charindex(' ',data) > 0
+  
+  end
+select * from @modules
+ end
+
+ return
+end
