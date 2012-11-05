@@ -48,8 +48,13 @@ begin
    select 'ac','   Invoice(s) without glDetail', @tally,'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';'
 
 -- print Ready
+
+-- Batches
+ insert @rt (ord) select 'aa3'
+ insert @rt (ord,code,tally,amount) select 'aa31', '--Print Batches--','Count','To Print'
+
  insert @rt 
-  select 'aa2','Ready to Print','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear and typ not in ('O')
+  select 'aa32','Ready to Print','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear and typ not in ('O')
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
@@ -68,18 +73,18 @@ begin
 
 --Insert failed 
 
- insert @rt (ord,code,tally,tallyPrinted,blob)
+ insert @rt (ord,code,tally,tallyPrinted,amount,blob)
  select
   'cc', '   ' + queue, count(*),
-  sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end),
+  sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end),
   '@mode=queue;@code=' + queue + ';@unPrinted=' + cast(sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end) as varchar) + ';'
  from invoices where queue > '  0' and taxyear = @taxYear group by queue
 
  insert @rt (ord) select 'cd'
 
- insert @rt (ord,code,tally,tallyPrinted)
+ insert @rt (ord,code,tally,tallyPrinted,amount)
  select
-  'ce', '', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end)
+  'ce', '', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end)
  from invoices where queue > '  0' and taxyear = @taxYear
 
  return
