@@ -96,6 +96,8 @@ begin
 
 --Update Paid
 
+--TODO: When only cash is used, checkno=2Chks; should be 0 or null when no checks are used for payment. 
+
 	declare @paidBlob varchar(max) 
 			select @paidBlob = isnull(@paidBlob,'') 
                                            + '@'+case when paycode='Cash' then paycode else 'Check' end+'='+cast(SUM(amount) as varchar)+';'
@@ -108,7 +110,13 @@ begin
 			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
 			r.checkno = dbo.readstring('@checkno=',@paidBlob)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
+
+
+
 ---figure Change
+
+--TODO: Need to capture the amount of money the customer gives in order to calaulate the change returned to the customer. 
+
  declare @totalApplied money 
        
         select @totalApplied = isnull(@totalApplied,0) + TotPaid from @rt 
