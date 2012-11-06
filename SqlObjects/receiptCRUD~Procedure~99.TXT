@@ -76,9 +76,9 @@ begin
   update a set a.parentInvoiceId = b.invoiceId, a.invoiceType = b.typ 
    from @slinks a, invoices b where dbo.slinkId(a.slink) = b.id and dbo.slinkType(a.slink) = 't'
 
+-- remove fee/penalty invoices and their GL, but only if they are not tax receipts
   if @receiptType not in ('TAX')
   begin
--- remove fee/penalty invoices and their GL
    while exists(select * from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0)
    begin 
     select top 1 @token = id, @tokenSlink = slink, @tokenInt = dbo.slinkId(slink)
