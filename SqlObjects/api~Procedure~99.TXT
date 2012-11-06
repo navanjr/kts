@@ -13,7 +13,9 @@ create procedure dbo.api(
 begin
  set nocount on
  
- declare @gitPath varchar(150)
+ declare
+  @rawDump varchar(max),
+  @gitPath varchar(150)
  select @gitPath = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
  set @nodeScript = @gitPath + '\api.js'
 
@@ -30,7 +32,9 @@ begin
 
  exec dbo.spReadTextFile
   @fullPath = @scratchFile,
-  @fileContents = @dump output 
+  @fileContents = @rawDump output 
+
+ set @dump = dbo.stripChars(@rawDump,'13,10')
 
  return
 

@@ -1,4 +1,7 @@
-create proc dbo.receiptVoid( @receiptId int ) as 
+create proc dbo.receiptVoid(
+ @receiptId int,
+ @debugMode varchar(5) = 'FALSE'
+) as 
 begin
  exec dbo.logit @@procid, '@receiptId', @receiptId
 
@@ -30,6 +33,14 @@ begin
   select top 1 @jeId = jeId from dbo.journalLink where @receiptId = @receiptId
   exec dbo.logit @@procid, 'Appears Void already exists... @jeId', @jeId
   select '@code=1;@message=Void already exists... Can not continue.'
+  return
+ end
+
+ -- bail if effected payments have already been deposited
+ if exists(select * from paid where slink = @receiptSlink and depositId > 0)
+ begin
+  exec dbo.logit @@procid, 'Can not void this receipt as it has already been attached to a deposit.'
+  select '@code=1;@message=Sorry, Receipt linked to a deposit can not be voided.;'
   return
  end
 
@@ -95,6 +106,12 @@ begin
  exec dbo.logit @@procid, @log
  if not exists(select * from @wt)
   return
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @wt
+  return
+ end
 
  exec dbo.journalEntryCRUD 0,
   @description = @jeDescription,
