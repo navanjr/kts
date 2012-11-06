@@ -2,7 +2,8 @@ create procedure dbo.receiptCRUD(
  @mode int,
  @receiptId int = 0,
  @series varchar(50) = '',
- @deletePosted varchar(10) = 'False',
+ @deletePosted varchar(10) = 'FALSE',
+ @voidReceipt varchar(5) = 'FALSE',
  @newReceiptId int = 0 output
 ) as
 /*
@@ -15,7 +16,10 @@ create procedure dbo.receiptCRUD(
 begin
  
  declare 
-  @slink varchar(15) = 'o' + cast(@receiptId as varchar) 
+  @slink varchar(15) = 'o' + cast(@receiptId as varchar),
+  @receiptType varchar(50) 
+
+ select @receiptType = key3 from object where id = @receiptId and typ = 4502
 
 -- Create
  if @mode = 0
@@ -72,16 +76,19 @@ begin
   update a set a.parentInvoiceId = b.invoiceId, a.invoiceType = b.typ 
    from @slinks a, invoices b where dbo.slinkId(a.slink) = b.id and dbo.slinkType(a.slink) = 't'
 
+  if @receiptType not in ('TAX')
+  begin
 -- remove fee/penalty invoices and their GL
-  while exists(select * from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0)
-  begin 
-   select top 1 @token = id, @tokenSlink = slink, @tokenInt = dbo.slinkId(slink)
-    from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0
-   if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
-   begin
-    exec invoiceCRUD 3, @invoiceId = @tokenInt, @postCheckOverride = 0
+   while exists(select * from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0)
+   begin 
+    select top 1 @token = id, @tokenSlink = slink, @tokenInt = dbo.slinkId(slink)
+     from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'F' and processFlag = 0
+    if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
+    begin
+     exec invoiceCRUD 3, @invoiceId = @tokenInt, @postCheckOverride = 0
+    end
+    update @slinks set processFlag = 1 where id = @token
    end
-   update @slinks set processFlag = 1 where id = @token
   end
 
 --remove receiptLinks and their GL
