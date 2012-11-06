@@ -16,6 +16,8 @@ begin
   @log varchar(max)
 
  select
+  @name = name,
+  @item = cast(item as varchar), 
   @queue = queue,
   @taxYear = taxyear,
   @invoiceStatus = printed
@@ -23,9 +25,19 @@ begin
 
  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@taxYear', @taxYear, '@queue', @queue
 
+ if @status in ( 'markOne', 'markAll' )
+ begin
+  if @status = 'markOne'
+   update invoices set printed = getDate() where id = @invoiceId and queue = @queue and taxyear = @taxyear
+  else
+   update invoices set printed = getDate()
+   where queue = @queue and printed < '  0'
+    and name + cast(item as varchar) <= @name + @item
+    and taxyear = @taxyear
+ end
+
  if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
  begin
-  select @name = name, @item = cast(item as varchar) from invoices where id = @invoiceId
   select @tally = count(*) from invoices where name + cast(item as varchar) >= @name + @item and queue = @queue and taxyear = @taxyear
   select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
   exec dbo.logit @@procid, @log
