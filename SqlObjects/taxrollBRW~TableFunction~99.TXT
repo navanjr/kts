@@ -144,13 +144,6 @@ Begin
 
 
 
-/*
--- order the result set by name or by parcel
-  if left(@orderString,2) = '10'
-   update @rt set ord = isnull(ord,'')+name
-  else
-   update @rt set ord = isnull(ord,'')+parcel
-*/
   if @protest='PROTEST'
   begin
    update a set amount=p.amount from @rt a, dbo.protestDetail p where a.invoiceId=p.invoiceId*-1
@@ -163,11 +156,23 @@ Begin
      case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end 
    from adtax a where taxrollid=a.id
 
+  declare @interestToDate int
+
+  if left(@searchString,12)='Interest To:'
+   begin
+    select @interestToDate = dbo.clariondate(substring(@searchString,14,10))
+   end
+  else
+   begin
+    select @interestToDate = dbo.clariondate(getdate())
+   end
+
+
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
    update a set 
     fees = isnull((select sum(feeamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0.00),
-    penalty = (due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(dbo.clariondate(getdate())))/100),
+    penalty = (due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),
     toPay = due * methodRate
    from @rt a where selectedFlag in (char(189),'x')
      

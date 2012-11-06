@@ -194,7 +194,8 @@ gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,sel
 \t031OrderName;\f0321;
 \t033OrderParcel;
 \t035AdvanceSearch;
-\h027036;r
+\t037InterestTo;
+\h027038;r
 
 \t077&Filter;
  \x077-30;
@@ -229,6 +230,16 @@ gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,sel
 
 \t110&Add Omitted;
  @acc110=neww(4001,2);
+
+\t111Print Selected;
+@acc111=
+ iw('\t001Interest To; \t002@d2; \w00250;'),
+ break(gcretval='esc'),
+ if(obj7:key1+0>5,gcInterestToDate=obj7:key1,gcInterestToDate=''),
+ gcReceiptId=obj:id,
+ sql('update object set a16='''&gcInterestToDate&''' where id='&obj:id),
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj:id),
+ trreport('SelectedTaxes',5031,'printSelectedTaxes=');
 
 \t112UnSelect &All;
 @acc112=
