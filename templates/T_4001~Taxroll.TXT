@@ -2,6 +2,7 @@
 @acc110=
  gcTaxInvoiceId=obj:link2,
  do(4007,menuprocess=);
+
 \h107instring('@group=publicuser',cur:options,1,1)>0;
 \h110instring('@group=publicuser',cur:options,1,1)>0;
 
@@ -14,15 +15,19 @@
  gcoriginal='',
  gctype='',
  gcinvoice=0,
+ create(151,2,247,68,'Assessed'),
+ create(152,2,247,147,'Exemptions'),
  break(instring('@group=publicuser',cur:options,1,1)>0),
  createbrw=;
 
 @createbrw=
  break(tier=2),
  gcsql='select Id,key2,key3,case when a3 = ''@d2;'' then dbo.date1(a1) else a1 end as original,case when a3 = ''@d2;'' then dbo.date1(a2) else a2 end as corrected from object where typ=4005 and link1='&obj:link1&' order by key1 desc',
- brw(160,1,gcsql,305,145,195,100,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
- gcsql3='select Id,notedate,comment from dbo.taxrollSearchCommentBRW('&obj:link2&')',
- brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2@#2#|M400L(2)~Comment~#3#|M',,,),;
+ brw(160,1,gcsql,305,175,195,70,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
+ gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
+ brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),;
+@lbrw3forecolor=obj7:c10='COMMENT',255;
+
 
 @lbrwclick160=
  lcId=kpbrwid(1),
@@ -44,7 +49,7 @@
 @noexit=m('You must have the following information entered before exiting: Name, Taxyear, Item Number, Type, Original School District, Original Rate and Tax Due');
 
 @refreshBRW3=
- gcsql3='select Id,notedate,comment from dbo.taxrollSearchCommentBRW('&obj:link2&')',
+ gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
  brwreload(3,gcsql3);
 
 \m160Right Click for more options...;
@@ -56,27 +61,23 @@
 @sel008=gcfieldnum='008',gclabel='Item Number',gcoriginal=obj:a1,gctype='@n7.1;',gcinvoice=0;
 @sel010=gcfieldnum='010',gclabel='Record Type',gcoriginal=obj:a2,gctype='varchar',gcinvoice=0;
 @sel012=gcfieldnum='012',gclabel='Business Name',gcoriginal=obj:a3,gctype='varchar',gcinvoice=0;
-@sel014=gcfieldnum='014',gclabel='Add1',gcoriginal=obj:a4,gctype='address',gcinvoice=0;
-@sel016=gcfieldnum='016',gclabel='Add2',gcoriginal=obj:a5,gctype='address',gcinvoice=0;
-@sel018=gcfieldnum='018',gclabel='Add3',gcoriginal=obj:a6,gctype='address',gcinvoice=0;
-@sel020=gcfieldnum='020',gclabel='City',gcoriginal=obj:a7,gctype='address',gcinvoice=0;
-@sel022=gcfieldnum='022',gclabel='State',gcoriginal=obj:a8,gctype='address',gcinvoice=0;
-@sel024=gcfieldnum='024',gclabel='Zip1',gcoriginal=obj:a9,gctype='address',gcinvoice=0;
-@sel026=gcfieldnum='026',gclabel='Zip2',gcoriginal=obj:a10,gctype='address',gcinvoice=0;
-@sel028=gcfieldnum='028',gclabel='Zip3',gcoriginal=obj:a11,gctype='varchar',gcinvoice=0;
-@sel030=gcfieldnum='030',gclabel='Country',gcoriginal=obj:a12,gctype='varchar',gcinvoice=0;
-@sel032=gcfieldnum='032',gclabel='Mortgage Code',gcoriginal=obj:a13,gctype='@n7;',gcinvoice=0;
-@sel034=gcfieldnum='034',gclabel='Fire District',gcoriginal=obj:a14,gctype='varchar',gcinvoice=0;
-@sel036=gcfieldnum='036',gclabel='Owner Number',gcoriginal=obj:a15,gctype='@n9.2;',gcinvoice=0;
-@sel038=gcfieldnum='038',gclabel='Acres',gcoriginal=obj:a16,gctype='@n7.2;',gcinvoice=0;
-@sel040=gcfieldnum='040',gclabel='Status',gcoriginal=obj:a17,gctype='varchar',gcinvoice=0;
-@sel042=gcfieldnum='044',gclabel='School District',gcoriginal=obj:a18,gctype='varchar',gcinvoice=obj:link2;
-@sel044=gcfieldnum='044',gclabel='School District',gcoriginal=obj:a19,gctype='varchar',gcinvoice=obj:link2;
-@sel046=gcfieldnum='048',gclabel='Tax Rate',gcoriginal=obj:a20,gctype='varchar',gcinvoice=obj:link2;
-@sel058=gcfieldnum='048',gclabel='Tax Rate',gcoriginal=obj:b1,gctype='varchar',gcinvoice=obj:link2;
-@sel050=gcfieldnum='050',gclabel='Lots',gcoriginal=obj:b2,gctype='@n5.2;',gcinvoice=0;
-@sel054=gcfieldnum='054',gclabel='Mobile Home Assessed',gcoriginal=obj:b4,gctype='@n9;',gcinvoice=0;
-@sel056=gcfieldnum='056',gclabel='Gross Assessed',gcoriginal=obj:b5,gctype='@n9;',gcinvoice=0;
+
+@sel028=gcfieldnum='028',gclabel='Country',gcoriginal=obj:a11,gctype='varchar',gcinvoice=0;
+sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;',gcinvoice=0;
+@sel032=gcfieldnum='032',gclabel='Fire District',gcoriginal=obj:a13,gctype='varchar',gcinvoice=0;
+@sel034=gcfieldnum='034',gclabel='Owner Number',gcoriginal=obj:a14,gctype='@n9.2;',gcinvoice=0;
+@sel036=gcfieldnum='036',gclabel='Acres',gcoriginal=obj:a15,gctype='@n7.2;',gcinvoice=0;
+@sel038=gcfieldnum='038',gclabel='Status',gcoriginal=obj:a16,gctype='varchar',gcinvoice=0;
+@sel040=gcfieldnum='040',gclabel='School District',gcoriginal=obj:a17,gctype='varchar',gcinvoice=obj:link2;
+@sel042=gcfieldnum='042',gclabel='School District',gcoriginal=obj:a18,gctype='varchar',gcinvoice=obj:link2;
+@sel044=gcfieldnum='044',gclabel='Tax Rate',gcoriginal=obj:a19,gctype='varchar',gcinvoice=obj:link2;
+@sel046=gcfieldnum='046',gclabel='Tax Rate',gcoriginal=obj:a20,gctype='varchar',gcinvoice=obj:link2;
+@sel048=gcfieldnum='048',gclabel='Lots',gcoriginal=obj:b1,gctype='@n5.2;',gcinvoice=0;
+@sel050=gcfieldnum='050',gclabel='Land Assessed',gcoriginal=obj:b2,gctype='@n9;',gcinvoice=0;
+@sel052=gcfieldnum='052',gclabel='Improvements Assessed',gcoriginal=obj:b3,gctype='@n9;',gcinvoice=0;
+@sel054=gcfieldnum='054',gclabel='Miscellaneous Assessed',gcoriginal=obj:b4,gctype='@n9;',gcinvoice=0;
+@sel056=gcfieldnum='056',gclabel='Mobile Home Assessed',gcoriginal=obj:b5,gctype='@n9;',gcinvoice=0;
+@sel058=gcfieldnum='058',gclabel='Gross Assessed',gcoriginal=obj:b6,gctype='@n9;',gcinvoice=0;
 @sel060=gcfieldnum='060',gclabel='Freeport Exemption',gcoriginal=obj:b7,gctype='@n9;',gcinvoice=0;
 @sel062=gcfieldnum='062',gclabel='Base Exemption',gcoriginal=obj:b8,gctype='@n9;',gcinvoice=0;
 @sel064=gcfieldnum='064',gclabel='Double Exemption',gcoriginal=obj:b9,gctype='@n9;',gcinvoice=0;
@@ -106,29 +107,28 @@
 \t007Item #; \t008@n8.1b; \q008;
 \t009Type; \u010; @choose010:IBROC; \w01013; \q010;
 \t011Business Name;
-\t013Mail Add1;
-\t015Mail Add2;
-\t017Mail Add3;
-\t019Mail City;
-\t021Mail State;
-\t023Mail Zip1;
-\t025Mail Zip2;
-\t027Mail Zip3;
-\t029Country;
-\t031MortCD; \t032@n7; \w03250;
-\t033Fire District;
-\t035Owner Number; \t036@n9.2; \w03650;
-\t037Acres; \t038@n7.2; \w03850;
-\t039Status;
-\t041Orig School; \l0424010;@acc042=calcrecord(); \q042;
-\t043School;\s044-'select isnull((select top 1 a2 from object where typ=4005 and key1=''044'' and link1='&obj:link1&' order by key2 desc),'''&obj:a18&''')';
-\t045Orig Rate; \l0464011;@acc046=calcrecord(); \q046;
-\t047Tax Rate;\s048-'select isnull((select top 1 a2 from object where typ=4005 and key1=''048'' and link1='&obj:link1&' order by key2 desc),'''&obj:a20&''') ';
-\t049Lots; \t050@n5.2; \w05050;
-\t051Assessed; \h052; \x051=052;
-\t053Mobile Home; \t054@n9; \w05450;
-\t055Gross Assessed; \t056@n9; \w05650;
-\t057Exemptions; \h058; \x057=058;
+
+
+
+\t027Country;
+\t029MortCD; \t030@n7; \w03050; \d030;
+\t031Fire District;
+\t033Owner Number; \t034@n9.2; \w03450;
+\t035Acres; \t036@n7.2; \w03650;
+\t037Status;
+\t039Orig School; \l0404010; @acc040=calcrecord(); \q040;
+\t041School;\s042-'select isnull((select top 1 a2 from object where typ=4005 and key1=''042'' and link1='&obj:link1&' order by key2 desc),'''&obj:a17&''')';
+\t043Orig Rate; \l0444011; @acc044=calcrecord(); \q044;
+\t045Tax Rate;\s046-'select isnull((select top 1 a2 from object where typ=4005 and key1=''046'' and link1='&obj:link1&' order by key2 desc),'''&obj:a19&''') ';
+\t047Lots; \t048@n5.2; \w04850;
+
+\t049Land; 
+\t051Improvements;
+\t053Miscellaneous;
+\t055Mobile Home; 
+\t057Gross Assessed; \t050058@n9;r2 \w05005850;r2
+\y049058+13;r
+
 \t059Free Port; \t060@n9; \w06050;
 \t061Base; \t062@n9; \w06250;
 \t063Double Exempt; \t064@n9; \w06450;
@@ -136,8 +136,13 @@
 \t067Exemption 2; \t068@n9; \w06850;
 \t069Exemption 3; \t070@n9; \w07050;
 \t071Net Assessed; \t072@n9; \w07250;
+\y059072+26;r
+
 \t073Millage; \t074@n14.7; \w07450;
 \t075Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076;
+\x073075=077;r2 \y073076-221;r
+\x074076=078;r2
+
 \t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select isnull((select top 1 a2 from object where typ=4005 and key1=''078'' and link1='&obj:link1&' order by key2 desc),'''&obj:b15&''') ';
 \t079Unpaid; \t080@n14.2; \w08050;
 \t081Certificate #;
@@ -150,6 +155,8 @@
 \t093Flag 1;
 \t095Flag 2;
 \t097Flag 3;
+\y077098+26;r
+
 
 \t101Legal;
 \y101102250;r
@@ -157,7 +164,8 @@
 \x102=002;
 \w102450;
 \z102+20;
-\t103Addtional Information;
+\t103Mailing Add; \d104;
+\y10381; \y10480; \w104118; \x1033; \x10464;
 
 \h105tier=2 or instring('@group=publicuser',cur:options,1,1)>0;
 \t105Correct Info;
