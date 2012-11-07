@@ -11,31 +11,31 @@ begin
 if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_taxroll]') and OBJECTPROPERTY(id, N'IsTable') = 1)
  begin
  
-if @mode = 'updatethem'
- begin
-  select
-   @tally = count(*)
-  from adtax a, mike_taxroll b 
-  where
-   a.itemnumber = b.itemnumber
-   and a.REALTAXYEAR = @taxyear
-   and b.REALTAXYEAR = @taxyear
-   and a.treamort != b.treamort
+ if @mode = 'updatethem'
+  begin
+   select
+    @tally = count(*)
+   from adtax a, mike_taxroll b 
+   where
+    a.itemnumber = b.itemnumber
+    and a.REALTAXYEAR = @taxyear
+    and b.REALTAXYEAR = @taxyear
+    and a.treamort != b.treamort
     
-  update a set a.treamort = b.treamort
-  from adtax a, mike_taxroll b 
-  where
-   a.itemnumber = b.itemnumber
-   and a.REALTAXYEAR = @taxyear
-   and b.REALTAXYEAR = @taxyear
-   and a.treamort != b.treamort
+   update a set a.treamort = b.treamort
+   from adtax a, mike_taxroll b 
+   where
+    a.itemnumber = b.itemnumber
+    and a.REALTAXYEAR = @taxyear
+    and b.REALTAXYEAR = @taxyear
+    and a.treamort != b.treamort
 
-  select @log = '@code=1;@tally=' + cast(@tally as varchar) + ';@message=Updated adtax.treamort from mike_taxroll;'
-  exec dbo.logit @@procId, @log
-  select @log
-  return
+   select @log = '@code=1;@tally=' + cast(@tally as varchar) + ';@message=Updated adtax.treamort from mike_taxroll;'
+   exec dbo.logit @@procId, '@mode', @mode, @log
+   select @log
+   return
 
- end
+  end
 
 
  if @mode = 'getcount'
@@ -50,7 +50,7 @@ if @mode = 'updatethem'
    and a.treamort != b.treamort
 
   select @log = '@code=1;@tally=' + cast(@tally as varchar) + ';@message=treamort mismatch;'
-  exec dbo.logit @@procId, @log
+  exec dbo.logit @@procId, '@mode', @mode, @log
   select @log
   return
 
