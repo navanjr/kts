@@ -35,13 +35,15 @@ create function [dbo].[taxReceiptPrintRange](@d1 int,@d2 int) returns
                         deputy varchar(50),
                         invoiceLink int,
                         checkno varchar(50) ,
-                        GrandTotal money               )
+                        GrandTotal money,
+                        Comments varchar(250),
+                        recCount int default 0  )
 begin		
 
   declare @wt table (receiptId int)
 
     insert into @wt
-        select id from object where typ=4502 and key3='TAX' and b10 between d1 and d2
+        select id from object where typ=4502 and key3='TAX' and b10 between @d1 and @d2
 
   declare @recId int
 
@@ -54,6 +56,17 @@ begin
 
    delete from @wt where receiptId=@recId
   end
+
+
+--record Count
+
+  declare @recCount int
+   
+     select @recCount = count(recid) from @rt
+      
+     update @rt set recCount = @recCount			
+
+
 						
  return					
 end

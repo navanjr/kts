@@ -11,8 +11,7 @@
   lcAw=(lcCw*1.5)+(lcM*4),
   lcFont='',
   lcHeaderFontSize=12,
-  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item from dbo.taxReceiptPrint('&gcRecId&')',
-  lcRecTotCnt=kp('select count(*) from dbo.taxReceiptPrint('&gcRecId&')'),
+  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount from dbo.taxReceiptPrint('&gcRecId&')',
   taxReceiptTr=;
 
 
@@ -25,17 +24,41 @@
   lcAw=(lcCw*1.5)+(lcM*4),
   lcFont='',
   lcHeaderFontSize=12,
-  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item from dbo.taxReceiptPrint('&gcRecId&')',
-  lcRecTotCnt=kp('select count(*) from dbo.taxReceiptPrint('&gcRecId&')'),
+  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount from dbo.taxReceiptPrint('&gcRecId&')',
   taxReceiptTr=;
 
 
+@bb5=Test;
+
+@bbproc5=
+ iw(',.t000Tax Receipt Print Range., ,.t001Start., ,.t002@d2., ,.f002=c., ,.w00250., ,.t003To., ,.t004@d2., ,.f004=c., ,.w00450.,'),
+ break(gcretval<'  0' or gcretval='esc'),
+ gcStartDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ DailyTaxReceiptPrint=;
+
+@DailyTaxReceiptPrint=
+ do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=250,
+  lcM=1000,
+  lcCw=2250,
+  lcAw=(lcCw*1.5)+(lcM*4),
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount from dbo.taxReceiptPrintRange('&gcStartDate&','&gcEndDate&') order by receiptNo',
+  taxReceiptTr=;
+
+
+
 @taxReceiptTr=
+ lcCnt=0,
  tr(
  lcy=0,
  lcRecCnt=0,
   grp(1,obj5:b10,do(
      lcCnt=lcCnt+1,
+     lcRecTotCnt=obj5:b13,
      lcy=lcy+lcTm,
      lcAddress=kp('select dbo.parseAddressAndName(dbo.taxRollAddressBlob('''&obj5:a1&''','''&obj5:b12&'''))'),
      prn(,lcLm-350,lcy,lcHeaderFontSize+2,bold,lcFont),
@@ -76,16 +99,10 @@
 
   det(lcsql4506,,,3,),
     lcRecCnt=lcRecCnt+1,
-    if(lcRecCnt=3),do(lcy=0,pagebreak,lcRecCnt=0),
+    if(lcRecCnt=3),do(lcy=0,if(lcRecTotCnt+0>lcCnt),do(pagebreak),lcRecCnt=0),
   edt,
 );
 
-@bb5=Test;
 
-@bbproc5=
- iw(',.t000Tax Receipt Print Range., ,.t001Start., ,.t002@d2., ,.f002=c., ,.w00250., ,.t003To., ,.t004@d2., ,.f004=c., ,.w00450.,'),
- break(gcretval<'  0' or gcretval='esc'),
- gcD1=obj7:key1,
- gcD2=obj7:key2,
- printRangeTaxRec=;trreports('TaxReceiptPrintRange',5002,printRangeTaxRec=);
+ 
 

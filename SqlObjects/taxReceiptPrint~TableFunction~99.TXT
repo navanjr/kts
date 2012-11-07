@@ -36,7 +36,8 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
                         invoiceLink int,
                         checkno varchar(50) ,
                         GrandTotal money,
-                        Comments varchar(250) )             
+                        Comments varchar(250),
+                        recCount int default 0 )             
 
 as 
 begin
@@ -112,7 +113,13 @@ begin
                         r.change = cast(dbo.readstring('@change=',@paidBlob) as money)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 
+--set record Count
+   
+   declare @recCount int
+   
+     select @recCount = count(recid) from @rt
+      
+     update @rt set recCount = @recCount			
 
-							
  return					
 end
