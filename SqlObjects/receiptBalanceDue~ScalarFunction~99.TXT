@@ -22,7 +22,7 @@ begin
 -- calculate the balance due
  update @wt set due = dbo.invoiceTotalAR(invoiceId) * methodrate where mainInvoiceId = 0 
  update @wt set due = dbo.invoiceTotalAR(invoiceId) where mainInvoiceId > 0 
- update @wt set due = 0 where invoiceId > 0 and invoiceType = 'A'
+ update @wt set due = 0 where invoiceType = 'A'
 
  set @totalDue = (select sum(due) from @wt)
 
@@ -30,21 +30,33 @@ begin
   @glAmt money,
   @glAmtStage money,
   @amount money,
+  @credit money,
   @due money
 
  select @glAmt = sum(a.amount) 
- from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and a.amount>0 and left(a.slink,1) in ('t','l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
+ from glDetail a, glAccounts b 
+  where 
+   a.accountId = b.accountId and 
+   b.accountType = 'RECEIVABLE' and 
+   (a.amount>0 or left(a.slink,1)='t') and 
+   left(a.slink,1) in ('t','l','o') and 
+   slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @glAmtStage = sum(a.amount) 
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE'  and a.amount>0  and left(a.slink,1) in ('t','l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
+ from glDetailStage a, glAccounts b 
+  where a.accountId = b.accountId and 
+  b.accountType = 'RECEIVABLE' and 
+  (a.amount>0 or left(a.slink,1)='t') and 
+  left(a.slink,1) in ('t','l','o') and 
+  slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @due = isnull(@glAmt,0) + isnull(@glAmtStage,0)
 
  select @glAmt = sum(a.amount) 
- from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and a.amount<0 and slink in (select slink from dbo.receiptSLinks(@receiptId))
+ from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and a.amount<0 and left(a.slink,1) in ('l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @glAmtStage = sum(a.amount) 
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE'  and a.amount<0 and slink in (select slink from dbo.receiptSLinks(@receiptId))
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE'  and a.amount<0 and left(a.slink,1) in ('l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @amount = isnull(@glAmt,0) + isnull(@glAmtStage,0)
 
