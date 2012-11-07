@@ -86,43 +86,33 @@ begin
 				r.rng = a.RANGELOT
 				
 			from @rt r, AdTax a where r.taxRollid = a.ID
-
-
 				
 						
-			
+
 	update @rt set
 			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId),TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + Penalty + mail + lien + adv + mowing + other
 
 --Update Paid
-
---TODO: When only cash is used, checkno=2Chks; should be 0 or null when no checks are used for payment. 
+ 
 
 	declare @paidBlob varchar(max) 
 			select @paidBlob = isnull(@paidBlob,'') 
-                                           + '@'+case when paycode='Cash' then paycode else 'Check' end+'='+cast(SUM(amount) as varchar)+';'
+                                           + '@'+case when paycode='Cash' then paycode else 'Check' end+'='+cast(SUM(case when checkno='Cash Returned' then 0 else amount end) as varchar)+';'
                                            + '@checkno=  '+case when count(id)>1 then cast(count(id) as varchar(10))+' Chks' else max(checkno) end+';'
+                                           + '@change=  '+cast(SUM(case when checkno='CASH RETURNED' then amount else 0 end) as varchar)+';'
+
 		                      from paid where slink = 'o'+@recid 
                                          group by case when paycode='Cash' then paycode else 'Check' end
 			
 	update r set
 			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
 			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
-			r.checkno = case when cast(dbo.readstring('@check=',@paidBlob) as money)>0 then dbo.readstring('@checkno=',@paidBlob) else '' end
+			r.checkno = case when cast(dbo.readstring('@check=',@paidBlob) as money)>0 then dbo.readstring('@checkno=',@paidBlob) else '' end,
+                        r.grandtotal = cast(dbo.readstring('@check=',@paidBlob) as money)+cast(dbo.readstring('@cash=',@paidBlob) as money),
+                        r.change = cast(dbo.readstring('@change=',@paidBlob) as money)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 
 
-
----figure Change
-
---TODO: Need to capture the amount of money the customer gives in order to calaulate the change returned to the customer. 
-
- declare @totalApplied money 
-       
-        select @totalApplied = isnull(@totalApplied,0) + TotPaid from @rt 
-
-        update @rt set
-              change = grandTotal - @totalApplied 
 							
  return					
 end
