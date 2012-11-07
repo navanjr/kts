@@ -4,6 +4,7 @@ create procedure dbo.receiptCRUD(
  @series varchar(50) = '',
  @deletePosted varchar(10) = 'FALSE',
  @voidReceipt varchar(5) = 'FALSE',
+ @debugMode varchar(5) = 'FALSE',
  @newReceiptId int = 0 output
 ) as
 /*
@@ -24,35 +25,35 @@ begin
 -- Create
  if @mode = 0
  begin
-
   -- bail if no series
   if len(@series)<2
    return
 
 --  declare 
---    @retval nvarchar(max)
-   
+--    @retval nvarchar(max)   
 --  exec dbo.nextObjectAutoNumber 4502, @series, @newNumber = @retval output
-
-  insert object (typ,key1,key3,olink1) select 4502,'00000',upper(@series),'newReceipt'
-  
-  set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)
-  
+  insert object (typ,key1,key3,olink1) select 4502,'00000',upper(@series),'newReceipt'  
+  set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)  
   update object set olink1 = '' where typ=4502 and id = @newReceiptId
-
+  return
  end
+
+
 
 -- Delete
  if @mode = 3
  begin
 -- bail if posted and @deletePosted = 'False'
   if dbo.isPosted(@slink) = 'TRUE' and @deletePosted = 'False'
+  begin
+   exec dbo.logit @@procid, 'Receipt Posted... Bailing.'
    return
+  end
 
 -- bail if period is locked
   if (select fpStatus from dbo.glStatus(@slink)) = 'locked'
   begin
-   select 'bailed cause period is locked'
+   exec dbo.logit @@procid, 'Period is locked... Bailing.'
    return
   end
 
@@ -75,6 +76,9 @@ begin
   -- get the parent InvoiceId and typ to know what invoice are fee/penalty invoices
   update a set a.parentInvoiceId = b.invoiceId, a.invoiceType = b.typ 
    from @slinks a, invoices b where dbo.slinkId(a.slink) = b.id and dbo.slinkType(a.slink) = 't'
+
+  exec dbo.logit @@procid, 'Begin Transaction...'
+  begin transaction
 
 -- remove fee/penalty invoices and their GL, but only if they are not tax receipts
   if @receiptType not in ('TAX')
@@ -110,9 +114,17 @@ begin
    select top 1 @token = id, @tokenSlink = slink from @slinks where dbo.slinkType(slink) = 'o' and processFlag = 0
    if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
    begin
-    update object set typ = -4502 where typ = 4502 and id = dbo.slinkId(@tokenSlink)
+    if @voidReceipt = 'FALSE'
+    begin
+     update object set typ = -4502 where typ = 4502 and id = dbo.slinkId(@tokenSlink)
+     delete paid where slink = @tokenSlink
+    end
+    else
+    begin
+     update object set a17 = 'VOID' where typ = 4502 and id = dbo.slinkId(@tokenSlink)
+     update paid set amount = 0 where slink = @tokenSlink
+    end
     delete receiptDetail where slink = @tokenSlink
-    delete paid where slink = @tokenSlink
     delete glDetail where slink = @tokenSlink
     delete glDetailStage where slink = @tokenSlink
    end
@@ -126,6 +138,16 @@ begin
    exec dbo.invoiceUpdate @tokenInt
    update @slinks set processFlag = 1 where id = @token
   end
+
+  if @debugMode = 'TRUE'
+  begin
+   exec dbo.logit @@procid, 'Rollback Transaction...'
+   rollback transaction
+   return
+  end 
+
+  exec dbo.logit @@procid, 'Commit Transaction...'
+  commit transaction
 
  end
 
