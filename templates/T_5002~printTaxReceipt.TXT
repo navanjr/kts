@@ -1,7 +1,8 @@
 @bb1=&Print; @bbproc1=
  printTaxRec=;
 
-@printTaxRec=
+
+@printTaxRecDotMatrix=
  do(452,getSiteInfo=),
   lcLm=600,
   lcTm=1200,
@@ -12,13 +13,27 @@
   lcHeaderFontSize=12,
   lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item from dbo.taxReceiptPrint('&gcRecId&')',
   lcRecTotCnt=kp('select count(*) from dbo.taxReceiptPrint('&gcRecId&')'),
-  d1select('select d1 from object where typ=4502 and id='&gcRecId),
-  lcComment=obj7:d1, 
+  taxReceiptTr=;
 
+
+@printTaxRec=
+ do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=250,
+  lcM=1000,
+  lcCw=2250,
+  lcAw=(lcCw*1.5)+(lcM*4),
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item from dbo.taxReceiptPrint('&gcRecId&')',
+  lcRecTotCnt=kp('select count(*) from dbo.taxReceiptPrint('&gcRecId&')'),
+  taxReceiptTr=;
+
+
+@taxReceiptTr=
  tr(
  lcy=0,
  lcRecCnt=0,
- legal,
   grp(1,obj5:b10,do(
      lcCnt=lcCnt+1,
      lcy=lcy+lcTm,
@@ -56,11 +71,7 @@
      bnd(,'Paid By: '&obj5:b6,lcCw*2),
      prn(,lcLm+(lcM*5),lcy-125),
      bnd(,gcOfficial&', Treasurer',lcCw),
-     bnd(,'By: '&obj5:b7,lcCw),
-     prn(,lcLm,lcy+200),
-     bnd(,'Comments: ',500L),
-     prn(,,lcy+350),
-     bnd(,lcComment,8000W),
+     bnd(,'By: '&obj5:b7,lcCw)
      ),),
 
   det(lcsql4506,,,3,),
@@ -77,15 +88,4 @@
  gcD1=obj7:key1,
  gcD2=obj7:key2,
  printRangeTaxRec=;trreports('TaxReceiptPrintRange',5002,printRangeTaxRec=);
- 
-@printRangeTaxRec=
- do(452,getSiteInfo=),
-  lcLm=600,
-  lcTm=250,
-  lcM=1000,
-  lcCw=2250,
-  lcAw=(lcCw*1.5)+(lcM*4),
-  lcFont='',
-  lcHeaderFontSize=12,
-  lcsql4506='select * from dbo.taxReceiptPrintRange('&gcD1&','&gcD2&')',
-  lcRecTotCnt=kp('select count(*) from dbo.taxReceiptPrintRange('&gcD1&','&gcD2&')'),
+
