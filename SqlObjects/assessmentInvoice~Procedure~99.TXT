@@ -4,12 +4,15 @@ as
 begin
 
  declare 
-  @slink varchar(15)
+  @slink varchar(15),
+  @invoiceId int 
 
 
 --  begin transaction
   exec dbo.assessReferenceCRUD @assessmentId
-  exec dbo.taxrollInvoiceCRUD @assessmentId, 0, 'S'
+  select top 1 @invoiceId = id from invoices where typ='S' order by id desc
+  
+  exec dbo.taxrollInvoiceCRUD @assessmentId, 0, 'S', @invoiceId=@invoiceId
   exec dbo.taxRollAddressInsert @assessmentId, 'S'  
   
   select @slink = slink from dbo.taxrollCheck(@assessmentId,'S',null)
