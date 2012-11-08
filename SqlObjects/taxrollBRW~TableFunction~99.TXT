@@ -30,17 +30,17 @@ set @searchString=replace(@searchstring,'~{','''')
    select @sSLen = LEN(@searchString)
 
 --get the tax years we will return
-  declare @taxYears table(yr varchar(4))
+/*  declare @taxYears table(yr varchar(4))
     if lower(@taxYear) = 'all'
       insert @taxYears select cast(taxyear as varchar (4)) from invoices group by taxyear
     else
       insert @taxYears select @taxYear
+*/
 
   declare @showPaidFlag char(1) = substring(@orderString,3,1),
           @protest varchar(10) = '',
           @AdvSrch varchar(1) = substring(@orderString,5,1)
-   
- 
+
 
 /*
   if substring(@orderString,4,1) = '1' 
@@ -50,61 +50,49 @@ set @searchString=replace(@searchstring,'~{','''')
   end
 */
 
--- get the first 1000 rows that match the search string. IF we have a search string ordered by name
-
- if left(@orderString,2) = '10'
- begin
+-- get the first 1000 rows that match the search string. IF we have a search string ordered by name or parcel
    if @searchString > '  0'
-     insert @rt
-     select top 1000 
-      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+NAME,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
-     from dbo.invoices
-     where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
-      and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
-      and status<>'Firstnum'
-      and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-      and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
+    begin
+---Advanced Search 
+     if @AdvSrch = 1
+      insert @rt
+       select top 1000 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+       from dbo.invoices
+       where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
+        and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+        and status<>'Firstnum'
+        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+        and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
+     else
+---Regular Search 
+      insert @rt
+       select top 1000 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+       from dbo.invoices
+       where 
+        name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%'
+        and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+        and status<>'Firstnum'
+        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+        and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
+        and id not in (select invoiceId from receiptLink where receiptId = @receiptId)   
+    end
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
    else
      insert @rt
      select top 1000 
-      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+name,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
+      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
      from dbo.invoices
      where
-      cast(taxYear as varchar) in (select yr from @taxYears)
+      taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
       and invoiceId = 0
       and status<>'Firstnum'
       and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
       and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
       and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
-   end
-  else
-  begin
--- get the first 1000 rows that match the search string. IF we have a search string ordered by parcel
-   if @searchString > '  0'
-     insert @rt
-     select top 1000 
-      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+parcel,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
-     from dbo.invoices
-     where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
-      and status<>'Firstnum'
-      and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
-      and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-      and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
--- get the first 1000 rows with out using a search string.  ordered by parcel  why would you ever do this?
-   else
-     insert @rt
-     select top 1000 
-      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+parcel,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
-     from dbo.invoices
-     where
-      cast(taxYear as varchar) in (select yr from @taxYears)
-      and invoiceId = 0
-      and status<>'Firstnum'
-      and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
-      and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
-   end
+
+
 -- get the already selected items
   insert @rt
     select 
@@ -116,29 +104,29 @@ set @searchString=replace(@searchstring,'~{','''')
 
 --Adtax 0 due records
 
-  if @showPaidFlag = '1'
+  if @showPaidFlag = '1' and @searchString > '  0'
    begin
-    if left(@orderString,2) = '10'
-     begin
-      if @searchString > '  0'
+---Advanced Search 
+     if @AdvSrch = 1  
        insert @rt
          select top 1000 
-          cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+OWNERNAME,0.00 ,0,0,'',id 
+          cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id 
          from dbo.adtax
-          where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
-     end
-    else
-     begin
--- get the first 1000 rows that match the search string. IF we have a search string ordered by parcel
-      if @searchString > '  0'
+          where 
+              id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
+              and id not in (select taxrollId from invoices)
+       else
+---Regular Search 
        insert @rt
          select top 1000 
-          cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+FULLPIDNUMBER,0.00,0,0,'',Id 
+          cast('9'+cast(id as varchar) as int)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id 
          from dbo.adtax
-          where id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
-     end
-   end
+          where 
+              OWNERNAME+' '+FULLPIDNUMBER+' '+cast(REALTAXYEAR as varchar(4))+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%'
+              and cast(REALTAXYEAR as varchar) = case when @taxyear = 'all' then cast(REALTAXYEAR as varchar) else cast(@taxyear as numeric) end 
+              and id not in (select taxrollId from invoices)
 
+   end
 
 
   if @protest='PROTEST'
