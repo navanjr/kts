@@ -59,6 +59,7 @@ Begin
    from dbo.invoices
    where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+    and status<>'Firstnum'
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
    order by name
@@ -71,6 +72,7 @@ Begin
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
+    and status<>'Firstnum'
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
@@ -85,6 +87,7 @@ Begin
     id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+parcel,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId 
    from dbo.invoices
    where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
+    and status<>'Firstnum'
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
@@ -98,6 +101,7 @@ Begin
    where
     cast(taxYear as varchar) in (select yr from @taxYears)
     and invoiceId = 0
+    and status<>'Firstnum'
     and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
     and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
     and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
@@ -128,6 +132,7 @@ Begin
    end
   else
   begin
+
 -- get the first 1000 rows that match the search string. IF we have a search string ordered by parcel
   if @searchString > '  0'
    insert @rt
@@ -171,7 +176,7 @@ Begin
   if exists(select * from receiptLink where receiptId = @receiptId)
   begin
    update a set 
-    fees = isnull((select sum(feeamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0.00),
+    --fees = isnull((select sum(feeamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0.00),
     penalty = round((due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2),
     toPay = due * methodRate
    from @rt a where selectedFlag in (char(189),'x')
