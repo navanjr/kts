@@ -36,25 +36,34 @@ begin
 -- all invoices
  insert @rt (ord,code) select 'aa1 ',''
  insert @rt 
-  select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '' from invoices where taxyear = @taxyear
+   select 'aa2','Total Invoiced','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(invoiceDue), '' from invoices where taxyear = @taxyear
  -- Zero Balance Issue
  select @tally = count(*) from invoices where taxyear = @taxyear and invoiceDue = 0
  if @tally > 0
-  insert @rt (ord,code,tally,blob) select 'ab','   Zero Balance Issue', @tally,'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';'
+  insert @rt (ord,code,tally,blob) 
+    select 'ab','   Zero Balance Issue', @tally,'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';'
  -- no GL Detail Issue
  select @tally = count(*) from invoices where 't'+cast(id as varchar) not in (select slink from gldetail)
  if @tally > 0
-  insert @rt (ord,code,tally,blob)
+   insert @rt (ord,code,tally,blob)
    select 'ac','   Invoice(s) without glDetail', @tally,'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';'
 
 -- print Ready
 
 -- Batches
- insert @rt (ord) select 'aa3'
- insert @rt (ord,code,tally,amount) select 'aa31', '--Print Batches--','Count','To Print'
+ insert @rt (ord) select 'ad'
+ insert @rt (ord,code,tally,amount) select 'ad1', '--Printing--','Count','To Print'
 
  insert @rt 
-  select 'aa32','Ready to Print','',count(*),sum(case when printed > '  0' then 1 else 0 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end), '@mode=batch;@scope=all;' from invoices where taxyear = @taxyear and typ not in ('O')
+  select 'ad3','Ready to Print','',count(I.id),sum(case when I.printed > '  0' then 1 else 0 end),sum(case when isnull(I.printed,'') in ('Failed','') then 1 else 0 end), '@mode=batch;@scope=all;'    
+    from invoices i, adtax x 
+    where i.taxrollid = x.id
+     and case when x.treamort > '  0' then x.treamort else cast(x.mortgageCode as varchar) end <= '0'
+     and i.taxyear = @taxyear
+     and i.invoiceId = 0
+     and i.typ not in ('O')
+     and i.invoiceDue != 0
+
 
 -- mortgage codes
  insert @rt (ord) select 'ba'
@@ -66,6 +75,16 @@ begin
  from taxYearPrintMortCodeView
  where taxyear = @taxyear
  group by mortgageCode,brwid,theRealMortCode
+
+ insert @rt (ord) select 'bb3'
+
+ insert @rt 
+ select
+   'bb3a', 'Mortgage Code Totals ','',count(*),sum(case when printed < '  0' then 1 else 0 end),0,''
+ from taxYearPrintMortCodeView
+ where taxyear = @taxyear
+
+
 
 -- Batches
  insert @rt (ord) select 'ca'
@@ -84,7 +103,7 @@ begin
 
  insert @rt (ord,code,tally,tallyPrinted,amount)
  select
-  'ce', '', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end)
+  'ce', 'Print Batch Totals', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end)
  from invoices where queue > '  0' and taxyear = @taxYear
 
  return

@@ -7,19 +7,41 @@ select
  i.printed,
  o.c1 as printSeparateFlag,
  case when isnull(o.c1,'') = '1' then
-  o.key3
+                  o.key3
  -- case when a.treamort > '  0' then cast(a.treamort as varchar) else cast(a.mortgagecode as varchar) end
- else
-  'Other Mortgage Code'
- end as mortgageCode,
+             else
+                'Other Mortgage Code'
+             end as mortgageCode,
  a.mortgageCode as adtaxMortgageCode,
  a.treamort as treasMortgageCode,
  o.key3 as treasMortgageName,
  case when isnull(o.c1,'') = '1' then
-  o.key1
- else 
-  'Grouped'
- end as theRealMortCode
+        o.key1
+      else 
+       'Grouped'
+       end as theRealMortCode
 from AdTax a, invoices i, Object o
-where a.ID = i.taxrollid and case when a.treamort>'  0' then a.treamort else cast(a.mortgagecode as varchar) end = o.Key1
+where a.ID = i.taxrollid 
+       and case when a.treamort>'  0' then a.treamort else cast(a.mortgagecode as varchar) end  = o.Key1 
+       
  and o.Typ = 4030
+
+union all
+
+select 
+ -1,
+ -9 as brwid,
+ i.TAXYEAR,
+ i.printed,
+ '' as printSeparateFlag,
+ 'Other Mortgage Code' as mortgageCode,
+ a.mortgageCode as adtaxMortgageCode,
+ a.treamort as treasMortgageCode,
+ 'Other Mortgage Code',
+ 'Grouped' as theRealMortCode
+from AdTax a, invoices i
+where a.ID = i.taxrollid 
+       and case when a.treamort>'  0' then a.treamort else cast(a.mortgagecode as varchar) end>'0'
+       and case when a.treamort>'  0' then a.treamort else cast(a.mortgagecode as varchar) end not in (select key1 from object where typ=4030)
+       
+
