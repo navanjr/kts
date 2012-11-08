@@ -29,12 +29,14 @@ select * from rpMonthEndDetail(@beginDate,@endDate)
 update d set comment2=left(comment2,len(b.heading)) from @det d, (select * from dbo.apportionHeadings()) b
    where b.heading=left(d.comment2, len(b.heading))
 
+delete from @det where isnull(comment2,'') not in (select heading from dbo.apportionHeadings())
   
 
 insert @sd (sourceCode, taxpaid, journalDesc)
-select sourceCode,sum(amount*-1),journalDesc from rpMonthEndDetail(@beginDate,@endDate) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
+select sourceCode,sum(amount*-1),journalDesc from @det 
+ where isnull(sourceCode,'')> ' 0'
   and journalDesc like '%ADVALOREM%'
+  and accountCode not in (select accountCode from glaccounts where accountType='ACCRUED RECEIVABLE')
  group by sourceCode, journalDesc
 
 update a set col1=c.amount 
