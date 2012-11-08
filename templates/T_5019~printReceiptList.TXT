@@ -2,6 +2,43 @@
 
 @keyReportMaintenance;
 
+@printReceiptListGr=
+ do(452,getSiteInfo=),
+ lca4=0,
+ lcg4=0,
+ lcgrpToken='',
+ if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
+ if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
+ lcsql='select recType,recnum,recdate1,recfrom,paid+isnull(penalty,0)+isnull(fee,0),deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Receipt Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
+  if(gcReceiptType>'  0'),prn('Receipt Type: '&gcReceiptType,t5),
+  if(curpag=1),
+  grp(1,obj5:a1,
+   do(
+      bnd('H',obj5:a1,1000)
+     ),
+   do(
+      bnd('H',,400,lcgrpToken&' Total',500,,3300,format(lcg4,@n$14.2b),700R),
+      nl,
+      lcg4=0),
+     ),
+  bnd('HU',,600,'Date',700C,'Received From',2500C,'Amount',1000R,'Deputy',1000C),
+  det(lcsql),
+   bnd('D',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s38),2500,format(obj5:a5,@n14.2),1100R,obj5:a6,1000R),
+   lca4=lca4+obj5:a5,
+   lcg4=lcg4+obj5:a5,
+   lcgrpToken=obj5:a1,
+  edt,
+  nl,
+  bnd('H',,400,'Report Total',500,,3300,format(lca4,@n$14.2b),700R),
+ );
+
 @printReceiptList=
  do(452,getSiteInfo=),
  lca4=0,
