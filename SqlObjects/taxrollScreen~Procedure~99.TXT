@@ -1,9 +1,16 @@
-create procedure dbo.taxrollScreen ( @invoiceId int, @initials varchar(5) )
+create procedure dbo.taxrollScreen ( @invoiceId int, @initials varchar(5), @source varchar(10) )
 as
 begin
 
  declare @taxrollId int
- select @taxrollId = taxrollId from invoices where id=@invoiceId
+ if @source = 'ADTAX' 
+  begin
+   select @taxrollId = @invoiceId-9000000
+  end
+ else
+  begin
+   select @taxrollId = taxrollId from invoices where id=@invoiceId
+  end
 
  update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
 

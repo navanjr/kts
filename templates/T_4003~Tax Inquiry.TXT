@@ -43,7 +43,8 @@
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1),
   lcinvoiceType=kp('select typ from invoices where id='&gcInvoiceId),
-  break(lcinvoiceType='S'),
+  if(lcinvoiceType='S' or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
+  break(lcinvoiceType='S' or gcInvoiceId>9000000),
   gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
   iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004Y;'),
   break(gcretval='esc'),
@@ -54,7 +55,7 @@
 \v355118; \w355=119;
  @acc355=
   gcInvoiceId=kpbrwid(1)*-1,
-  break(gcInvoiceId+0<1),
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
   gcInterestDate=kp('select interestdate from invoices where id='&gcInvoiceId),
   iw('\t000Set Interest Date;,\t001Interest Date; \t002@d2; \w00245; \f002'&gcInterestDate&';'),
   break(gcretval='esc'),
@@ -64,7 +65,7 @@
 \v356117; \w356=119;
  @acc356=
   gcInvoiceId=kpbrwid(1)*-1,
-  break(gcInvoiceId+0<1),
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
   iw('\t000Adjust Balance; \t001Description; \t003Adj Amount By; \w00450; \t004@n-19.2; @acc004=set(006,0),tsc; \t005Adj Amount To; \w00650; \t006@n-19.2;  @acc006=set(004,0),tsc;'),
   break(gcretval='esc'),
   lcamount=obj7:key2+obj7:key3,
@@ -250,7 +251,7 @@ gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,sel
 
 \t113View Receipts;
  @acc113=lcSearchId=kpbrwid(1)*-1,
-  break(lcSearchId+0<1),
+  break(lcSearchId+0<1 or lcSearchId>9000000),
   browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')');
 
 \t115Select &Parcel;
@@ -268,14 +269,15 @@ gcsql='select top 1000 invoiceId,name,taxyear,parcel,item,taxType,amount,due,sel
 \t117&View/Correct;
  @acc117=lcSearchId=kpbrwid(1)*-1,
   break(lcSearchId+0<1),
-  d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''''),
+  if(lcSearchId>9000000,lcSource='ADTAX',lcSource='INVOICES'),
+  d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''','''&lcSource&''''),
   change(obj7:d1);
 
 \t118View G/L; @acc118=new(4020,,-68=kpbrwid(1)*-1);
 
 \t119Add Fee;
   @acc119=lcSearchId=kpbrwid(1)*-1,
-  break(lcSearchId+0<1),
+  break(lcSearchId+0<1 or lcSearchId>9000000),
   iw('\t001Date; \t002@d2; \w00250; \t003Description;\l0044504;r004002006004008006; @lf004=''a1=''''tax''''''; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE'''''',2; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND'''''',2; \t009Amount; \t010@n21.2; \w01050;'),
   break(gcretval<>'OK'),
   d1select('exec dbo.subInvoiceCRUD '&lcSearchId&','''&obj7:key1&''','''&obj7:key2&''','''&obj7:key3&''','''&obj7:a1&''',''F'','&obj7:a2),
