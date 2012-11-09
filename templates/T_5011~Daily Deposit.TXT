@@ -1,4 +1,4 @@
-@bb7=&Print; @bbproc7=printDailyDeposit=;
+.@bb7=&Print; @bbproc7=printDailyDeposit=;
 
 @printDailyDepositGr=
  do(452,getSiteInfo=),
@@ -21,20 +21,24 @@
   lcETR=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycodeDepositType=''E'''),
   lcToBank=lcCash+lcCoin+lcCheck,
   lcGrand=lcETR+lcToBank,
+  lcTypeValue=0,
+  lcType=kp('select key3 from object where id='&gcDepId),
   lcDate=kp('select key2 from object where id='&gcDepId),
   lcBank=kp('select a1 from object where id='&gcDepId),  
+
  tr(
   prn('S.A.& I. 197 (2002)',150,250),
-  prn('CREDIT TO UNAPPORTIONED TAX ACCOUNT',t1),
+  if(lcType='TAX'),lcTypeValue=1,
+  prn(choose(lcTYpeValue>0,'CREDIT TO UNAPPORTIONED TAX ACCOUNT','CREDIT TO GENERAL ACCOUNT'),t1),
   prn('DEPOSITED BY THE',t2),
   prn('TREASURER OF '&gcCounty&' COUNTY',t3),
   prn(format(lcDate,@d2),6500,1100),
-  prn(,1000),
-  bnd('D',lcBank,1500,,10,upper(gcCity),1500,'',300),
+  prn(,1500,lcTm+1100),
+  bnd('D',lcBank,1500,,1000,upper(gcCity),1500,'',300),
   nl,
-  prn('TO BE CREDITED TO THE UNAPPORTIONED TAX ACCOUNT OF '&gcCounty&' COUNTY TREASURER'),
+  prn(choose(lcTYpeValue>0,'TO BE CREDITED TO THE UNAPPORTIONED TAX ACCOUNT OF '&gcCounty&' COUNTY TREASURER','TO BE CREDITED TO THE GENERAL ACCOUNT OF '&gcCounty&' COUNTY TREASURER'),lcLm,lcTm+1300),
   nl,
-  prn(,lcLm),
+  prn(,lcLm,lcTm+1600),
   bnd('H','List of Checks:',800)
   nl,
   nl,
