@@ -1,5 +1,5 @@
 create proc dbo.apiTaxroll(
- @taxyear varchar(4),
+ @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
  @batchSize int = 10,
  @postFile varchar(50) = 'apiPost.json',
@@ -70,6 +70,12 @@ begin
   item_number decimal(10,1)
  )
 
+ declare @taxyears table(year varchar(4))
+ if not @taxyear is null 
+  insert @taxyears select @taxYear
+ else
+  insert @taxyears select realTaxYear from adtax group by realtaxyear
+
  if @method = 'BatchPost'
  begin
   exec dbo.apiTaxroll @taxyear, @method = 'POST', @batchSize = @batchSize
@@ -79,12 +85,7 @@ begin
  if @method = 'STATUS'
  begin
   declare @taxyearToken varchar(4)
-  declare @taxyears table(year varchar(4))
   declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
-  if not @taxyear = 'ALL' 
-   insert @taxyears select @taxYear
-  else
-   insert @taxyears select realTaxYear from adtax group by realtaxyear
 
   insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
    from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
@@ -135,7 +136,7 @@ begin
    schoolDistrictMain,
    recordType,
    itemNumber
-   from adtax where REALTAXYEAR = @taxyear and OWNERNAME>'  0' and id > 0
+   from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdated,0) < modified
    order by OWNERNAME, ITEMNUMBER  
 

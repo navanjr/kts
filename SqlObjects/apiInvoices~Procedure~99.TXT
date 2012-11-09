@@ -1,5 +1,5 @@
 create proc dbo.apiInvoices(
- @taxyear varchar(4),
+ @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
  @batchSize int = 10,
  @postFile varchar(50) = 'apiPost.json',
@@ -48,6 +48,12 @@ begin
   invoice_date varchar(50)
  )
 
+ declare @taxyears table(year varchar(4))
+ if not @taxyear is null 
+  insert @taxyears select @taxYear
+ else
+  insert @taxyears select taxyear from invoices group by taxyear
+
  if @method = 'BatchPost'
  begin
   exec dbo.apiInvoices @taxyear, @method = 'POST', @batchSize = @batchSize
@@ -57,12 +63,7 @@ begin
  if @method = 'STATUS'
  begin
   declare @taxyearToken varchar(4)
-  declare @taxyears table(year varchar(4))
   declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
-  if not @taxyear = 'ALL' 
-   insert @taxyears select @taxYear
-  else
-   insert @taxyears select taxyear from invoices group by taxyear
 
   insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
    from invoices where taxyear in (select year from @taxyears) group by taxyear
@@ -94,7 +95,7 @@ begin
    invoiceDue,
    invoiceAmount,
    postDate
-  from invoices where taxyear = @taxyear and id > 0
+  from invoices where taxyear in (select year from @taxyears) and id > 0
    and isnull(apiUpdated,0) < modified
   order by id  
 
