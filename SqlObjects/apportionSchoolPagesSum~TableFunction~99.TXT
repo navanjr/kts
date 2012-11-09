@@ -1,0 +1,119 @@
+/*use stephens
+ 
+declare @d1 int,@d2 int
+select	@d1 = dbo.clariondate('20121109'),
+        @d2 = dbo.clariondate('20121109')
+--		select @d1,@d2
+*/
+create function dbo.apportionSchoolPagesSum(@d1 int,@d2 int) returns 
+
+    @rt table(
+			accountType varchar(60) ,
+			journalDesc varchar(60), 
+			accountCode varchar(60),
+			col1 varchar(60),
+			col2 varchar(60),
+			col3 varchar(60),
+			col4 varchar(60),
+			col5 varchar(60),
+			col6 varchar(60),
+			col7 varchar(60),
+			col8 varchar(60),
+			col9 varchar(60),
+			col10 varchar(60),
+			ada varchar(60),
+			millcontribution varchar(60),
+			milljoint varchar(60),
+			milltotal varchar(60),
+			total varchar(60),
+			totalcheck varchar(60),
+			ord varchar(250),
+			head1 varchar(50),
+			head2 varchar(50),
+			head3 varchar(50),
+			head4 varchar(50),
+			head5 varchar(50),
+			head6 varchar(50),
+			head7 varchar(50),
+			head8 varchar(50),
+			head9 varchar(50),
+			head10 varchar(50)
+			)
+as begin
+
+insert @rt 
+select accountType,journalDesc,accountCode,isnull(col1,''),isnull(col2,''),isnull(col3,''),isnull(col4,''),isnull(col5,''),isnull(col6,''),isnull(col7,''),isnull(col8,''),isnull(col9,''),isnull(col10,''),isnull(ada,''),isnull(millcontribution,''),isnull(milljoint,''),isnull(milltotal,''),isnull(total,''),isnull(totalcheck,''), accountType+journalDesc+'bbb',isnull(heading1,''),isnull(heading2,''),isnull(heading3,''),isnull(heading4,''),isnull(heading5,''),isnull(heading6,''),isnull(heading7,''),isnull(heading8,''),isnull(heading9,''),isnull(heading10,'')
+
+ from dbo.apportionSchoolPagesDetail(@d1,@d2) --order by accountType,journalDesc,accountCode
+
+
+--insert headers
+insert @rt (accountType,journalDesc,accountCode,col1,col2,col3,col4,col5,col6,col7,col8,col9,col10,ada,millcontribution,milljoint,milltotal,total,totalcheck,ord)
+	select accountType,journalDesc,'District',max(isnull(head1,'')),max(isnull(head2,'')),max(isnull(head3,'')),max(isnull(head4,'')),max(isnull(head5,'')),max(isnull(head6,'')),max(isnull(head7,'')),max(isnull(head8,'')),max(isnull(head9,'')),max(isnull(head10,'')),'ADA','MIL CON','MIL JNT','MIL TOT','TOTAL','TOT CHK', accountType+journalDesc+'aaa'
+		from @rt group by accountType, journalDesc
+
+--insert subtotals
+insert @rt (accountType,journalDesc,accountCode,col1,col2,col3,col4,col5,col6,col7,col8,col9,col10,ada,millcontribution,milljoint,milltotal,total,totalcheck,ord)
+	select accountType,journalDesc,'SubTotals',sum(cast(col1 as money)),sum(cast(col2 as money)),sum(cast(col3 as money)),sum(cast(col4 as money)),sum(cast(col5 as money)),sum(cast(col6 as money)),sum(cast(col7 as money)),sum(cast(col8 as money)),sum(cast(col9 as money)),sum(cast(col10 as money)),sum(cast(ada as money)),sum(cast(millcontribution as money)),sum(cast(milljoint as money)),sum(cast(milltotal as money)),sum(cast(total as money)),sum(cast(totalcheck as money)), accountType+journalDesc+'ccc'
+		 from @rt where right(ord,3)='bbb' group by accountType, journalDesc
+
+update @rt set
+	col1 = left(col1,8),
+	col2 = left(col2,8),
+	col3 = left(col3,8),
+	col4 = left(col4,8),
+	col5 = left(col5,8),
+	col6 = left(col6,8),
+	col7 = left(col7,8),
+	col8 = left(col8,8),
+	col9 = left(col9,8),
+	col10 = left(col10,8) 
+	where RIGHT(ord,3)='aaa'
+
+
+
+update @rt set
+	col1 = RTRIM(col1),
+	col2 = RTRIM(col2),
+	col3 = RTRIM(col3),
+	col4 = RTRIM(col4),
+	col5 = RTRIM(col5),
+	col6 = RTRIM(col6),
+	col7 = RTRIM(col7),
+	col8 = RTRIM(col8),
+	col9 = RTRIM(col9),
+	col10 = RTRIM(col10),
+	ada = RTRIM(ada),
+	millcontribution = RTRIM(millcontribution),
+	milljoint = RTRIM(milljoint),
+	milltotal = RTRIM(total),
+	totalcheck = RTRIM(totalcheck)
+	
+	
+	
+update @rt set
+	col1 = dbo.formatCurr(col1),
+	col2 = dbo.formatCurr(col2),
+	col3 = dbo.formatCurr(col3),
+	col4 = dbo.formatCurr(col4),
+	col5 = dbo.formatCurr(col5),
+	col6 = dbo.formatCurr(col6),
+	col7 = dbo.formatCurr(col7),
+	col8 = dbo.formatCurr(col8),
+	col9 = dbo.formatCurr(col9),
+	col10 = dbo.formatCurr(col10),
+	ada = dbo.formatCurr(ada),
+	millcontribution = dbo.formatCurr(millcontribution),
+	milljoint = dbo.formatCurr(milljoint),
+	milltotal = dbo.formatCurr(total),
+	totalcheck = dbo.formatCurr(totalcheck)
+	 
+	where RIGHT(ord,3) in ('bbb','ccc')
+		 
+return
+end
+
+
+
+
+
