@@ -22,6 +22,13 @@ begin
   @targetAmount money
 
 
+ declare @rd table(description varchar(60),
+   subDescription varchar(60),
+   sourceCode varchar(60),
+   fundCode varchar(60), 
+   amount money)
+
+
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@invoiceDate) 
  if @fpid = 0
@@ -38,6 +45,20 @@ begin
    select @targetAmount=@amount, @description = substring(@description+replicate(' ',50),11,50)
    select @amount = @targetAmount-sum(amount) from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'RECEIVABLE'
   end
+
+  if left(@description,4) = 'VOID'
+  begin
+   insert @rd
+    select @description,
+           rtrim(sourceCode) + '/' + rtrim(fundCode),
+           sourcecode,
+           fundcode,
+           sum(amount*-1)
+      from receiptDetail 
+      where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
+          and left(slink,1)='t'
+      group by sourceCode, fundcode
+  end 
 
   select top 1 @sourceCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'SOURCE'
   select top 1 @fundCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'ACCRUED RECEIVABLE'
@@ -76,6 +97,13 @@ begin
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
    set @slink='t'+cast(@invoiceId as varchar)
    
+  if left(@description,4) = 'VOID'
+   begin
+   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
+    select @slink,* from @rd
+   end
+  else
+   begin
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
     select
      @slink,
@@ -84,6 +112,7 @@ begin
      @sourceCode,
      @fundcode,
      cast(@amount as varchar(50))
+   end
 
   -- add to the gl stage
   exec dbo.subInvoiceStageGL @invoiceId
