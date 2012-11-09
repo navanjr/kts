@@ -1,0 +1,24 @@
+create proc dbo.journalEntryReverse(
+ @jeId int,
+ @stageId int = null,
+ @mode varchar(50) = null 
+) as 
+begin
+ 
+ declare @slink varchar(15) = 'o' + cast(@jeId as varchar)
+
+ exec dbo.logit @@procid, '@jeid', @jeid, '@stageId', @stageId, '@mode', @mode, '@slink', @slink
+
+ if exists(select * from gldetailstage where id = @stageId and slink = @slink) and @mode is null
+ begin
+  update gldetailstage set amount = amount * -1 where id = @stageId and slink = @slink 
+  return
+ end
+
+ if exists(select * from gldetailstage where slink = @slink) and @mode = 'ALL'
+ begin
+  update gldetailstage set amount = amount * -1 where slink = @slink 
+  return
+ end
+ 
+end
