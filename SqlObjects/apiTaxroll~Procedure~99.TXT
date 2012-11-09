@@ -1,0 +1,214 @@
+create proc dbo.apiTaxroll(
+ @taxyear varchar(4),
+ @method varchar(50) = 'GET',
+ @batchSize int = 10,
+ @postFile varchar(50) = 'apiPost.json',
+ @debugMode varchar(5) = 'FALSE',
+ @result varchar(max) = null output
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
+
+ declare
+  @tempPath varchar(50), 
+  @postFileFull varchar(100), 
+  @apiCode varchar(50),
+  @apiwt JSONHierarchy,
+  @filter varchar(500),
+  @apiResource varchar(50) = '/v2/treasurer/tax_rolls',
+  @dump varchar(max),
+  @log varchar(max),
+  @tokenId int,
+  @apiResultWt JSONHierarchy,
+  @theDate datetime,
+  @updated int,
+  @inserted int
+ 
+ select @tempPath = path from dbo.paths() where name = 'temp'
+ select top 1 @apiCode = b12 from object where typ = 40 order by id
+ set @postFileFull = @tempPath + '\' + @postFile
+
+ declare @jsonPrep table(
+  id int identity(1,1),
+  parentId int,
+  objectId int,
+  name varchar(50),
+  value varchar(500),
+  type varchar(50)
+ )
+
+ declare @taxroll table(
+  parentId int identity(1,1),
+  tax_roll_link int,
+  taxYear varchar(4),
+  owner varchar(50),
+  acres varchar(50),
+  addition varchar(50),
+  assessed_exemption money,
+  assessed_gross money,
+  assessed_improvements money,
+  assessed_mobile_home money,
+  assessed_net money,
+  block varchar(50),
+  lot varchar(50),
+  millage_rate decimal(19,10),
+  owner_address1 varchar(50),
+  owner_address2 varchar(50),
+  owner_city varchar(50),
+  owner_postal varchar(50),
+  owner_state varchar(50),
+  parcel varchar(50),
+  parcel_address1 varchar(50),
+  parcel_address2 varchar(50),
+  parcel_city varchar(50),
+  parcel_postal varchar(50),
+  parcel_state varchar(50),
+  school_district varchar(50),
+  tax_type varchar(50),
+  item_number decimal(10,1)
+ )
+
+ if @method = 'BatchPost'
+ begin
+  exec dbo.apiTaxroll @taxyear, @method = 'POST', @batchSize = @batchSize
+  exec dbo.apiTaxroll @taxyear, @method = 'STATUS', @batchSize = @batchSize
+ end
+
+ if @method = 'STATUS'
+ begin
+  declare @taxyearToken varchar(4)
+  declare @taxyears table(year varchar(4))
+  declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
+  if not @taxyear = 'ALL' 
+   insert @taxyears select @taxYear
+  else
+   insert @taxyears select realTaxYear from adtax group by realtaxyear
+
+  insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+   from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
+
+  while exists(select * from @taxyears)
+  begin
+   select top 1 @taxYearToken = year from @taxyears order by year
+   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
+   select @log = '@taxyear=' + taxyear + ';' 
+    + '@total=' + cast(total as varchar) + ';'
+    + '@stale=' + cast(stale as varchar) + ';'
+    + '@%stale=' + cast(percentStale as varchar) + '%;'
+   from @status where taxyear = @taxyearToken
+   exec dbo.logit @@procid, @log
+   delete @taxyears where year = @taxyearToken
+  end
+  return
+ end
+
+ 
+ if @method = 'POST'
+ begin
+
+-- create the post data file then call the API
+  insert @taxroll select top (@batchSize)
+   id, REALTAXYEAR,OWNERNAME,
+   acres,
+   additionNumber,
+   999.99, --assessed_exemption money,
+   grossAssessed,
+   999.99, -- assessed improvements
+   mfgHomeAssessed,
+   netAssessedValue,
+   townshipBlock,
+   rangeLot,
+   totalTaxRate,
+   address1,
+   address2,
+   city,
+   zip1,
+   state,
+   fullPidNumber,
+   '', --parcel_address1 varchar(50),
+   '', --parcel_address2 varchar(50),
+   '', --parcel_city varchar(50),
+   '', --parcel_postal varchar(50),
+   '', --parcel_state varchar(50),
+   schoolDistrictMain,
+   recordType,
+   itemNumber
+   from adtax where REALTAXYEAR = @taxyear and OWNERNAME>'  0' and id > 0
+    and isnull(apiUpdated,0) < modified
+   order by OWNERNAME, ITEMNUMBER  
+
+  insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'owner', owner,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'acres', acres,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'addition', addition,'string' from @taxroll
+--  assessed_exemption
+  insert @jsonPrep select parentId,null,'assessed_gross', assessed_gross,'int' from @taxroll
+--  assessed_improvements
+  insert @jsonPrep select parentId,null,'assessed_mobile_home', assessed_mobile_home,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'assessed_net', assessed_net,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'block', block,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'lot', lot,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'millage_rate', millage_rate,'int' from @taxroll
+
+  insert @jsonPrep select parentId,null,'owner_address1', owner_address1,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'owner_address2', owner_address2,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'owner_city', owner_city,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'owner_postal', owner_postal,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'owner_state', owner_state,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'parcel', parcel,'string' from @taxroll
+
+--  parcel_address1,
+--  parcel_address2,
+--  parcel_city,
+--  parcel_postal,
+--  parcel_state,
+
+  insert @jsonPrep select parentId,null,'school_district', school_district,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'tax_type', tax_type,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @taxroll
+
+-- insert lowest level object wrapper
+  select @tokenId = MAX(id) + 1 from @jsonPrep
+  insert @jsonPrep (objectId,parentId,name,value,type) 
+  select parentId,@tokenId,null,'','object' from @jsonPrep group by parentId
+-- insert array wrapper
+  insert @jsonPrep (objectId,name,value,type) 
+  select @tokenId,'','','array'
+
+  insert @apiwt select * from @jsonPrep
+  select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+
+  exec spOverwriteTextFile @postFileFull, @dump
+  
+  exec dbo.api
+   @method = @method,
+   @resource = @apiResource,
+   @postFile = @postFile,
+   @debugMode = @debugMode,
+   @cmdOutput = @tokenId output,
+   @dump = @dump output
+
+  set @result = @dump 
+
+  insert @apiResultWt select * from dbo.parseJSON(@dump)
+  select @updated = cast(stringValue as int) from @apiResultWt where name = 'updated' and valueType = 'int'
+  select @inserted = cast(stringValue as int) from @apiResultWt where name = 'created' and valueType = 'int'
+  if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
+  begin
+   set @theDate = getDate()
+   update adtax set apiUpdated = @theDate where id in (select tax_roll_link from @taxroll)
+   exec dbo.logit @@procid, 'Success...', @dump
+  end
+  else
+  begin
+   exec dbo.logit @@procid, 'Failure...', @dump
+  end
+
+  return
+ end
+
+end

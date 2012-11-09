@@ -7,7 +7,8 @@ begin
  declare
   @position int,
   @length int,
-  @gitpath varchar(50)
+  @gitpath varchar(50),
+  @theDate datetime = getDate()
 
  select @gitpath = dbo.readstring('@gitpath=',b13) from object where typ = 0 and link1 = -1
 
@@ -22,7 +23,15 @@ begin
  select 'log', left(@gitpath,@length - @position + 1) + db_name() + '.log'
 
  insert @rt
- select 'backup', left(@gitpath,@length - @position + 1) + db_name() + '_' + convert(varchar,GETDATE(),112) + '.dat'
+ select 'backup', left(@gitpath,@length - @position + 1) + db_name()
+  + '_' + convert(varchar,@theDate,112) + '-'
+  + dbo.splitF(CONVERT(varchar,@theDate,108),':',1)
+  + dbo.splitF(CONVERT(varchar,@theDate,108),':',2)
+  + '.bak'
+
+ insert @rt
+ select 'temp', left(@gitpath,@length - @position)
+  
 
  return 
 end

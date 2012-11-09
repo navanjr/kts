@@ -1,12 +1,15 @@
 create procedure dbo.api(
- @nodeScript varchar(100) = '',
- @scratchFile varchar(100) = '',
- @apiKey varchar(50) = '',
- @apiHost varchar(50) = '',
+ @nodeScript varchar(100) = null,
+ @scratchFile varchar(100) = null,
+ @postFile varchar(100) = null,
+ @apiKey varchar(50) = null,
+ @apiHost varchar(50) = null,
+ @apiCode varchar(50) = null,
  @method  varchar(10) = '',
  @resource varchar(250) = '',
  @filter varchar(500) = '',
  @cmd varchar(1000) = null,
+ @debugMode varchar(5) = 'FALSE',
  @cmdOutput int = null output,
  @dump nvarchar(max) = null output
 ) as
@@ -15,26 +18,58 @@ begin
  
  declare
   @rawDump varchar(max),
-  @gitPath varchar(150)
- select @gitPath = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
- set @nodeScript = @gitPath + '\api.js'
+  @gitPath varchar(150),
+  @default_nodeScript varchar(100) = '',
+  @default_scratchFile varchar(100) = '',
+  @tempPath varchar(100),
+  @apiOutputFile varchar(1000)
 
- select @scratchFile = @scratchFile + data + '\' from dbo.split(@gitPath,'\') where id < (select COUNT(*) from dbo.split(@gitPath,'\'))
- select @scratchFile = @scratchFile + 'api.tmp'
+ select @tempPath = path from dbo.paths() where name = 'temp'
+
+ select @gitPath = path from dbo.paths() where name = 'gitRepo'
+
+ set @default_nodeScript = @gitPath + '\api.js'
+
+ select @default_scratchFile = @tempPath + '\api.tmp'
+
+-- select optional parameters from site
+ declare 
+  @site_apiHost varchar(50),
+  @site_apiKey varchar(50),
+  @site_apiCode varchar(50)
+ select top 1
+  @site_apiHost = b13,
+  @site_apiKey = b11,
+  @site_apiCode = b12
+ from Object where typ = 40 order by id
+
+ if isnull(@postFile,'') > '  0'
+  select @filter = 'file:' + @tempPath + '\' + @postFile
+
+ set @apiOutputFile = coalesce(@scratchFile,@default_scratchFile)
 
 -- node api.js [key] [method] [host] [resource] [filter]
  
- set @cmd = 'node ' + @nodeScript + ' ' + @apiKey + ' ' +  @method + ' ' + @apiHost + ' ' + @resource + ' ' + isnull(@filter,'') + ' > ' + @scratchFile
+ set @cmd = 'node ' + coalesce(@nodeScript, @default_nodeScript)
+  + ' ' + coalesce(@apiKey, @site_apiKey)
+  + ' ' +  @method
+  + ' ' + coalesce(@apiHost, @site_apiHost)
+  + ' ' + @resource
+  + ' ' + isnull(@filter,'')
+  + ' > ' + @apiOutputFile
 
  exec dbo.logit @@procid, '@cmd', @cmd
 
- exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+ if @debugMode = 'False'
+ begin
+  exec @cmdOutput = master..xp_cmdshell @cmd, no_output
 
- exec dbo.spReadTextFile
-  @fullPath = @scratchFile,
-  @fileContents = @rawDump output 
+  exec dbo.spReadTextFile
+   @fullPath = @apiOutputFile,
+   @fileContents = @rawDump output 
 
- set @dump = dbo.stripChars(@rawDump,'13,10')
+  set @dump = dbo.stripChars(@rawDump,'13,10')
+ end
 
  return
 

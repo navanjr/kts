@@ -12,7 +12,7 @@ BEGIN
     @ANumber INT,
     @notNumber INT,
     @indent INT,
-    @CrLf CHAR(2)--just a simple utility to save typing!
+    @CrLf char(2)--just a simple utility to save typing!
      
   --firstly get the root token into place
   SELECT @CrLf=CHAR(13)+CHAR(10),--just CHAR(10) in UNIX
@@ -21,6 +21,7 @@ BEGIN
             +@CrLf+CASE ValueType WHEN 'array' THEN ']' ELSE '}' END
   FROM @Hierarchy
     WHERE parent_id IS NULL AND valueType IN ('object','array') --get the root element
+
 /* now we simply iterate from the root token growing each branch and leaf in each iteration. This won't be enormously quick, but it is simple to do. All values, or name/value pairs withing a structure can be created in one SQL Statement*/
   WHILE 1=1
     begin
@@ -31,12 +32,12 @@ BEGIN
     SET @NotNumber= PATINDEX('%[^0-9]%', RIGHT(@json,LEN(@JSON+'|')-@Where-8)+' ')--find NEXT token
     SET @NewJSON=NULL --this contains the structure in its JSON form
     SELECT @NewJSON=COALESCE(@NewJSON+','+@CrLf+SPACE(@indent),'')
-      +COALESCE('"'+NAME+'" : ','')
+      +COALESCE('"'+NAME+'":','')
       +CASE valuetype
-        WHEN 'array' THEN '  ['+@CrLf+SPACE(@indent+2)
-           +'@Object'+CONVERT(VARCHAR(5),OBJECT_ID)+@CrLf+SPACE(@indent+2)+']'
-        WHEN 'object' then '  {'+@CrLf+SPACE(@indent+2)
-           +'@Object'+CONVERT(VARCHAR(5),OBJECT_ID)+@CrLf+SPACE(@indent+2)+'}'
+        WHEN 'array' THEN '['+@CrLf+SPACE(@indent)
+           +'@Object'+CONVERT(VARCHAR(5),OBJECT_ID)+@CrLf+SPACE(@indent)+']'
+        WHEN 'object' then '{'+@CrLf+SPACE(@indent)
+           +'@Object'+CONVERT(VARCHAR(5),OBJECT_ID)+@CrLf+SPACE(@indent)+'}'
         WHEN 'string' THEN '"'+dbo.JSONEscaped(StringValue)+'"'
         ELSE StringValue
        END
@@ -45,5 +46,5 @@ BEGIN
     --now we replace the token with the structure, maybe with more tokens in it.
     Select @JSON=STUFF (@JSON, @where+1, 8+@NotNumber-1, @NewJSON)
     end
-  return @JSON
+  return dbo.stripChars(@JSON,'10,13')
 end

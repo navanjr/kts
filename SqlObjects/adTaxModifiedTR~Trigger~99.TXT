@@ -1,0 +1,20 @@
+create TRIGGER dbo.adTaxModifiedTR ON dbo.adtax
+AFTER UPDATE 
+AS
+
+ if (@@ROWCOUNT = 0)
+  return
+
+ declare 
+  @apiDateWas datetime,
+  @apiDateIs datetime
+
+ select @apiDateWas = apiUpdated from deleted
+ select @apiDateIs = apiUpdated from inserted
+
+-- exec dbo.logit @@procid, 'was...', @apiDateWas, 'Is...', @apiDateIs 
+ 
+ if not isnull(@apiDateIs,0) > isnull(@apiDateWas,0)
+  UPDATE dbo.adtax
+    SET modified = GETDATE()
+    WHERE ID IN (SELECT DISTINCT ID FROM Inserted)

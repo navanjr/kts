@@ -1,0 +1,148 @@
+create proc dbo.apiReceipts(
+ @taxyear varchar(4),
+ @method varchar(50) = 'GET',
+ @batchSize int = 10,
+ @postFile varchar(50) = 'apiPost.json',
+ @debugMode varchar(5) = 'FALSE',
+ @result varchar(max) = null output
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
+
+ declare
+  @tempPath varchar(50), 
+  @postFileFull varchar(100), 
+  @apiCode varchar(50),
+  @apiwt JSONHierarchy,
+  @filter varchar(500),
+  @apiResource varchar(50) = '/v2/treasurer/invoices',
+  @dump varchar(max),
+  @log varchar(max),
+  @tokenId int,
+  @apiResultWt JSONHierarchy,
+  @theDate datetime,
+  @updated int,
+  @inserted int
+ 
+ select @tempPath = path from dbo.paths() where name = 'temp'
+ select top 1 @apiCode = b12 from object where typ = 40 order by id
+ set @postFileFull = @tempPath + '\' + @postFile
+ declare @jsonPrep table(
+  id int identity(1,1),
+  parentId int,
+  objectId int,
+  name varchar(50),
+  value varchar(500),
+  type varchar(50)
+ )
+
+ declare @wt table(
+  parentId int identity(1,1),
+  invoice_link int,
+  receipt_link int,
+  description varchar(4),
+  amount money,
+  date varchar(50)
+ )
+
+ if @method = 'BatchPost'
+ begin
+  exec dbo.apiReceipts @taxyear, @method = 'POST', @batchSize = @batchSize
+  exec dbo.apiReceipts @taxyear, @method = 'STATUS', @batchSize = @batchSize
+ end
+
+ if @method = 'STATUS'
+ begin
+  declare @taxyearToken varchar(4)
+  declare @taxyears table(year varchar(4))
+  declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
+  if not @taxyear = 'ALL' 
+   insert @taxyears select @taxYear
+  else
+   insert @taxyears select taxyear from invoices group by taxyear
+
+  insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+   from  where taxyear in (select year from @taxyears) group by taxyear
+
+  while exists(select * from @taxyears)
+  begin
+   select top 1 @taxYearToken = year from @taxyears order by year
+   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
+   select @log = '@taxyear=' + taxyear + ';' 
+    + '@total=' + cast(total as varchar) + ';'
+    + '@stale=' + cast(stale as varchar) + ';'
+    + '@%stale=' + cast(percentStale as varchar) + '%;'
+   from @status where taxyear = @taxyearToken
+   exec dbo.logit @@procid, @log
+   delete @taxyears where year = @taxyearToken
+  end
+  return
+ end
+ 
+ if @method = 'POST'
+ begin
+
+-- create the post data file then call the API
+  insert @wt select top (@batchSize)
+   InvoiceId, 
+   receiptId,
+   taxyear,
+   invoiceDue,
+   invoiceAmount,
+   postDate
+  from invoices where taxyear = @taxyear and id > 0
+   and isnull(apiUpdated,0) < modified
+  order by id
+
+  insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
+  insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'receipt_link',tax_roll_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'tax_year',tax_year,'int' from @wt
+
+  insert @jsonPrep select parentId,null,'invoice_due',invoice_due,'int' from @wt
+  insert @jsonPrep select parentId,null,'invoice_amount',invoice_amount,'int' from @wt
+  insert @jsonPrep select parentId,null,'invoice_Date',invoice_date,'int' from @wt
+
+-- insert lowest level object wrapper
+  select @tokenId = MAX(id) + 1 from @jsonPrep
+  insert @jsonPrep (objectId,parentId,name,value,type) 
+  select parentId,@tokenId,null,'','object' from @jsonPrep group by parentId
+-- insert array wrapper
+  insert @jsonPrep (objectId,name,value,type) 
+  select @tokenId,'','','array'
+
+  insert @apiwt select * from @jsonPrep
+  select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+
+  exec spOverwriteTextFile @postFileFull, @dump
+  
+  exec dbo.api
+   @method = @method,
+   @resource = @apiResource,
+   @postFile = @postFile,
+   @debugMode = @debugMode,
+   @cmdOutput = @tokenId output,
+   @dump = @dump output
+
+  set @result = @dump 
+
+  insert @apiResultWt select * from dbo.parseJSON(@dump)
+  select @updated = cast(stringValue as int) from @apiResultWt where name = 'updated' and valueType = 'int'
+  select @inserted = cast(stringValue as int) from @apiResultWt where name = 'created' and valueType = 'int'
+  if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
+  begin
+   set @theDate = getDate()
+   update invoices set apiUpdated = @theDate where id in (select invoice_link from @wt)
+   exec dbo.logit @@procid, 'Success...', @dump
+  end
+  else
+  begin
+   exec dbo.logit @@procid, 'Failure...', @dump
+  end
+
+  return
+ end
+
+end
