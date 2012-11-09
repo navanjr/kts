@@ -1,0 +1,25 @@
+create function dbo.toggle( @stringOffered varchar(50) ) returns varchar(50) as
+begin
+
+ declare
+  @stringReturned varchar(50),
+  @polarity int,
+  @phrase varchar(100)
+
+ declare @toggleOptions table(options varchar(50))
+ insert @toggleOptions 
+        select 'ON|OFF'
+  union select 'UP|DOWN'
+  union select 'IN|OUT'
+  union select 'TO|FRO'
+  union select 'TRUE|FALSE'
+  union select 'HITHER|YON'
+
+ select @phrase = options, @polarity = 2 from @toggleOptions where options like @stringOffered + '|%' 
+ if @phrase is null
+  select @phrase = options, @polarity = 1 from @toggleOptions where options like '%|' + @stringOffered  
+
+
+ return dbo.splitF(@phrase,'|',@polarity)
+
+end

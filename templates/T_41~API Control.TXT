@@ -6,7 +6,8 @@
 \t110&Run Batch;
 
 @acc110=
- m('exec dbo.'&choose(kpbrwid(1)*-1,'apiTaxroll','apiInvoice')&' @mode=''batchPost'', @batchSize=100;');
+ sql('exec dbo.'&choose(kpbrwid(1)*-1,'apiTaxroll','apiInvoices')&' @method=''batchPost'', @batchSize=100;'),
+ brwrefresh=;
 
 @menuprocess=
  new(41);
@@ -16,10 +17,10 @@
  serviceToggle=;
 
 @serviceToggle=
- gcAPIToggleOff=14474460,
- gcAPIToggleOn=2350115,
- if(acAPIService='ON',gcAPIToggle=gcAPIToggleOn,gcAPIToggle=gcAPIToggleOff),
- prop(108,7cfah,gcAPIToggle),
+ lcAPIToggleOff=14474460,
+ lcAPIToggleOn=2350115,
+ if(acAPIService='on',lcAPIToggle=lcAPIToggleOn,lcAPIToggle=lcAPIToggleOff),
+ prop(108,7cfah,lcAPIToggle),
  brwrefresh=;
 
 21759
@@ -27,8 +28,10 @@
 65535 - yellow
 
 @acc108=
- if(gcAPIToggle=gcAPIToggleOn,gcAPIToggle=gcAPIToggleOff,gcAPIToggle=gcAPIToggleOn),
- if(gcAPIToggle=gcAPIToggle1,acAPIService='ON',acAPIService='OFF'),
+ sql('exec dbo.keyAcVars ''acAPIService'', @method=''toggle'''),
+ serviceToggle=;
+
+ if(acAPIService='ON',gcAPIToggle=gcAPIToggleOn,gcAPIToggle=gcAPIToggleOff),
  prop(108,7cfah,gcAPIToggle);
 
 @newselbrw150=
@@ -53,4 +56,5 @@
 @lbrw1forecolor=obj7:c10<0,255;
 
 @brwrefresh=
+ brwreload(1),
  brwreload(2,'select top 50 -1, time, message from keyLog where procName = '''&lcWhat&''' order by id desc');

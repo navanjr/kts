@@ -9,9 +9,8 @@ create proc dbo.apiTaxroll(
 begin
  set nocount on
 
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
-
  declare
+  @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
   @apiCode varchar(50),
@@ -25,6 +24,12 @@ begin
   @theDate datetime,
   @updated int,
   @inserted int
+
+ exec dbo.keyAcVars 'acapiservice', @dump = @apiService output
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+
+ if not @apiService = 'ON' 
+  return
  
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
@@ -67,11 +72,12 @@ begin
   parcel_state varchar(50),
   school_district varchar(50),
   tax_type varchar(50),
+  legal_description varchar(1000),
   item_number decimal(10,1)
  )
 
  declare @taxyears table(year varchar(4))
- if not @taxyear is null 
+ if not @taxyear is null and not @taxyear = 'ALL'
   insert @taxyears select @taxYear
  else
   insert @taxyears select realTaxYear from adtax group by realtaxyear
@@ -79,7 +85,7 @@ begin
  if @method = 'BatchPost'
  begin
   exec dbo.apiTaxroll @taxyear, @method = 'POST', @batchSize = @batchSize
-  exec dbo.apiTaxroll @taxyear, @method = 'STATUS', @batchSize = @batchSize
+  exec dbo.apiTaxroll 'ALL', @method = 'STATUS', @batchSize = @batchSize
  end
 
  if @method = 'STATUS'
@@ -87,8 +93,12 @@ begin
   declare @taxyearToken varchar(4)
   declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
 
-  insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-   from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
+  if not @taxyear = 'ALL'
+   insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+    from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
+  else
+   insert @status select 'ALL', count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+    from adtax where realtaxyear in (select year from @taxyears)
 
   while exists(select * from @taxyears)
   begin
@@ -135,6 +145,7 @@ begin
    '', --parcel_state varchar(50),
    schoolDistrictMain,
    recordType,
+   '', -- blows up legalDescription,
    itemNumber
    from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdated,0) < modified
@@ -170,6 +181,7 @@ begin
 
   insert @jsonPrep select parentId,null,'school_district', school_district,'string' from @taxroll
   insert @jsonPrep select parentId,null,'tax_type', tax_type,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'legal_description', legal_description,'string' from @taxroll
   insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @taxroll
 
 -- insert lowest level object wrapper

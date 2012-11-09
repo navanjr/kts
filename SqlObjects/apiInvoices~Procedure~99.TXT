@@ -9,9 +9,8 @@ create proc dbo.apiInvoices(
 begin
  set nocount on
 
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
-
  declare
+  @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
   @apiCode varchar(50),
@@ -25,7 +24,13 @@ begin
   @theDate datetime,
   @updated int,
   @inserted int
- 
+
+ exec dbo.keyAcVars 'acapiservice', @dump = @apiService output
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+
+ if not @apiService = 'ON' 
+  return
+
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
@@ -57,7 +62,7 @@ begin
  if @method = 'BatchPost'
  begin
   exec dbo.apiInvoices @taxyear, @method = 'POST', @batchSize = @batchSize
-  exec dbo.apiInvoices @taxyear, @method = 'STATUS', @batchSize = @batchSize
+  exec dbo.apiInvoices 'ALL', @method = 'STATUS', @batchSize = @batchSize
  end
 
  if @method = 'STATUS'
@@ -65,21 +70,27 @@ begin
   declare @taxyearToken varchar(4)
   declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
 
-  insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-   from invoices where taxyear in (select year from @taxyears) group by taxyear
+  if not @taxyear = 'ALL'
+   insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+    from invoices where taxyear in (select year from @taxyears) group by taxyear
+  else
+   insert @status select 'ALL', count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+    from invoices where taxyear in (select year from @taxyears)
 
-  while exists(select * from @taxyears)
-  begin
-   select top 1 @taxYearToken = year from @taxyears order by year
-   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
-   select @log = '@taxyear=' + taxyear + ';' 
-    + '@total=' + cast(total as varchar) + ';'
-    + '@stale=' + cast(stale as varchar) + ';'
-    + '@%stale=' + cast(percentStale as varchar) + '%;'
-   from @status where taxyear = @taxyearToken
-   exec dbo.logit @@procid, @log
-   delete @taxyears where year = @taxyearToken
-  end
+  update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
+
+   while exists(select * from @taxyears)
+   begin
+    select top 1 @taxYearToken = year from @taxyears order by year
+    select @log = '@taxyear=' + taxyear + ';' 
+     + '@total=' + cast(total as varchar) + ';'
+     + '@stale=' + cast(stale as varchar) + ';'
+     + '@%stale=' + cast(percentStale as varchar) + '%;'
+    from @status where taxyear = @taxyearToken
+    exec dbo.logit @@procid, @log
+    delete @taxyears where year = @taxyearToken
+   end
+
   return
  end
 

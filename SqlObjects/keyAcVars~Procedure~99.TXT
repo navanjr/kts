@@ -1,24 +1,72 @@
 create proc dbo.keyAcVars(
- @mode varchar(50) = 'LIST',
- @dump varchar(1000) = null output
+ @variableName varchar(50) = 'LIST',
+ @method varchar(50) = 'GET',
+ @value varchar(1000) = null,
+ @dump varchar(max) = null output
 ) as 
 begin
+ 
+ if not @variableName = 'LIST' and not left(@variableName, 2) = 'ac'
+  return 
 
- if @mode = 'LIST'
+ declare
+  @blob varchar(max),
+  @currentValue varchar(1000),
+  @tokenId int
+
+ select @blob = e2 from object where typ = 0 and link1 = -1
+ declare @wt splitWt
+ insert @wt select * from dbo.split(@blob,' ') where data > '  0'
+ select top 1 @tokenId = id, @currentValue = replace(dbo.splitF(data,'=',2),';','') from @wt where data like '%' + @variableName + '=%'
+
+
+ if @variableName = 'LIST'
  begin
-
-  select @dump = e2 from object where typ = 0 and link1 = -1
+  if @method = 'GET' 
+   select @blob
+  
+  return
  
  end
- else
+
+  
+ if @method = 'DELETE'
  begin
+  if @tokenId is not null
+   delete @wt where id = @tokenId
+  set @dump = ' '
+  select @dump = @dump + ' ' + data from @wt order by id 
+  if @dump is not null
+   update object set e2 = lower(@dump) where typ = 0 and link1 = -1
+ end
+  
+ if @method = 'POST'
+ begin
+  if @tokenId is null and @value is not null
+   insert @wt select 999, @variableName + '=' + @value + ';'
+  set @dump = ' '
+  select @dump = @dump + ' ' + data from @wt order by id 
+  if @dump is not null
+   update object set e2 = lower(@dump) where typ = 0 and link1 = -1
+ end
 
-  declare @wt 
-
+ if @method = 'GET'
+ begin
+  set @dump = @currentValue
+  select @currentValue
+ end
+  
+ if @method = 'TOGGLE'
+ begin
+  update @wt set data = @variableName + '=' + dbo.toggle(@currentValue) + ';' where id = @tokenId 
+  set @dump = ' '
+  select @dump = @dump + ' ' + data from @wt order by id 
+  if @dump is not null
+   update object set e2 = lower(@dump) where typ = 0 and link1 = -1
  end
 
 
- exec dbo.logit @@procid, @dump
+ exec dbo.logit @@procid, '@variableName', @variableName, '@method', @method, '@dump', @dump, @tokenId
 
  return
 end
