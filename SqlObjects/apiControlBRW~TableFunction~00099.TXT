@@ -1,0 +1,17 @@
+create function dbo.apiControlBRW() returns @rt table(
+ id int identity(-1,-1),
+ resource varchar(50),
+ total int,
+ stale int,
+ rate money,
+ blob varchar(1000),
+ ord varchar(50)
+) as
+begin
+
+ insert @rt select 'tax_rolls', count(*), sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end), null, '@resource=taxrolls;', 'a' from adtax
+ insert @rt select 'invoices', count(*), sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end), null, '@resource=invoices;', 'b' from invoices
+
+ update @rt set rate = ( cast(stale as money) / total ) * 100.0
+ return
+end

@@ -1,0 +1,56 @@
+@noupdate;
+@nolock;
+@nosave;
+
+\t108&Service Toggle;
+\t110&Run Batch;
+
+@acc110=
+ m('exec dbo.'&choose(kpbrwid(1)*-1,'apiTaxroll','apiInvoice')&' @mode=''batchPost'', @batchSize=100;');
+
+@menuprocess=
+ new(41);
+
+@loadwindow=
+ brwstuff=,newselbrw150=,
+ serviceToggle=;
+
+@serviceToggle=
+ gcAPIToggleOff=14474460,
+ gcAPIToggleOn=2350115,
+ if(acAPIService='ON',gcAPIToggle=gcAPIToggleOn,gcAPIToggle=gcAPIToggleOff),
+ prop(108,7cfah,gcAPIToggle),
+ brwrefresh=;
+
+21759
+2350115
+65535 - yellow
+
+@acc108=
+ if(gcAPIToggle=gcAPIToggleOn,gcAPIToggle=gcAPIToggleOff,gcAPIToggle=gcAPIToggleOn),
+ if(gcAPIToggle=gcAPIToggle1,acAPIService='ON',acAPIService='OFF'),
+ prop(108,7cfah,gcAPIToggle);
+
+@newselbrw150=
+ lcWhat=choose(kpbrwid(1)=-1,'apiTaxroll','apiInvoices'),
+ brwrefresh=;
+
+@brwstuff=
+ gcbrwsql41='select id,resource,total,stale,rate,blob from dbo.apiControlBRW() order by ord',
+ brw(150,1,gcbrwsql41,2,3,270,100,'102L(2)~Resource~#2#M|55R(2)~Total~@n-9.0@#3#M|55R(2)~Stale~@n-9.0@#4#M|55R(2)~%~@n-9.2@#5#|M100L~~#6#|M',,1),
+ prop(150,7CFAH,13499135),
+ prop(150,7c10h,'Arial'),
+ prop(150,7c11h,14),
+ prop(150,'LineHeight',20) prop(150,'LineHeight',20),
+ brw(151,2,'select top 50 -1, time, message from keyLog where procName = ''empty'' order by id desc',2,103,370,100,'50L(2)~~#2#M|100L(2)~~#3#M',,1),
+ prop(151,7c10h,'Courier New'),
+ prop(151,7c11h,8),
+ prop(151,'SelectedColor',225),
+ prop(151,'SelectedFillColor',13499135),
+ prop(151,'FontColor',14474460),
+ prop(151,7CFAH,black),
+;
+@lbrw1forecolor=obj7:c10<0,255;
+
+@brwrefresh=
+ brwreload(2,'select top 50 -1, time, message from keyLog where procName = '''&lcWhat&''' order by id desc');
