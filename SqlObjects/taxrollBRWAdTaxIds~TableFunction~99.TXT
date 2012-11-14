@@ -7,6 +7,7 @@ create function dbo.taxrollBRWAdTaxIds(
 )
 Begin
 
+/*
 --get the tax years we will return
   declare @taxYears table(yr varchar(4))
   if lower(@taxYear) = 'all'
@@ -14,7 +15,7 @@ Begin
   else
    insert @taxYears select @taxYear
 
-/*
+
  insert @rt
    select 
     id
@@ -42,10 +43,10 @@ begin
   select a.id
   from adtax a
   where a.id not in (select taxrollId from invoices)
-   and cast(REALTAXYEAR as varchar) in (select yr from @taxYears)
+   and cast(REALTAXYEAR as varchar) = case when @taxyear = 'all' then cast(REALTAXYEAR as varchar) else cast(@taxyear as numeric) end 
    and OWNERNAME+' '+FULLPIDNUMBER+' '+cast(REALTAXYEAR as varchar(4))+cast(ITEMNUMBER as varchar)+a.OWNERNAME+a.BUSINESSNAME+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+a.mort_cd+a.treamort+a.trcode+cast(a.LEGALDESCRIPTION as varchar(8000)) like '%'+@searchString+'%'
 
-
+/*
   insert @rt
   select 
    a.id
@@ -55,7 +56,7 @@ begin
    and a.ITEMNUMBER=td.itemNumber
    and a.REALTAXYEAR=td.taxyear
    and td.name+td.businessName+td.address1+td.address2+td.address3+td.city+td.state+td.zip1+td.zip2 like '%'+@searchString+'%'
-
+*/
 
 end
 
