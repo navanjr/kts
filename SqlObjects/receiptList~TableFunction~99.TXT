@@ -77,11 +77,21 @@ insert @wt2
  sum(case when invoiceType<>'P' and invoiceType<>'A' then paid else 0 end),
  '', parentInvoiceId, recId from @wt group by parentInvoiceId, recId
 
-update w set penalty=a.penalty, fee=a.fee from @wt w, @wt2 a where a.parentInvoiceId=w.invoiceId and a.parentInvoiceId>0 and w.recId=a.recId
+
+
+update w set 
+  penalty=a.penalty, 
+  fee=a.fee from @wt w, @wt2 a
+ where a.parentInvoiceId=w.invoiceId 
+  and a.parentInvoiceId>0 
+  and w.recId=a.recId
+
+update w set w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortfee',subDescription)>0) from @wt w where w.recType='MTG'
+
 
 delete from @wt where parentInvoiceId>0
 
-update @wt set recType=recType+taxYear where recType='TAX'
+update @wt set recType=recType+' '+taxYear where recType='TAX'
 
 return 
 end
