@@ -7,14 +7,18 @@ AS
 
  declare 
   @apiDateWas datetime,
-  @apiDateIs datetime
+  @apiDateIs datetime,
+  @apiLegalDateWas datetime,
+  @apiLegalDateIs datetime
 
  select @apiDateWas = apiUpdated from deleted
  select @apiDateIs = apiUpdated from inserted
+ select @apiLegalDateWas = apiUpdatedLegal from deleted
+ select @apiLegalDateIs = apiUpdatedLegal from inserted
 
 -- exec dbo.logit @@procid, 'was...', @apiDateWas, 'Is...', @apiDateIs 
  
- if not isnull(@apiDateIs,0) > isnull(@apiDateWas,0)
+ if not isnull(@apiDateIs,0) > isnull(@apiDateWas,0) and not isnull(@apiLegalDateIs,0) > isnull(@apiLegalDateWas,0)
   UPDATE dbo.adtax
     SET modified = GETDATE()
     WHERE ID IN (SELECT DISTINCT ID FROM Inserted)
