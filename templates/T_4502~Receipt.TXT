@@ -440,6 +440,7 @@ lmode=2;
  brwreload(2);
 
 @brw1=
+ if(obj:a17='Posted',doposted=),
  break(obj:a17='Posted'),
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
@@ -454,6 +455,19 @@ lmode=2;
  set(016,readstring(gcblob,'@fund=')),
  set(018,readstring(gcblob,'@amount=')),
  focus(012);
+
+@doposted=lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcTyp<>8),
+ lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where depositId=0) then ''FALSE'' else ''TRUE'' end'),
+ if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
+ break(lcCheckDeposited='TRUE'),
+ iw('\t000Enter the Correct Information...; \t001Paycode; \l0024505; \w00250; @lmode002=2; \t003Check #; \w00450; \t005Bank Drawn On; \w00650; \l0064509;r006002008004; lmode006=2; @nopop006; \t007Location; \w00850;'),
+ if(gcretval<>'esc',updatepaid=);
+
+@updatepaid=sql('update paid set paycode='''&obj7:key1&''', checkno='''&obj7:key2&''', drawnon='''&obj7:key3&''', location='''&obj7:a1&''' where id='&lcid),
+  refreshDetail=;
 
 @getpaid=
  set(-06,lcid,1),

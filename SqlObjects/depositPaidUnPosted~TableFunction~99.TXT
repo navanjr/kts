@@ -7,18 +7,21 @@ create function dbo.depositPaidUnPosted() returns @rt table(
  checkno varchar(50),
  amount money,
  depositId int,
- depositDate int
+ depositDate int,
+ drawnon varchar(50),
+ location varchar(50)
+
 )
 begin
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
- select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId 
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location 
  from paid 
  where isnull(depositId,0) = 0
   and slink is not null
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
- select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location
  from paid
  where depositId in (select id from object where typ=4513 and a17 != 'Posted')
   and slink is not null
