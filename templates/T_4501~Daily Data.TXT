@@ -175,9 +175,13 @@
 
 @openDeposit=;
 
+from dbo.depositPaidUnPosted() a, object b
+ where a.receiptType = b.key1 and b.typ = 4503
+
+
 @menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),
- lcExistingDepositId=kp('select id from object where typ = 4513 and a17 != ''Posted'' and key3 = '''&lcDepositType&''''),
+ lcExistingDepositId=kp('select max(depositId) from dbo.depositPaidUnPosted() a where a.receiptType = '''&lcDepositType&''''),
  lcButtons=choose(lcExistingDepositId>0,'Edit Existing|','')&'Create New by Type|Create New by Bank|Balance Report|Receipt List|Cancel',
  m(lcDepositType&' Deposit|   Please choose one of the following options.','Right Click Menu...','question.ico',lcButtons,2),
  lcPicked=gcretval+choose(lcExistingDepositId>0,0,1),
