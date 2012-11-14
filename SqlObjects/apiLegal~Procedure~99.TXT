@@ -18,6 +18,7 @@ begin
   @filter varchar(500),
   @apiResource varchar(50) = '/v2/treasurer/tax_rolls',
   @dump varchar(max),
+  @dumpraw varchar(max),
   @log varchar(max),
   @tokenId int,
   @apiResultWt JSONHierarchy,
@@ -40,7 +41,7 @@ begin
   parentId int,
   objectId int,
   name varchar(50),
-  value varchar(500),
+  value varchar(2000),
   type varchar(50)
  )
 
@@ -78,7 +79,7 @@ begin
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @taxroll
   insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @taxroll
   insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'legal_description', legal_description,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,'34,38'),'string' from @taxroll
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
@@ -90,8 +91,11 @@ begin
 
   insert @apiwt select * from @jsonPrep
   select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @dump = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
+  select @dumpraw = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
 
   exec spOverwriteTextFile @postFileFull, @dump
+  exec spOverwriteTextFile 'c:\client\key\beau.json', @dumpraw
   
   exec dbo.api
    @method = @method,

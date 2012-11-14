@@ -23,7 +23,8 @@ begin
   @apiResultWt JSONHierarchy,
   @theDate datetime,
   @updated int,
-  @inserted int
+  @inserted int,
+  @tally int
 
  exec dbo.keyAcVars 'acapiservice', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
@@ -50,7 +51,7 @@ begin
   tax_Year varchar(4),
   invoice_due money,
   invoice_amount money,
-  invoice_date varchar(50)
+  posted_date varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -105,10 +106,17 @@ begin
    taxyear,
    invoiceDue,
    invoiceAmount,
-   postDate
-  from invoices where taxyear in (select year from @taxyears) and id > 0
+   convert(varchar,cast(dbo.date1(postdate) as datetime),112)
+  from invoices where taxyear in (select year from @taxyears) and taxrollId > 0
    and isnull(apiUpdated,0) < modified
   order by id  
+
+  select @tally = count(*) from @wt
+  if @batchSize != @tally
+  begin
+   set @batchSize = @tally
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize
+  end
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
@@ -117,7 +125,7 @@ begin
 
   insert @jsonPrep select parentId,null,'invoice_due',invoice_due,'int' from @wt
   insert @jsonPrep select parentId,null,'invoice_amount',invoice_amount,'int' from @wt
-  insert @jsonPrep select parentId,null,'invoice_Date',invoice_date,'int' from @wt
+  insert @jsonPrep select parentId,null,'posted_date',posted_date,'int' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep

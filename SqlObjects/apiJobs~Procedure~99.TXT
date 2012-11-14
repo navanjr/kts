@@ -1,0 +1,51 @@
+create proc dbo.apiJobs (
+ @resource varchar(50),
+ @method varchar(50) = 'create'
+) as
+begin
+
+ declare
+  @jobId BINARY(16),
+  @jobSQL nvarchar(1000) = 'exec dbo.api' + @resource + ' @method = ''batchPost'', @batchSize = 100',
+  @dbName nvarchar(1000) = db_name(),
+  @serverName nvarchar(1000) = @@servername
+
+
+ if @method = 'create' 
+ begin
+ --Add job
+  exec msdb.dbo.sp_add_job
+   @job_name = @resource, 
+   @job_id = @jobId OUTPUT
+ 
+ --Add step to job
+  exec msdb.dbo.sp_add_jobstep
+   @job_id = @jobId,
+   @step_name = N'Do SQL Stuff', 
+   @step_id = 1, 
+   @subsystem = N'TSQL', 
+   @command = @jobSQL, 
+   @database_name = @dbName, 
+   @flags=0
+ 
+ --Add schedule to job
+  exec msdb.dbo.sp_add_jobschedule
+   @job_id = @jobId,
+   @name = N'Every few minutes', 
+   @freq_type=4, 
+   @freq_interval=1, 
+   @freq_subday_type = 0x4, 
+   @freq_subday_interval=2, 
+ --  @freq_relative_interval=0, 
+ --  @freq_recurrence_factor=1, 
+   @active_start_date=20100302, 
+   @active_end_date=99991231, 
+   @active_start_time=60000, 
+   @active_end_time=190000
+ 
+  exec msdb.dbo.sp_add_jobserver
+   @job_id = @jobId, 
+   @server_name = @serverName
+ end
+ 
+end
