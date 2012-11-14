@@ -1,7 +1,7 @@
 create proc dbo.apiInvoices(
  @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
- @batchSize int = 10,
+ @batchSize int = 100,
  @postFile varchar(50) = 'apiPostInvoices.json',
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
@@ -10,6 +10,7 @@ begin
  set nocount on
 
  declare
+  @resource varchar(50) = 'invoices',
   @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
@@ -60,10 +61,10 @@ begin
  else
   insert @taxyears select taxyear from invoices group by taxyear
 
- if @method = 'BatchPost'
+ if @method = 'JOB'
  begin
-  exec dbo.apiInvoices @taxyear, @method = 'POST', @batchSize = @batchSize
---  exec dbo.apiInvoices 'ALL', @method = 'STATUS', @batchSize = @batchSize
+  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiInvoices @method = 'POST', @batchSize = @batchSize
  end
 
  if @method = 'STATUS'
@@ -111,6 +112,7 @@ begin
    and isnull(apiUpdated,0) < modified
   order by id  
 
+-- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
   if isnull(@tally,0) = 0
   begin

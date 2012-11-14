@@ -8,11 +8,45 @@ create function dbo.apiControlBRW() returns @rt table(
  ord varchar(50)
 ) as
 begin
+ 
+ declare @apiControlString varchar(500)
+ declare @apiControl table( resource varchar(50), batchSize int ) 
+ select top 1 @apiControlString = b14 from object where typ = 40 order by id    
+ insert @apiControl select dbo.splitF(data,':',1), dbo.splitF(data,':',2) from dbo.split(@apiControlString,',') 
+ 
 
- insert @rt select 'tax_rolls', count(*), sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end), null, '@resource=taxrolls;', 'a' from adtax
- insert @rt select 'legal', count(*), sum(case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end), null, '@resource=legal;', 'a' from adtax where cast(legalDescription as varchar(8000)) > '  0'
- insert @rt select 'invoices', count(*), sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end), null, '@resource=invoices;', 'b' from invoices where taxrollid > 0
+--taxrolls
+ insert @rt
+ select 'taxroll',
+  count(*),
+  sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
+  null,
+  '@resource=taxrolls;', 'a' 
+ from adtax
+
+--legal
+ insert @rt
+ select 'legal',
+  count(*),
+  sum(case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end),
+  null,
+  '@resource=legal;', 'a' 
+ from adtax
+ where cast(legalDescription as varchar(8000)) > '  0'
+
+--invoices
+ insert @rt
+ select 'invoices',
+  count(*),
+  sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
+  null,
+  '@resource=invoices;', 'b'
+ from invoices
+ where taxrollid > 0
+
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
+ update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';' from @rt a, @apiControl b where a.resource = b.resource
+
  return
 end

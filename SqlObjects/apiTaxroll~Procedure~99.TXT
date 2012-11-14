@@ -10,6 +10,7 @@ begin
  set nocount on
 
  declare
+  @resource varchar(50) = 'taxroll',
   @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
@@ -23,7 +24,8 @@ begin
   @apiResultWt JSONHierarchy,
   @theDate datetime,
   @updated int,
-  @inserted int
+  @inserted int,
+  @tally int
 
  exec dbo.keyAcVars 'acapiservice', @method='GET', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
@@ -44,7 +46,7 @@ begin
   type varchar(50)
  )
 
- declare @taxroll table(
+ declare @wt table(
   parentId int identity(1,1),
   tax_roll_link int,
   taxYear varchar(4),
@@ -82,10 +84,10 @@ begin
  else
   insert @taxyears select realTaxYear from adtax group by realtaxyear
 
- if @method = 'BatchPost'
+ if @method = 'JOB'
  begin
-  exec dbo.apiTaxroll @taxyear, @method = 'POST', @batchSize = @batchSize
---  exec dbo.apiTaxroll 'ALL', @method = 'STATUS', @batchSize = @batchSize
+  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiTaxroll @method = 'POST', @batchSize = @batchSize
  end
 
  if @method = 'STATUS'
@@ -120,7 +122,7 @@ begin
  begin
 
 -- create the post data file then call the API
-  insert @taxroll select top (@batchSize)
+  insert @wt select top (@batchSize)
    id, REALTAXYEAR,OWNERNAME,
    acres,
    additionNumber,
@@ -151,27 +153,41 @@ begin
     and isnull(apiUpdated,0) < modified
    order by OWNERNAME, ITEMNUMBER  
 
-  insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'owner', owner,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'acres', acres,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'addition', addition,'string' from @taxroll
---  assessed_exemption
-  insert @jsonPrep select parentId,null,'assessed_gross', assessed_gross,'int' from @taxroll
---  assessed_improvements
-  insert @jsonPrep select parentId,null,'assessed_mobile_home', assessed_mobile_home,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'assessed_net', assessed_net,'int' from @taxroll
-  insert @jsonPrep select parentId,null,'block', block,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'lot', lot,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'millage_rate', millage_rate,'int' from @taxroll
+-- bail if your done or update batchSize from tally, maybe... 
+  select @tally = count(*) from @wt
+  if isnull(@tally,0) = 0
+  begin
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)'
+   return
+  end
+ 
+  if @batchSize != @tally
+  begin
+   set @batchSize = @tally
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize
+  end
 
-  insert @jsonPrep select parentId,null,'owner_address1', owner_address1,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'owner_address2', owner_address2,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'owner_city', owner_city,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'owner_postal', owner_postal,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'owner_state', owner_state,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'parcel', parcel,'string' from @taxroll
+  insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
+  insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @wt
+  insert @jsonPrep select parentId,null,'owner', owner,'string' from @wt
+  insert @jsonPrep select parentId,null,'acres', acres,'string' from @wt
+  insert @jsonPrep select parentId,null,'addition', addition,'string' from @wt
+--  assessed_exemption
+  insert @jsonPrep select parentId,null,'assessed_gross', assessed_gross,'int' from @wt
+--  assessed_improvements
+  insert @jsonPrep select parentId,null,'assessed_mobile_home', assessed_mobile_home,'int' from @wt
+  insert @jsonPrep select parentId,null,'assessed_net', assessed_net,'int' from @wt
+  insert @jsonPrep select parentId,null,'block', block,'string' from @wt
+  insert @jsonPrep select parentId,null,'lot', lot,'string' from @wt
+  insert @jsonPrep select parentId,null,'millage_rate', millage_rate,'int' from @wt
+
+  insert @jsonPrep select parentId,null,'owner_address1', owner_address1,'string' from @wt
+  insert @jsonPrep select parentId,null,'owner_address2', owner_address2,'string' from @wt
+  insert @jsonPrep select parentId,null,'owner_city', owner_city,'string' from @wt
+  insert @jsonPrep select parentId,null,'owner_postal', owner_postal,'string' from @wt
+  insert @jsonPrep select parentId,null,'owner_state', owner_state,'string' from @wt
+  insert @jsonPrep select parentId,null,'parcel', parcel,'string' from @wt
 
 --  parcel_address1,
 --  parcel_address2,
@@ -179,10 +195,10 @@ begin
 --  parcel_postal,
 --  parcel_state,
 
-  insert @jsonPrep select parentId,null,'school_district', school_district,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'tax_type', tax_type,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'legal_description', legal_description,'string' from @taxroll
-  insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @taxroll
+  insert @jsonPrep select parentId,null,'school_district', school_district,'string' from @wt
+  insert @jsonPrep select parentId,null,'tax_type', tax_type,'string' from @wt
+  insert @jsonPrep select parentId,null,'legal_description', legal_description,'string' from @wt
+  insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
@@ -213,7 +229,7 @@ begin
   if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
   begin
    set @theDate = getDate()
-   update adtax set apiUpdated = @theDate where id in (select tax_roll_link from @taxroll)
+   update adtax set apiUpdated = @theDate where id in (select tax_roll_link from @wt)
    exec dbo.logit @@procid, 'Success...', @dump
   end
   else
