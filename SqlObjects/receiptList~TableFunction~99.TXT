@@ -19,7 +19,9 @@ returns @wt table(id int identity(1,1),
                   rate varchar(50), 
                   penalty money default 0, 
                   fee money default 0,
+                  perTyp varchar(10),
                   invoiceType varchar(50),
+                  taxType varchar(50),
                   invoiceId int,
                   parentInvoiceId int,
                   slink varchar(16),
@@ -59,12 +61,15 @@ begin
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
 
+
  update w
   set itemNumber=cast(b.ITEMNUMBER as varchar(50)),
-      parcelNumber = cast(b.FullPIDNUMBER as varchar(50))
+      parcelNumber = cast(b.FullPIDNUMBER as varchar(50)),
+      w.perTyp = B.perTyp
  from @wt w, invoices a, adtax b
  where w.invoiceId=a.id 
   and a.taxrollId=b.id
+
 
  declare @wt2 table(penalty money,
                    fee money,
@@ -91,7 +96,8 @@ update w set w.fee = (select sum(amount) from receiptDetail where slink = w.slin
 
 delete from @wt where parentInvoiceId>0
 
-update @wt set recType=recType+' '+taxYear where recType='TAX'
+update @wt set recType=recType+' '+taxYear,taxType = case when perTyp!= 'F' and invoiceType in ('S','O') then 'Special' else '' end  where recType='TAX'
+update @wt set paid=paid-fee where recType<>'TAX'
 
 return 
 end

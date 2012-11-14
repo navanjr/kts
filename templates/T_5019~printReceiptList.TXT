@@ -7,7 +7,7 @@
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
- lcsql='select recType,recnum,recdate1,recfrom,paid+isnull(penalty,0)+isnull(fee,0),deputy,paid,penalty,fee,itemNumber,parcelNumber from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType,recnum,recdate1,recfrom,paid+isnull(penalty,0)+isnull(fee,0),deputy,paid,penalty,fee,itemNumber,parcelNumber,taxType,left(school,CHARINDEX('' '',school)) from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -39,10 +39,10 @@
   prn(,lcx), 
   if(gcReceiptType>'  0'),prn('Receipt Type: '&gcReceiptType,t5),
   if(curpag=1),
-  grp(1,obj5:a1,
+  grp(1,obj5:a1&' '&obj5:a12,
    do(
       prn(,,,lcFontSize,,lcFont),
-      bnd('H',obj5:a1,1000)
+      bnd('H',obj5:a1&' '&obj5:a12,1000)
      ),
    do(
       prn(,,,lcFontSize,,lcFont),
@@ -58,7 +58,7 @@
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
    bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a6,700),
-   bnd('D7',,1500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
+   bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
    lcPenalty=lcPenalty+obj5:a8,
