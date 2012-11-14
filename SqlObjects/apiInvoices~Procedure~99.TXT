@@ -48,6 +48,7 @@ begin
  declare @wt table(
   parentId int identity(1,1),
   invoice_link int,
+  invoice_parent_link int,
   tax_roll_link int,
   tax_Year varchar(4),
   invoice_due money,
@@ -103,12 +104,13 @@ begin
 -- create the post data file then call the API
   insert @wt select top (@batchSize)
    id, 
+   invoiceId,
    taxrollId,
    taxyear,
    invoiceDue,
    invoiceAmount,
    convert(varchar,cast(dbo.date1(postdate) as datetime),112)
-  from invoices where taxyear in (select year from @taxyears) and taxrollId > 0
+  from invoices where taxyear in (select year from @taxyears)
    and isnull(apiUpdated,0) < modified
   order by id  
 
@@ -128,6 +130,7 @@ begin
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'invoice_parent_link',invoice_parent_link,'int' from @wt
   insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @wt
   insert @jsonPrep select parentId,null,'tax_year',tax_year,'int' from @wt
 
