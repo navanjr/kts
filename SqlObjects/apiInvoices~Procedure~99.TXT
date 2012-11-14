@@ -26,7 +26,7 @@ begin
   @inserted int,
   @tally int
 
- exec dbo.keyAcVars 'acapiservice', @dump = @apiService output
+ exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
 
  if not @apiService = 'ON' 
@@ -63,7 +63,7 @@ begin
  if @method = 'BatchPost'
  begin
   exec dbo.apiInvoices @taxyear, @method = 'POST', @batchSize = @batchSize
-  exec dbo.apiInvoices 'ALL', @method = 'STATUS', @batchSize = @batchSize
+--  exec dbo.apiInvoices 'ALL', @method = 'STATUS', @batchSize = @batchSize
  end
 
  if @method = 'STATUS'
@@ -112,6 +112,12 @@ begin
   order by id  
 
   select @tally = count(*) from @wt
+  if isnull(@tally,0) = 0
+  begin
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)'
+   return
+  end
+ 
   if @batchSize != @tally
   begin
    set @batchSize = @tally
