@@ -1,7 +1,7 @@
 create proc dbo.apiLegal(
  @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
- @batchSize int = 10,
+ @batchSize int = 100,
  @postFile varchar(50) = 'apiPostLegal.json',
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
@@ -28,7 +28,7 @@ begin
   @inserted int,
   @tally int
 
- exec dbo.keyAcVars 'acapiservice', @method='GET', @dump = @apiService output
+ exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @method='GET', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
 
  if not @apiService = 'ON' 
@@ -52,7 +52,8 @@ begin
   tax_roll_link int,
   taxYear varchar(4),
   owner varchar(50),
-  legal_description varchar(max)
+  legal_description varchar(max),
+  apiDate datetime
  )
 
  declare @taxyears table(year varchar(4))
@@ -73,10 +74,17 @@ begin
 -- create the post data file then call the API
   insert @wt select top (@batchSize)
    id, REALTAXYEAR,OWNERNAME,
-   legalDescription
+   legalDescription,
+   apiUpdatedLegal
    from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdatedLegal,0) < modified and cast(legalDescription as varchar(8000)) > '  0'
    order by OWNERNAME, ITEMNUMBER  
+
+  if @debugMode = 'TRUE'
+  begin
+   select * from @wt
+   return
+  end
 
 -- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
@@ -95,7 +103,9 @@ begin
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @wt
   insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @wt
-  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,'34,38'),'string' from @wt
+--  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,'10,13,34,38,39,9,92,47'),'string' from @wt
+  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,'34,38,167'),'string' from @wt
+--  insert @jsonPrep select parentId,null,'legal_description', 'test legal description','string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
@@ -111,7 +121,7 @@ begin
   select @dumpraw = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
 
   exec spOverwriteTextFile @postFileFull, @dump
-  exec spOverwriteTextFile 'c:\client\key\beau.json', @dumpraw
+--  exec spOverwriteTextFile 'c:\client\key\beau.json', @dumpraw
   
   exec dbo.api
    @method = @method,
