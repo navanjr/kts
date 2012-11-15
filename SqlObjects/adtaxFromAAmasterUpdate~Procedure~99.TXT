@@ -2,26 +2,15 @@ create proc adtaxFromAAmasterUpdate
   as
  begin
 
-update b set  b.landassessed = a.LANDASSESSEDVALUE,
+update top(1000) b set  b.landassessed = a.LANDASSESSEDVALUE,
               b.improvedassessed = a.IMPROVEDASSESSEDVALUE,
               b.miscAssessed = a.MISCELLANEOUSASSESSED,
               b.proploc =  case when cast(PHYSICALSTREETNUMBER as varchar(50))='0' then '' else cast(PHYSICALSTREETNUMBER as varchar(50)) end
                               +' '+ PHYSICALSTREET
                               +' '+ PHYSICALTOWN 
   
-
-        from AAMASTER a,AdTax b 
-      where b.OWNERNUMBER=a.OWNERIDNUMBER 
-            and b.REALTAXYEAR='2012' 
-            and a.OWNERIDNUMBER>0
-
- end
-
-
-/*
-
-  select * from 
-    openrowset('ACEODBC','C:\Client\dosdata\online\AAMaster.xlsx';'';
-    '','SELECT * FROM aamaster')
-
-*/
+  from AAMASTER a,AdTax b 
+      where b.fullpidnumber=a.FULLPIDNUMBER 
+            and b.REALTAXYEAR='2012'
+            and a.FULLPIDNUMBER>''
+END
