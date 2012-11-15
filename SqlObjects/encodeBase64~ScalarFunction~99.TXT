@@ -1,0 +1,24 @@
+create function dbo.encodeBase64(
+    @EncodeIn VARCHAR(max)
+) returns varchar(max) as 
+begin
+
+ declare
+  @EncodeOut VARCHAR(max)    
+
+ SET QUOTED_IDENTIFIER OFF
+-- SET ANSI_NULLS on
+-- set ansi_padding on
+
+ SELECT @EncodeOut = 
+    CAST(N'' AS XML).value(
+          'xs:base64Binary(sql:column("bin"))'
+        , 'VARCHAR(MAX)'
+    )
+ FROM (
+    SELECT CAST(@EncodeIn AS VARBINARY(MAX)) AS bin
+ ) AS bin_sql_server_temp;
+
+ return @EncodeOut
+
+end
