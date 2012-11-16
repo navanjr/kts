@@ -1,5 +1,5 @@
 @bb1=&Print; @bbproc1=
- printTaxRec=;
+ printTaxRecGr=;
 
 @printTaxRecGr=
  do(452,getSiteInfo=),
@@ -13,17 +13,77 @@
   lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount,case when typ=''O'' and pertyp=''F'' then ''FIRE DIST'' else '''' end, item from dbo.taxReceiptPrint('&gcRecId&')',
   taxReceiptGr=;
 
-@printTaxRecDotMatrix=
- do(452,getSiteInfo=),
-  lcLm=600,
-  lcTm=1200,
-  lcM=1000,
-  lcCw=2250,
-  lcAw=(lcCw*1.5)+(lcM*4),
-  lcFont='',
-  lcHeaderFontSize=12,
-  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandTotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount from dbo.taxReceiptPrint('&gcRecId&')',
-  taxReceiptTr=;
+
+@taxReceiptGr=
+ lcCnt=0,
+
+ tr(
+    lcy=0,
+    lcRecCnt=0,
+    lcCnt=0,
+    lcy=lcy+500,
+    prn(printed),
+    prn(page),
+    prn(,lcLm-600,lcy,lcHeaderFontSize+2,bold,lcFont),
+    bnd(,'RECEIPT OF TAX PAYMENT',8500C),
+    nl,
+    bnd(,gcOfficial& ' - Treasurer of '&gcCounty&' County',8500C),
+    nl,
+    bnd(,gcCity&', '&gcFState,8500C),
+    lin(lcLm,lcy+1000,lcLm+7000,lcy+1000,7),
+    lcDeputy=kp('select deputy from dbo.taxReceiptPrint('&gcRecId&')'),
+    lcRecDate=kp('select receiptDate from dbo.taxReceiptPrint('&gcRecId&')'),
+    prn(,lcLm,lcy+1100,lcHeaderFontSize-2,,lcFont),
+    bnd(,'Date: '&format(lcRecDate,@d2),5000,'Deputy: '&lcDeputy,lcCw+100),
+    lin(lcLm,lcy+1300,lcLm+7000,lcy+1300,7),
+
+  grp(1,obj5:b10,do(
+     lcCnt=lcCnt+1,
+     lcRecTotCnt=obj5:b13,
+     lcy=lcy+lcTm+1000,
+     lcAddress=kp('select dbo.parseAddressAndName(dbo.taxRollAddressBlob('''&obj5:a1&''','''&obj5:b12&'''))'),
+     lcLegal=kp('select dbo.getLegalDescription('&obj5:b10&')'),
+     prn(,,,lcHeaderFontSize,regular,lcFont),
+     lcy=lcy+375,
+     prn(,lcLm+300,lcy,lcHeaderFontSize-2,,lcFont),
+     bnd(,'Tax Year ',lcCw,'Receipt No.',lcCw,'Item No.',lcCw*1.2,'Parcel Number',lcCw*1.2,'School District',lcCw),
+     bnd(,obj5:a1,lcCw,obj5:a4,lcCw,format(obj5:b15,@n_6),lcCw-50,obj5:a2,lcCw*1.5,obj5:a3,lcCw),
+     nl,
+     bnd(,'Legal Description:',lcCw*3.5,'Acres:',lcCw),
+     bnd(,,lcCw*3.5,obj5:a10,lcCw),
+     lcy=lcy+600,
+     txt(lcLegal,lcLm+300,lcy,4000,1000,0,),
+     prn(,lcLm+4500,lcy+400),
+     bnd(,'Tax Due:',lcM-300,format(obj5:a12,@n$-14.2b),lcM),
+     bnd(,'Tax Paid:',lcM-300,format(obj5:a13,@n$-14.2b)&' '& obj5:b14,lcM+50),
+     bnd(,'Penalty:',lcM-300,format(obj5:a14,@n$-14.2b),lcM),
+     bnd(,'Fees:',lcM-300,format(obj5:a19,@n$-14.2b),lcM),
+     bnd(,'Total Paid:',lcM-300,format(obj5:a20,@n$-14.2b),lcM),
+     lin(lcLm,lcy+1200,lcLm+7000,lcy+1200,7),
+     lcTm=0,    
+     if(lcCnt=lcRecTotCnt),do(
+     prn(,lcLm+4500,lcy+2000),
+     bnd(,'Check:',lcM-300,format(obj5:b2,@n$-14.2b),lcM),
+     bnd(,'Other:',lcM-300,format(obj5:b3,@n$-14.2b),lcM),
+     bnd(,'Cash:',lcM-300,format(obj5:b4,@n$-14.2b),lcM),
+     nl,
+     bnd(,'Total Amt Recd:',lcM-300,format(obj5:b1,@n$-14.2b),lcM),
+     bnd(,'Total Amt Due:',lcM-300,format(obj5:a20,@n$-14.2b),lcM),
+     bnd(,'Change Retd:',lcM-300,format(obj5:b5,@n$-14.2b),lcM),
+     prn(,lcLm+300,lcy+2000),
+     bnd(,'Receipt Of:',lcM),
+     txt(lcAddress,lcLm+300,lcy+2200,4000,1000,0,),
+     nl,
+     bnd(,'Paid By:'&' '&obj5:b6,lcCw*2),
+                            ),
+  ),),
+  det(lcsql4506,,,3,),
+    lcRecCnt=lcRecCnt+1,
+    if(lcRecCnt=4),do(lcy=0,if(lcRecTotCnt+0>lcCnt),do(pagebreak),lcRecCnt=0),
+  edt,
+
+);
+
 
 
 @printTaxRec=
@@ -112,72 +172,4 @@
 );
 
 
-@taxReceiptGr=
- lcCnt=0,
 
- tr(
-    lcy=0,
-    lcRecCnt=0,
-    lcCnt=0,
-    lcy=lcy+500,
-    prn(printed),
-    prn(page),
-    prn(,lcLm-600,lcy,lcHeaderFontSize+2,bold,lcFont),
-    bnd(,'RECEIPT OF TAX PAYMENT',8500C),
-    nl,
-    bnd(,gcOfficial& ' - Treasurer of '&gcCounty&' County',8500C),
-    nl,
-    bnd(,gcCity&', '&gcFState,8500C),
-    lin(lcLm,lcy+1000,lcLm+7000,lcy+1000,7),
-    lcDeputy=kp('select deputy from dbo.taxReceiptPrint('&gcRecId&')'),
-    lcRecDate=kp('select receiptDate from dbo.taxReceiptPrint('&gcRecId&')'),
-    prn(,lcLm,lcy+1100,lcHeaderFontSize-2,,lcFont),
-    bnd(,'Date: '&format(lcRecDate,@d2),5000,'Deputy: '&lcDeputy,lcCw+100),
-    lin(lcLm,lcy+1300,lcLm+7000,lcy+1300,7),
-
-  grp(1,obj5:b10,do(
-     lcCnt=lcCnt+1,
-     lcRecTotCnt=obj5:b13,
-     lcy=lcy+lcTm+1000,
-     lcAddress=kp('select dbo.parseAddressAndName(dbo.taxRollAddressBlob('''&obj5:a1&''','''&obj5:b12&'''))'),
-     lcLegal=kp('select dbo.getLegalDescription('&obj5:b10&')'),
-     prn(,,,lcHeaderFontSize,regular,lcFont),
-     lcy=lcy+375,
-     prn(,lcLm+300,lcy,lcHeaderFontSize-2,,lcFont),
-     bnd(,'Tax Year ',lcCw,'Receipt No.',lcCw,'Item No.',lcCw*1.2,'Parcel Number',lcCw*1.2,'School District',lcCw),
-     bnd(,obj5:a1,lcCw,obj5:a4,lcCw,format(obj5:b15,@n_6),lcCw-50,obj5:a2,lcCw*1.5,obj5:a3,lcCw),
-     nl,
-     bnd(,'Legal Description:',lcCw*3.5,'Acres:',lcCw),
-     bnd(,,lcCw*3.5,obj5:a10,lcCw),
-     lcy=lcy+600,
-     txt(lcLegal,lcLm+300,lcy,4000,1000,0,),
-     prn(,lcLm+4500,lcy+400),
-     bnd(,'Tax Due:',lcM-300,format(obj5:a12,@n$-14.2b),lcM),
-     bnd(,'Tax Paid:',lcM-300,format(obj5:a13,@n$-14.2b)&' '& obj5:b14,lcM+50),
-     bnd(,'Penalty:',lcM-300,format(obj5:a14,@n$-14.2b),lcM),
-     bnd(,'Fees:',lcM-300,format(obj5:a19,@n$-14.2b),lcM),
-     bnd(,'Total Paid:',lcM-300,format(obj5:a20,@n$-14.2b),lcM),
-     lin(lcLm,lcy+1200,lcLm+7000,lcy+1200,7),
-     lcTm=0,    
-     if(lcCnt=lcRecTotCnt),do(
-     prn(,lcLm+4500,lcy+2000),
-     bnd(,'Check:',lcM-300,format(obj5:b2,@n$-14.2b),lcM),
-     bnd(,'Other:',lcM-300,format(obj5:b3,@n$-14.2b),lcM),
-     bnd(,'Cash:',lcM-300,format(obj5:b4,@n$-14.2b),lcM),
-     nl,
-     bnd(,'Total Amt Recd:',lcM-300,format(obj5:b1,@n$-14.2b),lcM),
-     bnd(,'Total Amt Due:',lcM-300,format(obj5:a20,@n$-14.2b),lcM),
-     bnd(,'Change Retd:',lcM-300,format(obj5:b5,@n$-14.2b),lcM),
-     prn(,lcLm+300,lcy+2000),
-     bnd(,'Receipt Of:',lcM),
-     txt(lcAddress,lcLm+300,lcy+2200,4000,1000,0,),
-     nl,
-     bnd(,'Paid By:'&' '&obj5:b6,lcCw*2),
-                            ),
-  ),),
-  det(lcsql4506,,,3,),
-    lcRecCnt=lcRecCnt+1,
-    if(lcRecCnt=4),do(lcy=0,if(lcRecTotCnt+0>lcCnt),do(pagebreak),lcRecCnt=0),
-  edt,
-
-);
