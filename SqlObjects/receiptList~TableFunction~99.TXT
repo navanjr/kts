@@ -66,7 +66,8 @@ begin
 
 
  update w
-  set itemNumber=cast(b.ITEMNUMBER as varchar(50)),
+  set itemNumber = cast(b.ITEMNUMBER as varchar(50)),
+      parcelNumber = cast(b.FullPIDNUMBER as varchar(50)),
       ownerName = b.ownername,
       parcelNumber = cast(b.FullPIDNUMBER as varchar(50)),
       w.perTyp = B.perTyp
@@ -87,7 +88,6 @@ insert @wt2
  '', parentInvoiceId, recId from @wt group by parentInvoiceId, recId
 
 
-
 update w set 
   penalty=a.penalty, 
   fee=a.fee from @wt w, @wt2 a
@@ -95,14 +95,21 @@ update w set
   and a.parentInvoiceId>0 
   and w.recId=a.recId
 
-update w set w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortfee',subDescription)>0) from @wt w where w.recType='MTG'
+update w set
+  w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortfee',subDescription)>0)
+  from @wt w where w.recType='MTG'
 
 
 delete from @wt where parentInvoiceId>0
 
-update @wt set recType=recType+' '+taxYear,taxType = case when perTyp!= 'F' and invoiceType in ('S','O') then 'Special' else '' end  where recType='TAX'
-update @wt set paid=paid-fee where left(recType,3)<>'TAX'
+update @wt set
+  recType=recType+' '+taxYear,
+  taxType = case when perTyp!= 'F' and invoiceType in ('S','O') then 'Special' else '' end  where recType='TAX'
+
+update @wt set 
+ paid=paid-fee 
+ where left(recType,3)<>'TAX'
+
 
 return 
 end
-

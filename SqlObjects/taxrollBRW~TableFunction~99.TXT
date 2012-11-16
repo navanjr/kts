@@ -31,13 +31,7 @@ set @searchString=replace(@searchstring,'~{','''')
   declare @sSLen int
    select @sSLen = LEN(@searchString)
 
---get the tax years we will return
-/*  declare @taxYears table(yr varchar(4))
-    if lower(@taxYear) = 'all'
-      insert @taxYears select cast(taxyear as varchar (4)) from invoices group by taxyear
-    else
-      insert @taxYears select @taxYear
-*/
+
 
   declare @showPaidFlag char(1) = substring(@orderString,3,1),
           @protest varchar(10) = '',
@@ -52,6 +46,16 @@ set @searchString=replace(@searchstring,'~{','''')
   end
 */
 
+-- get the already selected items
+  insert @rt
+    select 
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,invoiceAmount,invoiceDue,
+   't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed
+    from dbo.invoices a, receiptLink b 
+    where a.id = b.invoiceId and b.receiptId = @receiptId
+
+
+
 -- get the first 1000 rows that match the search string. IF we have a search string ordered by name or parcel
    if @searchString > '  0'
     begin
@@ -65,7 +69,7 @@ set @searchString=replace(@searchstring,'~{','''')
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
         and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-        and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
+        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
      else
 ---Regular Search 
       insert @rt
@@ -78,7 +82,7 @@ set @searchString=replace(@searchstring,'~{','''')
         and status<>'Firstnum'
         and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
-        and id not in (select invoiceId from receiptLink where receiptId = @receiptId)   
+        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
     end
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
    else
@@ -92,16 +96,7 @@ set @searchString=replace(@searchstring,'~{','''')
       and status<>'Firstnum'
       and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
       and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-      and id not in (select invoiceId from receiptLink where receiptId = @receiptId)
-
-
--- get the already selected items
-  insert @rt
-    select 
-     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,invoiceAmount,invoiceDue,
-   't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed
-    from dbo.invoices a, receiptLink b 
-    where a.id = b.invoiceId and b.receiptId = @receiptId
+      and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
 
 
 --Adtax 0 due records
@@ -159,7 +154,6 @@ set @searchString=replace(@searchstring,'~{','''')
   begin
    update a set 
     fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
---isnull((select sum(feeamount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0.00),
     penalty = round((due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2),
     toPay = due * methodRate
    from @rt a where selectedFlag in (char(189),'x')
