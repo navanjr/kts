@@ -56,7 +56,7 @@ function getData(){
       res.setEncoding('utf8');
       res.on('data', function (chunk) {
         console.log(chunk);
-        console.log('data I used: ',options.path);
+//        console.log('data I used: ',options.path);
       });
     });
 
