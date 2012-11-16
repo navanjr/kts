@@ -120,18 +120,30 @@ begin
      @officialBankCode = key3
     from object where typ = 4770 and id = @batchId
 
-    exec dbo.paymentCRUD 0,  
-     @paymentType = @paymentType,
-     @voucherDate = @voucherDate,
-     @voucherNumber = @voucherNumber,
-     @payee = @payee,
-     @amount = @amount,
-     @debitAcct = @debitAcct,
-     @creditAcct = @creditAcct,
-     @officialDepositCode = @officialDepositCode,
-     @officialBankCode = @officialBankCode,
-     @postResult = @resultStringToken output
+    declare @checkPaymentId int
+ 
+    select @checkPaymentId = id from object 
+      where key3 = @voucherNumber
+       and a4 = @debitAcct
+       and a18 = 'Warrant' 
+       and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end = @voucherDate
+
+     if isnull(@checkPaymentId,0)=0
+     begin
+      exec dbo.paymentCRUD 0,  
+       @paymentType = @paymentType,
+       @voucherDate = @voucherDate,
+       @voucherNumber = @voucherNumber,
+       @payee = @payee,
+       @amount = @amount,
+       @debitAcct = @debitAcct,
+       @creditAcct = @creditAcct,
+       @officialDepositCode = @officialDepositCode,
+       @officialBankCode = @officialBankCode,
+       @postResult = @resultStringToken output
+     end
     end
+   
     else
     begin
      exec dbo.paymentCRUD 0,  
