@@ -5,7 +5,8 @@ create function dbo.taxyearTrioBRW(@taxyear varchar(50)) returns @rt table(
  millcount int,
  millTotal decimal(19,10),
  adtaxBalanceDue money,
- invoiceBalanceDue money
+ invoiceBalanceDue money,
+ invoiceAmount money
 ) as 
 begin
  insert @rt 
@@ -15,6 +16,7 @@ begin
   SCHOOLDISTRICTTAXRATE,
   null,null,
   sum(balancedue),
+  null,
   null
  from adtax 
  where realtaxyear = @taxyear 
@@ -46,6 +48,15 @@ begin
    select sum(a.invoiceDue)
    from invoices a, adtax b
    where a.taxrollid = b.id
+    and a.taxyear = @taxyear
+    and b.SCHOOLDISTRICTMAIN = district
+    and b.SCHOOLDISTRICTTAXRATE = rateName
+  ),
+  invoiceAmount = (
+   select sum(a.invoiceAmount)
+   from invoices a, adtax b
+   where a.taxrollid = b.id
+    and a.taxyear = @taxyear
     and b.SCHOOLDISTRICTMAIN = district
     and b.SCHOOLDISTRICTTAXRATE = rateName
   )
