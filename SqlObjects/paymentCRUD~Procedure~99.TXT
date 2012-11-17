@@ -73,6 +73,24 @@ begin
  begin
   exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride
 
+  if @paymentType = 'VOIDMAINTENANCE'
+  begin
+  -- this routine exists to remove potential orphans
+   if exists(
+    select * from gldetail 
+     where left(slink,1) = 'o'
+      and slink not in (select 'o'+cast(id as varchar) from object where TYP > 0) 
+   )
+   begin
+    exec dbo.logit @@procid, 'you got a problem, orphaned glDetail.  Let me get that for you...'
+    begin transaction
+     delete gldetail where left(slink,1) = 'o' and slink not in (select 'o'+cast(id as varchar) from object where TYP > 0) 
+    commit transaction
+    exec dbo.logit @@procid, 'No worries i got it...'
+   end
+   return
+  end
+
   -- bail if we are already posted
   if dbo.isPosted(@slink) = 'TRUE' and @postOverride != 'TRUE'
    return 
@@ -83,6 +101,7 @@ begin
 
   begin transaction
   delete dbo.glDetailStage where slink = @slink
+  delete dbo.glDetail where slink = @slink
   if @deleteObject = 'TRUE'
    update object set typ = -4771 where id = @id
   else
@@ -92,6 +111,8 @@ begin
    where id = @id
   update object set link1 = 0 where typ = 4771 and link1 = @id
   commit transaction
+
+  return
 
  end
 
