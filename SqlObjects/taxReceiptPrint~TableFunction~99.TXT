@@ -38,7 +38,9 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
                         GrandTotal money,
                         Comments varchar(250),
                         recCount int default 0,
-                        perTyp varchar(1) default '' )             
+                        perTyp varchar(1) default '',
+                        reptotaldue money default 0,
+                        reptotalrec money default 0 )             
 
 as 
 begin
@@ -121,11 +123,15 @@ begin
 
 --set record Count
    
-   declare @recCount int
+   declare @recCount int,
+           @repTotalDue money,
+           @reptotalRec money
    
-     select @recCount = count(recid) from @rt
+     select @recCount = count(recid), 
+            @repTotalDue = sum(TotPaid)
+          from @rt
       
-     update @rt set recCount = @recCount			
+     update @rt set recCount = @recCount, repTotalDue = @repTotalDue, reptotalRec = ckoth+cash			
 
  return					
 end
