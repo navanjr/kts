@@ -15,7 +15,10 @@ create function [dbo].[unpaidTF](
  link2parentInvoice int,
  trcode varchar(50),
  trSection int,
- ord int
+ ord int,
+name varchar(50),
+parcel varchar(50),
+realname varchar(50)
 )
 
 as
@@ -40,7 +43,7 @@ begin
 
 -- get all the other related invoices by parcel or name
  if @typ = 'R'
-  insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
+  insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    i.ID,
    'Parcel Search',
@@ -49,7 +52,8 @@ begin
    a.pertyp,
    i.invoiceDue,
    i.invoiceId,
-   1,1
+   1,1,
+   i.name,i.parcel
   from invoices i, adtax a
   where i.taxrollId = a.id
    and i.PARCEL = @parcel
@@ -59,7 +63,7 @@ begin
 
  
  if @typ in ('P','B','I','O','S')
-  insert into @rt (invoiceId,origin,year,recordType,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
+  insert into @rt (invoiceId,origin,year,recordType,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    ID,
    'Name Search',
@@ -67,7 +71,8 @@ begin
    typ,
    invoiceDue,
    invoiceId,
-   1,1
+   1,1,
+   name,parcel
   from invoices
   where name = @name
    and TYP != 'R'
@@ -75,14 +80,15 @@ begin
    and id not in (select invoiceId from @rt)
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
- insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
+ insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
  select 
   id,
   'fee search',
   taxyear,
   invoicedue,
   invoiceId,
-   1,0
+  1,0,
+  name,parcel
  from invoices 
  where invoiceId in (select invoiceId from @rt)
 
@@ -120,18 +126,29 @@ begin
  where recordType = 'O'
  update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 3 where recordType in ('O','S') and perTyp != 'F' 
  update @rt set trcode = 'Current Yr Tax', halfRate = .5, ord = 1 where invoiceid = @invoiceId
- update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('P','I','B','R') and year != @year
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('P','I','B','R') and year < @year
  update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 2 where origin = 'fee search'
- update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'fee search' and year != @year
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'fee search' and year < @year
  update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'penalty'
+
+
+-- if we are not realestate search for links for fire districts into realestate
+ if @typ != 'R'
+ begin
+  update r set r.realName = 
+   (select max(i.name)+'('+cast(count(*) as varchar)+')' from invoices i where i.typ = 'R' and i.taxyear = @year and i.parcel = r.parcel)
+   from @rt r where r.trcode = 'Fire District'
+-- now remove the fire district if we are not realestate and the fire district it is already linked to a realestate by parcel #
+  delete from @rt where trcode = 'Fire District' and realname is not null
+ end
 
 --Grand Total Section 1
  select @totalTax = sum(invoiceDue) from @rt
- insert @rt (invoiceDue,trcode,trSection,origin,ord)
-  select @totalTax, 'Total Tax',1,'sub total',4
+ insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
+  select @totalTax, 'Total Tax',1,'sub total',4,@name,@parcel
 --Grand Total
- insert @rt (invoiceDue,trcode,trSection,origin,ord)
-  select @totalTax, 'Total Tax',2,'sub total',4
+ insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
+  select @totalTax, 'Total Tax',2,'sub total',4,@name,@parcel
 
 --Half Tax Section 2
  if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25
