@@ -19,12 +19,13 @@
 @acc110=
  setVars=,
  kpmo('running '&lcResource&' batch...'),
- sql('exec dbo.'&lcResource&' @method=''JOB'''),
+ sql('exec dbo.'&lcLogResource&' @method=''JOB'''),
  kpmc(),
  brwrefresh=;
 
 @setVars=
- lcResource=choose(kpbrwid(1)*-1,'apiTaxroll','apiLegal','apiInvoices');
+ lcLogResource=choose(kpbrwid(1)*-1,'apiTaxroll','apiLegal','apiInvoices'),
+ lcResource=choose(kpbrwid(1)*-1,'taxroll','legal','invoices');
 
 @loadwindow=
  if(acAPIService<'  0',acAPIService='on'),
@@ -33,6 +34,13 @@
 @afterloadwindow=
  lcSite=kp('select b12 from object where typ = 40'),
  prop(000,'text','API Control - site_id:'&lcSite);
+
+@acc108=
+ jobServiceToggle=;
+@jobServiceToggle=
+ setVars=,
+ sql('exec dbo.apiJobs '''&lcResource&''', @method=''toggle'''),
+ brwrefresh=;
 
 @serviceToggle=
  lcAPIToggleOff=14474460,
@@ -45,7 +53,7 @@
 2350115
 65535 - yellow
 
-@acc108=
+acc108=
  sql('exec dbo.keyAcVars ''acAPIService'', @method=''toggle'''),
  serviceToggle=;
 
@@ -80,4 +88,4 @@ lbrw1forecolor=obj7:c10<0,255;
 
 @brwrefresh=
  brwreload(1),
- brwreload(2,'select top 50 -1, time, message from keyLog where procName = '''&lcResource&''' order by id desc');
+ brwreload(2,'select top 50 -1, time, message from keyLog where procName = '''&lcLogResource&''' order by id desc');

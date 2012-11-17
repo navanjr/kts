@@ -9,8 +9,18 @@ begin
   @jobName nvarchar(1000) = 'apiJob_' + @resource,
   @jobSQL nvarchar(1000) = 'exec dbo.api' + @resource + ' @method = ''job''',
   @dbName nvarchar(1000) = db_name(),
-  @serverName nvarchar(1000) = @@servername
+  @serverName nvarchar(1000) = @@servername,
+  @jobStatus int
 
+ if @method = 'toggle'
+ begin
+  select
+   @jobStatus = case when enabled = 0 then 1 else 0 end,
+   @jobId = job_id
+  from msdb..sysJobs where name = 'apiJob_' + @resource
+  exec msdb..sp_update_job @job_id = @jobId, @enabled = @jobStatus
+  exec dbo.logit @@procid, '@resource', @resource, '@method', @method, '@jobStatus', @jobStatus
+ end
 
  if @method = 'create' 
  begin
