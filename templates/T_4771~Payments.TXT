@@ -6,10 +6,12 @@
 @seriesField=a18;
 
 @browsedelete=
- lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.','Are you sure you wish to delete this Payment?'),
+ lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be voided if the fiscal period is not locked.||Are you sure you wish to void this '&obj:a18&'?'),
  m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
  break(gcretval<>2),
  sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE''');
+
+@loadbrowse=prop(6,text,'&Void');
 
 @loadwindow=
  create(45,9);
@@ -23,11 +25,11 @@
  prop(7,text,readString(lcBlob,'@a1FieldLabel=')),
  prop(13,text,readString(lcBlob,'@debitFieldLabel=')),
  prop(15,text,readString(lcBlob,'@creditFieldLabel=')),
- if(obj:a17<>'POSTED' and obj:c9+0>0,set(012,obj:c9)),
+ if(obj:a17<'  0' and obj:c9+0>0,set(012,obj:c9)),
  if(obj:a18='Trust Voucher' or obj:a18='Protest Voucher',brwstuff=),
  tsc;
 
-@closewindow=if(obj:a17<>'POSTED' and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),tsc;
+@closewindow=if(obj:a17<'  0' and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),tsc;
 
 @brwstuff=brw(150,1,'select id,a1,key3 from object where typ=4775 and link1='&obj:id,320,20,110,90,'50L(2)~Receipt~#2#|M50R(2)~Amount~@n-19.2@#3#|M');
 
@@ -39,7 +41,7 @@
 \t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; 
 \t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; 
 \t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
- \w00200855;r2 \d002008obj:a17='Posted';r2
+ \w00200855;r2 \d002008obj:a17>'  0';r2
 
 \t009Payee;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
@@ -48,7 +50,7 @@
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 = ''BANK''',2;
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE''',2;
   \h017018obj:a18<>'Trust Voucher';r
- \w01401870;r2 \d010018obj:a17='Posted';r2
+ \w01401870;r2 \d010018obj:a17>'  0';r2
 
 \t019Official;
 \t021DepositAccount;
@@ -83,7 +85,7 @@
 
 @postGL=
  d1select('dbo.trustVoucherStageGL '&obj:id&',0'),
- break(obj:a17='Posted'),
+ break(obj:a17>'  0'),
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
@@ -96,7 +98,7 @@
  lcid=kp('select top 1 id from object where typ=4793 order by id desc'),
  if(lcid+0>0,change(lcid,,1),neww(4793));
 
-\h111112obj:a18<>'Trust Voucher' or obj:a17='Posted';r
+\h111112obj:a18<>'Trust Voucher' or obj:a17>'  0';r
 \t111Add Receipt;
  @acc111=select(1,4502,'typ=4502 and id in (select receiptId from dbo.purposeDetail where purpose = '''&obj:a6&''' and amount > 0.00) and id not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
    lcreceiptId=PIC:id,
