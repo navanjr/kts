@@ -5,6 +5,7 @@ create function dbo.apiControlBRW() returns @rt table(
  stale int,
  rate money,
  blob varchar(1000),
+ jobEnabled int,
  ord varchar(50)
 ) as
 begin
@@ -13,7 +14,6 @@ begin
  declare @apiControl table( resource varchar(50), batchSize int ) 
  select top 1 @apiControlString = b14 from object where typ = 40 order by id    
  insert @apiControl select dbo.splitF(data,':',1), dbo.splitF(data,':',2) from dbo.split(@apiControlString,',') 
- 
 
 --taxrolls
  insert @rt
@@ -21,7 +21,9 @@ begin
   count(*),
   sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
   null,
-  '@resource=taxrolls;', 'a' 
+  '@resource=taxrolls;',
+  null,
+  'a' 
  from adtax
 
 --legal
@@ -30,7 +32,9 @@ begin
   count(*),
   sum(case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end),
   null,
-  '@resource=legal;', 'a' 
+  '@resource=legal;',
+  null,
+  'a' 
  from adtax
  where cast(legalDescription as varchar(8000)) > '  0'
 
@@ -40,11 +44,15 @@ begin
   count(*),
   sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
   null,
-  '@resource=invoices;', 'b'
+  '@resource=invoices;',
+  null,
+  'b'
  from invoices
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
  update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';' from @rt a, @apiControl b where a.resource = b.resource
+
+ update r set r.jobEnabled = j.enabled from @rt r, msdb..sysjobs j where 'apiJob_' + r.resource = j.name 
 
  return
 end
