@@ -1,0 +1,97 @@
+create function dbo.mortgageCodeBRW(
+ @mtgCodeId int,
+ @taxYear varchar(10),
+ @searchString varchar(50),
+ @orderString varchar(50)
+) returns @rt table(
+ invoiceId int,
+ name nvarchar(60),
+ parcel nvarchar(34),
+ taxYear numeric(5,0),
+ item numeric(22,1),
+ taxType nvarchar(1),
+ amount money,
+ due money,
+ slink varchar(15),
+ selectedFlag char(4),
+ methodRate money,
+ ord varchar(80),
+ fees money,
+ penalty money,
+ toPay money,
+ treamort varchar(5),
+ taxrollId int
+)
+Begin
+  
+  
+set @searchString=replace(@searchstring,'~{','''')
+
+  declare @sSLen int
+   select @sSLen = LEN(@searchString)
+
+
+
+  declare @showPaidFlag char(1) = substring(@orderString,3,1),
+          @protest varchar(10) = '',
+          @AdvSrch varchar(1) = substring(@orderString,5,1),
+          @mortcode varchar(50)
+
+--set @mortcode
+select @mortcode = key1 from object where id = @mtgCodeId 
+
+
+
+---Regular Search 
+      insert @rt
+       select top 1000 
+        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId
+       from dbo.invoices
+       where 
+        --name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%'
+--        and 
+status<>'Firstnum'
+        and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
+        and taxrollId in (select id from adtax where case when treamort>'0' then treamort else mortgagecode end = @mortcode)  
+
+
+-- Set Mortgage Codes
+   update @rt set
+    treamort = 
+     case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else 
+     case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end 
+   from adtax a where taxrollid=a.id and taxType not in ('A','S')
+
+  declare @interestToDate int
+
+  if left(@searchString,12)='Interest To:'
+   begin
+    select @interestToDate = dbo.clariondate(substring(@searchString,14,10))
+   end
+  else
+   begin
+    select @interestToDate = dbo.clariondate(getdate())
+   end
+
+
+  if exists(select * from receiptLink where receiptId = @mtgCodeId)
+  begin
+   update a set 
+    fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
+    penalty = round((due*dbo.penaltyPercent(a.invoiceId*-1,dbo.date1(@interestToDate))/100),2),
+    toPay = due,
+    a.selectedFlag = 'X'
+   from @rt a, receiptLink b 
+     where a.InvoiceId*-1 = b.invoiceId and b.receiptId = @mtgCodeId 
+
+     
+   insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel) 
+   select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',sum(amount),sum(due),sum(fees),sum(penalty),'--Grand Total: '+cast(dbo.formatcurr(sum((isnull(topay,0)+isnull(fees,0)+isnull(penalty,0)))) as varchar)
+   from @rt where selectedFlag > '  0'
+
+   insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
+  end
+
+ return
+
+end

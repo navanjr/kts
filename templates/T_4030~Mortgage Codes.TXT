@@ -20,7 +20,9 @@
 
 @loadwindow=
  create(550,12,65,16,'&Print Separate',78),
- create(551,12,125,16,'&Hide Msg Stmt',80);
+ create(551,12,125,16,'&Hide Msg Stmt',80),
+ lcYear=,
+ createbrw=;
 
 \t001Code;
 
@@ -34,8 +36,58 @@
 \t019Fax;
 \t021Contact;
 \t023Email;
+\t025Year; \w02630; \f026=kp('select max(taxyear) from invoices');
+\t063Search;
 
 \t077PrintSeparate; \h077078;r
 \t079Hide Msg Stmt; \h079080;r
 
 \t110Mtg List; @acc110=bbproc4=;
+
+
+@createbrw=
+  kpmo('Selecting Mortgage Code Data...'),
+  obj:b9, 
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&',''ALL'','''&obj:b9&''',''101000'') order by ord',
+  brw(160,1,gcsql,3,175,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M18C(2)~Sel~#9#|M',7,1),
+  kpmc();
+
+@brw1=
+ lcClickedId=kpbrwid(1),
+ lcMethod='tax',
+ brwClicked=;
+
+@brwClicked=
+ break(lcClickedId=0),
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ sql('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&''''),
+ gcClickedId=lcClickedId*-1,
+ gcalreadylinked=kp('select receiptId from receiptlink where invoiceId='&gcClickedId&' and receiptId in (select id from object where typ=4502 and a17<>''Posted'') and receiptId<>'&obj:id),
+ if(gcalreadylinked+0>1,alreadylinked=),
+ refreshBRW=;
+
+@refreshBRW=
+ gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''',''101000'') order by ord',
+ brwreload(1,gcsql);
+
+@alreadylinked=m('This tax item is already linked to another receipt in progress. Would you like to edit that receipt?','Edit Linked Receipt.',,6),
+  break(gcretval<>2),
+  change(gcalreadylinked);
+
+
+\t115New Receipt;
+@acc115=
+ d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
+@newReceiptRocks=
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj7:d1),
+ change(obj7:d1);
+@newReceiptFail=
+ m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
+
+
+\t116Select All;
+@acc116=
+ lcClickedId=kpbrwid(1),
+ lcMethod='mtgCode',
+ brwClicked=;
