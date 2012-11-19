@@ -534,6 +534,7 @@ lmode=2;
  break(obj:key3<>'OFFICIAL' and obj:key3<>'TAX' and obj:c8+0<>0),
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),update,
  getRecNum=,
+ gcposted=kp('select a17 from object where id='&obj:id),
  postGL=,
  printRec=,
  checkCert=,
@@ -546,6 +547,7 @@ lmode=2;
  rekey('id='&obj:id);
 
 @printRec=
+ break(gcposted<>'Posted'),
  update,
  gcRecId=obj:id,
  gcRecType=obj:key3,
@@ -569,7 +571,9 @@ lmode=2;
  set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+ gcposted=kp('select a17 from object where id='&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
+ if(gcposted='Posted',close('ok'));
 
 @checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 
   and subdescription in (select key1 from object where typ=4100 and key2=''A'')'),
