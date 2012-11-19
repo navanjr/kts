@@ -36,8 +36,9 @@
 \t019Fax;
 \t021Contact;
 \t023Email;
-\t025Year; \w02630; \f026=kp('select max(taxyear) from invoices');
-\t063Search;
+\t025Year; \w02630; \f026=kp('select max(taxyear) from invoices'); @acc026=refreshBrw=;
+
+\t063Search; @acc064=refreshBrw=; \h063064;r
 
 \t077PrintSeparate; \h077078;r
 \t079Hide Msg Stmt; \h079080;r
@@ -75,8 +76,8 @@
   change(gcalreadylinked);
 
 
-\t115New Receipt;
-@acc115=
+\t116New Receipt;
+@acc116=
  d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
  if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
 @newReceiptRocks=
@@ -86,8 +87,14 @@
  m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
 
 
-\t116Select All;
-@acc116=
+\t117Select All;
+@acc117=
+ update,
  lcClickedId=kpbrwid(1),
- lcMethod='mtgCode',
+ lcMethod='mtgCodeAll',
  brwClicked=;
+
+\t119UnSelect All;
+@acc119=
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''reset'''),
+ refreshBRW=;
