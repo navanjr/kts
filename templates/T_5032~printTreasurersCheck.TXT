@@ -1,0 +1,48 @@
+@bb4=&Print; 
+@bbproc4=
+ gcBeginDate=today(),
+ gcEndDate=today(),
+ print=;
+
+
+
+@print=
+ do(452,getSiteInfo=),
+ lcsql='select
+ a.key3 as TreasurersCheck,
+ dbo.date1(a.a1) as Date, 
+ cast(a.a3 as money) as amount,
+ w.key3 as warNumber,
+ dbo.date1(w.a1) as warDate,
+ cast(w.a3 as money) as warAmount
+ from object a, object w
+ where
+  a.id = w.link1
+  and a.typ = 4771 and a.a18 = ''Treasurers Check'' 
+ order by a.key3
+ ',
+ lcCheckAmt=0,
+ tr(
+  prn(printed),
+  prn(page),
+  prn('Treasurers Checks',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
+  if(gcReceiptType>'  0'),prn('Receipt Type: '&gcReceiptType,t5),
+  grp(1,obj5:a1,do(
+   bnd('HOU','Date: '&obj5:a2,1000,'Check Number: '&obj5:a1,1000,,4000),
+   bnd('H',,500,'Warr #',1000,'Warr Date',1000,'Warr Amount',1000,),
+  ),do(
+   nl,
+   bnd('H',,500,'',1000,'Total',1000,format(lcCheckAmt,@n$14.2),1000R,),
+   lcCheckAmt=0,
+   nl,nl,
+  )),
+  bnd('H','',7500),
+  det(lcsql),
+   bnd('D',,500,obj5:a4,1000,obj5:a5,1000,format(obj5:a6,@n14.2),1000R,),
+   lcCheckAmt=lcCheckAmt+obj5:a6,
+  edt
+
+ );
