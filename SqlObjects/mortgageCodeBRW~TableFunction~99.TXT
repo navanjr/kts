@@ -19,7 +19,7 @@ create function dbo.mortgageCodeBRW(
  fees money,
  penalty money,
  toPay money,
- treamort varchar(5),
+ treamort varchar(50),
  taxrollId int
 )
 Begin
@@ -52,14 +52,14 @@ select @mortcode = key1 from object where id = @mtgCodeId
 --        and 
 status<>'Firstnum'
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
-        and taxrollId in (select id from adtax where case when treamort>'  0' then treamort else mortgagecode end = @mortcode)  
+        and taxrollId in (select id from adtax where case when treamort>'  0' then treamort else cast(mortgagecode as varchar) end = @mortcode)  
 
 
 -- Set Mortgage Codes
    update @rt set
     treamort = 
      case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else 
-     case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end 
+     case when mortgagecode='0' then '' else cast(mortgagecode as varchar(50)) end end 
    from adtax a where taxrollid=a.id and taxType not in ('A','S')
 
   declare @interestToDate int
