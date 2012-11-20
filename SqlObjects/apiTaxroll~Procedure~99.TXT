@@ -3,6 +3,7 @@ create proc dbo.apiTaxroll(
  @method varchar(50) = 'GET',
  @batchSize int = 10,
  @postFile varchar(50) = 'apiPostTaxroll.json',
+ @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
 ) as
@@ -38,6 +39,8 @@ begin
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
+ if @scratchFile is null
+  set @scratchFile = @tempPath + '\' + 'apiResultTaxroll.tmp'
 
  declare @jsonPrep table(
   id int identity(1,1),
@@ -220,7 +223,7 @@ begin
    @resource = @apiResource,
    @postFile = @postFile,
    @debugMode = @debugMode,
-   @scratchFile = 'apiResultTaxroll.tmp',
+   @scratchFile = @scratchFile,
    @cmdOutput = @tokenId output,
    @dump = @dump output
 
