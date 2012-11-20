@@ -3,6 +3,7 @@ create proc dbo.apiInvoices(
  @method varchar(50) = 'GET',
  @batchSize int = 100,
  @postFile varchar(50) = 'apiPostInvoices.json',
+ @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
 ) as
@@ -36,6 +37,9 @@ begin
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
+ if @scratchFile is null
+  set @scratchFile = @tempPath + '\' + 'apiResultInvoices.tmp'
+
  declare @jsonPrep table(
   id int identity(1,1),
   parentId int,
