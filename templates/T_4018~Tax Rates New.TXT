@@ -4,6 +4,13 @@
  lcinquiry=kp('select id from object where typ=4018 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''''),
  if(lcinquiry+0>0,change(lcinquiry),new(4018));
 
+\t110Print;
+@acc110=
+ gcYear=obj:key1,
+ gcDistrict=obj:key2,
+ gcRateName=obj:key3,
+ trreport('adtaxSummary',4018,'adtxSummary=');
+
 @loadbrowse=menuprocess=;
 @calculate=046=obj:b1+obj:b2+obj:b3+obj:b4+obj:b5+obj:b6+obj:b7+obj:b8+obj:b9+obj:b10+obj:b11+obj:b12+obj:b13+obj:b14+obj:b15;
 
@@ -43,3 +50,20 @@ Millage CRUD...'));
  \t047075;r2 t048076@n14.6;r2 \w04607650;r2 \x046076184;r2
 
 \t045Total; \x045160; \n046;
+
+@adtxSummary=
+ do(452,getSiteInfo=),
+ lcSQL='select COUNT(*), recordType, sum(balanceDue) from AdTax where REALTAXYEAR = '''&gcYear&''' and SCHOOLDISTRICTMAIN = '''&gcDistrict&''' and SCHOOLDISTRICTTAXRATE = '''&gcRateName&''' group by recordType order by recordType',
+ tr(
+  prn(printed),
+  prn(page),
+  prn('AdTax Summary Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn('RealTaxYear: '&gcYear,t4),
+  prn(gcDistrict&' : '&gcRateName,t5),
+  bnd('HU','Count',500,'RecordType',1000,'BalanceDue',1000R),
+  det(lcSQL),
+   bnd('D',obj5:a1,500,obj5:a1,1000,obj5:a3,1000R),
+  edt,
+ );
