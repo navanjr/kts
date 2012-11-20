@@ -99,6 +99,9 @@ begin
   if @id < 1
    return
 
+  if (select a17 from object where id = @id) = '' and not exists(select * from glDetail where slink = @slink)
+   set @deleteObject = 'TRUE'
+
   begin transaction
   delete dbo.glDetailStage where slink = @slink
   delete dbo.glDetail where slink = @slink
@@ -164,6 +167,21 @@ begin
 
    select @payee = accountDesc from dbo.glAccounts where accountCode = @officialBankCode
 
+  end
+
+  if @paymentType = 'Cancel Voucher'
+  begin
+   select
+    @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
+    @voucherNumber = a.key3,
+    @payee = a.a2,
+    @amount = cast(a.a3 as money) * -1,
+    @debitAcct = a.a4,
+    @creditAcct = a.a5,
+    @officialName = a.a7,
+    @officialDepositCode = a.a8,
+    @officialBankCode = a.a9
+   from object a where a.typ = 4771 and a.id = @id
   end
 
   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
