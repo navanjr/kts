@@ -123,14 +123,14 @@ begin
 
         declare @pt table(id int identity(1,1),paycode varchar(60), amount money, checkno varchar(60), processcount int)
          insert @pt
-           select case when paycode = 'Cash' then paycode else 'Check' end, amount, checkno,0 from paid where slink = 'o'+@recid 
+           select case when paycode = 'Cash' then paycode else 'Check' end, amount, isnull(checkno,''),0 from paid where slink = 'o'+@recid 
                                          
         declare @checkno varchar(250),
                 @idToken int
       
         while exists(select * from @pt where paycode='Check' and processcount=0)
         begin
-          select top 1 @idToken = id, @checkno = left(@checkno+case when len(@checkno)>1 then '; ' end+rtrim(checkno),249) from @pt where paycode='Check' and processcount=0
+          select top 1 @idToken = id, @checkno = left(isnull(@checkno,'')+case when len(@checkno)>1 then '; ' end+rtrim(checkno),249) from @pt where paycode='Check' and processcount=0
          
           
           update @pt set processcount=1 where id=@idToken
