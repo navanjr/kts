@@ -34,7 +34,7 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns
 			blob varchar(max),
                         deputy varchar(50),
                         invoiceLink int,
-                        checkno varchar(50) ,
+                        checkno varchar(250) ,
                         GrandTotal money,
                         Comments varchar(250),
                         recCount int default 0,
@@ -117,13 +117,31 @@ begin
 
 		                      from paid where slink = 'o'+@recid 
                                          group by case when paycode='Cash' then paycode else 'Check' end
+
+
+
+
+        declare @pt table(id int identity(1,1),paycode varchar(60), amount money, checkno varchar(60), processcount int)
+         insert @pt
+           select case when paycode = 'Cash' then paycode else 'Check' end, amount, checkno,0 from paid where slink = 'o'+@recid 
+                                         
+        declare @checkno varchar(250),
+                @idToken int
+      
+        while exists(select * from @pt where paycode='Check' and processcount=0)
+        begin
+          select top 1 @idToken = id, @checkno = left(@checkno+rtrim(checkno),249) from @pt where paycode='Check' and processcount=0
+         
+          
+          update @pt set processcount=1 where id=@idToken
+        end
 			
 	update r set
-			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
-			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
-			r.checkno = case when cast(dbo.readstring('@check=',@paidBlob) as money)>0 then dbo.readstring('@checkno=',@paidBlob) else '' end,
-                        r.grandtotal = r.TotPaid,--cast(dbo.readstring('@check=',@paidBlob) as money)+cast(dbo.readstring('@cash=',@paidBlob) as money),
-                        r.change = cast(dbo.readstring('@change=',@paidBlob) as money)*-1,
+			r.ckoth = (select sum(amount) from @pt where paycode='Check'),
+			r.cash = (select sum(amount) from @pt where paycode='Cash' and checkno <> 'Cash Returned'),
+			r.checkno = @checkno,
+                        r.grandtotal = r.TotPaid,
+                        r.change = (select sum(amount) from @pt where paycode='Cash' and checkno = 'Cash Returned')*-1,
                         r.taxAmt = r.taxAmt - r.taxPaid
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 
