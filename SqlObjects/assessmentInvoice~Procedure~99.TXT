@@ -17,6 +17,24 @@ begin
   
   select @slink = slink from dbo.taxrollCheck(@assessmentId,'S',null)
 
+ declare @feedescription varchar(60),
+         @feesourceCode varchar(60),
+         @feefundCode varchar(60),
+         @feeAmount money,
+         @taxyear varchar(60),
+         @interestDate int
+         
+    select
+    @feedescription=feedescription,
+    @feesourceCode=feesourceCode,
+    @feefundCode=feefundCode,
+    @feeAmount=feeAmount,
+    @interestDate = interestDate
+    from (select top 1 * from dbo.assessmentDetailCheck(@assessmentId)) data
+
+   exec dbo.subInvoiceCRUD @invoiceId, @interestDate, @feedescription, @feesourceCode, @feefundCode, 'F', @feeAmount,  0, ''
+
+
   if dbo.glPostCheck(@slink) = 0
    begin
     select '@code=0;@message=OK;'
@@ -26,5 +44,6 @@ begin
     select '@code=1;@message=Assessment failed to process correctly, Contact Support. (as.inv);'
    end
 
-
+  exec dbo.invoiceUpdate @invoiceId
 end
+
