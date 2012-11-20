@@ -103,7 +103,9 @@ begin
                         TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + Penalty + mail + lien + adv + mowing + other 
 
 
---TODO: checkno calculation is incorrect - use discontinued for now
+--TODO: checkno calculation is incorrect
+
+
 --Update Paid
  
 
@@ -115,9 +117,7 @@ begin
 
 		                      from paid where slink = 'o'+@recid 
                                          group by case when paycode='Cash' then paycode else 'Check' end
-
-
-
+			
 	update r set
 			r.ckoth = cast(dbo.readstring('@check=',@paidBlob) as money),
 			r.cash = cast(dbo.readstring('@cash=',@paidBlob) as money),
@@ -126,6 +126,8 @@ begin
                         r.change = cast(dbo.readstring('@change=',@paidBlob) as money)*-1,
                         r.taxAmt = r.taxAmt - r.taxPaid
 		from @rt r, paid p where 'o'+r.recId = p.slink 
+
+
 
 --set record Count
    
