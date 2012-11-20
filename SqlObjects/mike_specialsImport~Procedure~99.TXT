@@ -1,6 +1,7 @@
 create proc dbo.mike_specialsImport(
  @taxyear varchar(4),
- @code varchar(50)
+ @code varchar(50),
+ @noMike varchar(5) = 'FALSE'
 ) as
 begin
  
@@ -40,7 +41,7 @@ begin
   select *,@code from mike_taxroll where realtaxyear = @taxyear and recordtype = 'O' and pertyp = 'F'
    and itemNumber not in (select itemNumber from @wt)
 
- if @code = 'mike_taxroll' 
+ if @code = 'mike_taxroll' and @noMike = 'FALSE' 
   insert adtax 
            ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
            ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
@@ -52,6 +53,29 @@ begin
            ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn],[origin])
   select *,@code from mike_taxroll where realtaxyear = @taxyear and recordtype != 'O'
    and itemNumber not in (select itemNumber from @wt)
+
+ if @code = 'mike_taxroll' and @noMike = 'TRUE' 
+  insert adtax 
+           ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+           ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+           ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+           ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+           ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+           ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+           ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
+           ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn],[origin])
+  select 
+            [RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+           ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+           ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+           ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+           ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+           ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+           ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'','',''
+           ,'','','','','','',''
+   ,@code from mike_taxroll where realtaxyear = @taxyear and recordtype != 'O'
+   and itemNumber not in (select itemNumber from @wt)
+
 
 
  return
