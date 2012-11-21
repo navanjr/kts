@@ -6,7 +6,7 @@ Department varchar(50),
 AccountCode varchar(60),
 BeginBalance money,
 CancelVoid money,
-DirectDeposit money,
+Journals money,
 Deposits money,
 Vouchers money,
 EndBalance money,
@@ -18,18 +18,23 @@ insert @rt
 select id,key2,key1,a1,a3,
  isnull((select sum(cast(credit as money)-cast(debit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceDate<@beginDate),0) as BeginBalance,
+
  isnull((select sum(cast(credit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceType='4771' and 
  sourceDate>=@beginDate and sourceDate<=@endDate),0) as CancelVoid,
+
  isnull((select sum(cast(credit as money)-cast(debit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceType='4512' and 
  sourceDate>=@beginDate and sourceDate<=@endDate),0) as Journals,
+
  isnull((select sum(cast(credit as money)-cast(debit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceType not in ('4771','4512') and 
  sourceDate>=@beginDate and sourceDate<=@endDate),0) as Deposits,
+
  isnull((select sum(cast(debit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceType='4771' and 
  sourceDate>=@beginDate and sourceDate<=@endDate),0) as Vouchers,
+
  (select sum(cast(credit as money)-cast(debit as money)) 
  from dbo.glDetailReports where accountCode=a3 and sourceDate<=@endDate) as EndBalance,
  a4
