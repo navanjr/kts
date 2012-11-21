@@ -1,0 +1,50 @@
+@bb7=&Print; @bbproc7=printOfficialAccountQuery=;
+
+@keyReportMaintenance;
+
+@printOfficialAccountQuery=
+ do(452,getSiteInfo=),
+ lcgrpToken='',
+ lcsql='select id, OfficerName, OfficerTitle, Department, AccountCode, BeginBalance, CancelVoid, DirectDeposit, Deposits, Vouchers, EndBalance, BankCode from dbo.OfficialAccountQuery('''&gcBeginDate&''','''&gcEndDate&''') order by Department',
+ lcDetFont='Arial',
+ lcFont='Arial',
+ lcFontSize=11,
+
+ lcTotBegBalance=0,
+ lcTotCancel=0,
+ lcTotDirDeposit=0,
+ lcTotDeposits=0,
+ lcTotVouchers=0,
+ lcTotEndBalance=0, 
+
+ tr(
+  lcx=250,
+  lcTm=400,
+  box(lcx,lcTm,lcx+3200,lcTm+550,0),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+1000,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),
+  prn('Official Account Balances',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4),
+  prn(,lcx), 
+  if(curpag=1),
+  prn(,,,lcFontSize,,lcFont),
+  bnd('H9U',,600,'Officer Name',1000,'Officer Title',1000,'Department',450,'Beg Balance',700R,'Cancel/Void',700R,'Dir Dep',700R,'Deposits',700R,'Vouchers',700R,'End Balance',700R),
+  det(lcsql),
+   prn(,,,lcFontSize-2,,lcDetFont),
+   bnd('DB',,600,obj5:a2,1000,obj5:a3,1000,obj5:a4,450,obj5:a6,700R,obj5:a7,700R,obj5:a8,700R,obj5:a9,700R,obj5:a10,700R,obj5:a11,700R),
+   lcTotBegBalance=lcTotBegBalance+obj5:a6,
+   lcTotCancel=lcTotCancel+obj5:a7,
+   lcTotDirDeposit=lcTotDirDeposit+obj5:a8,
+   lcTotDeposits=lcTotDeposits+obj5:a9,
+   lcTotVouchers=lcTotVouchers+obj5:a10,
+   lcTotEndBalance=lcTotEndBalance+obj5:a11, 
+  edt,
+  nl,
+   bnd('DB',,600,'',1000,'Report Total:',1000,'',450,lcTotBegBalance,700R,lcTotCancel,700R,lcTotDirDeposit,700R,lcTotDeposits,700R,lcTotVouchers,700R,lcTotEndBalance,700R),
+ );
