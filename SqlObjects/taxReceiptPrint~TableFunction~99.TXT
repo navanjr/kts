@@ -100,7 +100,7 @@ begin
 
 	update @rt set
 			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId),
-                        TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + Penalty + mail + lien + adv + mowing + other 
+                        TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + isnull(Penalty,0) + isnull(mail,0) + isnull(lien,0) + isnull(adv,0) + isnull(mowing,0) + isnull(other,0) 
 
 
 --TODO: checkno calculation is incorrect
@@ -137,12 +137,12 @@ begin
         end
 			
 	update r set
-			r.ckoth = (select sum(amount) from @pt where paycode='Check'),
-			r.cash = (select sum(amount) from @pt where paycode='Cash' and checkno <> 'Cash Returned'),
-			r.checkno = @checkno,
-                        r.grandtotal = r.TotPaid,
-                        r.change = (select sum(amount) from @pt where paycode='Cash' and checkno = 'Cash Returned')*-1,
-                        r.taxAmt = r.taxAmt - r.taxPaid
+			r.ckoth = isnull((select sum(amount) from @pt where paycode='Check'),0),
+			r.cash = isnull((select sum(amount) from @pt where paycode='Cash' and checkno <> 'Cash Returned'),0),
+			r.checkno = isnull(@checkno,0),
+                        r.grandtotal = isnull(r.TotPaid,0),
+                        r.change = isnull((select sum(amount) from @pt where paycode='Cash' and checkno = 'Cash Returned'),0)*-1,
+                        r.taxAmt = isnull(r.taxAmt,0) - isnull(r.taxPaid,0)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 
 
@@ -154,10 +154,10 @@ begin
            @reptotalRec money
    
      select @recCount = count(recid), 
-            @repTotalDue = sum(TotPaid)
+            @repTotalDue = sum(isnull(TotPaid,0))
           from @rt
       
-     update @rt set recCount = @recCount, repTotalDue = @repTotalDue, reptotalRec = ckoth+cash			
+     update @rt set recCount = @recCount, repTotalDue = @repTotalDue, reptotalRec = isnull(ckoth,0)+isnull(cash,0)			
 
  return					
 end
