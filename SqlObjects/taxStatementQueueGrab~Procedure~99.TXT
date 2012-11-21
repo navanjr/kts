@@ -52,6 +52,19 @@ begin
   return
  end
 
+ declare @wt table(taxrollId int, ownerNumber numeric(9,2))
+ insert @wt select top( @count ) i.taxrollid, x.ownerNumber from dbo.taxStatementQueueGrab 
+-- add any linked ownerNumbers
+ insert @wt
+ select i.taxrollid, x.ownerNumber
+  from dbo.taxStatementQueueGrab
+  where
+   ownerNumber in (select ownerNumber from @wt)
+   and taxrollId not in (select taxrollId from @wt) 
+
+  update invoices set queue = @batchName where taxrollid in (select taxrollId from @wt)
+
+/*
   update invoices set queue = @batchName where taxrollid in 
    (select top( @count ) i.taxrollid 
     from invoices i, adtax x 
@@ -63,6 +76,6 @@ begin
      and i.invoiceId = 0
      and i.typ not in ('O')
      and i.invoiceDue != 0
-    order by i.name + cast(i.item as varchar))
-
+    order by i.name + cast(x.ownerNumber as varchar) + cast(i.item as varchar))
+*/
 end
