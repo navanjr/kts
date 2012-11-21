@@ -84,9 +84,18 @@ begin
                    recId int)
 
 insert @wt2
- select sum(case when invoiceType='P' then paid else 0 end),
- sum(case when invoiceType<>'P' and invoiceType<>'A' then paid else 0 end),
- '', parentInvoiceId, recId from @wt group by parentInvoiceId, recId
+     select
+   sum(case when b.sourceCode='penalty' then b.amount else 0 end),
+   sum(case when b.sourceCode<>'penalty' then b.amount else 0 end),
+   '',
+   c.parentInvoiceId,
+     recId 
+  from receiptLink a, receiptDetail b,@wt c
+ where 't'+CAST(a.invoiceId as varchar) = b.slink
+   and a.invoiceId = c.invoiceId
+   and receiptId = 64889
+   and c.parentInvoiceId > 0
+     group by c.parentInvoiceId, recId
 
 
 update w set 
