@@ -14,8 +14,25 @@ create function dbo.reportMiscReceiptDetail(@beginDate varchar(15), @endDate var
 as   
 begin   
 
-declare @miscCollectionAccountCode varchar(60) = 'MISCTAX',
+declare @wt table(postDate int, 
+   postDate1 varchar(50),
+   ReceiptNo varchar(50),
+   FundDesc varchar(60),
+   ReceivedOf varchar(60),
+   amount money,
+   PrevApportioned money,
+   slink varchar(16),
+   fundCode varchar(60),
+   description varchar(150),
+   sourceDesc varchar(60),
+   detCount int,
+   recId int)
+
+
+declare @miscCollectionAccountCode varchar(60),
         @miscTaxAccountId int
+
+select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
 
 select @miscTaxAccountId = accountId from glAccounts where accountCode=@miscCollectionAccountCode
 
@@ -60,6 +77,18 @@ where
  r.slink=s.slink
   and r.fundCode=s.fundCode
   and r.detCount>1
+
+insert @wt
+select d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1,amount,
+  0000000.0000 as PrevApportioned, d.slink, d.accountCode,'','',0, r.id 
+from dbo.glDetailReports d, glAccounts a, object r 
+where d.accountCode=a.accountCode 
+ and a.targetAccountCode not in (select f.accountCode from glaccounts f)
+ and (dbo.slinkId(d.slink)=r.id)
+ and d.[sourcedate]>=@beginDate 
+ and d.[sourcedate]<=@endDate 
+ and contraId=@miscTaxAccountId
+
 
 
 
