@@ -2,11 +2,19 @@ create proc dbo.taxStatementQueueGrab (
  @taxYear varchar(50),
  @ini varchar(10),
  @count int,
- @mortCode varchar(50)
+ @mortCode varchar(50),
+ @removeBatch varchar(50) = null
 ) as
 
 begin
  exec dbo.logit @@procid, '@taxyear', @taxyear, '@ini', @ini, '@count', @count, '@mortCode', @mortcode
+
+ if isnull(@removeBatch,'') > '  0'
+ begin
+  exec dbo.logit @@procid, '@removeBatch', @removeBatch, '@taxyear', @taxyear
+  update invoices set printed = '', queue = '' where taxyear = @taxyear and queue = @removeBatch 
+  return
+ end
 
  declare @batchName varchar(50) 
  if exists(select * from invoices where dbo.splitF(queue,'.',1) = @ini)

@@ -65,14 +65,22 @@
  if(gcretval=2,sql('exec dbo.taxrollInvoiceBatch '''&gcTaxYear&''',0,'''&cur:ini&''''));
 
 @queueRoutine=
- m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print &All Un-Printed Tax Statements|&Open Print Batch|&Cancel'),
- break(gcretval=3),
+ m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print &All Un-Printed Tax Statements|&Open Print Batch|&Remove Print Batch|&Cancel'),
+ break(gcretval=4),
  gcTaxYear=obj:key1,
  gcBatchName=readstring(lcBlob,'@code='),
  gcSwitch='p',
  lcUnPrinted=readstring(lcBlob,'@unPrinted='),
  if(gcretval=1,printBatch=),
- if(gcretval=2,openBatch=);
+ if(gcretval=2,openBatch=),
+ if(gcretval=3,removeBatch=);
+
+@removeBatch=
+ m('Are you sure you wish to remove this Batch?','Print Batch...','question.ico',6,2),
+ break(gcretval<>2),
+ gcIni=cur:ini,
+ sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''',0,'''', @removeBatch='''&gcBatchName&'''');
+ refreshbrw=;
 
 @printBatch=
  m('Are you ready to print all '&lcUnPrinted&' invoice(s)?','Print Batch...','question.ico',6,2),

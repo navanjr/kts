@@ -7,7 +7,6 @@
 9242 - 490
 18183
 
-
 @taxStatmentBr=
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
   lcContinue=obj7:d1,
@@ -18,6 +17,7 @@
   lcAdd=obj7:d1,
  if(lcAdd<'  0',failedProc=),
  break(lcContinue='False'),
+  do(452,getSiteInfo=),
   lcsql='select description,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
   lcUnPaid=kp('select SUM(invoiceDue) from dbo.unpaidTFNew('&gcInvoiceId&') where trSection = 1 and trcode = ''Past Due'''),
   lcUnPaidTF1='select trcode,SUM(invoiceDue)from dbo.unpaidTFNew('&gcInvoiceId&') where trSection = 1 group by trcode,ord order by ord',
@@ -36,9 +36,10 @@
    lcx=600,
    lcy=lcTm,
    mg(kpexepath()&'\kts\bryancounty.gif',0,-50,8500,11000),
+   prn(readstring(lcInvoiceBlob,'@QUEUE='),7800,600,5,,'Arial'),
    prn(readstring(lcInvoiceBlob,'@TAXYEAR=')&' '&gcCounty&' County Tax Statement',t1),
    prn(,,,lcFontSize,,'Arial'),
-   txt(gcOfficeAddFull,lcx,lcy,4000,1000,1),
+   txt(gcOfficeAddFull,lcx,lcy+100,4000,1000,1),
    lcy=lcy+1250,
    txt(lcName&chr(13)&chr(10)&lcAdd,lcx+400,lcy,4000,1000,1),
    lcy=lcy-1350,
@@ -89,7 +90,7 @@
    box(lcx+4850,lcy-175,lcx+7600,lcy+325,,),
    bnd(,'Total '&readstring(lcInvoiceBlob,'@TAXYEAR=')&' Tax Due',1500C,format(lcgrandtotal,@n$-14.2),1100R),
    lcy=lcTm+6075,
-  lcy=lcy+25,
+  lcy=lcy+100,
   prn(,lcx-350,lcy),
   bnd(,'-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------',6000),
   nl,nl,
@@ -132,7 +133,6 @@
   prn(,,lcy+765),
   bnd(,'All',600,'Total '&readstring(lcInvoiceBlob,'@TAXYEAR=')&' Tax Due',1200,format(lcTotal,@n$-14.2b),1500R),
   );
-
 
 @taxStatmentGr=
 d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
