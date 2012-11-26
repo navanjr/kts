@@ -1,0 +1,46 @@
+@bb7=&Print; @bbproc7=printMiscReceiptReport=;
+
+@keyReportMaintenance;
+
+@printMiscReceiptReport=
+ do(452,getSiteInfo=),
+ lcgrpToken='',
+ lcsql='select postDate, postDate1, ReceiptNo, FundDesc, ReceivedOf, amount, PrevApportioned, slink, FundCode from dbo.reportMiscReceiptDetail('''&gcBeginDate&''','''&gcEndDate&''') order by FundCode,ReceiptNo',
+ lcDetFont='Arial',
+ lcFont='Arial',
+ lcFontSize=11,
+
+ lcTotAmount=0,
+ lcTotPrev=0,
+ lcFundTotAmount=0,
+ lcFundTotPrev=0,
+
+ tr(landscape,
+  lcx=250,
+  lcTm=400,
+  box(lcx,lcTm,lcx+3200,lcTm+550,0),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+1000,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),
+  prn('Miscellaneous Receipts By Fund',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4),
+  prn(,lcx), 
+  if(curpag=1),
+  prn(,,,lcFontSize,,lcFont),
+  bnd('H9U','Date',500,'Receipt No',600,'Fund',1500,'Received Of',2000,'Amount',800R,'Prev Apportioned',800R),
+  det(lcsql),
+   prn(,,,lcFontSize-2,,lcDetFont),
+   bnd('DB',obj5:a2,500,obj5:a3,600,obj5:a4,1500,obj5:a5,2000,format(obj5:a6,@n-19.2),800R,format(obj5:a7,@n-19.2),800R),
+   lcTotAmount=lcTotAmount+obj5:a6,
+   lcTotPrev=lcTotPrev+obj5:a7,
+   lcFundTotAmount=lcFundTotAmount+obj5:a6,
+   lcFundTotPrev=lcFundTotPrev+obj5:a7,
+  edt,
+  nl,
+   bnd('D','',500,'Report Total:',600,'',1500,'',2000,format(lcTotAmount,@n-19.2),800R,format(lcTotPrev,@n-19.2),800R),
+ );
