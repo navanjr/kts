@@ -57,7 +57,8 @@ begin
   tax_Year varchar(4),
   invoice_due money,
   invoice_amount money,
-  posted_date varchar(50)
+  posted_date varchar(50),
+  interest_date varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -113,7 +114,8 @@ begin
    taxyear,
    invoiceDue,
    invoiceAmount,
-   convert(varchar,cast(dbo.date1(postdate) as datetime),112)
+   dbo.date112(postdate),
+   dbo.date112(interestDate)
   from invoices where taxyear in (select year from @taxyears)
    and isnull(apiUpdated,0) < modified
   order by id  
@@ -140,7 +142,9 @@ begin
 
   insert @jsonPrep select parentId,null,'invoice_due',invoice_due,'int' from @wt
   insert @jsonPrep select parentId,null,'invoice_amount',invoice_amount,'int' from @wt
+
   insert @jsonPrep select parentId,null,'posted_date',posted_date,'int' from @wt
+  insert @jsonPrep select parentId,null,'interest_date',interest_date,'int' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
