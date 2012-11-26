@@ -53,13 +53,13 @@ begin
  end
 
  declare @wt table(taxrollId int, ownerNumber numeric(9,2))
- insert @wt select top( @count ) taxrollid, ownerNumber from dbo.taxStatementQueueGrabView where taxyear = @taxyear
+ insert @wt select top( @count ) taxrollid, ownerNumber from dbo.taxStatementQueueGrabView where taxyear = @taxyear and isnull(mortCode,'') in ('','0') 
 -- add any linked ownerNumbers
  insert @wt
  select taxrollid, ownerNumber
   from dbo.taxStatementQueueGrabView
   where
-   taxyear = @taxyear
+   taxyear = @taxyear and isnull(mortCode,'') in ('','0')
    and ownerNumber in (select ownerNumber from @wt)
    and taxrollId not in (select taxrollId from @wt) 
 
