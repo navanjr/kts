@@ -53,13 +53,14 @@ begin
  end
 
  declare @wt table(taxrollId int, ownerNumber numeric(9,2))
- insert @wt select top( @count ) taxrollid, ownerNumber from dbo.taxStatementQueueGrabView 
+ insert @wt select top( @count ) taxrollid, ownerNumber from dbo.taxStatementQueueGrabView where taxyear = @taxyear
 -- add any linked ownerNumbers
  insert @wt
  select taxrollid, ownerNumber
   from dbo.taxStatementQueueGrabView
   where
-   ownerNumber in (select ownerNumber from @wt)
+   taxyear = @taxyear
+   and ownerNumber in (select ownerNumber from @wt)
    and taxrollId not in (select taxrollId from @wt) 
 
   update invoices set queue = @batchName where taxrollid in (select taxrollId from @wt)
