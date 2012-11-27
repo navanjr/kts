@@ -1,4 +1,4 @@
-create function dbo.dailyledgerdata(@date varchar(50)) returns @rt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, tranout money, tranin money, deposits money, endbalance money, accountType varchar(50))
+create function dbo.dailyledgerdata(@date varchar(50)) returns @rt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, tranout money, tranin money, deposits money, endbalance money, accountType varchar(50), reportOrder varchar(50))
 as 
 begin 
 declare @wt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, tranout money, tranin money, deposits money, endbalance money, accountType varchar(50))
@@ -68,15 +68,16 @@ update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, endbalance=e
 update @wt2 set paid=paid*-1 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
 insert @rt
- select * from @wt2 where accountType in ('BANK','FUND')
+ select *,'' from @wt2 where accountType in ('BANK','FUND')
 
 insert @rt
-select accountType, accountType+'S', sum(beginbalance), sum(paid), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType from @wt2
+select accountType, accountType+'S', sum(beginbalance), sum(paid), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType,'' from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH')) and accountType not in ('BANK','FUND')
  group by accountType
 
 update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
 update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+update r set reportOrder = a.reportOrder from @rt r, glaccounts a where r.accountCode=a.accountCode
 return
 end

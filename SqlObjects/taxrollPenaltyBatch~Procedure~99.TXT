@@ -32,13 +32,24 @@ begin
   @fundCode = b4
  from object where typ=40 order by id 
 
+
+ declare @pttemp table(invoiceId int, amount money, dueDate varchar(50))
+ insert @pttemp
+  select a.invoiceId,
+         0,
+         case when i.interestdate > 0 then cast(i.interestdate as varchar(50)) else dbo.clariondate('12/31/' + cast(i.taxyear as varchar)) end as dueDate
+   from receiptLink a, invoices i
+   where a.invoiceId=i.id and a.receiptId=@receiptId and a.invoiceId not in (select id from invoices where typ='A')
+
+ delete from @pttemp where dueDate > @penaltyDate
+
  declare @pt table(invoiceId int, amount money)
 
  insert @pt
   select a.invoiceId,
          dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(@penaltyDate))/100
-   from receiptLink a
-   where a.receiptId=@receiptId and a.invoiceId not in (select id from invoices where typ='A')
+   from @pttemp a
+   
 
 
  while exists(select * from @pt)
@@ -60,3 +71,6 @@ begin
 
 
 end
+
+-- select @typ = [typ], @interestDate = interestDate from invoices where id=@invoiceId
+-- select @begindate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
