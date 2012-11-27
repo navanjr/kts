@@ -6,16 +6,48 @@
 
 @loadwindow=
  create(1,9),
- create(3,9);
+ create(77,9),
+ create(79,9);
 
-\t001Location of PDF Files;
-\t003Destination PDF;
+\t001&Destination PDF;
+\t003Dir; \h003; \d004;
+ \y001004+40;r
  \w00100380;r2 \w002004200;r2 \x00200487;r2 \z00100312;r2
 
-@acc001=
- filedialog('Locate the directory where the PDF files are...','*.pdf','*.pdf',48),
- set(2,gcretval);
+\t077&Location of PDF Files;
+\t079Ghost Script; \f080='C:\Program Files\Bullzip\PDF Printer\gs\gswin32c.exe';
+ \x0770793;r2 \w07707980;r2 \w078080200;r2 \x07808087;r2 \z07707912;r2
+ 
+\t109Co&mbine;
 
-@acc003=
- filedialog('Specify the PDF destination file','*.pdf','*.pdf',17),
- set(4,gcretval&choose(right(gcretval,4)='.pdf','','.pdf'));
+@acc001=
+ filedialog('Specify the PDF destination file','','*.pdf',17),
+ if(gcretval='*.pdf',set(6,'')),
+ break(gcretval='*.pdf'),
+ set(2,gcretval&choose(right(gcretval,4)='.pdf','','.pdf'));
+
+@acc077=
+ filedialog('Locate the directory where the PDF files are...','*.pdf','*.pdf',48),
+ lcBat=cur:ini&'_temp.bat',
+ lcOut=cur:ini&'_temp.out',
+ set(78,gcretval),
+ send(lcBat,'dir '&obj:c1&'\*.pdf | find "File(s)" > '&lcOut),
+ runw(lcBat,,0),
+ readdos(lcOut),
+ set(4,left(workmemo,instring('bytes',workmemo,1,1)+5));
+
+@acc079=
+ filedialog('Locate Ghost Script EXE...','','*.exe',21),
+ if(gcretval='*.exe',set(80,'')),
+ break(gcretval='*.exe'),
+ if(right(gcretval,4))='.exe',set(80,gcretval));
+ set(80,gcretval&choose(right(gcretval,4)='.exe','','.exe'));
+
+@acc109=
+ lcBat=cur:ini&'_temp.bat',
+ lcOut=cur:ini&'_temp.out',
+ send(lcOut,'echo -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="'&obj:key1&'"'),
+ send(lcBat,'for /F %%A in (''dir '&obj:c1&' /b'') do @echo '&obj:c1&'%%A >> '&lcOut),
+ runw(lcBat,,0),
+ send(lcBat,obj:c2&' @'&lcOut),
+ m('ok');
