@@ -1,4 +1,5 @@
-@bb7=&Print; 
+select receivedOf,
+     paycode+' '+checkno,    rtrim(drawnon)+' / '+location,    case when paycode not in ('CASH','COIN','ETR') then amount else 0 end as checkAmount,    case when paycode in ('CASH','COIN') then amount else 0 end as cashAmount,    case when paycode in ('ETR') then amount else 0 end as ETRAmount,    receiptType,    receiptNo,    station from dbo.depositAvailablePayments where isnull(depositId,0) = 0  and receiptType='TAX'   and left(Station,len('Window3'))='Window3'  and receiptPostDate>='77401'  and receiptPostDate<='77401' order by receiptType, station, paycode, receiptNo@bb7=&Print; 
 @bbproc7=
  gcDepId=10890,
  printDepositBalance=;
@@ -28,9 +29,9 @@
     receiptNo,
     '&lcorderfield&' from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId+0&' '&lcRecType&' '&lcDeputy&' '&lcStation&' '&lcBeginDate&' '&lcEndDate&' order by receiptType, '&lcorderfield&', paycode, receiptNo',
   lcRecCnt=0,
-  lcCashTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode in (''CASH'',''COIN'') '&lcRecType&' '&lcDeputy&' '&lcBeginDate&' '&lcEndDate&''),
-  lcETRTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode in (''ETR'') '&lcRecType&' '&lcDeputy&' '&lcBeginDate&' '&lcEndDate&''),
-  lcCheckTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode not in (''CASH'',''COIN'',''ETR'') '&lcRecType&' '&lcDeputy&' '&lcBeginDate&' '&lcEndDate&''),
+  lcCashTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode in (''CASH'',''COIN'') '&lcRecType&' '&lcStation&' '&lcDeputy&' '&lcBeginDate&' '&lcEndDate&''),
+  lcETRTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode in (''ETR'') '&lcRecType&' '&lcDeputy&' '&lcStation&' '&lcBeginDate&' '&lcEndDate&''),
+  lcCheckTotal=kp('select sum(amount) from dbo.depositAvailablePayments where isnull(depositId,0) = '&gcDepId&' and paycode not in (''CASH'',''COIN'',''ETR'') '&lcRecType&' '&lcDeputy&' '&lcStation&' '&lcBeginDate&' '&lcEndDate&''),
   lcToBank=lcCashTotal+lcCheckTotal,
   lcGrandTotal=lcToBank+lcETRTotal, 
   lcCashReceiptType=0,
