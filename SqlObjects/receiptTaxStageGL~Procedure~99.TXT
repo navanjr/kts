@@ -18,7 +18,8 @@ begin
   protestAmount money,
   protestId int,
   sourceCode varchar(60),
-  invoiceTyp varchar(1)
+  invoiceTyp varchar(1),
+  pertyp varchar(1)
  )
  declare @glFundDebits table(
   slink varchar(15),
@@ -66,6 +67,7 @@ begin
   @priorTaxId int,
   @backTaxId int,
   @currTaxCode varchar(50),
+  @protestTaxCode varchar(50),
   @priorTaxCode varchar(10),
   @protest varchar(10),
   @contraCodeSuffix varchar(50),
@@ -86,7 +88,7 @@ begin
   set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp)
   select
    a.id,
    a.invoiceId,
@@ -97,7 +99,8 @@ begin
    a.protestAmount,
    0,
    case when b.invoiceId>0 then 'GETSOURCE' else '' end,
-   b.typ
+   b.typ,
+   case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end
   from receiptLink a, invoices b 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
@@ -125,37 +128,86 @@ begin
 -- calculate the balance due, update AR and Contra account id
 
 
- update @wt set processflag=1 where rtrim(taxyear) in (select left(accountCode,4) from glAccounts where right(accountCode,8)=right(@contraCodeSuffix,8))
- while exists(select * from @wt where processflag=0)
+  declare @caccts table(id int identity(1,1),
+ accountId int,
+ accountCode varchar(60),
+ processflag int,
+ invoiceTyp varchar(1),
+ pertyp varchar(1),
+ protestId int,
+ protestCode varchar(60)
+)
+
+  insert @caccts 
+   select distinct 0,rtrim(key3),0,left(a2,1), left(a3,1),0,rtrim(key3)+@protestCodeSuffix
+    from object 
+      where typ=4503 and left(key1,3)='TAX' and a2 in (select invoiceTyp from @wt) and key3 > ' 0'
+  insert @caccts 
+   select distinct 0,rtrim(taxyear)+@contraCodeSuffix,0,'','',0,'' from @wt
+  insert @caccts 
+   select distinct 0,rtrim(taxyear)+@protestCodeSuffix,0,'','',0,'' from @wt where protestAmount<>0.00
+
+ while exists(select * from @caccts where processflag=0)
  begin
   select top 1 
-    @idToken = linkId,
-    @currTaxCode = rtrim(taxyear)+@contraCodeSuffix
-   from @wt where processflag=0
+    @idToken = id,
+    @currTaxCode = accountCode,
+    @protestTaxCode = protestCode
+   from @caccts where processflag=0
   exec glAccountVerification @currTaxCode, 'FUND', 'CREATE', @collectionDesc='Ad'
   exec dbo.receiptAccountsVerification @currTaxCode, 'TAX'
-  update @wt set processflag=1 where linkId = @idToken
+
+  if @protestTaxCode > ' 0'
+   begin 
+    exec glAccountVerification @protestTaxCode, 'FUND', 'CREATE', @collectionDesc='Ad'
+    exec dbo.receiptAccountsVerification @protestTaxCode, 'TAX'
+   end
+
+  update @caccts set processflag=1 where id = @idToken
  end
+
+ update c set accountId = a.accountId from @caccts c, glaccounts a where c.accountCode=a.accountCode 
+
+ update c set protestId = a.accountId from @caccts c, glaccounts a where c.protestCode=a.accountCode 
+
  update @wt set processflag=0 where processflag=1
 
- update @wt set processflag=1 where protestAmount=0.00 or (rtrim(taxyear) in (select left(accountCode,4) from glAccounts where right(accountCode,8)=right(@protestCodeSuffix,8)))
- while exists(select * from @wt where processflag=0)
- begin
-  select top 1 
-    @idToken = linkId,
-    @currTaxCode = rtrim(taxyear)+@protestCodeSuffix
-   from @wt where processflag=0
-  exec glAccountVerification @currTaxCode, 'FUND', 'CREATE', @collectionDesc='Ad'
-  exec dbo.receiptAccountsVerification @currTaxCode, 'TAX'
-  update @wt set processflag=1 where linkId = @idToken
- end
- update @wt set processflag=0 where processflag=1
+ update w set contraAccountId = c.accountId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp>'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and w.pertyp=c.pertyp
+     and isnull(contraAccountId,0) = 0
+
+ update w set contraAccountId = c.accountId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp<'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and isnull(contraAccountId,0) = 0
+
+ update w set protestId = c.protestId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp>'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and w.pertyp=c.pertyp
+     and isnull(w.protestId,0) = 0
+     and w.protestAmount > 0
+
+ update w set protestId = c.protestId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp<'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and isnull(w.protestId,0) = 0
+     and w.protestAmount > 0
+
 
  update @wt set
   due = case when invoiceTyp<>'S' then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
-  contraAccountId = isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0),
-  protestId = case when protestAmount > 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@protestCodeSuffix),0) else 0 end
+  contraAccountId = case when isnull(contraAccountId,0) = 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
+     else contraAccountId end,
+  protestId = case when protestAmount > 0 and isnull(protestId,0) < 1 
+      then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@protestCodeSuffix),0) else isnull(protestId,0) end
    where invoiceId > 0
 
 -- populate Suspense
