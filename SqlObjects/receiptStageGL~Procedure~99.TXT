@@ -10,9 +10,19 @@ begin
   amount money,
   comment varchar(100),
   sourceCode varchar(60),
-  slink2 varchar(15)
+  slink2 varchar(15),
+  altContraId int
  )
  declare @accounts table(
+  accountId int,
+  contraId int,
+  amount money,
+  comment varchar(100),
+  sourceCode varchar(60),
+  id int identity (1,1),
+  slink2 varchar(15)
+ )
+ declare @contraAccounts table(
   accountId int,
   contraId int,
   amount money,
@@ -50,10 +60,10 @@ begin
  if @receiptType<>'OFFICIAL'
  begin
   insert @accountsWorking
-   select b.accountId, null, sum(a.amount)*-1,'', '', ''
-   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId
+   select b.accountId, null, sum(a.amount)*-1,'', '', '', case when a.altContraId > 0 then altContraId else @contraId end
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId,a.altContraId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
-  insert @accountsWorking select @arAccountId, null, @tokenAmount,'','',''
+  insert @accountsWorking select @arAccountId, null, @tokenAmount,'','','',0
  end
 
 -- Here we go with the Paid Block
@@ -74,17 +84,29 @@ begin
   select @paidTotal = sum(amount)*-1 from paid where slink = @slink
   if @receiptType<>'OFFICIAL'
   begin
-   insert @accountsWorking select @arAccountId, null, @paidTotal,'','',''
+   insert @accountsWorking select @arAccountId, null, @paidTotal,'','','',0
   end
 
 -- debit suspense accounts
   insert @accountsWorking
-  select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14))
+  select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
   from paid a, paycodes b 
   where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
 
 -- debit tresurers receipt fund and credit fund receivables
-  insert @accountsWorking select @contraId, null, @paidTotal,'','',''
+  --insert @accountsWorking select @contraId, null, @paidTotal,'','','',0
+if @tokenAmount*-1=@paidTotal
+ begin
+  insert @accountsWorking
+  select altContraId,null, sum(amount),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
+ end
+else
+ begin
+  insert @accountsWorking
+  select @contraId, null, @paidTotal,'','','',0  
+ end
+
+
 
   if @receiptType<>'OFFICIAL'
   begin
@@ -95,19 +117,19 @@ begin
     where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description, a.sourceCode
 
    insert @ap
-    select b.accountId, @contraId, sum(a.amount)*-1, 0, 0, a.description, a.sourcecode
+    select b.accountId, case when a.altContraId > 0 then altContraId else @contraId end, sum(a.amount)*-1, 0, 0, a.description, a.sourcecode
     from receiptDetail a, dbo.glAccounts b 
     where a.slink = @slink
      and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode
      and b.accountcode<>a.fundcode
      and @receiptType<>'TRUST'
-    group by b.accountId, a.description, a.sourcecode
+    group by b.accountId, a.description, a.sourcecode, a.altContraId
 
   end 
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
-  insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode, '' from @ap
+  insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode, '', 0 from @ap
 
 -- balance issues? suspend it, cause they are just in the middle of keying in all the payments.  it will balance at post time.
   select @balanceToken = sum(amount) from @accountsWorking
@@ -117,7 +139,7 @@ begin
    exec dbo.logit @@procId, '@accountsWorking table is out of balance', @log
 
    insert @accountsWorking
-   select 0, 0, @balanceToken * -1, 'Temporarly Suspend Balance', '', ''
+   select 0, 0, @balanceToken * -1, 'Temporarly Suspend Balance', '', '',0
 
   end
  end 

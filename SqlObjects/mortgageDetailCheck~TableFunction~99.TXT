@@ -10,7 +10,9 @@ create function dbo.mortgageDetailCheck(@sourceId int) returns
  feesourceCode varchar(50),
  feefundCode varchar(50),
  taxdetailId int,
- feedetailId int
+ feedetailId int,
+ taxcontraId int,
+ feecontraId int
 )
 begin
  
@@ -25,18 +27,22 @@ begin
   @feesourceCode varchar(50),
   @feefundCode varchar(50),
   @taxdetailId int=0,
-  @feedetailId int=0
+  @feedetailId int=0,
+  @taxcontraId int=0,
+  @feecontraId int=0
 
  select
   @taxdescription = key1,
   @taxsourceCode = key2,
-  @taxfundCode = key3
+  @taxfundCode = key3,
+  @taxcontraId = case when a2 > ' 0' then isnull((select accountId from glAccounts where accountCode=a2),0) else 0 end
  from object where typ = 4504 and a1='MTG' and key1 like '%TAX%'
 
  select
   @feedescription = key1,
   @feesourceCode = key2,
-  @feefundCode = key3
+  @feefundCode = key3,
+  @feecontraId = case when a2 > ' 0' then isnull((select accountId from glAccounts where accountCode=a2),0) else 0 end
  from object where typ = 4504 and a1='MTG' and key1 like '%FEE%'
 
  -- check for tax description
@@ -74,7 +80,9 @@ begin
   @feesourceCode,
   @feefundCode,
   @taxdetailId,
-  @feedetailId
+  @feedetailId,
+  @taxcontraId,
+  @feecontraId
  return
 
 end
