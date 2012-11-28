@@ -7,7 +7,8 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @subInvoiceType varchar(1) = 'F',
  @amount money,
  @smode int = 0,
- @origin varchar(50) = ''
+ @origin varchar(50) = '',
+ @originId int = 0
 ) as
 begin
 
@@ -79,7 +80,7 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin)
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId)
     select 
      @subInvoiceType,
      @invoiceDate,
@@ -91,7 +92,8 @@ begin
      '' as [NAME],
      '' as [BUSINESSNAME],
      '' as [STATUS],
-     @origin
+     @origin,
+     @originId
      from invoices where id=@mainInvoiceId
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
@@ -99,16 +101,16 @@ begin
    
   if left(@description,4) = 'VOID'
    begin
-   insert receiptDetail (slink,[description],subDescription,sourceCode,fundCode,amount) 
+   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
     select @slink,* from @rd
    end
   else
    begin
-   insert receiptDetail (slink,[description],subDescription,sourceCode,fundCode,amount) 
+   insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount) 
     select
      @slink,
-     left(@description,49),
-     left(rtrim(@sourceCode) + '/' + rtrim(@fundCode),49),
+     @description,
+     rtrim(@sourceCode) + '/' + rtrim(@fundCode),
      @sourceCode,
      @fundcode,
      cast(@amount as varchar(50))
