@@ -1,7 +1,10 @@
 create function [dbo].[getTaxInvoiceBlob](@InvId int) returns varchar(max) as
 begin
 
- declare @retval varchar(max), @invoiceType varchar(1), @invoiceDue money
+ declare @retval varchar(max), 
+         @invoiceType varchar(1), 
+         @invoiceDue money, 
+         @taxrollId int
  
   select 
   
@@ -22,24 +25,25 @@ begin
   group by case when invoiceId>0 then invoiceId else ID end
 
  
- select top 1 @retval = @retval + dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),dbo.readstring('@Item=',@retval))
+ select top 1 @retval = @retval + dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),dbo.readstring('@Item=',@retval)),
+              @taxrollId = dbo.readstring('@taxrollid=',@retval)
 	
 
 if @invoiceType<>'S'
 begin
-select @retval = @retval
+select @retval = @retval 
  
- + '@GROSSASSESSED=' + rtrim(GROSSASSESSED) + ';'
+ + '@GROSSASSESSED=' + dbo.taxCorrectionsSF(GROSSASSESSED,@taxrollId,'058') + ';'
  + '@EXEMPTION3=' + rtrim(EXEMPTION3) + ';'
- + '@NETASSESSEDVALUE=' + rtrim(NETASSESSEDVALUE) + ';'
- + '@MFGHOMEASSESSED=' + rtrim(MFGHOMEASSESSED) + ';'
- + '@SCHOOLDISTRICTMAIN=' + rtrim(SCHOOLDISTRICTMAIN) + ';'
- + '@SCHOOLDISTRICTTAXRATE=' + rtrim(SCHOOLDISTRICTTAXRATE) + ';'
+ + '@NETASSESSEDVALUE=' + dbo.taxCorrectionsSF(NETASSESSEDVALUE,@taxrollId,'072') + ';'
+ + '@MFGHOMEASSESSED=' + dbo.taxCorrectionsSF(MFGHOMEASSESSED,@taxrollId,'056') + ';'
+ + '@SCHOOLDISTRICTMAIN=' + dbo.taxCorrectionsSF(SCHOOLDISTRICTMAIN,@taxrollId,'042') + ';'
+ + '@SCHOOLDISTRICTTAXRATE=' + dbo.taxCorrectionsSF(SCHOOLDISTRICTTAXRATE,@taxrollId,'046') + ';'
  + '@ACRES=' + rtrim(ACRES) + ';'
  + '@TWP=' + rtrim(TOWNSHIPBLOCK) + ';'
  + '@SEC=' + rtrim(SECTIONNUMBER) + ';'
  + '@RNG=' + rtrim(RANGELOT) + ';'
- + '@TOTALDUE=' + rtrim(TOTALDUE) + ';'
+ + '@TOTALDUE=' + dbo.taxCorrectionsSF(TOTALDUE,@taxrollId,'078') + ';'
  + '@LEGALDESCRIPTION=' + rtrim(replace(cast(LEGALDESCRIPTION as varchar(4000)),'''','`')) + ';'
  + dbo.readStringSanitizer('ORGSCHOOLDISTRICTMAIN', ORGSCHOOLDISTRICTMAIN)
  + dbo.readStringSanitizer('ORGSCHOOLDISTRICTTAXRATE', ORGSCHOOLDISTRICTTAXRATE)

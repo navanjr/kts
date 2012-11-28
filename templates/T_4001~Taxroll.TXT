@@ -6,8 +6,7 @@
 \h107instring('@group=publicuser',cur:options,1,1)>0;
 \h110instring('@group=publicuser',cur:options,1,1)>0;
 
-@noinsert;
-@nomodify;
+@noupdate;
 
 @loadwindow=
  gcfieldnum='',
@@ -36,17 +35,6 @@
  if(gcretval=1,change(lcId)),
  if(gcretval=2,fastmodify(lcId,-02=-4005)),
  brwreload(1);
-@acc106=if(tier=2,doadd=);
-
-@doadd=
- update,
- d1select('exec dbo.taxrollAddOmitted '&obj:id&', '''&cur:ini&''','&today()&''),
- if(readstring(obj7:d1,'@code=')>0,m(obj7:d1)),
- set(-02,-4001),
- update;
-@closewindow=gcfieldnum='',gclabel='',gcoriginal='',gctype='',gcinvoice=0;
-@nox=tier=2 and (obj:a18<' 0' or obj:a20<' 0' or obj:key2+0<2 or obj:a1+0<2.0 or obj:key1<' 0' or obj:a2<'0' or obj:b15+0<2);
-@noexit=m('You must have the following information entered before exiting: Name, Taxyear, Item Number, Type, Original School District, Original Rate and Tax Due');
 
 @refreshBRW3=
  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
@@ -63,7 +51,7 @@
 @sel012=gcfieldnum='012',gclabel='Business Name',gcoriginal=obj:a3,gctype='varchar',gcinvoice=0;
 
 @sel028=gcfieldnum='028',gclabel='Country',gcoriginal=obj:a11,gctype='varchar',gcinvoice=0;
-sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;',gcinvoice=0;
+
 @sel032=gcfieldnum='032',gclabel='Fire District',gcoriginal=obj:a13,gctype='varchar',gcinvoice=0;
 @sel034=gcfieldnum='034',gclabel='Owner Number',gcoriginal=obj:a14,gctype='@n9.2;',gcinvoice=0;
 @sel036=gcfieldnum='036',gclabel='Acres',gcoriginal=obj:a15,gctype='@n7.2;',gcinvoice=0;
@@ -101,6 +89,7 @@ sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;'
 
 \r002102tier<>2;r
 @dk1;
+
 \t001Name; \q002;  \d002;
 \t003Tax Year; \t004@p####pb; \w00425; \q004;
 \t005Parcel #;
@@ -117,9 +106,9 @@ sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;'
 \t035Acres; \t036@n7.2; \w03650;
 \t037Status;
 \t039Orig School; \l0404010; @acc040=calcrecord(); \q040tier=2; \d040tier<>2;
-\t041School;\s042-'select isnull((select top 1 a2 from object where typ=4005 and key1=''042'' and link1='&obj:link1&' order by key2 desc),'''&obj:a17&''')';
+\t041School;\s042-'select isnull((select top 1 a2 from object where typ=4005 and key1=''042'' and link1='&obj:link1&' order by key2 desc,id desc),'''&obj:a17&''')';
 \t043Orig Rate; \l0444011; @acc044=calcrecord(); \q044tier=2; \d044tier<>2;
-\t045Tax Rate;\s046-'select isnull((select top 1 a2 from object where typ=4005 and key1=''046'' and link1='&obj:link1&' order by key2 desc),'''&obj:a19&''') ';
+\t045Tax Rate;\s046-'select isnull((select top 1 a2 from object where typ=4005 and key1=''046'' and link1='&obj:link1&' order by key2 desc ,id desc),'''&obj:a19&''') ';
 \t047Lots; \t048@n5.2; \w04850;
 
 \t049Land; 
@@ -139,11 +128,11 @@ sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;'
 \y059072+26;r
 
 \t073Millage; \t074@n14.7; \w07450;
-\t075Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076;
+\t075Orig Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076; \
 \x073075=077;r2 \y073076-221;r
 \x074076=078;r2
 
-\t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select isnull((select top 1 a2 from object where typ=4005 and key1=''078'' and link1='&obj:link1&' order by key2 desc),'''&obj:b15&''') ';
+\t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select isnull((select top 1 a2 from object where typ=4005 and key1=''078'' and link1='&obj:link1&' order by key2 desc),'''&obj:b15&''') '; 
 \t079Unpaid; \t080@n14.2; \w08050;
 \t081Certificate #;
 \t083Paid Off; \t084@d2;
@@ -169,12 +158,23 @@ sel030=gcfieldnum='030',gclabel='Mortgage Code',gcoriginal=obj:a12,gctype='@n7;'
 
 \h105tier=2 or instring('@group=publicuser',cur:options,1,1)>0;
 \t105Correct Info;
- @acc105=case(gctype='address',correctAddress=,gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.')),refreshBRW=,refreshBRW3=;
+ @acc105=
+  gcCorrectTaxyear=obj:key2,
+  gcCorrectSchoolDist=obj:a18,
+  case(gctype='address',correctAddress=,gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.')),
+  refreshBRW=,
+  refreshBRW3=;
 
-@correctAddress=gcInvoiceId=obj:link2,do(4006,menuprocess=);
-@correctVarchar=neww(4005,,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=today(),006=gclabel,008=gcoriginal,012=gctype),;
-@correctFormat=iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; \t004'&gctype&''),
-  fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=gcoriginal,010=obj7:key2,012=gctype);
+
+@correctAddress=
+ gcInvoiceId=obj:link2,
+ do(4006,menuprocess=);
+
+@correctVarchar=
+ neww(4005,,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=today(),006=gclabel,008=gcoriginal,012=gctype);
+@correctFormat=
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; \t004'&gctype&''),
+ fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=gcoriginal,010=obj7:key2,012=gctype);
 @correctMemo=iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),update,tsc; \t103New Value; \w104200;'),
   fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=left(gcoriginal,49),010=left(obj7:e2,49),102=gcoriginal,104=obj7:e2,012=gctype);
 
