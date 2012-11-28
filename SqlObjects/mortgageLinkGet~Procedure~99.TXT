@@ -1,20 +1,77 @@
-create dbo.mortgageLinkGet (
+create proc dbo.mortgageLinkGet (
  @taxYear varchar(4)
 ) as 
 begin
+ set nocount on
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_mortgageLink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
-  create table(
+  create table temp_mortgageLink(
+   id int identity(1,1),
    company varchar(100), 
    details varchar(max), 
    parcel varchar(100),
    record_id int,
    year varchar(50),
-   site_id int
+   site_id int,
+   createDate varchar(50),
+   taxrollId int,
+   companyId varchar(50)
   )
 
-  delete from dbo.temp_mortgageLink
+  delete from temp_mortgageLink
+
+  declare 
+   @typ int = 4,
+   @apiwt JSONHierarchy,
+   @filter varchar(500),
+   @apiHost varchar(50),
+   @apiKey varchar(50),
+   @apiResource varchar(50),
+   @apiFields varchar(max),
+   @dump varchar(max),
+   @log varchar(max)
   
   exec dbo.api
+   @scratchFile='c:\client\key\apiMortgageLink.tmp',
+   @method = 'get', 
+   @resource = '/v2/treasurer/mortgagelink',
+   @debugmode='false',
+   @filter = '"site_id=7&year=2012"',
+   @dump = @dump output
 
+  if len(@dump) > 0
+  begin
+
+   begin try
+    insert into @apiwt
+    select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
+   end try
+   begin catch
+    set @log = error_message()
+    exec dbo.logit @@procid, 'Failed Insert in to @apiwt', @log
+    select '@code=1;@message=Failed Insert in to @apiwt:' + @log + ';'
+    return
+   end catch
+
+   declare @token int, @tally int
+
+   while exists(select * from @apiwt)
+   begin
+    select @token = min(parent_id) from @apiwt
+    insert temp_mortgageLink select 
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'company'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'details'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'parcel'),''),
+     (select stringValue from @apiwt where parent_id = @token and name = 'id'),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'year'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'site_id'),''),
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'created_date'),''),
+     null,null
+    delete @apiwt where parent_id = @token
+   end
+
+   select @tally = count(*) from temp_mortgageLink
+   exec dbo.logit @@procid, 'total rows received from the API', @tally   
+
+ end
 end
