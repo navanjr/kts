@@ -1,0 +1,113 @@
+create proc dbo.mike_taxFeeInfoTPSImport as
+begin
+
+set nocount on
+
+declare @wt table(
+ id int identity(1,1),
+ mail money,
+ lien money,
+ advert money,
+ sa1 money,
+ sa2 money,
+ sa3 money,
+ sa4 money,
+ sa5 money,
+ other money,
+ item decimal(9,1),
+ taxYear varchar(4),
+ date int
+)
+
+insert @wt
+select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2000', entryDate from [2000info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2001', entryDate from [2001info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2002', entryDate from [2002info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2003', entryDate from [2003info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2004', entryDate from [2004info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2005', entryDate from [2005info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2006', entryDate from [2006info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2007', entryDate from [2007info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2008', entryDate from [2008info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2009', entryDate from [2009info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2010', entryDate from [2010info]
+union all select mailingFee, lienFee, advertisingFees, specialAssessmentFee1, specialAssessmentFee2, specialAssessmentFee3, specialAssessmentFee4, specialAssessmentFee5, otherFees, itemNumber, '2011', entryDate from [2011info]
+
+declare @fees table(
+ 	taxyear varchar(4),
+	item decimal(9,1),
+	type varchar(1),
+	amount money,
+	date int
+)
+
+declare
+ @tokenId int,
+ @mail money,
+ @lien money,
+ @advert money,
+ @sa1 money,
+ @sa2 money,
+ @sa3 money,
+ @sa4 money,
+ @sa5 money,
+ @other money,
+ @date int,
+ @taxYear varchar(4),
+ @item decimal(9,1)
+ 
+while exists(select * from @wt)
+begin
+ select top 1
+  @tokenId = id,
+  @mail = mail,
+  @lien = lien,
+  @advert = advert,
+  @sa1 = sa1,
+  @sa2 = sa2,
+  @sa3 = sa3,
+  @sa4 = sa4,
+  @sa5 = sa5,
+  @other = other,
+  @date = date,
+  @taxYear = taxYear,
+  @item = item
+ from @wt order by id 
+
+ if @mail != 0
+  insert @fees select @taxYear, @item, 'A', @mail, @date
+
+ if @lien != 0
+  insert @fees select @taxYear, @item, 'B', @lien, @date
+
+ if @advert != 0
+  insert @fees select @taxYear, @item, 'C', @advert, @date
+
+ if @sa1 != 0 -- Postage
+  insert @fees select @taxYear, @item, 'O', @sa1, @date
+  
+ if @sa2 != 0 -- Returned Check
+  insert @fees select @taxYear, @item, 'O', @sa2, @date
+
+ if @sa3 != 0 -- Title Search Fee
+  insert @fees select @taxYear, @item, 'O', @sa3, @date
+
+ if @sa4 != 0 -- SpAsmt Fee
+  insert @fees select @taxYear, @item, 'O', @sa4, @date
+
+ if @sa5 != 0 -- Tax Warrant
+  insert @fees select @taxYear, @item, 'G', @sa5, @date
+
+ if @other != 0 
+  insert @fees select @taxYear, @item, 'O', @other, @date
+
+ delete @wt where id = @tokenId
+end
+
+insert mike_fee (taxyear, itm_nbr, type, amount, date)
+select * from @fees
+
+--select * from grady..mike_fee
+
+-- select * from [2000info] where receiptNumber <= 0
+end
