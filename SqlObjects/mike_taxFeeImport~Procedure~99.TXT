@@ -12,7 +12,8 @@ begin
 	[sourceCode] varchar(50) NOT NULL,
 	[fundCode] varchar(50) NOT NULL,
 	[subInvoiceType] varchar(1) NOT NULL,
-	[amount] numeric(9, 2) NOT NULL
+	[amount] numeric(9, 2) NOT NULL,
+        originId int not null
 )
 
  declare 
@@ -42,29 +43,31 @@ begin
   @fundCodeToken varchar(50),
   @subInvoiceTypeToken varchar(1),
   @amountToken numeric(9, 2),
+  @originIdToken int,
   @tally int
 
 
  insert @wt
  select i.id as mainIvoiceId,dbo.clariondate(GETDATE()) as [invoiceDate],
- case when a.[type]='C' then 'ADVERTISE' 
-  when a.[type]='A' then 'MAIL'
-  when a.[type]='B' then 'LIEN'
-  when a.[type]='G' then 'TAX WARRANT'
-  when a.[type]='O' then 'OTHER'
-  else 'OTHER FEE'
-  end as [Desc],
- @otherSource as sourceCode,
- @otherFund as fundCode,
- 'F' as subInvoiceType,
- a.amount
-  from invoices i, mike_fee a
+  case when a.[type]='C' then 'ADVERTISE' 
+   when a.[type]='A' then 'MAIL'
+   when a.[type]='B' then 'LIEN'
+   when a.[type]='G' then 'TAX WARRANT'
+   when a.[type]='O' then 'OTHER'
+   else 'OTHER FEE'
+   end as [Desc],
+  @otherSource as sourceCode,
+  @otherFund as fundCode,
+  'F' as subInvoiceType,
+  a.amount,
+  a.id
+ from invoices i, mike_fee a
  where --a.taxyear + right('000000' + cast(a.itm_nbr as int),6) = cast(i.taxyear as varchar(4))+right('000000'+cast(cast(i.item as int) as varchar(6)),6)
   a.taxYear = i.TAXYEAR
   and a.itm_nbr = i.ITEM
   and i.id not in (select invoiceId from invoices)
   and a.taxyear = @taxyear
-  and i.origin = ''
+  and i.originId not in (select originId from invoices where origin = 'mike_fee')
 
  delete from @wt where amount = 0.00
 
@@ -81,7 +84,8 @@ begin
    @sourceCodeToken =sourceCode,
    @fundCodeToken =fundCode,
    @subInvoiceTypeToken =subInvoiceType,
-   @amountToken =amount
+   @amountToken =amount,
+   @originIdToken = originId
  from @wt
 
   exec dbo.subInvoiceCRUD
@@ -93,7 +97,8 @@ begin
    @subInvoiceTypeToken,
    @amountToken,
    @smode = 1,
-   @origin = 'mike_fee'
+   @origin = 'mike_fee',
+   @originId = @originIdToken
  
  exec dbo.logit @@procid, 'SubInvoice countdown... @tally', @tally
  set @tally = @tally - 1
