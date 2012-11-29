@@ -2,7 +2,16 @@
 @acc110=
  gcTaxInvoiceId=obj:link2,
  do(4007,menuprocess=);
+\t111Re-Invoice; 
+@acc111=
+ sql('exec invoiceCrud 3,'&obj:link2+0&',0'),
+ d1select('dbo.taxrollInvoiceCRUD '&obj:link1+0,0,'''','&obj:link2),
+ m(obj7:d1);
 
+
+
+
+\h111instring('@group=publicuser',cur:options,1,1)>0 or obj:a17=obj:a18;
 \h107instring('@group=publicuser',cur:options,1,1)>0;
 \h110instring('@group=publicuser',cur:options,1,1)>0;
 
@@ -128,7 +137,7 @@
 \y059072+26;r
 
 \t073Millage; \t074@n14.7; \w07450;
-\t075Orig Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076; \
+\t075Orig Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076; \d076;
 \x073075=077;r2 \y073076-221;r
 \x074076=078;r2
 
@@ -162,8 +171,14 @@
   gcCorrectTaxyear=obj:key2,
   gcCorrectSchoolDist=obj:a18,
   case(gctype='address',correctAddress=,gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.')),
+  if(gcNewValueSaved='Saved',updateScreen=),
   refreshBRW=,
   refreshBRW3=;
+
+@updateScreen=
+  sql('exec dbo.taxrollScreen '&obj:link1&','''&cur:ini&''',''Update'','&obj:id),
+  gcNewValueSaved='',
+  tsc;
 
 
 @correctAddress=

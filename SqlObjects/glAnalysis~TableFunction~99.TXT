@@ -23,12 +23,18 @@ begin
   insert @glTypes select accountType from dbo.glBankFundTypes('BANK')
  if charindex('F',@glTypeFilter) > 0
   insert @glTypes select accountType from dbo.glBankFundTypes('FUND')
- if charindex('P',@glTypeFilter) > 0
+
+ if charindex('P',@glTypeFilter) > 0 
   begin
-   insert @glTypes select 'ACCRUED PAYABLE'
-   insert @glTypes select 'RECEIVABLE'
    insert @glTypes select 'ACCRUED RECEIVABLE'
+   if charindex('R',@glTypeFilter) = 0
+    begin
+     insert @glTypes select 'ACCRUED PAYABLE'
+      insert @glTypes select 'RECEIVABLE'
+    end
   end
+
+
  if @glTypeFilter in ('A','AZ')
   insert @glTypes select a1 from object where typ = 4701 and a1 not in (select glType from @glTypes) group by a1 
  
