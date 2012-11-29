@@ -14,7 +14,8 @@ create proc dbo.paymentCRUD(
  @bankStatementId int = 0,
  @postResult varchar(100) = null output,
  @postOverride varchar(5) = 'FALSE',
- @deleteObject varchar(5) = 'FALSE'
+ @deleteObject varchar(5) = 'FALSE',
+ @fiscalYear varchar(50) = ''
 ) as 
 begin
 
@@ -159,7 +160,8 @@ begin
     @creditAcct = a.a4,
     @officialName = a.a7,
     @officialDepositCode = b.targetAccountCode,
-    @officialBankCode = a.a9
+    @officialBankCode = a.a9,
+    @fiscalYear = c10
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
@@ -205,7 +207,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9
+   a7, a8, a9, c10
   )
   select 
    4771,
@@ -220,7 +222,8 @@ begin
    dbo.proper(@paymentType),
    @officialName,
    @officialDepositCode,
-   @officialBankCode
+   @officialBankCode,
+   @fiscalYear
  end try
  begin catch
   set @log = error_message()

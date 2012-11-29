@@ -79,6 +79,7 @@ begin
 
  declare @wt2 table(penalty money,
                    fee money,
+                   adjust money,
                    invoiceType varchar(50),
                    parentInvoiceId int,
                    recId int)
@@ -86,7 +87,8 @@ begin
 insert @wt2
      select
    sum(case when c.invoiceType='P' then b.amount else 0 end),
-   sum(case when c.invoiceType<>'P' then b.amount else 0 end),
+   sum(case when c.invoiceType not in ('P','A') then b.amount else 0 end),
+   sum(case when c.invoiceType='A' then b.amount else 0 end),
    '',
    c.parentInvoiceId,
      recId 
@@ -99,7 +101,8 @@ insert @wt2
 
 update w set 
   penalty=a.penalty, 
-  fee=a.fee from @wt w, @wt2 a
+  fee=a.fee 
+  from @wt w, @wt2 a
  where a.parentInvoiceId=w.invoiceId 
   and a.parentInvoiceId>0 
   and w.recId=a.recId
@@ -113,8 +116,8 @@ delete from @wt where parentInvoiceId>0
 
 update @wt set
   recType=recType+' '+taxYear,
-  taxType = case when invoiceType not in ('B','I','R','P') then 'Special' else '' end,
-  SAtyp = case when invoiceType not in ('B','I','R','P')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
+  taxType = case when invoiceType not in ('B','I','R','P','A') then 'Special' else '' end,
+  SAtyp = case when invoiceType not in ('B','I','R','P', 'A')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
 where recType='TAX'
 
 

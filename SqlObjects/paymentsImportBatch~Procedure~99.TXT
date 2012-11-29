@@ -17,7 +17,8 @@ begin
    @resultStringToken varchar(100),
    @officialName varchar(50) = '',
    @officialDepositCode varchar(50) = '',
-   @officialBankCode varchar(50) = ''
+   @officialBankCode varchar(50) = '',
+   @fiscalYear varchar(50) = ''
 
   declare @wt table (
    id int,
@@ -28,7 +29,8 @@ begin
    debitAcct varchar(500),
    creditAcct varchar(500),
    officialsFundCode varchar(50),
-   accountBlob varchar(1000)
+   accountBlob varchar(1000),
+   fiscalYear varchar(50)
   )
 
   declare @results table( code int, message varchar(100) )
@@ -61,6 +63,7 @@ begin
    debitAcct,
    creditAcct,
    null,
+   null,
    null
   from dbo.voucherImportBRW(@batchId)
 
@@ -76,7 +79,8 @@ begin
    debitAcct,
    creditAcct,
    clerksFund,
-   null
+   null,
+   fiscalYear
   from dbo.warrantImportBRW(@batchId)
  end
 
@@ -107,11 +111,14 @@ begin
      @payee = payee,
      @amount = amount,
      @debitAcct = debitAcct,
-     @creditAcct = creditAcct
+     @creditAcct = creditAcct,
+     @fiscalYear = fiscalYear
     from @wt order by id
 
    if @debugMode = 'false'
    begin
+    declare @checkPaymentId int
+
     if @paymentType = 'warrant'
     begin
 -- get the codes from the import record
@@ -120,7 +127,6 @@ begin
      @officialBankCode = key3
     from object where typ = 4770 and id = @batchId
 
-    declare @checkPaymentId int
  
     select @checkPaymentId = id from object 
       where key3 = @voucherNumber
@@ -141,24 +147,35 @@ begin
        @creditAcct = @creditAcct,
        @officialDepositCode = @officialDepositCode,
        @officialBankCode = @officialBankCode,
+       @fiscalYear = @fiscalYear,
        @postResult = @resultStringToken output
      end
     end
    
     else
     begin
-     exec dbo.paymentCRUD 0,  
-     @paymentType = @paymentType,
-     @officialName = @officialName,
-     @officialDepositCode = @officialDepositCode,
-     @officialBankCode = @officialBankCode,
-     @voucherDate = @voucherDate,
-     @voucherNumber = @voucherNumber,
-     @payee = @payee,
-     @amount = @amount,
-     @debitAcct = @debitAcct,
-     @creditAcct = @creditAcct,
-     @postResult = @resultStringToken output
+    select @checkPaymentId = id from object 
+      where key3 = @voucherNumber
+       and a4 = @debitAcct
+       and a18 = 'Official Voucher' 
+       and a2 = @payee
+       and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end = @voucherDate
+
+     if isnull(@checkPaymentId,0)=0
+     begin 
+      exec dbo.paymentCRUD 0,  
+      @paymentType = @paymentType,
+      @officialName = @officialName,
+      @officialDepositCode = @officialDepositCode,
+      @officialBankCode = @officialBankCode,
+      @voucherDate = @voucherDate,
+      @voucherNumber = @voucherNumber,
+      @payee = @payee,
+      @amount = @amount,
+      @debitAcct = @debitAcct,
+      @creditAcct = @creditAcct,
+      @postResult = @resultStringToken output
+     end
     end
     insert @results select dbo.readString('@code=',@resultStringToken),@resultStringToken
 
