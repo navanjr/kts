@@ -82,7 +82,8 @@ begin
   school_district varchar(50),
   tax_type varchar(50),
   legal_description varchar(1000),
-  item_number decimal(10,1)
+  item_number decimal(10,1),
+  mortgage_Code varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -157,7 +158,9 @@ begin
    schoolDistrictMain,
    recordType,
    '', -- blows up legalDescription,
-   itemNumber
+   itemNumber,
+   case when treamort > '  0' then treamort else cast(mortgageCode as varchar) end
+
    from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdated,0) < modified
    order by OWNERNAME, ITEMNUMBER  
@@ -210,6 +213,7 @@ begin
   insert @jsonPrep select parentId,null,'tax_type', dbo.stripChars(tax_type,@goofyChars),'string' from @wt
 --  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @wt
+  insert @jsonPrep select parentId,null,'mortgage_code', mortgage_code,'string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
