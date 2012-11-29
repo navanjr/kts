@@ -1,0 +1,69 @@
+create procedure dbo.barcodeScan(
+ @searchString varchar(50),
+ @receiptId int,
+ @part varchar(10),
+ @method varchar(10)
+)
+  as 
+ begin
+
+set nocount on
+
+declare @invoiceId int,
+        @AlreadyLinked int,
+        @mortCode varchar(50)
+
+       select top 1 @invoiceId = id  
+             from dbo.invoices
+            where 
+            cast(taxyear as varchar(4))+cast(item as varchar)=@searchString
+            and id not in (select invoiceId from receiptlink where receiptid = @receiptId)  
+
+ exec dbo.logit @@procid, '@searchString', @searchString, '@receiptId', @receiptId, '@part', @part, '@method', @method, '@invoiceId', @invoiceId
+
+
+
+--check for mort
+if @invoiceId>0
+  select @mortCode = rtrim(a.treamort) from adtax a,invoices i where a.id=i.taxrollId and i.id=@invoiceId
+
+ if @mortCode>'  0'
+   begin
+     select '@code=2;@message=This item has a mortgage code on it.;'
+     return
+   end
+
+
+--check to see if it's already linked
+
+if @invoiceId>0 
+
+ select @AlreadyLinked = receiptId 
+      from receiptlink 
+     where invoiceId=@invoiceId 
+       and receiptId in (select id from object where typ=4502 and a17<>'Posted') 
+       and receiptId<>@receiptId
+
+ if @AlreadyLinked>0
+    begin
+     select '@code=3;@alreadyLinked='+cast(@AlreadyLinked as varchar)+';'
+    return
+    end
+
+
+--select it
+
+if @invoiceId>0
+
+  begin
+   exec dbo.taxrollSelected @receiptId,@invoiceId,@part,@method
+   select '@code=1;'
+  end 
+
+
+  return
+
+ end
+
+
+

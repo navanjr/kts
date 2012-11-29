@@ -183,7 +183,6 @@
 
 @refreshBRW=
   kpmo('Selecting Taxroll Data...'),
-  lcbrw1Filter=str_replace(obj:c1,'''','~{'),
   gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort,queue,printed from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') order by ord',
   brwreload(1,gcsql),
   brwreload(2),
@@ -214,8 +213,24 @@
  if(lcClearFilter='1',set(078,''));
 
  @acc078=
+   lcbrw1Filter=str_replace(obj:c1,'''','~{'),
+   if(readstring(gcSiteBlob,'@barcodeScanner=')=1,barcodeit=),
    refreshBRW=,
-   focus(160);
+   if(lcFocus=078,focusit78=,focus(160));
+
+@focusit78=
+ focus(078),
+ lcFocus='';
+
+@barcodeit=
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ d1select('exec dbo.barcodeScan '''&lcbrw1Filter&''','&obj:id&','''&lcPart&''',''TAX'''),
+ if(readstring(obj7:d1,'@code=')=1,lcFocus=078),
+ if(readstring(obj7:d1,'@code=')=2,m('This item has a mortgage code on it')),
+ break(readstring(obj7:d1,'@code=')=2),
+ gcalreadylinked=readstring(obj7:d1,'@alreadyLinked='),
+ if(gcalreadylinked+0>1,alreadylinked=);
+
 
 \t108New &Receipt;
 @acc108=
