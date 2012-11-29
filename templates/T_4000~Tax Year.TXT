@@ -65,7 +65,7 @@
  if(gcretval=2,sql('exec dbo.taxrollInvoiceBatch '''&gcTaxYear&''',0,'''&cur:ini&''''));
 
 @queueRoutine=
- m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print &All Un-Printed Tax Statements|&Open Print Batch|&Remove Print Batch|&Cancel'),
+ m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print Un-Printed Tax Statements|&Open Print Batch|&Remove Print Batch|&Cancel'),
  break(gcretval=4),
  gcTaxYear=obj:key1,
  gcBatchName=readstring(lcBlob,'@code='),
@@ -83,9 +83,9 @@
  refreshbrw=;
 
 @printBatch=
- m('Are you ready to print all '&lcUnPrinted&' invoice(s)?','Print Batch...','question.ico',6,2),
- break(gcretval<>2),
- lcCount=lcUnPrinted,
+ iw(',.t000Print Loop..., ,.t001Print Count., ,.f002='&lcUnPrinted&'., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
  printIt=,
  refreshbrw=;
 
@@ -222,7 +222,7 @@ acc049=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
  do(452,getSiteInfo=),
- sqlloop('select id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by name+cast(item as varchar)',printIt1=),
+ sqlloop('select top '&lcCount&' id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by name+cast(item as varchar)',printIt1=),
  calcfld(012),
  calcfld(050),
  kpmc();
