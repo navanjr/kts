@@ -1,0 +1,25 @@
+create procedure dbo.taxrollInvoiceCorrection(@taxrollId int, @payments money)
+as begin
+  declare @slink varchar(16),
+    @newInvoiceId int
+  
+
+  begin transaction
+   exec dbo.taxCorrectionReferenceCRUD @taxrollId,   @newInvoiceId = @newInvoiceId output
+
+   exec dbo.taxrollInvoiceCRUD @taxrollId, 1, '', @invoiceId=@newInvoiceId, @priorPayments=@payments, @correctionInvoice = 'TRUE'
+   exec dbo.taxRollAddressInsert @taxrollId, ''
+  
+  select @slink = slink from dbo.taxrollCheck(@taxrollId,'',@newInvoiceId)
+
+  if dbo.glPostCheck(@slink) = 0
+   begin
+    commit transaction
+    select '@code=0;@message=OK;'
+   end
+  else
+   begin 
+    rollback transaction
+    select '@code=1;@message=Assessment failed to process correctly, Contact Support. (as.inv);'
+   end
+end

@@ -4,14 +4,29 @@
  do(4007,menuprocess=);
 \t111Re-Invoice; 
 @acc111=
- sql('exec invoiceCrud 3,'&obj:link2+0&',0'),
- d1select('dbo.taxrollInvoiceCRUD '&obj:link1+0,0,'''','&obj:link2),
- m(obj7:d1);
+ m('Are you sure you want to cancel the current statement and make a new one?','Cancel Statement?',,6),
+ break(gcretval<>2),
+ gcpaid=0,
+ adjusttozero=,
+ d1select('dbo.taxrollInvoiceCorrection '&obj:link1+0&', '&gcpaid+0),
+ m(obj7:d1),
+ gcpaid=0;
 
+@adjusttozero=
+  gcInvoiceId=obj:link2,
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  iw('\t001Description;'),
+  lcDesc=obj7:key1,
+  if(len(lcDesc)<2,lcDesc='VOID by Taxroll Correction - new statement issued.',lcDesc='VOID '&lcDesc),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
+  gcpaid=kp('select sum(amount) from dbo.invoiceGLTotalTF('&gcInvoiceId&') where left(slink,1) in (''l'',''o'') and accountType = ''RECEIVABLE'''),
+  lcamount=kp('select invoiceDue from invoices where id='&gcInvoiceId),
+  lcamount=lcamount*-1,
+  sql('exec dbo.subInvoiceCRUD '&gcInvoiceId&', '&today()&', '''&lcDesc&''', '''', '''', ''A'', '&lcamount+0),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
+  refreshBRW=;
 
-
-
-\h111instring('@group=publicuser',cur:options,1,1)>0 or obj:a17=obj:a18;
+\h111instring('@group=publicuser',cur:options,1,1)>0 or (obj:a17=obj:a18 and obj:a19=obj:a20 and obj:c1=obj:c2);
 \h107instring('@group=publicuser',cur:options,1,1)>0;
 \h110instring('@group=publicuser',cur:options,1,1)>0;
 
@@ -30,7 +45,7 @@
 
 @createbrw=
  break(tier=2),
- gcsql='select Id,key2,key3,case when a3 = ''@d2;'' then dbo.date1(a1) else a1 end as original,case when a3 = ''@d2;'' then dbo.date1(a2) else a2 end as corrected from object where typ=4005 and link1='&obj:link1&' order by key1 desc',
+ gcsql='select id,key2,key3,original, corrected from taxrollCorrectionsView where taxrollId='&obj:link1&' order by key2 desc',
  brw(160,1,gcsql,305,175,195,70,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
  brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),;
@@ -141,7 +156,7 @@
 \x073075=077;r2 \y073076-221;r
 \x074076=078;r2
 
-\t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select isnull((select top 1 a2 from object where typ=4005 and key1=''078'' and link1='&obj:link1&' order by key2 desc),'''&obj:b15&''') '; 
+\t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select dbo.taxCorrectionsSF('&obj:b15&','&obj:link1&',''078'')'; 
 \t079Unpaid; \t080@n14.2; \w08050;
 \t081Certificate #;
 \t083Paid Off; \t084@d2;
@@ -186,10 +201,13 @@
  do(4006,menuprocess=);
 
 @correctVarchar=
- neww(4005,,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=today(),006=gclabel,008=gcoriginal,012=gctype);
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; '),
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&obj7:key2&'''');
 @correctFormat=
  iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; \t004'&gctype&''),
- fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=gcoriginal,010=obj7:key2,012=gctype);
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&obj7:key2&'''');
 @correctMemo=iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),update,tsc; \t103New Value; \w104200;'),
-  fastinsert(-02=4005,-03=obj:link1,-04=gcinvoice,002=gcfieldnum,004=obj7:key1,006=gclabel,008=left(gcoriginal,49),010=left(obj7:e2,49),102=gcoriginal,104=obj7:e2,012=gctype);
-
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&obj7:e2&'''');

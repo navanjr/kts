@@ -11,7 +11,8 @@ CREATE procedure [dbo].[taxrollCheckProc](
  @amount money = null  output,
  @fpid int = null  output,
  @debitId int = null output,
- @status varchar(50) = null output
+ @status varchar(50) = null output,
+ @totalDue money = null  output
 ) as
 
 begin
@@ -31,6 +32,7 @@ begin
      @district = a19,
      @rateName = a20,
      @amount = b1,
+     @totalDue = b1,
      @cdate = key2
     from object where id = @taxrollId
    end
@@ -38,19 +40,60 @@ begin
    begin
 -- TODO: allow for an "as of" date for importing and posting of tax rolls
     select 
-     @taxyear = [REALTAXYEAR],
-     @district = [SCHOOLDISTRICTMAIN],
-      @rateName = [SCHOOLDISTRICTTAXRATE],
+     @taxyear = dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'),
+     @district = dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],a.id,'042'),
+     @rateName = dbo.taxCorrectionsSF([SCHOOLDISTRICTTAXRATE],a.id,'046'),
 -- TODO: we need to allow for calculating the new balance due from
-     @amount = [BalanceDUE],
+     @amount = dbo.taxCorrectionsSF([BALANCEDUE],a.id,'080'),
+     @totalDue = dbo.taxCorrectionsSF([TOTALDUE],a.id,'078'),
      @cdate = dbo.clariondate(getdate()),
-     @recordtype = recordtype
-    from adtax where id = @taxrollId
+     @recordtype = dbo.taxCorrectionsSF([RECORDTYPE],a.id,'010')
+    from adtax a where id = @taxrollId
 
     if @recordtype='O' and @district<' 0'
      select @district=@ratename
 
    end 
+
+/*
+      key1 = dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber)),
+      key2 = dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'),
+      key3 = dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006'),
+      a1 = dbo.taxCorrectionsSF([ITEMNUMBER],a.id,'008'),
+      a2 = dbo.taxCorrectionsSF([RECORDTYPE],a.id,'010'),
+      a11 = dbo.taxCorrectionsSF([country],a.id,'028'),
+      a13 = dbo.taxCorrectionsSF([FIREDISTRICT],a.id,'032'),
+      a14 = dbo.taxCorrectionsSF([OWNERNUMBER],a.id,'034'),
+      a15 = dbo.taxCorrectionsSF([acres],a.id,'036'),
+      a18 = dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],a.id,'042'),
+      a20 = dbo.taxCorrectionsSF([SCHOOLDISTRICTTAXRATE],a.id,'046'),
+      b1 = dbo.taxCorrectionsSF([lots],a.id,'048'),
+      b2 = dbo.taxCorrectionsSF([LANDASSESSED],a.id,'050'),
+      b3 = dbo.taxCorrectionsSF([IMPROVEDASSESSED],a.id,'052'),
+      b4 = dbo.taxCorrectionsSF([MISCASSESSED],a.id,'054'),
+      b5 = dbo.taxCorrectionsSF([MFGHOMEASSESSED],a.id,'056'),
+      b6 = dbo.taxCorrectionsSF([GROSSASSESSED],a.id,'058'),
+      b7 = dbo.taxCorrectionsSF([FREEPORTEXEMPTION],a.id,'060'),
+      b8 = dbo.taxCorrectionsSF([BASEEXEMPTION],a.id,'062'),
+      b9 = dbo.taxCorrectionsSF([DBLEXEMPTION],a.id,'064'),
+      b10 = dbo.taxCorrectionsSF([exemption1],a.id,'066'),
+      b11 = dbo.taxCorrectionsSF([exemption2],a.id,'068'),
+      b12 = dbo.taxCorrectionsSF([exemption3],a.id,'070'),
+      b13 = dbo.taxCorrectionsSF([NETASSESSEDVALUE],a.id,'072'),
+      b14 = dbo.taxCorrectionsSF([TOTALTAXRATE],a.id,'074'),
+      c1 = dbo.taxCorrectionsSF([TOTALDUE],a.id,'078'),
+      c2 = dbo.taxCorrectionsSF([BALANCEDUE],a.id,'080'),
+      c3 = dbo.taxCorrectionsSF(isnull([CERTIFICATENUMBER],''),a.id,'082'),
+      c4 = dbo.taxCorrectionsSF([PAIDOFFDATE],a.id,'084'),
+      c5 = dbo.taxCorrectionsSF([PROPERTYLIENCODE1],a.id,'086'),
+      c6 = dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT1],a.id,'088'),
+      c7 = dbo.taxCorrectionsSF([PROPERTYLIENCODE2],a.id,'090'),
+      c8 = dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT2],a.id,'092'),
+      c9 = dbo.taxCorrectionsSF([flag1],a.id,'094'),
+      c10 = dbo.taxCorrectionsSF([flag2],a.id,'096'),
+      d1 = dbo.taxCorrectionsSF([flag3],a.id,'098')
+
+
 
 -- if we have corrections ...
 -- TOTALDUE
@@ -65,7 +108,7 @@ begin
 -- SCHOOLDISTRICTTAXRATE
  if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTTAXRATE')
   select @rateName = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTTAXRATE'
-
+*/
 --TODO: remove this hack later
  if isnull(@invoiceId,0) = 0
  begin

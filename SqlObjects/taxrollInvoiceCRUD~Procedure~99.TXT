@@ -5,7 +5,9 @@ create procedure dbo.taxrollInvoiceCRUD(
  @invoiceId int = null,
  @updateInvoice varchar(5) = 'TRUE',
  @debugMode varchar(10) = 'FALSE',
- @skipSQLTransaction varchar(5) = 'FALSE'
+ @skipSQLTransaction varchar(5) = 'FALSE',
+ @priorPayments money = 0.00,
+ @correctionInvoice varchar(10) = 'FALSE'
 ) as
 begin
 
@@ -103,9 +105,16 @@ begin
   fundId int,
   amount money
  )
- insert @invd
-   select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@taxrollId,@invoiceType)
-
+ if @correctionInvoice = 'TRUE'
+ begin
+  insert @invd
+    select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('correctioninvoice',null,@priorPayments,@taxrollId,@invoiceType)
+ end
+ else
+ begin
+  insert @invd
+    select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@taxrollId,@invoiceType)
+ end
 
  if not exists(select * from @invd)
  begin

@@ -35,7 +35,8 @@ begin
   @fundid int,
   @sourcecode varchar(50),
   @sourceid int,
-  @newAccountId int
+  @newAccountId int,
+  @priorPayments money
 
  if @mode = 'taxinvoice' 
  begin
@@ -47,6 +48,21 @@ begin
    @district = district,
    @rateName = rateName,
    @taxAmount = amount
+  from dbo.taxrollCheck(@taxrollId,@invoiceType,null)
+ end
+
+ if @mode = 'correctioninvoice' 
+ begin
+  if isnull(@taxrollId,0) = 0
+   return
+  
+  select @priorPayments = @taxAmount
+ 
+  select
+   @taxYear = taxYear,
+   @district = district,
+   @rateName = rateName,
+   @taxAmount = totalDue-@priorPayments
   from dbo.taxrollCheck(@taxrollId,@invoiceType,null)
  end
 

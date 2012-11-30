@@ -1,0 +1,26 @@
+create procedure [dbo].[taxCorrectionReferenceCRUD](
+ @taxrollId int,
+ @newInvoiceId int = null output
+) as
+begin
+
+ -- insert tax reference invoice
+   insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS],[interestDate],[origin])
+   select
+    [ID],
+    [RECORDTYPE],
+    [FULLPIDNUMBER],
+    [ITEMNUMBER],
+    [REALTAXYEAR],
+    [OWNERNAME],
+    [BUSINESSNAME],
+    dbo.clariondate(getdate()),
+    '',
+    dbo.clariondate('12/31/' + cast([REALTAXYEAR] as varchar)),
+    'Taxroll Correction'
+   from adtax where id = @taxrollId
+
+   set @newInvoiceId = @@identity
+   exec dbo.logit @@procid, 'Created new invoice - @newInvoiceId', @newInvoiceId
+
+end

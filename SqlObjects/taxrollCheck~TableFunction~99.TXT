@@ -9,7 +9,8 @@ CREATE function [dbo].[taxrollCheck](@taxrollId int, @invoiceType varchar(1) = '
  amount money,
  fpid int,
  debitId int,
- status varchar(50)
+ status varchar(50),
+ totalDue money
 )
 
 begin
@@ -24,6 +25,7 @@ begin
   @district varchar(15),
   @rateName varchar(15),
   @amount money,
+  @totalDue money,
   @debitCode varchar(50),
   @debitId int,
   @recordtype varchar(1)
@@ -43,21 +45,32 @@ begin
   else
    begin
 -- TODO: allow for an "as of" date for importing and posting of tax rolls
-    select 
+/*    select 
      @taxyear = [REALTAXYEAR],
      @district = [SCHOOLDISTRICTMAIN],
-      @rateName = [SCHOOLDISTRICTTAXRATE],
+     @rateName = [SCHOOLDISTRICTTAXRATE],
 -- TODO: we need to allow for calculating the new balance due from
      @amount = [BalanceDUE],
      @cdate = dbo.clariondate(getdate()),
      @recordtype = recordtype
     from adtax where id = @taxrollId
+*/
+    select 
+     @taxyear = dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'),
+     @district = dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],a.id,'042'),
+     @rateName = dbo.taxCorrectionsSF([SCHOOLDISTRICTTAXRATE],a.id,'046'),
+-- TODO: we need to allow for calculating the new balance due from
+     @amount = dbo.taxCorrectionsSF([BALANCEDUE],a.id,'080'),
+     @totalDue = dbo.taxCorrectionsSF([TOTALDUE],a.id,'078'),
+     @cdate = dbo.clariondate(getdate()),
+     @recordtype = dbo.taxCorrectionsSF([RECORDTYPE],a.id,'010')
+    from adtax a where id = @taxrollId
 
     if @recordtype='O' and @district<' 0'
      select @district=@ratename
 
    end 
-
+/*
 -- if we have corrections ...
 -- TOTALDUE
  if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'TOTALDUE')
@@ -71,7 +84,7 @@ begin
 -- SCHOOLDISTRICTTAXRATE
  if exists(select * from dbo.taxrollCorrections where taxrollId = @taxrollId and fieldName = 'SCHOOLDISTRICTTAXRATE')
   select @rateName = latestValue from dbo.taxrollItemBRW(null,0,@taxrollId) where fieldName = 'SCHOOLDISTRICTTAXRATE'
-
+*/
 --TODO: remove this hack later
  if isnull(@invoiceId,0) = 0
   select top 1 @slink = @styp + cast(id as varchar) from invoices where taxrollid = @taxrollId order by id
@@ -83,7 +96,7 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Fiscal Period is locked or does not exist.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status,@totalDue
   return
  end
 
@@ -91,7 +104,7 @@ begin
  if @taxYear < '  0'
  begin
   insert @rettable 
-   select 1,'Tax Year invalid',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Tax Year invalid',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status,@totalDue
   return
  end
 
@@ -101,7 +114,7 @@ begin
  if isnull(@debitId,0) = 0
  begin
   insert @rettable 
-   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Missing Ad Valorem AR Account. Contact Support. (txchk.1)',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status,@totalDue
   return
  end
 
@@ -112,12 +125,12 @@ begin
  if exists(select * from glDetail where slink = @slink)
  begin
   insert @rettable 
-   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+   select 1,'Tax item has already been posted.',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status,@totalDue
   return
  end
 
  insert @rettable
-  select 0,'OK',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status
+  select 0,'OK',@slink,@taxyear,@district,@rateName,@amount,@fpid,@debitId,@status,@totalDue
  return
 
 end
