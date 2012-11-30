@@ -3,6 +3,7 @@ create function dbo.taxYearBrw(@taxYear varchar(10),@switch varchar(4),@batchNam
 returns @rt table 
  (invoiceId int,
   name nvarchar(60),
+  ownerNumber decimal(9,2),
   parcel nvarchar(34),
   taxYear numeric(5,0),
   item numeric(22,1),
@@ -23,40 +24,95 @@ returns @rt table
 as
 begin
 
-if @switch='p'
+ if @switch='p'
  begin
-   insert @rt
-     select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
-       from dbo.invoices
-      where taxYear = @taxYear and queue=@batchName
-     order by name 
-end
+  insert @rt
+  select 
+   a.id*-1,
+   a.name,
+   b.ownerNumber,
+   a.parcel,
+   a.taxYear,
+   a.item,
+   a.typ,
+   a.invoiceAmount,
+   a.invoiceDue,
+   't'+cast(a.id as varchar),
+   '',
+   0,
+   'b_',case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,
+   0,
+   0,
+   '',
+   a.taxrollId,
+   a.queue,
+   a.printed
+  from dbo.invoices a, adtax b
+  where a.taxrollId = b.id
+   and a.taxYear = @taxYear and a.queue=@batchName
+ end
 
 
-if @switch='q'
+ if @switch='q'
  begin
-   insert @rt
-     select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
-       from dbo.invoices
-      where taxYear = @taxYear and printed='' and queue=@batchName
-     order by printed 
-end
+  insert @rt
+  select 
+   a.id*-1,
+   a.name,
+   b.ownerNumber,
+   a.parcel,
+   a.taxYear,
+   a.item,
+   a.typ,
+   a.invoiceAmount,
+   a.invoiceDue,
+   't'+cast(a.id as varchar),
+   '',
+   0,
+   'b_',case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,
+   0,
+   0,
+   '',
+   a.taxrollId,
+   a.queue,
+   a.printed
+  from dbo.invoices a, adtax b
+  where a.taxrollId = b.id
+   and a.taxYear = @taxYear and a.printed='' and a.queue=@batchName
+ end
 
 
-if @switch='M'
+ if @switch='M'
  begin
-   insert @rt
-     select 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_',case when invoiceDue != 0 then subInvoiceDue else 0.00 end, 0             ,0,'',taxrollId,queue,printed
-       from dbo.invoices
-      where taxYear = @taxYear and taxrollid in (select id from adtax where realtaxyear=@taxyear and (cast(mortgagecode as varchar) > '0' or cast(treamort as varchar) > '0'))
-     order by printed 
-end
+  insert @rt
+  select 
+   a.id*-1,
+   a.name,
+   b.ownerNumber,
+   a.parcel,
+   a.taxYear,
+   a.item,
+   a.typ,
+   a.invoiceAmount,
+   a.invoiceDue,
+   't'+cast(a.id as varchar),
+   '',
+   0,
+   'b_',case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,
+   0,
+   0,
+   '',
+   a.taxrollId,
+   a.queue,
+   a.printed
+  from dbo.invoices a, adtax b
+  where a.taxrollId = b.id
+   and a.taxYear = @taxYear
+   and a.taxrollid in (select id from adtax where realtaxyear=@taxyear and (cast(mortgagecode as varchar) > '0' or cast(treamort as varchar) > '0'))
+ end
 
 
-update @rt set treamort=case when a.treamort>'  0' then cast(a.treamort as varchar) else cast(mortgagecode as varchar) end from adtax a where taxrollid=a.id
+ update @rt set treamort=case when a.treamort>'  0' then cast(a.treamort as varchar) else cast(mortgagecode as varchar) end from adtax a where taxrollid=a.id
 
 
 
