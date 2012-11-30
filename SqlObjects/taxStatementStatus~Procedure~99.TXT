@@ -12,12 +12,14 @@ begin
   @InvoiceStatus varchar(50),
   @name varchar(50),
   @item varchar(50),
+  @printOrder varchar(50),
   @tally int,
   @log varchar(max)
 
  select
   @name = name,
   @item = cast(item as varchar), 
+  @printOrder = printOrder,
   @queue = queue,
   @taxYear = taxyear,
   @invoiceStatus = printed
@@ -32,19 +34,19 @@ begin
   else
    update invoices set printed = getDate()
    where queue = @queue and printed < '  0'
-    and name + cast(item as varchar) <= @name + @item
+    and printOrder <= printOrder
     and taxyear = @taxyear
  end
 
  if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
  begin
-  select @tally = count(*) from invoices where name + cast(item as varchar) >= @name + @item and queue = @queue and taxyear = @taxyear
+  select @tally = count(*) from invoices where printOrder >= @printOrder and queue = @queue and taxyear = @taxyear
   select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
   exec dbo.logit @@procid, @log
   if @status = 'resetPrintedStage'
    select @log 
   if @status = 'resetPrintedCommit'
-   update invoices set printed = '' where name + cast(item as varchar) >= @name + @item and queue = @queue and taxyear = @taxyear
+   update invoices set printed = '' where printOrder >= @printOrder and queue = @queue and taxyear = @taxyear
   return
  end
 

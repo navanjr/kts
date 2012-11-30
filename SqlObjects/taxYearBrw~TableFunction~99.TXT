@@ -3,7 +3,7 @@ create function dbo.taxYearBrw(@taxYear varchar(10),@switch varchar(4),@batchNam
 returns @rt table 
  (invoiceId int,
   name nvarchar(60),
-  ownerNumber decimal(9,2),
+  printOrder varchar(50),
   parcel nvarchar(34),
   taxYear numeric(5,0),
   item numeric(22,1),
@@ -30,7 +30,7 @@ begin
   select 
    a.id*-1,
    a.name,
-   b.ownerNumber,
+   a.printOrder,
    a.parcel,
    a.taxYear,
    a.item,
@@ -47,9 +47,8 @@ begin
    a.taxrollId,
    a.queue,
    a.printed
-  from dbo.invoices a, adtax b
-  where a.taxrollId = b.id
-   and a.taxYear = @taxYear and a.queue=@batchName
+  from dbo.invoices a
+  where a.taxYear = @taxYear and a.queue=@batchName
  end
 
 
@@ -59,7 +58,7 @@ begin
   select 
    a.id*-1,
    a.name,
-   b.ownerNumber,
+   a.printOrder,
    a.parcel,
    a.taxYear,
    a.item,
@@ -76,9 +75,8 @@ begin
    a.taxrollId,
    a.queue,
    a.printed
-  from dbo.invoices a, adtax b
-  where a.taxrollId = b.id
-   and a.taxYear = @taxYear and a.printed='' and a.queue=@batchName
+  from dbo.invoices a
+  where a.taxYear = @taxYear and a.printed='' and a.queue=@batchName
  end
 
 
@@ -88,7 +86,7 @@ begin
   select 
    a.id*-1,
    a.name,
-   b.ownerNumber,
+   a.printOrder,
    a.parcel,
    a.taxYear,
    a.item,
@@ -105,9 +103,8 @@ begin
    a.taxrollId,
    a.queue,
    a.printed
-  from dbo.invoices a, adtax b
-  where a.taxrollId = b.id
-   and a.taxYear = @taxYear
+  from dbo.invoices a
+  where a.taxYear = @taxYear
    and a.taxrollid in (select id from adtax where realtaxyear=@taxyear and (cast(mortgagecode as varchar) > '0' or cast(treamort as varchar) > '0'))
  end
 

@@ -12,7 +12,7 @@ begin
  if isnull(@removeBatch,'') > '  0'
  begin
   exec dbo.logit @@procid, '@removeBatch', @removeBatch, '@taxyear', @taxyear
-  update invoices set printed = '', queue = '' where taxyear = @taxyear and queue = @removeBatch 
+  update invoices set printed = '', queue = '', printOrder = '' where taxyear = @taxyear and queue = @removeBatch 
   return
  end
 
@@ -24,12 +24,19 @@ begin
  else
   set @batchName = @ini + '.001'
 
- declare @sql nvarchar(max)
+ declare
+  @sql nvarchar(max),
+  @pbStuffer varchar(50)
+
+ select @pbstuffer = pbStuffer from dbo.site
 
  if @mortCode = 'Grouped'
  begin
 
-  update invoices set queue = @batchName where taxrollid in 
+  update invoices set
+   queue = @batchName,
+   printOrder = name + cast(item as varchar)
+  where taxrollid in 
    (select top( @count ) i.taxrollid 
     from invoices i, adtax x 
     where i.taxrollid = x.id
@@ -41,12 +48,21 @@ begin
      and i.invoiceDue != 0
     order by i.name + cast(i.item as varchar))
 
+  if @pbStuffer = '1'
+   update i set
+    i.printOrder = left(i.name,1) + dbo.padLeft(cast(x.ownerNumber as varchar),'0',11)
+   from invoices i, adtax x
+    where i.taxrollId = x.id and i.taxYear = @taxYear and i.queue = @batchName
+
   return
  end
 
  if @mortCode > '  0'
  begin
-   update invoices set queue = @batchName where taxrollid in 
+  update invoices set
+   queue = @batchName,
+   printOrder = name + cast(item as varchar)
+  where taxrollid in 
     (select top( @count ) i.taxrollid 
      from invoices i, adtax x 
      where i.taxrollid = x.id
@@ -57,27 +73,23 @@ begin
       and i.invoiceId = 0
       and i.invoiceDue != 0
      order by i.name + cast(i.item as varchar))
+
+  if @pbStuffer = '1'
+   update i set
+    i.printOrder = left(i.name,1) + dbo.padLeft(cast(x.ownerNumber as varchar),'0',11)
+   from invoices i, adtax x
+    where i.taxrollId = x.id and i.taxYear = @taxYear and i.queue = @batchName
+
   return
  end
 
- declare @wt table(taxrollId int, ownerNumber numeric(9,2))
- insert @wt select top( @count ) taxrollid, ownerNumber
-  from dbo.taxStatementQueueGrabView
-  where taxyear = @taxyear and isnull(mortCode,'') in ('','0') 
-  order by name, item
--- add any linked ownerNumbers
- insert @wt
- select taxrollid, ownerNumber
-  from dbo.taxStatementQueueGrabView
-  where
-   taxyear = @taxyear and isnull(mortCode,'') in ('','0')
-   and ownerNumber in (select ownerNumber from @wt)
-   and taxrollId not in (select taxrollId from @wt) 
+ if @pbStuffer != '1'
+ begin
 
-  update invoices set queue = @batchName where taxrollid in (select taxrollId from @wt)
-
-/*
-  update invoices set queue = @batchName where taxrollid in 
+  update invoices set
+   queue = @batchName,
+   printOrder = name + cast(item as varchar)
+  where taxrollid in 
    (select top( @count ) i.taxrollid 
     from invoices i, adtax x 
     where i.taxrollid = x.id
@@ -89,5 +101,78 @@ begin
      and i.typ not in ('O')
      and i.invoiceDue != 0
     order by i.name + cast(x.ownerNumber as varchar) + cast(i.item as varchar))
-*/
+
+ end
+ else
+ begin
+
+  declare @wt table(taxrollId int, ownerNumber numeric(9,2))
+  insert @wt select top( @count ) taxrollid, ownerNumber
+   from dbo.taxStatementQueueGrabView
+   where taxyear = @taxyear and isnull(mortCode,'') in ('','0') 
+   order by name, item
+ -- add any linked ownerNumbers
+  insert @wt
+  select taxrollid, ownerNumber
+   from dbo.taxStatementQueueGrabView
+   where
+    taxyear = @taxyear and isnull(mortCode,'') in ('','0')
+    and ownerNumber in (select ownerNumber from @wt)
+    and taxrollId not in (select taxrollId from @wt) 
+
+  update invoices set
+   queue = @batchName
+  where taxrollid in (select taxrollId from @wt)
+
+   update i set
+    i.printOrder = left(i.name,1) + dbo.padLeft(cast(x.ownerNumber as varchar),'0',11)
+   from invoices i, adtax x
+    where i.taxrollId = x.id and i.taxYear = @taxYear and i.queue = @batchName
+
+  -- add the ticks
+  declare @singles table(x varchar(50), id int)
+  declare @doubles table(x varchar(50), firstId int, lastId int)
+  declare @bigns table(x varchar(50), firstId int, lastId int)
+
+  -- get the singles
+  insert @singles select printOrder, min(id) from invoices where taxyear = @taxyear and queue = @batchName group by printOrder  having COUNT(*) % 4 = 1 
+  update invoices set printOrder = printOrder + '.005' where taxyear = @taxyear and queue = @batchName and id in (select ID from @singles)
+
+  declare @loopn int = 0
+
+  while exists(select * from invoices where taxyear = @taxyear and queue = @batchName and LEN(printOrder) = 12)
+  begin
+   -- and the doubles
+   insert @doubles select printOrder, MIN(id), MAX(id)
+    from invoices where taxyear = @taxyear and queue = @batchName and LEN(printOrder) = 12 group by printOrder having COUNT(*) in (2,3,4)
+   update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '1'
+    where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select firstId from @doubles)
+   update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '4'
+    where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select LastId from @doubles)
+   update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+    where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12
+     and id not in (select firstId from @doubles union select lastId from @doubles) and printOrder in (select x from @doubles)
+
+  -- and the bigns
+  insert @bigns select printOrder, MIN(id), MAX(id)
+   from invoices where taxyear = @taxyear and queue = @batchName and LEN(printOrder) = 12 group by printOrder having COUNT(*) > 4
+  update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '1'
+   where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select firstId from @bigns)
+  update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '4'
+   where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select LastId from @bigns)
+  delete @bigns
+  insert @bigns select printOrder, MIN(id), MAX(id)
+   from invoices where taxyear = @taxyear and queue = @batchName and LEN(printOrder) = 12 group by printOrder having COUNT(*) > 2
+  update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+   where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select firstId from @bigns)
+  update invoices set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+   where taxyear = @taxyear and queue = @batchName and len(printOrder) = 12 and ID in (select LastId from @bigns)
+
+  select @loopn = @loopn + 1
+  if @loopn = 99
+   break
+  end 
+
+ end
+
 end
