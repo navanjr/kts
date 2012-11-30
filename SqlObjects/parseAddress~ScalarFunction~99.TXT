@@ -2,6 +2,12 @@ create function dbo.parseAddress(@str varchar(1000)) returns varchar(1000)
 	as begin
 	declare @addy varchar(1000)
  
+ declare @zipRaw varchar(1000)
+ select @zipRaw =  
+  case when len(dbo.readstring('@zip1=',@str))>0 then dbo.readstring('@zip1=',@str) else '' end 
+  + case when len(dbo.readstring('@zip2=',@str))>0 then '-'+dbo.readstring('@zip2=',@str) else '' end 
+  + case when len(dbo.readstring('@zip3=',@str))>0 then ''+dbo.readstring('@zip3=',@str) else '' end 
+
 
  select @addy=
   case when len(dbo.readstring('@Address1=',@str))>0 then dbo.readstring('@Address1=',@str)+ CHAR(13) + CHAR(10) else '' end 
@@ -9,9 +15,7 @@ create function dbo.parseAddress(@str varchar(1000)) returns varchar(1000)
   + case when len(dbo.readstring('@Address3=',@str))>0 then dbo.readstring('@Address3=',@str)+ CHAR(13) + CHAR(10) else '' end 
   + case when len(dbo.readstring('@city=',@str))>0 then dbo.readstring('@city=',@str)+', ' else '' end 
   + case when len(dbo.readstring('@state=',@str))>0 then dbo.readstring('@state=',@str)+' ' else '' end 
-  + case when len(dbo.readstring('@zip1=',@str))>0 then dbo.readstring('@zip1=',@str) else '' end 
-  + case when len(dbo.readstring('@zip2=',@str))>0 then '-'+dbo.readstring('@zip2=',@str) else '' end 
-  + case when len(dbo.readstring('@zip3=',@str))>0 then ''+dbo.readstring('@zip3=',@str) else '' end 
+  + case when len(dbo.splitF(@zipRaw,'-',2)) = 4 then @zipRaw else dbo.splitF(@zipRaw,'-',1) end 
   
 return @addy
 end
