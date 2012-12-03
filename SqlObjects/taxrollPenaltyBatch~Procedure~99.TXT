@@ -17,6 +17,8 @@ begin
 
  select @parentType=typ from object where id = @receiptId
 
+exec dbo.logit @@procid, '@receiptId', @receiptId 
+
  if @parentType = 4003
   begin
    select @penaltyDate = a16 from object where id = @receiptId
@@ -55,16 +57,19 @@ begin
  while exists(select * from @pt)
  begin
   select top 1 @idToken = invoiceId, @amount = amount from @pt
+  exec dbo.logit @@procid,  '@idToken', @idToken, '@amount', @amount
   
   -- Issue penalty invoice for this tax item or update an existing one
   set @existingpenaltyId = isnull((select top 1 id from invoices where typ='P' and invoiceId=@idToken),0)
   if @existingpenaltyId=0
    begin
     exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount
+    exec dbo.logit @@procid,  '@invoiceDate', @invoiceDate, '@description', @description, '@sourceCode', @sourceCode, '@fundCode', @fundCode, '@typ','P', '@amount', @amount
    end
   else
    begin
     exec subInvoiceAdjust @existingpenaltyId, @amount,0
+    exec dbo.logit @@procid,  '@existingpenaltyId', @existingpenaltyId, '@amount', @amount
    end
   delete @pt where invoiceId = @idToken
  end
