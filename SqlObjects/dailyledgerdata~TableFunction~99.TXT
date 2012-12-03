@@ -67,17 +67,26 @@ select accountCode, accountDesc, sum(beginbalance), sum(paid), sum(tranout), sum
 update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, endbalance=endbalance*-1 where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 update @wt2 set paid=paid*-1 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
+declare @currentTaxYear varchar(4),
+        @priorTaxYear varchar(4)
+
+select @currentTaxYear = left(max(accountCode),4) from @wt2 where right(accountCode,9)='ADVALOREM'
+select @priorTaxYear = cast(cast(@currentTaxYear as int)-1 as varchar(4))
+
+
+update @wt2 set accountType='BACK TAX' where right(accountCode,9)='ADVALOREM' and left(accountCode,4) < @priorTaxYear
+
 insert @rt
  select *,'' from @wt2 where accountType in ('BANK','FUND')
 
 insert @rt
-select accountType, accountType+'S', sum(beginbalance), sum(paid), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType,'' from @wt2
- where accountType in (select accountType from dbo.glBankFundTypes('BOTH')) and accountType not in ('BANK','FUND')
+select accountType, accountType+case when accountType <> 'BACK TAX' then 'S' else '' end, sum(beginbalance), sum(paid), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType,'' from @wt2
+ where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in ('BANK','FUND')
  group by accountType
 
 update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
 update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
-update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND') union select 'BACK TAX')
 update r set reportOrder = a.reportOrder from @rt r, glaccounts a where r.accountCode=a.accountCode
 return
 end
