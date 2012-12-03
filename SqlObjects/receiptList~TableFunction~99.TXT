@@ -101,14 +101,14 @@ insert @wt2
 
 update w set 
   penalty=a.penalty, 
-  fee=a.fee 
+  fee=isnull(a.fee,0) 
   from @wt w, @wt2 a
  where a.parentInvoiceId=w.invoiceId 
   and a.parentInvoiceId>0 
   and w.recId=a.recId
 
 update w set
-  w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortfee',subDescription)>0)
+  w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortgage fee',Description)>0)
   from @wt w where w.recType='MTG'
 
 
@@ -122,7 +122,7 @@ where recType='TAX'
 
 
 update @wt set 
- paid=paid-fee 
+ paid=isnull(paid,0)-isnull(fee,0) 
  where left(recType,3)<>'TAX'
 
 
