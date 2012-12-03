@@ -30,6 +30,7 @@ begin
   @typ varchar,
   @name varchar(50),
   @asOf varchar(10),
+  @item numeric(9,1),
   @totalTax money
 
 -- get variables from our invoice
@@ -37,7 +38,8 @@ begin
   @parcel = parcel,
   @name = name, 
   @year = taxyear,
-  @typ = TYP 
+  @typ = TYP ,
+  @item = item
  from invoices 
  where ID = @invoiceId
 
@@ -60,7 +62,7 @@ begin
    and i.TYP in ('R','O','S')
    and i.invoiceDue != 0
    and i.id not in (select invoiceId from @rt)
-   and (i.taxyear <> @year or i.id = @invoiceId)
+   and (i.taxyear <> @year or i.item = @item)
 
  
  if @typ in ('P','B','I','O','S')
@@ -79,7 +81,7 @@ begin
    and TYP != 'R'
    and invoiceDue != 0
    and id not in (select invoiceId from @rt)
-   and (taxyear <> @year or id = @invoiceId)
+   and (taxyear <> @year or item = @item)
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
