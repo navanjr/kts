@@ -25,6 +25,18 @@ begin
   @accountTypeDesc varchar(50)
 
 
+  if @accountId = 0
+  begin
+     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode] 
+   from gldetail a, glaccounts c
+     where a.contraId=c.accountId and 
+     contraId > 0 and 
+     c.accountType='FUND' and 
+     ISNULL(bsId,0) = 0 
+  end
+  else
+  begin
+
   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
   if @accountType = 4701 and @accountTypeDesc<>'ACCRUED RECEIVABLE'
@@ -55,7 +67,7 @@ begin
     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
       where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
    end
-
+  end
   update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
   update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b, receiptLink c where a.slink='l'+cast(c.id as varchar) and c.receiptId = b.id
 
