@@ -26,6 +26,7 @@ create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int
 
 begin
 
+
  declare
   @tokenId int,
   @tokenAccountId int,
@@ -79,8 +80,8 @@ declare @twt table(
  c.accountCode as contraAccountCode,
  c.accountDesc as contraAccountDesc,
  a.accountId as acrAccountId, 
- isnull((select top 1 accountCode from glaccounts where accountId=a.accountId),'') as acrAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=a.accountId),'') as acrAccountDesc 
+ '' as acrAccountCode,
+ '' as acrAccountDesc 
    from gldetail a, glaccounts c
      where a.contraId=c.accountId and 
      contraId > 0 and 
@@ -95,11 +96,11 @@ declare @twt table(
     begin
  -- Add glDetail when apportioning by account
      insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- isnull((select top 1 accountCode from glaccounts where accountId=contraId),'') as contraAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=contraId),'') as contraAccountDesc,
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
  accountId as acrAccountId, 
- isnull((select top 1 accountCode from glaccounts where accountId=accountId),'') as acrAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=accountId),'') as acrAccountDesc  from gldetail 
+ '' as acrAccountCode,
+ '' as acrAccountDesc  from gldetail 
      where contraId = @accountId and ISNULL(bsId,0) = 0 
     end   
 
@@ -107,11 +108,11 @@ declare @twt table(
     begin
  -- Add glDetail when apportioning by accrued receivable account
      insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- isnull((select top 1 accountCode from glaccounts where accountId=contraId),'') as contraAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=contraId),'') as contraAccountDesc,
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
  accountId as acrAccountId, 
- isnull((select top 1 accountCode from glaccounts where accountId=accountId),'') as acrAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=accountId),'') as acrAccountDesc  from gldetail 
+ '' as acrAccountCode,
+ '' as acrAccountDesc  from gldetail 
      where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
     end
 
@@ -119,11 +120,11 @@ declare @twt table(
     begin
  -- Add glDetail when apportioning protest by journal entry
      insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a. [creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
- isnull((select top 1 accountCode from glaccounts where accountId=a.contraId),'') as contraAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=a.contraId),'') as contraAccountDesc,
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
  a.accountId as acrAccountId, 
- isnull((select top 1 accountCode from glaccounts where accountId=a.accountId),'') as acrAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=a.accountId),'') as acrAccountDesc  
+ '' as acrAccountCode,
+ '' as acrAccountDesc  
 
 from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@accountId 
     end
@@ -134,21 +135,26 @@ from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@a
   
  -- Add glDetail when special apportioning a receipt
      insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- isnull((select top 1 accountCode from glaccounts where accountId=contraId),'') as contraAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=contraId),'') as contraAccountDesc,
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
  accountId as acrAccountId, 
- isnull((select top 1 accountCode from glaccounts where accountId=accountId),'') as acrAccountCode,
- isnull((select top 1 accountDesc from glaccounts where accountId=accountId),'') as acrAccountDesc  from gldetail 
+ '' as acrAccountCode,
+ '' as acrAccountDesc  from gldetail 
        where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
     end
   end
 
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
+--  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
+  update a set [date]=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where left(a.slink,1)='o' and cast(substring(a.slink,2,15) as int)=b.id
   update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b, receiptLink c where a.slink='l'+cast(c.id as varchar) and c.receiptId = b.id
 
   delete from @twt where date > @apportionToDate
 
   delete from @twt where amount=0.00
+
+  update t set contraAccountCode = g.accountCode, contraAccountDesc = g.accountDesc from @twt t, glaccounts g where t.contraId=g.accountId
+  update t set acrAccountCode = g.accountCode, acrAccountDesc = g.accountDesc from @twt t, glaccounts g where t.acrAccountId=g.accountId
+
 
 
 -- debit Collection Account
