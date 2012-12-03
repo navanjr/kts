@@ -7,21 +7,26 @@ create function dbo.apportionCollectionsBRW( @accountId int, @apportionToDate in
  comment2 varchar(50),
  slink2 varchar(15),
  contraId int,
- sourceCode varchar(60)
+ sourceCode varchar(60),
+ contraAccountCode varchar(60),
+ contraAccountDesc varchar(60),
+ acrAccountId int,
+ acrAccountCode varchar(60),
+ acrAccountDesc varchar(60)
 )
 begin
 
 -- debits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc
  from dbo.apportionCollectionsWT( @accountId, @apportionToDate ) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
-  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc 
  
 -- credits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode  
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc  
  from dbo.apportionCollectionsWT( @accountId, @apportionToDate ) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
-  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode 
+  group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc 
 
  return
 end
