@@ -12,7 +12,8 @@ begin
   @amount money,
   @existingpenaltyId int,
   @parentType int,
-  @penaltyDate int
+  @penaltyDate int,
+  @log varchar(max)
 
 
  select @parentType=typ from object where id = @receiptId
@@ -64,7 +65,8 @@ exec dbo.logit @@procid, '@receiptId', @receiptId
   if @existingpenaltyId=0
    begin
     exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount
-    exec dbo.logit @@procid,  '@invoiceDate', @invoiceDate, '@description', @description, '@sourceCode', @sourceCode, '@fundCode', @fundCode, '@typ','P', '@amount', @amount
+    select @log = '@invoiceDate=' + @invoiceDate + ';@description=' + @description + ';@sourceCode=' + @sourceCode + ';@fundCode=' + @fundCode + ';@typ=' + 'P' + ';@amount=' + cast(@amount as varchar) + ';'
+    exec dbo.logit @@procid, @log
    end
   else
    begin
