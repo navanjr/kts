@@ -317,5 +317,46 @@ from @wt where processFlag = 1
 
 -- process S types
  update @wt set processFlag = 2,creditCode=isnull((select key2 from object where typ=4011 and key1=aprate),'') where processFlag = 0 and apTableType = 'S' 
+
+ insert @wt (acraccountCode,amount,stepDesc)
+  select acraccountCode, sum(amount), 'ACR1'
+   from @wt where acraccountcode=creditcode
+   group by acraccountCode
+
+ insert @wt (acraccountCode,amount,comment,stepDesc)
+  select acraccountCode, sum(amount), 'Apportioned','ACR2'
+   from @wt where acraccountcode<>creditcode and creditcode>' 0'
+   group by acraccountCode
+
+ update w set comment='Match' from @wt w where stepDesc='ACR1' and amount = isnull((select sum(amount) from @wt where acraccountCode=w.acraccountCode and stepDesc='ACR2'),0)
+
+ insert @wt (amount,acraccountCode,stepDesc,apYear)
+  select sum(amount), left(isnull(apTableType,''),1)+rtrim(isnull(appoptype,'')),'Table1',isnull(apyear,'') from @wt
+      where apTableType in ('P','A')
+   group by isnull(apTableType,''),isnull(apyear,''),isnull(appoptype,'')
+ 
+ insert @wt (amount, acraccountCode, stepDesc, apYear)
+  select sum(amount), left(rtrim(stepDesc),5),'Table2A',isnull(apyear,'') from @wt
+   where stepDesc like '%MILL%' and creditCode>' 0'
+   group by left(rtrim(stepDesc),5),isnull(apyear,'')
+
+ insert @wt (amount, acraccountCode, stepDesc,apYear)
+  select sum(amount), right(rtrim(stepDesc),8),'Table2A',isnull(apyear,'') from @wt
+   where stepDesc like '%ADA%' and creditCode>' 0' and stepDesc not like '%MILL%'
+   group by right(rtrim(stepDesc),8),isnull(apyear,'')
+ 
+ insert @wt (amount, acraccountCode, stepDesc, apYear)
+  select sum(amount), right(rtrim(stepDesc),11),'Table2P',isnull(apyear,'') from @wt
+   where stepDesc like '%POPULAT%' and creditCode>' 0'
+   group by right(rtrim(stepDesc),11),isnull(apyear,'')
+
+ update w set comment='Match' from @wt w where stepDesc='Table1' 
+   and amount = isnull((select sum(amount) from @wt 
+   where apyear=w.apyear and left(stepDesc,6)='Table2' and left(w.acraccountCode,1)=substring(stepDesc,7,1)),0)
+
+ update w set comment='Match' from @wt w where left(stepDesc,6)='Table2' 
+   and amount = isnull((select sum(amount) from @wt 
+   where apyear=w.apyear and left(stepDesc,6)='Table1' and left(acraccountCode,1)=substring(w.stepDesc,7,1)),0)
+   
  return
 end
