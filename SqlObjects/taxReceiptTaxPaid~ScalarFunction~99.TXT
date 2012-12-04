@@ -1,8 +1,10 @@
-Create function dbo.taxReceiptTaxPaid(@recId int,@invoiceId int) returns money
+Create function dbo.taxReceiptTaxPaid(@recId int,@invoiceId int,@switch int = 0) returns money
 	as 
 begin
 declare @retVal money
 declare @wt table (taxAmount money,AccCode varchar(50),AccType varchar(50))
+
+if @switch = 0 
 
 	insert into @wt  
 		select amount,accountCode,''
@@ -10,11 +12,22 @@ declare @wt table (taxAmount money,AccCode varchar(50),AccType varchar(50))
 			where	a.slink = 'l'+cast(b.id as varchar(30)) 
 					and b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
+
+if @switch = 1
+
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a,receiptlink b 
+			where	a.slink = 'l'+cast(b.id as varchar(30)) 
+					and b.invoiceId = @invoiceId  
+					and b.receiptId < @recId
+
+
 	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
 	
 	delete from @wt where AccType<>'Receivable' or taxAmount > 0
 
-	select @retVal = SUM(abs(taxAmount)) from @wt
+	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
 
 return @retVal
 end

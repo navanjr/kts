@@ -61,7 +61,7 @@ begin
 					i.TAXYEAR,
 					max(i.NAME),
 					sum(case when i.invoiceId=0 then i.invoiceAmount else 0 end),
-					sum(case when i.invoiceId=0 then i.invoiceAmount else 0 end),
+					sum(case when i.invoiceId=0 then i.invoiceAmount else 0 end)- dbo.taxReceiptTaxPaid(@recid,case when invoiceId>0 then invoiceId else ID end,1),
                                         0,
                                         sum(case when i.invoiceId>0 and i.TYP='P' then i.invoiceamount else 0 end),
 					0,
@@ -103,8 +103,8 @@ begin
 						
 
 	update @rt set
-			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId),
-                        TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId) + isnull(Penalty,0) + isnull(mail,0) + isnull(lien,0) + isnull(adv,0) + isnull(mowing,0) + isnull(other,0) 
+			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId,0),
+                        TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId,0) + isnull(Penalty,0) + isnull(mail,0) + isnull(lien,0) + isnull(adv,0) + isnull(mowing,0) + isnull(other,0) 
 
 
 declare @wt1 table(invoiceId int, due money, feedue money, process int)
@@ -198,7 +198,12 @@ while exists(select * from @wt1 where process=0)
 
           from @rt
       
-     update @rt set recCount = @recCount, repTotalDue = @repTotalDue, remainingTaxDueTot = @remainTaxDueTot, remainingFeeDueTot = @remainFeeDueTot, reptotalRec = isnull(ckoth,0)+isnull(cash,0),grandtotal = @grandTotal			
+     update @rt set recCount = @recCount,
+                    repTotalDue = @repTotalDue,
+                    remainingTaxDueTot = @remainTaxDueTot,
+                    remainingFeeDueTot = @remainFeeDueTot,
+                    reptotalRec = isnull(ckoth,0)+isnull(cash,0),
+                    grandtotal = @grandTotal			
 
  return					
 end
