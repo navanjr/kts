@@ -40,12 +40,15 @@ begin
 
  declare @wt table(
   parentId int identity(1,1),
-  invoice_link int,
+  receipt_number int,
   receipt_link int,
-  description varchar(4),
-  amount money,
-  date varchar(50)
- )
+  post_Date varchar(20),
+  paid_Date varchar(20),
+  paid_by varchar(50),
+  paid_fees money,
+  paid_penalties money,
+  paid_total money,
+  )
 
  if @method = 'BatchPost'
  begin
@@ -97,13 +100,15 @@ begin
   order by id
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
-  insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
-  insert @jsonPrep select parentId,null,'receipt_link',tax_roll_link,'int' from @wt
-  insert @jsonPrep select parentId,null,'tax_year',tax_year,'int' from @wt
+  insert @jsonPrep select parentId,null,'receipt_number',receipt_number,'string' from @wt
+  insert @jsonPrep select parentId,null,'receipt_link',receipt_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'posted_date',posted_date,'string' from @wt
 
-  insert @jsonPrep select parentId,null,'invoice_due',invoice_due,'int' from @wt
-  insert @jsonPrep select parentId,null,'invoice_amount',invoice_amount,'int' from @wt
-  insert @jsonPrep select parentId,null,'invoice_Date',invoice_date,'int' from @wt
+  insert @jsonPrep select parentId,null,'paid_total',paid_total,'int' from @wt
+  insert @jsonPrep select parentId,null,'paid_penalties',paid_penalties,'int' from @wt
+  insert @jsonPrep select parentId,null,'paid_fees',paid_fees,'int' from @wt
+  insert @jsonPrep select parentId,null,'paid_date',paid_date,'int' from @wt
+  insert @jsonPrep select parentId,null,'paid_by',paid_by,'string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
