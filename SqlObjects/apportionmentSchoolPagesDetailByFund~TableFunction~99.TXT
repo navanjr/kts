@@ -2,7 +2,7 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[reportOrder] [varchar](60) NULL,
 	[accountCode] [varchar](60) NULL,
 	[accountDesc] [varchar](50) NULL,
-	[district] varchar(50) NOT NULL default '',
+	[district] varchar(50) NULL,
 	[accountType] [varchar](50) NULL,
 	[comment2] [varchar](50) NULL,
 	[currentTax] [money] NOT NULL default 0,
@@ -236,6 +236,14 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @scho
      and r.comment2=b.comment2
      and b.journalDesc=c.heading
      and c.id=12
+
+
+insert @rt (reportOrder,accountType,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12)
+select '4500','SCHOOL TOTAL', comment2, sum(currentTax), sum(priorTax), sum(backTax), sum(amount1), sum(amount2), sum(amount3), sum(amount4), sum(amount5), sum(amount6), sum(amount7), sum(amount8), sum(amount9), sum(amount10), sum(amount11), sum(amount12) 
+ from @rt where accountType like '%SCHOOL%' or accountType='VOTECH'
+group by comment2
+
+
 
 update r set heading1 = isnull((select max(heading1) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''), 
              heading2 = isnull((select max(heading2) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''),
@@ -527,6 +535,7 @@ update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'
                                   when accountType = 'VOTECH' then '3000'
                                   when accountType = 'CITY' then '4000' 
                                   else '5000' end
+
 
 
 update @rt set total=currentTax+priorTax+backTax+amount1+amount2+amount3+amount4+amount5+amount6+amount7+amount8+amount9+amount10+amount11+amount12
