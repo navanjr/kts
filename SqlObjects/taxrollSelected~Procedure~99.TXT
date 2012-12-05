@@ -7,7 +7,8 @@ create procedure dbo.taxrollSelected(
 begin
  
  declare @unPaidSelected varchar(50),
-         @parcel varchar(60)
+         @parcel varchar(60),
+         @item varchar(60)
        select top 1 @unPaidSelected = a15 from object where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
@@ -42,7 +43,7 @@ begin
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
  end
 
---UnPaidSelect by Parcel
+--UnPaidSelect by Parcel and Item
 if @unPaidSelected = 1 and lower(@method) = 'tax'
  begin
   if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
@@ -51,12 +52,20 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
      end
      else
      begin
-       select @parcel=parcel from dbo.invoices where id = @invoiceId
+       select @parcel=parcel,@item=item from dbo.invoices where id = @invoiceId
      end
 
   exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
 
-  if @parcel > ' 0'
+ if @Item > '  0'
+  begin
+   insert @rd (receiptId, invoiceId, methodRate) 
+   select @receiptId, id, @methodRate from invoices 
+   where item = @Item
+    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+  end
+
+  if @parcel > '  0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
    select @receiptId, id, @methodRate from invoices 
