@@ -1,0 +1,76 @@
+create function dbo.abstractBRW(
+ @taxYear varchar(4),
+ @filter varchar(150)
+) returns @rt table(
+ id int,
+ name varchar(50),
+ itemNumber numeric(14,7),
+ adtaxAmount money,
+ adtaxInvoiced money,
+ dist varchar(50), 
+ rateName varchar(50),
+ variance money,
+ display varchar(1000),
+ show int,
+ ord varchar(1000)
+)
+begin
+
+ declare @wt table(
+  id int,
+  name varchar(50),
+  itemNumber numeric(14,7),
+  adtaxAmount money,
+  adtaxInvoiced money,
+  dist varchar(50), 
+  rateName varchar(50)
+ )
+ 
+ -- insert adtax conversion data
+ insert @wt (id, name, itemNumber, adtaxAmount, dist, rateName)
+  select id, OWNERNAME, ITEMNUMBER, balanceDue, SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE from AdTax where REALTAXYEAR = @taxyear and origin = ''
+
+ -- insert Invoices
+ insert @wt (id, adtaxInvoiced) select taxrollId, invoiceAmount from invoices where taxyear = @taxyear and TAXROLLID > 0 and TYP != 'S'
+
+ insert @rt 
+  select cast('8' + cast(id as varchar) as int) * -1,
+   MAX(name),
+   MAX(itemNumber),
+   SUM(adtaxAmount), 
+   SUM(adtaxInvoiced), 
+   max(dist), 
+   max(rateName), 
+   null,
+   '     ' + MAX(name)+ ' - ' + MAX(convert(varchar(14), itemNumber, 0)),
+   0,
+   MAX(dist) + MAX(rateName) + 'Z' + max(name)
+  from @wt group by id
+
+ update @rt set
+  variance = adtaxInvoiced - adtaxAmount
+
+ if @filter > '  0'
+ begin
+  if @filter = 'ALL'
+   update @rt set show = 1 where variance != 0
+  else 
+   update @rt set show = 1 where @filter = dist + ' - ' + rateName and variance != 0
+ end 
+
+ -- insert group rows
+ insert @rt (ord,show,display,adtaxAmount,adtaxInvoiced,variance,dist,rateName)
+ select dist + rateName, 2, dist + ' - ' + rateName, SUM(isnull(adtaxAmount,0)), SUM(isnull(adtaxInvoiced,0)), SUM(adtaxInvoiced) - SUM(adtaxAmount), dist, rateName
+ from @rt where isnull(dist,'') > '  0' and isnull(ratename,'') > '  0'
+ group by dist, rateName
+
+ update @rt set
+  id = (select top 1 cast('9' + cast(id as varchar) as int) * -1 from object where typ = 4012 and key1 = dist and key2 = rateName and key3 = @taxYear)
+ where show = 2 and variance != 0
+
+ -- insert grand totals
+ insert @rt (ord,show,display,adtaxAmount,adtaxInvoiced,variance)
+ select '',3,space(10) + 'Abstract Totals ---->',sum(adtaxAmount), sum(adtaxInvoiced), sum(variance) from @rt where show < 2
+ 
+ return 
+end
