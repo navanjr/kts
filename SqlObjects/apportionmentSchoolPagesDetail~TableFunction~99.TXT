@@ -66,14 +66,16 @@ and accountCode in (select accountCode from @det where comment2 like '%MILL%' an
 
 update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL'
 
+update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%'
+
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50))
 
 insert @years
-select top 1 'Current',journalDesc from @det where journalDesc like '%ADVALOREM%' order by journalDesc desc
+select top 1 'Current',journalDesc from @det where sourceCode='ADVALOREM' order by journalDesc desc
 insert @years
-select top 1 'Prior',journalDesc from @det where journalDesc like '%ADVALOREM%' and journalDesc not in (select journalDesc from @years)
+select top 1 'Prior',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years)
 insert @years
-select distinct 'Back',journalDesc from @det where journalDesc like '%ADVALOREM%' and journalDesc not in (select journalDesc from @years)
+select distinct 'Back',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years)
 
 declare @det2 table(id int identity(1,1),
 	[accountCode] [varchar](60) NULL,

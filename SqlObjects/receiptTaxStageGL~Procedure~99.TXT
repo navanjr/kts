@@ -19,7 +19,8 @@ begin
   protestId int,
   sourceCode varchar(60),
   invoiceTyp varchar(1),
-  pertyp varchar(1)
+  pertyp varchar(1),
+  payord int
  )
  declare @glFundDebits table(
   slink varchar(15),
@@ -88,7 +89,7 @@ begin
   set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp, payord)
   select
    a.id,
    a.invoiceId,
@@ -100,13 +101,14 @@ begin
    0,
    case when b.invoiceId>0 then 'GETSOURCE' else '' end,
    b.typ,
-   case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end
+   case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end,
+   case when b.invoiceId > 0 then 1 else 2 end
   from receiptLink a, invoices b 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
     and b.typ <> 'S'
 
- insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, payord)
   select
    a.id,
    a.invoiceId,
@@ -118,7 +120,8 @@ begin
    a.protestAmount,
    0,
    r.sourceCode,
-   b.typ
+   b.typ,
+   case when b.invoiceId > 0 then 1 else 2 end
   from receiptLink a, invoices b, receiptDetail r 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
@@ -225,7 +228,7 @@ begin
 
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
-  select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, linkId
+  select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, payord, linkId
 
   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
 
@@ -271,7 +274,7 @@ begin
    exec dbo.logit @@procid, '@processCount = ', @processCount, @level = 2 
 
 
-  select top 1 @idToken = id, @dueToken = round(due * methodRate * @prorate,2) from @wt where processFlag = 0 order by methodRate desc, linkId
+  select top 1 @idToken = id, @dueToken = round(due * methodRate * @prorate,2) from @wt where processFlag = 0 order by methodRate desc, payord, linkId
   if @paidTotal > 0
   begin
    exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
