@@ -1,0 +1,56 @@
+create function dbo.taxStatementsByOwnerId(
+ @invoiceId int
+) returns @rt table(
+ taxrollId int,
+ invoiceId int,
+ name varchar(50),
+ parcel varchar(50),
+ item numeric(20,7),
+ legal varchar(max),
+ netAssessed money,
+ acres varchar(50),
+ lots varchar(50),
+ district varchar(50),
+ mobile varchar(50),
+ exemptions varchar(50),
+ HalfTax money,
+ TotalTaxDue money
+) as 
+begin
+
+ declare
+  @taxrollId int,
+  @ownerNumber numeric(20,7),
+  @taxyear varchar(4)
+
+ select
+  @taxrollId = taxrollId,
+  @taxYear = taxYear from invoices where id = @invoiceId
+  
+ select @ownernumber = ownerNumber from adtax where id = @taxrollId
+ 
+ insert @rt
+ select
+  a.id,
+  b.id,
+  a.ownerName,
+  a.fullPidNumber,
+  a.itemNumber,
+  a.legalDescription,
+  a.netAssessedValue,
+  a.acres,
+  a.lots,
+  a.schoolDistrictTaxRate,
+  a.mfgHomeAssessed,
+  a.baseExemption,
+  0,0  
+ from adtax a, invoices b
+ where a.id = b.taxrollId and a.ownerNumber = @ownerNumber and a.realTaxYear = @taxYear  
+ 
+ update @rt set item = dbo.taxCorrectionsSF(item,taxrollId,'008')
+
+ update @rt set halfTax = (select sum(invoiceDue) from dbo.unpaidTF(invoiceId) where trCode = 'Half Tax' and trSection = 2)
+ update @rt set totalTaxDue = (select sum(invoiceDue) from dbo.unpaidTF(invoiceId) where trCode = 'Total Tax' and trSection = 2)
+
+ return
+end
