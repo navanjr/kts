@@ -1,5 +1,6 @@
 create proc dbo.mortgageLinkGet (
- @taxYear varchar(4)
+ @taxYear varchar(4),
+ @siteId varchar(50) = null
 ) as 
 begin
  set nocount on
@@ -29,14 +30,20 @@ begin
    @apiResource varchar(50),
    @apiFields varchar(max),
    @dump varchar(max),
-   @log varchar(max)
-  
+   @log varchar(max),
+   @scratchFile varchar(1000)
+
+  select @scratchFile = path + '\apiMortgageLink.tmp' from dbo.paths() where name = 'temp'
+  if @siteId is null
+   select @siteId = apiSiteCode from dbo.site
+  select @filter = '"site_id=' + @siteId + '&year=' + @taxYear + '"'
+   
   exec dbo.api
-   @scratchFile='c:\client\key\apiMortgageLink.tmp',
+   @scratchFile = @scratchFile,
    @method = 'get', 
    @resource = '/v2/treasurer/mortgagelink',
    @debugmode='false',
-   @filter = '"site_id=7&year=2012"',
+   @filter = @filter,
    @dump = @dump output
 
   if len(@dump) > 0
@@ -69,6 +76,10 @@ begin
      null,null
     delete @apiwt where parent_id = @token
    end
+
+-- little data cleanup
+-- remove hyphens 
+   update temp_mortgageLink set parcel = dbo.stripChars(parcel,'45') 
 
    select @tally = count(*) from temp_mortgageLink
    exec dbo.logit @@procid, 'total rows received from the API', @tally   

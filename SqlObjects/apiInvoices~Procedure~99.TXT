@@ -26,7 +26,8 @@ begin
   @theDate datetime,
   @updated int,
   @inserted int,
-  @tally int
+  @tally int,
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
@@ -60,7 +61,9 @@ begin
   posted_date varchar(50),
   interest_date varchar(50),
   item_number varchar(50),
-  invoice_type varchar(1)
+  invoice_type varchar(1),
+  name varchar(50),
+  parcel varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -119,7 +122,9 @@ begin
    dbo.date112(postdate),
    dbo.date112(interestDate),
    item,
-   typ
+   typ, 
+   dbo.stripChars(name,@goofyChars), 
+   dbo.stripChars(parcel,@goofyChars)
   from invoices where taxyear in (select year from @taxyears)
    and isnull(apiUpdated,0) < modified
   order by id  
@@ -139,6 +144,8 @@ begin
   end
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
+  insert @jsonPrep select parentId,null,'owner',name,'string' from @wt
+  insert @jsonPrep select parentId,null,'parcel',parcel,'string' from @wt
   insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
   insert @jsonPrep select parentId,null,'invoice_parent_link',invoice_parent_link,'int' from @wt
   insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @wt
