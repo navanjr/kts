@@ -89,30 +89,32 @@ insert @rt
      select     i.id*-1,
                 i.postdate,
                 i.postdate,
-                rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),'ADJUSTMENT'
+                rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
+                'ADJUSTMENT'
             from dbo.invoices i, receiptDetail rd
                where i.typ='A' 
                   and i.invoiceId=@selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
+
 --Receipt Payments
   declare @wt table(invoiceId varchar(50),receipt varchar(50),name varchar(50),controlNum varchar(50),Amount money,receiptId int,recDate varchar(50),typ varchar(50))
 
   insert @wt
      select 
 
-       c.id*-1,
+       c.id,
        a.receiptNumber,
        c.NAME,
        '',
        sum(b.amount),
        a.receiptId,
        '', 
-       'R'
+       ' Receipt'
    
       from receiptLink a, receiptDetail b, invoices c
      where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.invoiceId = c.ID
-         and c.id = @selectedId
+         and c.id = @selectedId and a.receiptNumber>'  0'
         group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
  
  update @wt set
