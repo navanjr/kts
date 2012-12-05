@@ -72,7 +72,8 @@ declare @twt table(
         contraAccountDesc varchar(60),
         acrAccountId int,
         acrAccountCode varchar(60),
-        acrAccountDesc varchar(60))
+        acrAccountDesc varchar(60),
+        stepDesc varchar(50))
   
   if @accountId = 0
   begin
@@ -81,7 +82,8 @@ declare @twt table(
  c.accountDesc as contraAccountDesc,
  a.accountId as acrAccountId, 
  '' as acrAccountCode,
- '' as acrAccountDesc 
+ '' as acrAccountDesc,
+ '' 
    from gldetail a, glaccounts c
      where a.contraId=c.accountId and 
      contraId > 0 and 
@@ -100,7 +102,8 @@ declare @twt table(
  '' as contraAccountDesc,
  accountId as acrAccountId, 
  '' as acrAccountCode,
- '' as acrAccountDesc  from gldetail 
+ '' as acrAccountDesc,
+ ''   from gldetail 
      where contraId = @accountId and ISNULL(bsId,0) = 0 
     end   
 
@@ -112,7 +115,8 @@ declare @twt table(
  '' as contraAccountDesc,
  accountId as acrAccountId, 
  '' as acrAccountCode,
- '' as acrAccountDesc  from gldetail 
+ '' as acrAccountDesc,
+ ''   from gldetail 
      where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
     end
 
@@ -124,7 +128,8 @@ declare @twt table(
  '' as contraAccountDesc,
  a.accountId as acrAccountId, 
  '' as acrAccountCode,
- '' as acrAccountDesc  
+ '' as acrAccountDesc,
+ ''   
 
 from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@accountId 
     end
@@ -139,7 +144,8 @@ from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@a
  '' as contraAccountDesc,
  accountId as acrAccountId, 
  '' as acrAccountCode,
- '' as acrAccountDesc  from gldetail 
+ '' as acrAccountDesc,
+ ''   from gldetail 
        where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
     end
   end
@@ -154,6 +160,7 @@ from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@a
 
   update t set contraAccountCode = g.accountCode, contraAccountDesc = g.accountDesc from @twt t, glaccounts g where t.contraId=g.accountId
   update t set acrAccountCode = g.accountCode, acrAccountDesc = g.accountDesc from @twt t, glaccounts g where t.acrAccountId=g.accountId
+
 
 
 

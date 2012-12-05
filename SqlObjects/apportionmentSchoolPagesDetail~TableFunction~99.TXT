@@ -1,0 +1,130 @@
+create function dbo.apportionmentSchoolPagesDetail(@beginDate int,@endDate int) returns @rt table(id int identity(1,1),
+	[reportOrder] [varchar](60) NULL,
+	[accountCode] [varchar](60) NULL,
+	[accountDesc] [varchar](50) NULL,
+	[district] varchar(50) NOT NULL default '',
+	[accountType] [varchar](50) NULL,
+	[comment2] [varchar](50) NULL,
+	[currentTax] [money] NOT NULL default 0,
+	[priorTax] [money] NOT NULL default 0,
+	[backTax] [money] NOT NULL default 0,
+	[amount1] [money] NOT NULL default 0,
+	[amount2] [money] NOT NULL default 0,
+	[amount3] [money] NOT NULL default 0,
+	[amount4] [money] NOT NULL default 0,
+	[amount5] [money] NOT NULL default 0,
+	[amount6] [money] NOT NULL default 0,
+	[amount7] [money] NOT NULL default 0,
+	[amount8] [money] NOT NULL default 0,
+	[amount9] [money] NOT NULL default 0,
+	[amount10] [money] NOT NULL default 0,
+	[amount11] [money] NOT NULL default 0,
+	[amount12] [money] NOT NULL default 0,
+	[total] [money] NOT NULL default 0,
+	[heading1] varchar(50) NULL,
+	[heading2] varchar(50) NULL,
+	[heading3] varchar(50) NULL,
+	[heading4] varchar(50) NULL,
+	[heading5] varchar(50) NULL,
+	[heading6] varchar(50)NULL,
+	[heading7] varchar(50) NULL,
+	[heading8] varchar(50) NULL,
+	[heading9] varchar(50) NULL,
+	[heading10] varchar(50) NULL,
+	[heading11] varchar(50) NULL,
+	[heading12] varchar(50) NULL
+)
+
+as
+begin
+
+declare @det table(
+    id int identity(1,1),
+	[accountType] [varchar](50) NULL,
+	[accountId] [int] NULL,
+	[accountCode] [varchar](60) NULL,
+	[accountDesc] [varchar](50) NULL,
+	[comment] [varchar](50) NULL,
+	[comment2] [varchar](50) NULL,
+	[sourceCode] [varchar](60) NULL,
+	[amount] [money] NOT NULL default 0,
+	[journalType] [varchar](50) NULL,
+	[sourceDesc] [varchar](50) NULL,
+	[sourceSECA] [varchar](50) NULL,
+	[journalDesc] [varchar](50) NULL
+)
+
+insert @det
+select * from rpMonthEndDetail(@beginDate,@endDate) 
+ where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
+  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+
+update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 not like '%JOINT%' 
+
+update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
+and accountCode in (select accountCode from @det where comment2 like '%MILL%' and comment2 not like '%JOINT%' )
+
+update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL'
+
+declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50))
+
+insert @years
+select top 1 'Current',journalDesc from @det where journalDesc like '%ADVALOREM%' order by journalDesc desc
+insert @years
+select top 1 'Prior',journalDesc from @det where journalDesc like '%ADVALOREM%' and journalDesc not in (select journalDesc from @years)
+insert @years
+select distinct 'Back',journalDesc from @det where journalDesc like '%ADVALOREM%' and journalDesc not in (select journalDesc from @years)
+
+declare @det2 table(id int identity(1,1),
+	[accountCode] [varchar](60) NULL,
+	[accountDesc] [varchar](50) NULL,
+	[accountType] [varchar](50) NULL,
+	[comment2] [varchar](50) NULL,
+	[journalDesc] [varchar](50) NULL,
+	[amount] [money] NOT NULL default 0
+    )
+
+insert @det2
+select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1 from @det a, @years b 
+ where a.journalDesc=b.journalDesc
+group by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
+order by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
+
+
+insert @rt (accountType,accountCode,accountDesc,comment2)
+select distinct accountType,accountCode,accountDesc,comment2 from @det2 order by  accountCode,accountDesc,comment2
+
+update @rt set district = left(rtrim(accountCode)+' '+rtrim(accountDesc),50) where accountType like '%SCHOOL%' or accountType = 'VOTECH'
+update @rt set district = left(rtrim(accountDesc),50) where district < ' 0'
+
+update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'
+                                  when accountType = 'COUNTY SCHOOL' then '2000'
+                                  when accountType = 'VOTECH' then '3000'
+                                  when accountType = 'CITY' then '4000' 
+                                  else '5000' end
+
+update r set currentTax=b.amount from @rt r, @det2 b 
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc='Current'
+
+update r set priorTax=b.amount from @rt r, @det2 b 
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc='Prior'
+
+update r set backTax=b.amount from @rt r, @det2 b 
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc='Back'
+
+update @rt set total=currentTax+priorTax+backTax+amount1+amount2+amount3+amount4+amount5+amount6+amount7+amount8+amount9+amount10+amount11+amount12
+
+return
+end
