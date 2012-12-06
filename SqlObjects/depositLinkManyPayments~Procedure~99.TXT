@@ -1,11 +1,14 @@
 create proc dbo.depositLinkManyPayments(
  @depositId int,
  @receiptType varchar(50),
- @receiptDepositDate int = null
+ @receiptDepositDate int = null,
+ @mode varchar(10) = 'link'
 ) as 
 begin
  --  either link all the payments within the given type or limit it by the receipts deposit date
  --   dont worry about running any checks as we will use the depositLinkPayment proc, it contains the necessary checks.
+
+ exec dbo.logit @@procId, '@depositId', @depositId, '@receiptType', @receiptType, '@receiptDepositDate', @receiptDepositDate, '@mode', @mode
 
  declare @token table(
   paymentId int
@@ -18,11 +21,24 @@ begin
  select @depositDate = cast(key2 as int) 
   from object 
   where id = @depositId
+
+ -- TODO: figure out how to link or unlink
   
- if @receiptDepositDate is null
-  insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType = @receiptType
- else
-  insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType = @receiptType
+ if @mode = 'link'
+ begin
+  if @receiptDepositDate is null
+   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType = @receiptType
+  else
+   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType = @receiptType
+ end
+
+ if @mode = 'unlink'
+ begin
+  if @receiptDepositDate is null
+   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptType = @receiptType 
+  else
+   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType = @receiptType
+ end
 
  -- process em
  while exists(select * from @token)

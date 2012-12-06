@@ -4,7 +4,8 @@ create function dbo.depositDetailBRW(@depositId int, @showGL int, @showUnLinked 
  id int,
  description varchar(50), 
  subdescription varchar(50), 
- amount money
+ amount money,
+ colorFlag int
 )
 begin
  declare @styp char(1) = 'o',
@@ -18,31 +19,31 @@ begin
  if exists(select * from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0)
  begin
   insert @rt
-  select 'c ',0,'','',0
+  select 'c ',0,'','',0,0
 
   if @showUnLinked = 1
   begin
    insert @rt
-   select 'ca',0,'Un-linked Payment(s)','',0
+   select 'ca',0,'Un-linked Payment(s)','',0,0
 
    insert @rt
-   select 'cb'+receiptType,cast('-9' + cast(receiptTypeId as varchar) as int),'   ' + receiptType,'',0 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType, receiptTypeId
+   select 'cb'+receiptType,cast('-9' + cast(receiptTypeId as varchar) as int),'   ' + receiptType,'',cast(sum(amount) as varchar),1 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType, receiptTypeId
 
    insert @rt
-   select 'cb'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      ' + dbo.date1(depositDate),lower(paycode)+case when checkno > '  0' then ' - '+checkno else '' end,amount from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
+   select 'cb'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      ' + dbo.date1(depositDate),lower(paycode)+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
   end
  end
 
  if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId)
  begin
   insert @rt
-  select 'ab',0,'linked Payment(s)','',0
+  select 'ab',0,'linked Payment(s)','',0,0
 
   insert @rt
-  select 'ac'+receiptType,0,'   '+receiptType,'',0 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType
+  select 'ac'+receiptType,cast('-8' + cast(receiptTypeId as varchar) as int),'   '+receiptType,'',sum(amount),1 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId
 
   insert @rt
-  select 'ac'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      '+receiptPostDate1,paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+  select 'ac'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      '+receiptPostDate1,paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
  end
 
  if @showGL = 1
@@ -50,21 +51,21 @@ begin
   if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
    insert @rt
-   select 'ba',0,'','',0
+   select 'ba',0,'','',0,0
    insert @rt
-   select 'bb',0,'GL Detail (staged)','',0
+   select 'bb',0,'GL Detail (staged)','',0,0
    insert @rt
-   select 'bc',0,'   '+accountDesc,'',amount from dbo.glDetailStage where slink = @slink
+   select 'bc',0,'   '+accountDesc,'',amount,0 from dbo.glDetailStage where slink = @slink
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)
   begin
    insert @rt
-   select 'ba',0,'','',0
+   select 'ba',0,'','',0,0
    insert @rt
-   select 'bb',0,'GL Detail (posted)','',0
+   select 'bb',0,'GL Detail (posted)','',0,0
    insert @rt
-   select 'bc',0,'   '+accountDesc,'',amount from dbo.glDetail where slink = @slink
+   select 'bc',0,'   '+accountDesc,'',amount,0 from dbo.glDetail where slink = @slink
   end
  end
 
