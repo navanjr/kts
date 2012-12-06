@@ -9,8 +9,11 @@ create function dbo.depositDetailBRW(@depositId int, @showGL int, @showUnLinked 
 )
 begin
  declare @styp char(1) = 'o',
-         @depositDate int
+         @depositDate int,
+  @suspenseMethod varchar(50)
  declare @slink varchar(15) = @styp + cast(@depositId as varchar)
+
+ select @suspenseMethod = suspenseMethod from dbo.site
 
  select @depositDate = cast(key2 as int) 
   from object 
@@ -42,8 +45,13 @@ begin
   insert @rt
   select 'ac'+receiptType,cast('-8' + cast(receiptTypeId as varchar) as int),'   '+receiptType,'',sum(amount),1 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId
 
+-- TODO: this will work for suspenseMode:U
+
   insert @rt
-  select 'ac'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      '+receiptPostDate1,paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+  select 'ac'+receiptType+deputy,cast('-8' + cast(receiptTypeId as varchar) as int),'      '+deputy,'',sum(amount),1 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId, deputy
+
+  insert @rt
+  select 'ac'+receiptType+deputy+slink,cast('-1' + cast(id as varchar) as int),'         '+receiptPostDate1,paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
  end
 
  if @showGL = 1
