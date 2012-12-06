@@ -1,6 +1,6 @@
 create proc dbo.mortgageLinkGet (
  @taxYear varchar(4),
- @siteId varchar(50) = null
+ @siteId varchar(50) = null -- this parameter will default to the natural SiteId. only included so we can debug from a dev environment
 ) as 
 begin
  set nocount on
@@ -73,13 +73,67 @@ begin
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'year'),''),
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'site_id'),''),
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'created_date'),''),
-     null,null
+     null,null,null,0
     delete @apiwt where parent_id = @token
    end
 
+   select @tally = count(*) from temp_mortgageLink
+   exec dbo.logit @@procid, 'total rows received from the API', @tally   
+
 -- little data cleanup
 -- remove hyphens 
+   exec dbo.logit @@procid, 'removing Hyphens'   
    update temp_mortgageLink set parcel = dbo.stripChars(parcel,'45') 
+
+-- update customerNumber if we have it
+   exec dbo.logit @@procid, 'gleening CustomerNumber'   
+   declare
+    @tokenId int,
+    @tokenBlob varchar(max)
+ 
+   update temp_mortgageLink set processFlag = 0
+   while exists(select * from temp_mortgageLink where processFlag = 0)
+   begin
+    select top 1
+     @tokenId = id,
+     @tokenBlob = dbo.stripChars(details,'45')
+    from temp_mortgageLink
+    where processFlag = 0 order by id
+
+    update temp_mortgageLink set
+     customerNumber = (select top 1 dbo.stripChars(dbo.splitF(data,':',2),'34') from dbo.split(@tokenBlob,',') where data like '%customerNumber%'),
+     processFlag = 1
+    where id = @tokenId 
+   end
+
+-- lets get the taxrollId
+   exec dbo.logit @@procid, 'looking up TaxrollId'   
+   declare @parcelLookup table(
+    taxrollId int, 
+    parcel varchar(50) 
+   )
+
+   insert @parcelLookup
+    select id, dbo.stripChars(FULLPIDNUMBER,'45') from AdTax where REALTAXYEAR = @taxYear
+ 
+   update a 
+    set a.taxrollId = b.taxrollId
+   from temp_mortgageLink a, @parcelLookup b
+   where a.parcel = b.parcel
+    and a.taxrollId is null
+
+-- lets get the mort companyId
+   exec dbo.logit @@procid, 'looking up Mortgage Codes'   
+   declare @mortLookup table(
+    objectId int, 
+    mortCode varchar(50) 
+   )
+   insert @mortLookup select id, key1 from object where typ = 4030
+   update a 
+    set a.companyId = b.objectId
+   from temp_mortgageLink a, @mortLookup b
+   where a.customerNumber = b.mortCode
+    and a.companyId is null
 
    select @tally = count(*) from temp_mortgageLink
    exec dbo.logit @@procid, 'total rows received from the API', @tally   
