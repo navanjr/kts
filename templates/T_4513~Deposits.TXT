@@ -1,4 +1,4 @@
-@gfbnr=1;@browseholdposition;\
+@gfbnr=1;@browseholdposition;
 @format=40R(3)~Deposit~#1#|M50R(3)~Date~@d2@#2#|M50L(3)~Type~#3#|M200L(3)~Bank Account~#5#|M60R(3)~Amount~@n14.2b@#46#|M50C~Status~#29#;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
@@ -58,7 +58,6 @@
 
 \t073Amount; \t074@n14.2;  \s074+'select sum(amount) from '&gcTable4513&' where amount > 0 and slink = ''o'&obj:id&''''; \p0740907cfah,13499135;r2 \p0740907c13h,700;r2 \p0740907c0ch,1;r2 \d074090;r2 \y073074+60;r \x073074-30;r
 
-
 \t109Balance Report;
  @acc109=gcReceiptType='',
  update,
@@ -66,7 +65,6 @@
  gcBeginDate=obj:key2,
  gcEndDate=obj:key2,
  trreport('depositBalance',5018,'printDepositBalance=');
-
 
 \t077Show Hide Flag; \h077078;r 
 @acc550=refreshbrw=;
@@ -77,19 +75,44 @@
 
 @brwstuff=
  setBRWvars=,
- brw(150,1,gcbrw1sql,65,81,270,200,
-  '118L(2)~~#2#M
-100L(2)~~#3#M
-50R(2)~Amount~@n-14.2b@#4#M
-',7,1);
+ brw(150,1,gcbrw1sql,65,81,270,200,'118L(2)~~#2#M100L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1);
+
 @lbrw1forecolor=obj7:c10<0,255;
 
+@lbrwclick150=
+ bustItUp=,
+ if(lcMode+0=9,rightClickOptions=);
+
 @brw1=
- linkPayment=;
+ bustItUp=,
+ if(lcmode+0=1,linkPayment=);
+
+@bustItUp=
+ break(kpbrwid(1)=0),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+
+@rightClickOptions=
+ lcReceiptType=kp('select key1 from object where id = '&lcid),
+ m(lcReceiptType&' receipts||Choose from the following options...','Right Click Options...','question.ico','Link &All|Link by &Date|&Cancel'),
+ if(gcretval=1,linkAllPaymentsForType=),
+ if(gcretval=2,linkPaymentsByDate=);
+
+@linkAllPaymentsForType=
+ d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
+ refreshbrw=;
+
+@linkPaymentsByDate=
+ iw('\t000Link '&lcReceiptType&' by Date...;\t001Enter Date;\t002@d2;\w00255;'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''', '&obj7:key1),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
+ refreshbrw=;
 
 @linkPayment=
  update,
- d1select('exec dbo.depositLinkPayment '&obj:id&','&kpbrwid(1)*-1),
+ d1select('exec dbo.depositLinkPayment '&obj:id&','&lcId),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
  refreshbrw=;
 

@@ -1,0 +1,36 @@
+create proc dbo.depositLinkManyPayments(
+ @depositId int,
+ @receiptType varchar(50),
+ @receiptDepositDate int = null
+) as 
+begin
+ --  either link all the payments within the given type or limit it by the receipts deposit date
+ --   dont worry about running any checks as we will use the depositLinkPayment proc, it contains the necessary checks.
+
+ declare @token table(
+  paymentId int
+ )
+
+ declare
+  @depositDate int,
+  @idToken int
+
+ select @depositDate = cast(key2 as int) 
+  from object 
+  where id = @depositId
+  
+ if @receiptDepositDate is null
+  insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType = @receiptType
+ else
+  insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType = @receiptType
+
+ -- process em
+ while exists(select * from @token)
+ begin
+  select top 1 @idToken = paymentId from @token order by paymentId
+  exec dbo.depositLinkPayment @depositId, @idToken, 1
+  delete @token where paymentId = @idToken
+ end
+
+ return
+end
