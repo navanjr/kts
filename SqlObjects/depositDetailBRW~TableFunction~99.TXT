@@ -19,6 +19,8 @@ begin
   from object 
   where id = @depositId
  
+
+-- Unlinked Payments
  if exists(select * from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0)
  begin
   insert @rt
@@ -30,28 +32,50 @@ begin
    select 'ca',0,'Un-linked Payment(s)','',0,0
 
    insert @rt
-   select 'cb'+receiptType,cast('-9' + cast(receiptTypeId as varchar) as int),'   ' + receiptType,'',cast(sum(amount) as varchar),1 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType, receiptTypeId
+   select 'cb'+receiptType,cast('-9' + cast(receiptTypeId as varchar) as int),'   ' + receiptType,cast(count(*) as varchar)+' payment(s)',cast(sum(amount) as varchar),1
+    from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType, receiptTypeId
 
    insert @rt
-   select 'cb'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      ' + dbo.date1(depositDate),lower(paycode)+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
+   select 'cb'+receiptType+slink,cast('-1' + cast(id as varchar) as int),'      ' + dbo.date1(depositDate),
+     lower(paycode)+case when checkno > '  0' then ' - '+checkno else '' end,amount,0
+    from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate 
   end
  end
 
+-- Linked Payments
  if exists(select * from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId)
  begin
   insert @rt
   select 'ab',0,'linked Payment(s)','',0,0
 
   insert @rt
-  select 'ac'+receiptType,cast('-8' + cast(receiptTypeId as varchar) as int),'   '+receiptType,'',sum(amount),1 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId
+  select 'ac'+receiptType,cast('-8' + cast(receiptTypeId as varchar) as int),'   '+receiptType,cast(count(*) as varchar)+' payment(s)',sum(amount),1 
+   from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId
 
 -- TODO: this will work for suspenseMode:U
+  if @suspenseMethod in ('U','c')
+  begin
+   insert @rt
+   select 'ac'+receiptType+deputy,cast('-8' + cast(receiptTypeId as varchar) as int),'      '+deputy,'   '+cast(count(*) as varchar)+' payment(s)',sum(amount),1
+    from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId, deputy
 
-  insert @rt
-  select 'ac'+receiptType+deputy,cast('-8' + cast(receiptTypeId as varchar) as int),'      '+deputy,'',sum(amount),1 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId, deputy
+   insert @rt
+   select 'ac'+receiptType+deputy+slink,cast('-1' + cast(id as varchar) as int),'         '+receiptPostDate1,
+     paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0
+    from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+  end
+  if @suspenseMethod = 'S'
+  begin
+   insert @rt
+   select 'ac'+receiptType+station,cast('-8' + cast(receiptTypeId as varchar) as int),'      Station: '+station,'   '+cast(count(*) as varchar)+' payment(s)',sum(amount),1
+    from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId group by receiptType, receiptTypeId, station
 
-  insert @rt
-  select 'ac'+receiptType+deputy+slink,cast('-1' + cast(id as varchar) as int),'         '+receiptPostDate1,paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0 from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+   insert @rt
+   select 'ac'+receiptType+station+slink,cast('-1' + cast(id as varchar) as int),'         '+receiptPostDate1,
+     paycode+case when checkno > '  0' then ' - '+checkno else '' end,amount,0
+    from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId
+  end
+
  end
 
  if @showGL = 1
