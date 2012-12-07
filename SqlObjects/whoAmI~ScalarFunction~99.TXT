@@ -1,10 +1,16 @@
-create function dbo.whoAmI() returns varchar(5) as
+create function dbo.whoAmI() returns varchar(max) as
 begin
 
- declare @initials varchar(5)
+ declare @ret varchar(max)
 
- select top 1 @initials = ini from login where hostName = HOST_NAME() and hostId = HOST_ID() order by creationdatetime desc
+ select top 1 @ret =
+    ini
+  + '|' + station
+  + '|' + cast(creationDateTime as varchar)
+ from login
+ where hostName = HOST_NAME() and hostId = HOST_ID()
+ order by creationdatetime desc
 
- return @initials
+ return @ret
 
 end

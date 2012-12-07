@@ -10,19 +10,22 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[in
        INCLUDE ([ID])
 
 
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue')
+ IF not EXISTS(SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue')
 
    CREATE NONCLUSTERED INDEX [id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue]
       ON [dbo].[invoices] ([STATUS])
         INCLUDE ([ID],[TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[invoiceAmount],[invoiceDue],[subInvoiceDue])
 
 
-if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
+ if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
   begin
    CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
      ([ID] ASC)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF,
       DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
   end
+
+ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountcode_amount')
+   CREATE nonclustered INDEX [accountcode_amount] ON [dbo].[gldetail] ([accountCode], [amount])
 
 /*
 
@@ -36,8 +39,6 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gl
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'Desc_SrcCode_amt')
    CREATE INDEX [Desc_SrcCode_amt] ON [dbo].[receiptDetail] ([slink]) INCLUDE ([description], [sourceCode], [amount])
 
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'Acctcode_amt')
-   CREATE INDEX [Acctcode_amt] ON [dbo].[gldetail] ([slink]) INCLUDE ([accountCode], [amount])
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceID_typ')
    CREATE INDEX [invoiceID_typ] ON [dbo].[invoices] ([invoiceId],[TYP])
