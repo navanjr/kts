@@ -1,0 +1,26 @@
+create procedure dbo.posAccountMaintenance(
+ @mode varchar(50) = 'create'
+) as 
+begin
+ 
+ declare @wt table(accountCode varchar(50))
+ declare 
+  @tally int,
+  @token varchar(50)
+
+ insert @wt select distinct accountCode from dbo.posBRW() where accountId = 0
+
+ select @tally = count(*) from @wt
+
+ exec dbo.logit @@procId, '@mode', @mode, 'missingAccounts @tally', @tally
+
+ if @mode = 'create'
+ while exists(select * from @wt)
+ begin
+  select top 1 @token = accountCode from @wt order by accountCode
+  exec dbo.glAccountVerification @token, 'SUSPENSE', 'CREATE'
+  delete @wt where accountCode = @token
+ end   
+
+ return
+end

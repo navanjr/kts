@@ -7,15 +7,18 @@
  brwstuff=;
 
 @afterloadwindow=
- lcMethod=kp('select suspenseMethod from dbo.site'),
- lcWho=kp('select dbo.whoAmI()'),
- lcStation=getini('pos','station','unknown','kgt.ini'),
- lcName=choose(lcMethod='S',lcStation,lcWho),
+ lcName=readstring(kp('select dbo.whoAmI()'),'@posName='),
  prop(0,'Text','Let''s get started, '&lcName);
 
+\t120&Generate;
+@acc120=
+ d1select('exec dbo.posAccountMaintenance'),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Maintenance...')),
+ refreshbrw=;
+
 @brwstuff=
- gcbrwsql50='select id,receiptType,amount from dbo.posBRW()',
- brw(150,1,gcbrwsql50,3,3,270,200,'138L(2)~~#2#M50R(2)~~@n-14.2b@#3#M',7,1),
+ gcbrwsql50='select id,receiptType,sum(amount),min(accountId) from dbo.posBRW() group by id, receiptType',
+ brw(150,1,gcbrwsql50,3,3,270,250,'138L(2)~~#2#M135R(2)~~@n-14.2b@#3#|M200L(2)~~#4#|M',7,1),
  prop(150,'Color',16777215),
  prop(150,7c10h,'Arial'),
  prop(150,7c11h,14),
@@ -25,5 +28,7 @@
  prop(150,'linewidth',10),
  prop(150,'LineHeight',20);
 
-@lbrw1forecolor=obj7:c10<0,255;
+@refreshbrw=brwreload(1);
+
+@lbrw1color=obj7:c9+0=0,255;
 

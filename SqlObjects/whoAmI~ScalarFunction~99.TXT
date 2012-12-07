@@ -1,12 +1,18 @@
 create function dbo.whoAmI() returns varchar(max) as
 begin
 
- declare @ret varchar(max)
+ declare
+  @ret varchar(max),
+  @suspenseMethod varchar(50)
+
+ select @suspenseMethod = suspenseMethod from dbo.site
 
  select top 1 @ret =
-    ini
-  + '|' + station
-  + '|' + cast(creationDateTime as varchar)
+    '@ini=' + ini + ';'
+  + '@station=' + station + ';'
+  + '@lastLogin=' + cast(creationDateTime as varchar) + ';'
+  + '@suspenseMethod=' + @suspenseMethod + ';'
+  + '@posName=' + case when @suspenseMethod = 'S' then station else ini end + ';'
  from login
  where hostName = HOST_NAME() and hostId = HOST_ID()
  order by creationdatetime desc
