@@ -1,0 +1,63 @@
+create procedure dbo.officialDepositCRUD(
+ @mode int,
+ @depositId int = 0,
+ @deletePosted varchar(10) = 'FALSE',
+ @debugMode varchar(5) = 'FALSE'
+) as
+begin
+ 
+ exec dbo.logit @@procid, '@mode',@mode
+
+ declare 
+  @slink varchar(15) = 'o' + cast(@depositId as varchar)
+
+
+-- Delete
+ if @mode = 3
+ begin
+-- bail if posted and @deletePosted = 'False'
+  if dbo.isPosted(@slink) = 'TRUE' and @deletePosted = 'False'
+  begin
+   exec dbo.logit @@procid, 'official deposit already Posted... Bailing.'
+   return
+  end
+
+-- bail if period is locked
+  if (select fpStatus from dbo.glStatus(@slink)) = 'locked'
+  begin
+   exec dbo.logit @@procid, 'Period is locked... Bailing.'
+   return
+  end
+
+-- TODO: bail if payments are deposited
+
+  declare
+   @tokenSlink varchar(15),
+   @token int,
+   @tokenInt int
+
+  exec dbo.logit @@procid, 'Begin Transaction...'
+  begin transaction
+
+--remove official deposit (object) and gl and paid records
+
+   update object set typ = -4522 where typ = 4522 and id = dbo.slinkId(@slink)
+   delete paid where slink = @slink
+
+   delete glDetail where slink = @slink
+   delete glDetailStage where slink = @slink
+
+  if @debugMode = 'TRUE'
+  begin
+   exec dbo.logit @@procid, 'Rollback Transaction...'
+   rollback transaction
+   return
+  end 
+
+  exec dbo.logit @@procid, 'Commit Transaction...'
+  commit transaction
+
+ end
+
+ return
+end
