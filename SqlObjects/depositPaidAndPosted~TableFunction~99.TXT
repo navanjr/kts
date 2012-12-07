@@ -8,7 +8,8 @@ create function dbo.depositPaidAndPosted() returns @rt table(
  checkno varchar(50),
  amount money,
  depositId int,
- depositDate int
+ depositDate int,
+ parentControlNumber varchar(50)
 )
 begin
 
@@ -32,7 +33,10 @@ begin
     and slink is not null
     and id not in (select id from @unpostedPaid)
 
- update a set a.receiptType = b.key3, a.depositDate = cast(b.key2 as int)
+ update a set
+  a.receiptType = b.key3,
+  a.depositDate = cast(b.key2 as int),
+  a.parentControlNumber = b.key1
  from @rt a, object b
  where a.objLinkId = b.id
 
