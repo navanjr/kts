@@ -1,4 +1,4 @@
-create function dbo.rpMonthEndDetail(@beginDate int, @endDate int) returns @rt table(accountType varchar(50),accountId int, accountCode varchar(60), accountDesc varchar(50), comment varchar(50), comment2 varchar(50),
+create function dbo.rpMonthEndDetail(@beginDate int, @endDate int, @includeUnapportioned varchar(10)) returns @rt table(accountType varchar(50),accountId int, accountCode varchar(60), accountDesc varchar(50), comment varchar(50), comment2 varchar(50),
  sourceCode varchar(60), amount money, journalType varchar(50), sourceDesc varchar(50), sourceSECA varchar(50), journalDesc varchar(50))
  as
  begin
@@ -12,7 +12,31 @@ where o.typ=4512 and slink='o'+cast(o.id as varchar)
 group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3
 having sum(amount)<>0.00
 
+
+if @includeUnapportioned = 'TRUE'
+begin
+ insert @rt 
+  select b.accountType,a.accountId, a.creditCode as accountCode, b.accountDesc, comment,a.stepDesc as comment2, 
+   a.sourceCode, sum(amount) as amount, 'APPORTIONMENT' as journalType, '' as sourceDesc, '' as  sourceSECA, a.contraAccountDesc as journalDesc
+  from (select * from apportioncollectionsWT(0,@endDate)) a, glAccounts b
+  where a.creditCode=b.accountCode
+  and b.accountType not in ('EXPENSE')
+  group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+  having sum(amount)<>0.00
+ 
+ insert @rt 
+  select b.accountType,a.accountId, a.debitCode as accountCode, b.accountDesc, comment,a.stepDesc as comment2, 
+   a.sourceCode, sum(amount) as amount, 'APPORTIONMENT' as journalType, '' as sourceDesc, '' as  sourceSECA, a.contraAccountDesc as journalDesc
+  from (select * from apportioncollectionsWT(0,@endDate)) a, glAccounts b
+  where a.debitCode=b.accountCode
+  and b.accountType not in ('EXPENSE')
+  group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+  having sum(amount)<>0.00
+
+end
+
 update a set sourceDesc=b.key2, sourceSECA=b.a19 from @rt a, object b where b.typ=4701 and len(a.sourceCode) > 2 and a.sourceCode=b.key1
+
 
 return
 end

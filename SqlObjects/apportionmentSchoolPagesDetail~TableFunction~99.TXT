@@ -1,4 +1,4 @@
-create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate int) returns @rt table(id int identity(1,1),
+create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate int, @includeUnapportioned varchar(10)) returns @rt table(id int identity(1,1),
 	[reportOrder] [varchar](60) NULL,
 	[accountCode] [varchar](60) NULL,
 	[accountDesc] [varchar](50) NULL,
@@ -55,7 +55,7 @@ declare @det table(
 )
 
 insert @det
-select * from rpMonthEndDetail(@beginDate,@endDate) 
+select * from rpMonthEndDetail(@beginDate,@endDate,@includeUnapportioned) 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 

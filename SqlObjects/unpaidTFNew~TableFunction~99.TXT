@@ -76,7 +76,7 @@ begin
    and TYP != 'R'
    and invoiceDue != 0
    and id not in (select invoiceId from @rt)
-   and (taxyear <> @year or item = @item)
+   and (taxyear <> @year or item = @item or (parcel=@parcel and parcel > ' 0'))
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
@@ -122,7 +122,7 @@ begin
   halfRate = .5,
   ord = 2 
  where recordType = 'O'
- update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 3 where recordType = 'O' and perTyp != 'F' 
+ update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 3 where recordType = 'O' and isnull(perTyp,'') != 'F' 
  update @rt set trcode = 'Current Yr Tax', halfRate = .5, ord = 1 where invoiceid = @invoiceId
  update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('P','I','B','R') and year != @year
  update @rt set trcode = 'Weed/Demo', halfRate = 1, ord = 2 where origin = 'fee search'
