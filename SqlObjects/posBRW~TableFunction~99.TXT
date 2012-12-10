@@ -1,32 +1,32 @@
 create function dbo.posBRW() returns @rt table(
- id int,
- receiptType varchar(50),
- paycode varchar(50),
- accountCode varchar(50),
+ id int default 0,
+ display varchar(500),
+ depositDate int,
  amount money,
- accountId int
+ accountId int,
+ blob varchar(500) default '',
+ ord varchar(50)
 ) as 
 begin
 
- declare
-  @posName varchar(50)
+ insert @rt (display,depositDate,amount,accountId,ord)
+ select
+  '   ' + receiptType,
+  depositDate, 
+  sum(amount),
+  min(accountId),
+  cast(depositDate as varchar) + 'b' 
+ from dbo.posTF()
+ group by id, depositDate, receiptType
 
- select @posName = dbo.readString('@posName=',dbo.whoAmI())
-
- insert @rt
- select 0,a.key1,b.key1,@posName + '.' + a.key1 + '.' + b.key1, 0, 0
- from object a, object b
- where a.typ = 4503 and b.typ = 4505
-  and a.key1 > '  0'
-  and b.key1 > '  0'
-
- update a set a.accountId = o.accountId from @rt a, dbo.glAccounts o where a.accountCode = o.accountCode
-
- update a set amount = (select sum(g.amount) from dbo.glDetail g where g.accountCode = a.accountcode) 
- from @rt a
- where
---  a.accountCode in (select accountCode from dbo.glDetail)
-  a.accountid > 0
+ insert @rt (display,accountId,ord)
+ select
+  dbo.date1(depositDate),
+  1, 
+  cast(depositDate as varchar) + 'a' 
+ from @rt
+ where depositDate is not null
+ group by depositDate
 
  return
 end

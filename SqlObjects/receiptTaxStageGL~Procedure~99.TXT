@@ -76,7 +76,10 @@ begin
   @slink2 varchar(15),
   @applyTotal money,
   @prorate decimal(19,18),
-  @processCount int
+  @processCount int,
+  @suspenseMethod varchar(50)
+
+ select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
 
 
 --TODO: bail if there is already gldetail for these receiptLinks 
@@ -214,12 +217,20 @@ begin
 
 -- populate Suspense
 -- get all the payments linked to this receipt
- insert @glSuspense
-
- select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
-  from paid a, paycodes b 
-  where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId, a.id
-
+ if @suspenseMethod in ('U','S')
+ begin
+  insert @glSuspense
+  select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
+   from paid a, dbo.posAccounts() b 
+   where a.paycode = b.paycode and b.receiptType = 'TAX' and a.slink = @receiptSlink group by b.accountId, a.id
+ end
+ else
+ begin
+  insert @glSuspense
+  select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
+   from paid a, paycodes b 
+   where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId, a.id
+ end
  select @paidTotal = round(sum(amount),2) from @glSuspense
 
 

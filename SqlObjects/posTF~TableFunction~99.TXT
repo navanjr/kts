@@ -1,0 +1,29 @@
+create function dbo.posTF() returns @rt table(
+ id int,
+ receiptType varchar(50),
+ paycode varchar(50),
+ accountCode varchar(50),
+ depositDate int,
+ amount money,
+ accountId int
+) as 
+begin
+
+ insert @rt
+ select 
+  0,
+  a.receiptType,
+  a.paycode,
+  a.accountCode,
+  case when o.key2 is null then dbo.clarionDate(getDate()) else o.key2 end,
+  b.amount,
+  x.accountId
+ from dbo.posAccounts() a
+ left outer join gldetail b on a.accountCode = b.accountCode
+ left outer join object o on dbo.slinkId(b.slink) = o.id
+ left outer join paid p on dbo.slinkId(b.slink2) = p.id
+ left outer join dbo.glAccounts x on a.accountCode = x.accountCode
+ where isnull(p.depositId,0) = 0
+
+ return
+end

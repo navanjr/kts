@@ -47,7 +47,10 @@ begin
   @comment varchar(50),
   @sourceCode varchar(60),
   @balanceToken money,
-  @log varchar(max)
+  @log varchar(max),
+  @suspenseMethod varchar(50)
+
+ select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
  select 
   @code = code,
@@ -88,10 +91,20 @@ begin
   end
 
 -- debit suspense accounts
-  insert @accountsWorking
-  select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
-  from paid a, paycodes b 
-  where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
+  if @suspenseMethod in ('S','U')
+  begin
+   insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
+   from paid a, dbo.posAccounts() b 
+   where a.paycode = b.paycode and b.receiptType = @receiptType and a.slink = @slink group by b.accountId, a.id
+  end
+  else
+  begin
+   insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
+   from paid a, paycodes b 
+   where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
+  end
 
 -- debit tresurers receipt fund and credit fund receivables
   --insert @accountsWorking select @contraId, null, @paidTotal,'','','',0
