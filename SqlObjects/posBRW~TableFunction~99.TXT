@@ -2,10 +2,12 @@ create function dbo.posBRW() returns @rt table(
  id int identity(-1,-1),
  display varchar(500),
  depositDate int,
+ receiptType varchar(50),
  amount money,
  accountId int,
  blob varchar(500) default '',
- ord varchar(50)
+ ord varchar(50),
+ rowType int
 ) as 
 begin
 
@@ -13,25 +15,40 @@ begin
 
  select @whoAmI = dbo.whoAmI()
 
- insert @rt (display,depositDate,amount,accountId,ord)
+ insert @rt (depositDate,receiptType,amount,accountId,ord,rowType)
  select
-  '   ' + receiptType,
   depositDate, 
+  receiptType,
   sum(amount),
   min(accountId),
-  cast(depositDate as varchar) + 'b'
+  cast(depositDate as varchar) + 'b',
+  0
  from dbo.posTF()
  group by id, depositDate, receiptType
 
- insert @rt (display,accountId,ord,blob)
+-- depositDate grouping
+ insert @rt (depositDate,amount,accountId,ord,blob,rowType)
  select
-  dbo.date1(depositDate),
+  depositDate,
+  sum(amount),
   1, 
   cast(depositDate as varchar) + 'a',
-  @whoamI+'@Date='+cast(depositDate as varchar)+';' 
+  @whoamI+'@Date='+cast(depositDate as varchar)+';',
+  1 
  from @rt
  where depositDate is not null
  group by depositDate
+
+ update @rt set display = 
+  dbo.padRight(dbo.date1(depositDate),' ',15) + dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20)
+ where rowType = 1
+
+ update @rt set display = 
+  dbo.padRight('  ' + receiptType,' ',15) + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20) else '' end
+ where rowType = 0
+
+-- update @rt set displayAmount = convert(varchar,amount,1) where rowType = 0
+--  '   ' + dbo.padRight(receiptType,' ',10) + dbo.padLeft('$ ' + convert(varchar,sum(amount),1),' ',20),
 
  return
 end
