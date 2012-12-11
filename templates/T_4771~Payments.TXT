@@ -23,7 +23,19 @@
  trreport('Warrants Paid',5032,'printsum=');
 
 @browsedelete=
- lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be voided if the fiscal period is not locked.||Are you sure you wish to void this '&obj:a18&'?'),
+ break(obj:a17<>'Posted'),
+ if(obj:a16<'  0',voidOne=),
+ if(obj:a16>'  0',voidMany=);
+
+@voidMany=
+ lcTally=kp('select count(*) from object where typ=4771 and a16='''&obj:a16&''''),
+ lcDeleteMessage='This record has been posted and can only be voided if the fiscal period is not locked.||Import Batch '&obj:a16&' contains '&lcTally&' '&obj:a18&'(s)... ||Are you sure you wish to void this/these '&obj:a18&'(s) ?|',
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Void Only This '&obj:a18&'|Void &Entire Batch|&Cancel'),
+ if(gcretval=1,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE''')),
+ if(gcretval=2,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE'',@voidBatch=''TRUE'''));
+
+@voidOne=
+ lcDeleteMessage='This record has been posted and can only be voided if the fiscal period is not locked.||Are you sure you wish to void this '&obj:a18&'?',
  m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Yes|&No|&Cancel'),
  if(gcretval=3,sql('exec dbo.paymentCRUD 3,@paymentType=''VOIDMAINTENANCE''')),
  if(gcretval=1,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE'''));

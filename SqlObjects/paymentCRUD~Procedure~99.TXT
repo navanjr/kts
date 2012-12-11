@@ -16,7 +16,8 @@ create proc dbo.paymentCRUD(
  @postOverride varchar(5) = 'FALSE',
  @deleteObject varchar(5) = 'FALSE',
  @fiscalYear varchar(50) = '',
- @importStamp varchar(50) = ''
+ @importStamp varchar(50) = '',
+ @voidBatch varchar(5) = 'FALSE'
 ) as 
 begin
 
@@ -73,7 +74,7 @@ begin
 
  if @mode = 3
  begin
-  exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride
+  exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride, '@voidBatch', @voidBatch
 
   if @paymentType = 'VOIDMAINTENANCE'
   begin
@@ -100,6 +101,23 @@ begin
   -- bail if id is not greater than 0
   if @id < 1
    return
+
+-- if you want to roll back an entire import batch we just delete everything and cleanup object.
+  if @voidBatch = 'TRUE'
+  begin
+   select @importStamp = a16 from object where typ = 4771 and id = @id
+   declare @toRemove table(id int, slink varchar(15))
+   insert @toRemove select id, 'o' + cast(id as varchar) from object where typ = 4771 and a16 = @importStamp
+   exec dbo.logit @@procid, 'Begin transaction...'
+   begin transaction
+    delete dbo.glDetailStage where slink in (select slink from @toRemove)
+    delete dbo.glDetail where slink in (select slink from @toRemove)
+    update object set typ = -4771 where typ = 4771 and id in (select id from @toRemove)
+    update object set link1 = 0 where typ = 4771 and link1 in (select id from @toRemove)
+   commit transaction
+   exec dbo.logit @@procid, 'Commited transaction.'
+   return
+  end
 
   if (select a17 from object where id = @id) = '' and not exists(select * from glDetail where slink = @slink)
    set @deleteObject = 'TRUE'
