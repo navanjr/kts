@@ -40,22 +40,33 @@ begin
 
 declare @det table(
     id int identity(1,1),
-	[accountType] [varchar](50) NULL,
-	[accountId] [int] NULL,
-	[accountCode] [varchar](60) NULL,
-	[accountDesc] [varchar](50) NULL,
-	[comment] [varchar](50) NULL,
-	[comment2] [varchar](50) NULL,
-	[sourceCode] [varchar](60) NULL,
+	[accountType] [varchar](50) NOT NULL default '',
+	[accountId] [int] NOT NULL default 0,
+	[accountCode] [varchar](60) NOT NULL default '',
+	[accountDesc] [varchar](50) NOT NULL default '',
+	[comment] [varchar](50) NOT NULL default '',
+	[comment2] [varchar](50) NOT NULL default '',
+	[sourceCode] [varchar](60) NOT NULL default '',
 	[amount] [money] NOT NULL default 0,
-	[journalType] [varchar](50) NULL,
-	[sourceDesc] [varchar](50) NULL,
-	[sourceSECA] [varchar](50) NULL,
-	[journalDesc] [varchar](50) NULL
+	[journalType] [varchar](50) NOT NULL default '',
+	[sourceDesc] [varchar](50) NOT NULL default '',
+	[sourceSECA] [varchar](50) NOT NULL default '',
+	[journalDesc] [varchar](50) NOT NULL default ''
 )
 
 insert @det
-select * from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+select isnull(accountType,''),
+	isnull(accountId,0),
+	isnull(accountCode,''),
+	isnull(accountDesc,''),
+	isnull(comment,''),
+	isnull(comment2,''),
+	isnull(sourceCode,''),
+	isnull(amount,0),
+	isnull(journalType,''),
+	isnull(sourceDesc,''),
+	isnull(sourceSECA,''),
+	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 
@@ -90,37 +101,47 @@ declare @det2 table(id int identity(1,1),
 
 insert @det2
 select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1 from @det a, @years b 
- where a.journalDesc=b.journalDesc
+ where a.journalDesc=b.journalDesc and a.accountType<>'FUND'
 group by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
+
+insert @det2
+select a.accountCode,a.accountDesc,a.accountType,'',b.yearCode, sum(amount)*-1 from @det a, @years b 
+ where a.journalDesc=b.journalDesc and a.accountType='FUND'
+group by a.accountType,a.accountCode,a.accountDesc,b.yearCode
+order by a.accountType,a.accountCode,a.accountDesc,b.yearCode
 
 delete from @det where journalDesc in (select journalDesc from @years)
 
 update d set comment2 = case when monthEndCategory > ' 0' then monthEndCategory else 'GENERAL' end from @det d, glaccounts a where d.sourceCode=a.accountCode 
 
 insert @rt (accountType,accountCode,accountDesc,comment2)
-select distinct accountType,accountCode,accountDesc,comment2 from @det2 order by  accountCode,accountDesc,comment2
+select distinct accountType,accountCode,accountDesc,comment2 from @det2 where accountType<>'FUND' order by  accountCode,accountDesc,comment2
+
+insert @rt (accountType,accountCode,accountDesc)
+select distinct accountType,accountCode,accountDesc from @det2 where accountType='FUND' order by  accountCode,accountDesc
 
 update r set currentTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Current'
 
 update r set priorTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Prior'
 
 update r set backTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Back'
+
 
 delete from @det2 where accountCode > ' 0'
 
