@@ -18,7 +18,8 @@ returns @rt table(
  taxName varchar(50),
  taxYear varchar(50),
  apportionCode varchar(50),
- apTableType varchar(50)
+ apTableType varchar(50),
+ millId int
 )
 as
 
@@ -78,9 +79,9 @@ begin
  end
 
 
- declare @millages table(taxName varchar(50), mill decimal(19,10))
+ declare @millages table(taxName varchar(50), mill decimal(19,10), millId int)
  insert @millages 
-  select a1, cast(a2 as decimal(19,10))
+  select a1, cast(a2 as decimal(19,10)), id
   from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @taxYear and a2 > '  0'
 
  select @totalMills = sum(mill) from @millages
@@ -105,7 +106,8 @@ begin
     null,
     @taxYear,
     null,
-    null
+    null,
+    0
    from object where id=@taxrollId
 /*
    insert @rt
@@ -141,7 +143,8 @@ begin
     taxName,
     @taxYear,
     null,
-    null
+    null,
+    millId
    from @millages
   end
 
@@ -188,6 +191,10 @@ begin
    apportionCode = upper(d.key3)
   from @rt a, object b, glAccounts c, object d
   where a.taxName = b.key1 and b.typ = 4008 and d.typ=4011 and c.accountId=a.fundid and d.key1=c.aprate and b.a5='1'
+  update a set
+   apportionCode = upper(b.a5)
+  from @rt a, object b
+  where a.millId = b.id and b.typ = 4012 and b.a5>' 0'
 
  end
 
