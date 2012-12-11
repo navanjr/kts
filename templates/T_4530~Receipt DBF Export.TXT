@@ -76,3 +76,25 @@ set(1013,sl2:a13),
 set(1014,sl2:a14),
 set(1015,sl2:a15),
 dbfadd;
+
+\t110Daily Report Export;
+ @acc110=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select rowstring1,minControlNumber,maxControlNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate&', '&gcTheDays&', '''', '''') where ord = ''01b''','DailyTax.csv',4),
+ sqlexport('select rowstring1,minControlNumber,maxControlNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate&', '&gcTheDays&', '''', '''') where ord = ''02b''','DailyOth.csv',4),
+ sqlexport('select dptno,rowstring1,minControlNumber,maxControlNumber,minTicketNumber,maxTicketNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate&', '&gcTheDays&', '''', '''') where ord = ''03b''','DailyOff.csv',4),
+ sqlexport('select dptno,min(treasurersNumber),max(treasurersNumber),min(clerksNumber),max(clerksNumber),sum(cast(amount as money)) from payments p, dbo.glcollectionaccount a 
+ where p.debitaccountcode=a.accountcode  and collectionDescription=''Depository'' and dateRegistered between '&gcBeginDate&' and '&gcBeginDate+gcTheDays&' group by dptno','DailyVou.csv',4),
+ sqlexport('select clerksNumber,cast(amount as money)*-1 from payments 
+ where paymentType=''Cancel Voucher'' and dateRegistered between '&gcBeginDate&' and '&gcBeginDate+gcTheDays&'','DailyCan.csv',4),
+ sqlexport('select depositaccountcode,fiscalYear,min(treasurersNumber),max(treasurersNumber),sum(cast(amount as money)) from payments 
+where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&' and '&gcBeginDate+gcTheDays&' group by depositaccountcode,fiscalYear','DailyWar.csv',4),
+ filecopy('dailyTax.csv','c:\kps\dailyTax.csv'),
+ filecopy('dailyOth.csv','c:\kps\dailyOth.csv'),
+ filecopy('dailyOff.csv','c:\kps\dailyOff.csv'),
+ filecopy('dailyVou.csv','c:\kps\dailyVou.csv'),
+ filecopy('dailyCan.csv','c:\kps\dailyCan.csv'),
+ filecopy('dailyWar.csv','c:\kps\dailyWar.csv'),
+ m('Daily Data Exported')
+;
