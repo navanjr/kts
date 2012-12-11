@@ -2,7 +2,7 @@ create proc dbo.apiReceipts(
  @taxyear varchar(4),
  @method varchar(50) = 'GET',
  @batchSize int = 10,
- @postFile varchar(50) = 'apiPost.json',
+ @postFile varchar(50) = 'apiPostReceipts.json',
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
 ) as
@@ -17,7 +17,7 @@ begin
   @apiCode varchar(50),
   @apiwt JSONHierarchy,
   @filter varchar(500),
-  @apiResource varchar(50) = '/v2/treasurer/invoices',
+  @apiResource varchar(50) = '/v2/treasurer/receipts',
   @dump varchar(max),
   @log varchar(max),
   @tokenId int,
@@ -40,6 +40,7 @@ begin
 
  declare @wt table(
   parentId int identity(1,1),
+  invoice_link int,
   receipt_number int,
   receipt_link int,
   post_Date varchar(20),
@@ -47,15 +48,16 @@ begin
   paid_by varchar(50),
   paid_fees money,
   paid_penalties money,
-  paid_total money,
-  )
+  paid_total money
+  )				
+
 
  if @method = 'BatchPost'
  begin
   exec dbo.apiReceipts @taxyear, @method = 'POST', @batchSize = @batchSize
   exec dbo.apiReceipts @taxyear, @method = 'STATUS', @batchSize = @batchSize
  end
-
+/*
  if @method = 'STATUS'
  begin
   declare @taxyearToken varchar(4)
@@ -66,8 +68,8 @@ begin
   else
    insert @taxyears select taxyear from invoices group by taxyear
 
-  insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-   from  where taxyear in (select year from @taxyears) group by taxyear
+  insert @status select taxYear, count(id), sum(case when isnull(k7,0) < lasteditdate then 1 else 0 end), null
+   from  object where taxyear in (select year from @taxyears) group by taxyear
 
   while exists(select * from @taxyears)
   begin
@@ -83,26 +85,70 @@ begin
   end
   return
  end
- 
+ */
  if @method = 'POST'
  begin
 
 -- create the post data file then call the API
-  insert @wt select top (@batchSize)
-   InvoiceId, 
-   receiptId,
-   taxyear,
-   invoiceDue,
-   invoiceAmount,
-   postDate
-  from invoices where taxyear = @taxyear and id > 0
-   and isnull(apiUpdated,0) < modified
-  order by id
+declare @it table (receiptId int)
+
+ insert @it select top (100)
+    
+		Id
+		from Object 
+		where typ = 4502 and Key3 = 'TAX' and k7 < dbo.date112(LastEditDate)
+		order by ID 
+		
+		
+  insert @wt
+     select
+       c.ID,
+       a.receiptNumber,
+       a.receiptId,
+       '',
+       '',
+       c.NAME,
+       0,
+       0,
+       sum(b.amount)
+   
+      from receiptLink a, receiptDetail b, invoices c
+     where 't'+CAST(a.invoiceId as varchar) = b.slink
+         and a.receiptId in (select i.receiptId from @it i)
+         and a.invoiceId = c.ID
+         and a.receiptNumber>'  0'
+        group by c.id,c.invoiceId, c.TAXROLLID, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
+        
+     update @wt set
+       paid_by =   case when a1>'  0' then a1 else paid_by end,
+       paid_Total =  dbo.taxReceiptTaxPaid(receipt_link,invoice_link,0),
+       paid_Date = b10,
+       post_Date = key2
+      from @wt,object where id = receipt_link
+        
+  declare @wt2 table (id int,penalty money,fee money)
+
+	insert @wt2
+		select 
+		   invoiceId,
+           sum(case when invoiceId>0 and TYP='P' then invoiceamount else 0 end),
+		   sum(case when invoiceId>0 and TYP<>'P' and typ<>'A' then invoiceamount else 0 end)
+		from invoices,@wt where invoice_link = invoiceId			
+		group by invoiceId
+    
+    update w set
+			paid_penalties = penalty,
+			paid_fees = fee,
+			paid_total = paid_total + penalty + fee
+			from @wt w,@wt2 w2 where w2.id = w.invoice_link
+			
+			
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'receipt_number',receipt_number,'string' from @wt
   insert @jsonPrep select parentId,null,'receipt_link',receipt_link,'int' from @wt
-  insert @jsonPrep select parentId,null,'posted_date',posted_date,'string' from @wt
+  insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'post_date',post_date,'string' from @wt
 
   insert @jsonPrep select parentId,null,'paid_total',paid_total,'int' from @wt
   insert @jsonPrep select parentId,null,'paid_penalties',paid_penalties,'int' from @wt
@@ -139,7 +185,7 @@ begin
   if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
   begin
    set @theDate = getDate()
-   update invoices set apiUpdated = @theDate where id in (select invoice_link from @wt)
+   update object set k7 = @theDate where id in (select receiptId from @it)
    exec dbo.logit @@procid, 'Success...', @dump
   end
   else
