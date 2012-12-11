@@ -1,6 +1,7 @@
 create procedure dbo.paymentsImportBatch(
  @paymentType varchar(50),
  @batchId int,
+ @ini varchar(50),
  @debugMode varchar(10) = 'false' 
 ) as 
 begin
@@ -18,7 +19,11 @@ begin
    @officialName varchar(50) = '',
    @officialDepositCode varchar(50) = '',
    @officialBankCode varchar(50) = '',
-   @fiscalYear varchar(50) = ''
+   @fiscalYear varchar(50) = '',
+   @theDate datetime = getdate(),
+   @importStamp varchar(50)
+
+  select @importStamp = @ini + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
   declare @wt table (
    id int,
@@ -176,6 +181,7 @@ begin
       @amount = @amount,
       @debitAcct = @debitAcct,
       @creditAcct = @creditAcct,
+      @importStamp = @importStamp,
       @postResult = @resultStringToken output
      end
     end
