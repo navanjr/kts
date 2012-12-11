@@ -61,11 +61,17 @@ begin
   delete @rows where id = @idToken
  end
 
- select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Official Voucher' order by key2 desc, key1 desc
- update @rt set registerNumber = @lastNumber + id
-
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
+
+ update a set postCheck = 2 from @rt a, object b where a.voucherNumber = b.key3 and b.typ = 4771 and a18 = 'official Voucher'
+
+-- set the potential register numbers
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Official Voucher' order by key2 desc, key1 desc
+ declare @reg table(regSeed int identity(1,1), id int)
+ insert @reg select id from @rt where postCheck = 0 order by voucherNumber
+ update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+
 
  return 
 end
