@@ -6,7 +6,8 @@ create function dbo.voucherImportBRW( @id int ) returns @rt table(
  amount varchar(50),
  debitAcct varchar(50),
  creditAcct varchar(50),
- postCheck int
+ postCheck int,
+ registerNumber varchar(50)
 )
 begin
 
@@ -16,7 +17,8 @@ begin
   @csv nvarchar(max),
   @debitAcct varchar(50),
   @creditAcct varchar(50),
-  @officalLink int
+  @officalLink int,
+  @lastNumber int
 
  select
   @officalLink = link2,
@@ -53,10 +55,14 @@ begin
     (select data from dbo.split(@dataToken,',') where id = 4),
     @debitAcct,
     @creditAcct,
-    0
+    0,
+    '*'
 
   delete @rows where id = @idToken
  end
+
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Official Voucher' order by key2 desc, key1 desc
+ update @rt set registerNumber = @lastNumber + id
 
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
