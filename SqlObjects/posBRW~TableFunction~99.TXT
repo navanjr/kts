@@ -1,5 +1,5 @@
 create function dbo.posBRW() returns @rt table(
- id int default 0,
+ id int identity(-1,-1),
  display varchar(500),
  depositDate int,
  amount money,
@@ -9,21 +9,26 @@ create function dbo.posBRW() returns @rt table(
 ) as 
 begin
 
+ declare @whoAmI varchar(500)
+
+ select @whoAmI = dbo.whoAmI()
+
  insert @rt (display,depositDate,amount,accountId,ord)
  select
   '   ' + receiptType,
   depositDate, 
   sum(amount),
   min(accountId),
-  cast(depositDate as varchar) + 'b' 
+  cast(depositDate as varchar) + 'b'
  from dbo.posTF()
  group by id, depositDate, receiptType
 
- insert @rt (display,accountId,ord)
+ insert @rt (display,accountId,ord,blob)
  select
   dbo.date1(depositDate),
   1, 
-  cast(depositDate as varchar) + 'a' 
+  cast(depositDate as varchar) + 'a',
+  @whoamI+'@Date='+cast(depositDate as varchar)+';' 
  from @rt
  where depositDate is not null
  group by depositDate
