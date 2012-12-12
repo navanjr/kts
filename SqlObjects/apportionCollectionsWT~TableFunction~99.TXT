@@ -1,4 +1,4 @@
-create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int) returns @wt table(
+create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int, @apportionCodeOnly varchar(10)) returns @wt table(
   id int identity(1,1),
   accountId int,
   creditCode varchar(50),
@@ -107,7 +107,7 @@ declare @twt table(
      where contraId = @accountId and ISNULL(bsId,0) = 0 
     end   
 
-   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE'
+   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly <> 'TRUE'
     begin
  -- Add glDetail when apportioning by accrued receivable account
      insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
@@ -118,6 +118,19 @@ declare @twt table(
  '' as acrAccountDesc,
  ''   from gldetail 
      where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
+    end
+
+   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly = 'TRUE'
+    begin
+ -- Add glDetail when apportioning by accrued receivable account
+     insert into @twt select 0,0,'','',accountId,accountCode,accountDesc,100,null,null,0,'',0, '','',0,'','',
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ 0 as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from glaccounts 
+     where accountId = @accountId 
     end
 
    if @accountType = 4512
