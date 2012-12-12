@@ -34,7 +34,7 @@ begin
   null,
   '@resource=legal;',
   null,
-  'a' 
+  'b' 
  from adtax
  where ltrim(cast(legalDescription as varchar(max))) > '  0'
 
@@ -46,8 +46,22 @@ begin
   null,
   '@resource=invoices;',
   null,
-  'b'
+  'c'
  from invoices
+
+--receipts
+ insert @rt
+ select 'receipts',
+  count(id),
+  sum(case when dbo.date112(lasteditDate) > isnull(k7,0) then 1 else 0 end),
+  null,
+  '@resource=receipts;',
+  null,
+  'd'
+ from object where typ=4502 and key3='TAX'
+
+
+
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
  update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';' from @rt a, @apiControl b where a.resource = b.resource

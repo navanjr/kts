@@ -1,8 +1,9 @@
 create proc dbo.apiReceipts(
- @taxyear varchar(4),
+ @taxyear varchar(4) = 'ALL',
  @method varchar(50) = 'GET',
  @batchSize int = 10,
  @postFile varchar(50) = 'apiPostReceipts.json',
+ @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output
 ) as
@@ -12,6 +13,8 @@ begin
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
 
  declare
+  @resource varchar(50) = 'receipts',
+  @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
   @apiCode varchar(50),
@@ -24,11 +27,20 @@ begin
   @apiResultWt JSONHierarchy,
   @theDate datetime,
   @updated int,
-  @inserted int
+  @inserted int,
+  @tally int,
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
+
+ exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
  
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
+ if @scratchFile is null
+  set @scratchFile = @tempPath + '\' + 'apiResultReceipts.tmp'
+
+
  declare @jsonPrep table(
   id int identity(1,1),
   parentId int,
@@ -51,12 +63,12 @@ begin
   paid_total money
   )				
 
-
- if @method = 'BatchPost'
+ if @method = 'JOB'
  begin
-  exec dbo.apiReceipts @taxyear, @method = 'POST', @batchSize = @batchSize
-  exec dbo.apiReceipts @taxyear, @method = 'STATUS', @batchSize = @batchSize
+  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize
  end
+
 /*
  if @method = 'STATUS'
  begin
@@ -69,7 +81,7 @@ begin
    insert @taxyears select taxyear from invoices group by taxyear
 
   insert @status select taxYear, count(id), sum(case when isnull(k7,0) < lasteditdate then 1 else 0 end), null
-   from  object where taxyear in (select year from @taxyears) group by taxyear
+   from  object where typ=4502 and key3='TAX'
 
   while exists(select * from @taxyears)
   begin
@@ -86,13 +98,14 @@ begin
   return
  end
  */
+
  if @method = 'POST'
  begin
 
 -- create the post data file then call the API
 declare @it table (receiptId int)
 
- insert @it select top (100)
+ insert @it select top (@batchsize)
     
 		Id
 		from Object 
@@ -122,8 +135,8 @@ declare @it table (receiptId int)
      update @wt set
        paid_by =   case when a1>'  0' then a1 else paid_by end,
        paid_Total =  dbo.taxReceiptTaxPaid(receipt_link,invoice_link,0),
-       paid_Date = b10,
-       post_Date = key2
+       paid_Date = dbo.date112(b10),
+       post_Date = dbo.date112(key2)
       from @wt,object where id = receipt_link
         
   declare @wt2 table (id int,penalty money,fee money)
@@ -142,8 +155,7 @@ declare @it table (receiptId int)
 			paid_total = paid_total + penalty + fee
 			from @wt w,@wt2 w2 where w2.id = w.invoice_link
 			
-			
-
+-- insert into jsonprep			
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'receipt_number',receipt_number,'string' from @wt
   insert @jsonPrep select parentId,null,'receipt_link',receipt_link,'int' from @wt
@@ -174,6 +186,7 @@ declare @it table (receiptId int)
    @resource = @apiResource,
    @postFile = @postFile,
    @debugMode = @debugMode,
+   @scratchfile = @scratchFile,
    @cmdOutput = @tokenId output,
    @dump = @dump output
 
