@@ -88,5 +88,6 @@ update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
 update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND') union select 'BACK TAX')
 update r set reportOrder = a.reportOrder from @rt r, glaccounts a where r.accountCode=a.accountCode
+update r set reportOrder = a.reportOrder from @rt r, (select max(reportOrder) as reportOrder,accountType as accountCode from glaccounts group by accountType) a where r.accountCode=a.accountCode
 return
 end
