@@ -1,4 +1,11 @@
-CREATE function dbo.dailyDataWarrants(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
+CREATE function dbo.dailyDataPayments(
+ @paymentType varchar(50),
+ @accountType varchar(50),
+ @theDate int,
+ @days int,
+ @ordSeed varchar(50),
+ @filterFlag varchar(10)
+) returns 
 @rt table (
  id int,
  ord varchar(250),
@@ -12,129 +19,83 @@ CREATE function dbo.dailyDataWarrants(@theDate int, @days int, @ordSeed varchar(
  brwBGColor int
 )
 begin
- declare @sectionTitle varchar(50) = 'Warrants'
+
+ declare @sectionTitle varchar(50) = dbo.proper(@paymentType) + 's'
 
  declare @wt table(
-  fundId int,
-  fundDesc varchar(50),
-  fundCode varchar(50),
-  dailyDataAccountLinkCode varchar(50),
+  accountId int,
+  accountDesc varchar(50),
   paymentType varchar(50),
-  number varchar(50),
+  minNumber varchar(50),
+  maxNumber varchar(50),
   amount money,
-  rowCnt int
+  rowCnt int,
+  glBalance money
  )
 
  declare @wtRaw table(
-  fundCode varchar(50),
-  dailyDataAccountLinkCode varchar(50),
+  accountId int,
+  accountDesc varchar(50),
   paymentType varchar(50),
-  treasurersNumber varchar(50),
-  clerksNumber varchar(50),
+  number varchar(50),
   amount money
  )
 
 -- insert all raw payment data
  insert @wtRaw
  select
-  b.targetAccountCode,
-  a.debitAccountCode,
-  a.paymentType,
-  a.treasurersNumber,
-  a.clerksNumber,
-  a.amount
- from payments a, glAccounts b
- where a.debitAccountCode = b.accountCode and a.dateRegistered between @theDate and @theDate + @days
+  a.accountId,
+  g.accountDesc,
+  p.paymentType,
+  case when 1 = 1 then p.treasurersNumber else p.clerksNumber end,
+  g.amount
+ from dbo.glDetail g
+ join payments p on g.slink = p.slink 
+ join dbo.glaccounts a on g.accountId = a.accountId 
+ where p.dateRegistered between @theDate and @theDate + @days
+  and p.paymentType = @paymentType
+  and accountType = @accountType
 
-
-/*
--- 
+-- summarize the detail 
  insert @wt 
  select 
-  0,
-  '',
-  fundCode,
-  '',
-  '', --paymentType
-  '',
+  accountId,
+  accountDesc,
+  paymentType,
+  min(number),
+  max(number),
   sum(amount),
-  count(*)
- from @wtRaw
- group by fundCode
-
- update a set fundId = b.accountId, fundDesc = b.accountDesc
- from @wt a, glAccounts b 
- where a.fundCode = b.accountCode
-
-  
--- this will get just the fund
- insert @wt
- select
-  id,
-  ord + 'a',
-  ord,
-  subDescription,
-  subDescription,
-  min(jeNumber),
-  max(jeNumber),
-  COUNT(jeNumber),
-  abs(SUM(amount)),
+  count(*),
   0
  from @wtRaw
  group by
-  id,
-  ord,
-  subDescription --, subDescription
- order by ord
-*/
+  accountId,
+  accountDesc,
+  paymentType
 
-
-
-
-
-
-
-
-
+ update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.accountId) from @wt a
 
 --insert main data
  insert @rt
  select
-  cast('9' + cast(FundId as varchar) as int),
-  @ordSeed + fundCode + '',
-  '  ' + fundDesc,
---  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount),
-'',
-  '   ' + dbo.padRight(fundDesc,' ',61),  
---  case when minControlNumber is null then '' else dbo.padLeft(minControlNumber, 0, 5) + ' - ' + dbo.padLeft(maxControlNumber, 0, 5) end,
-'',
---  dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
-'',
---  dbo.padLeft(convert(varchar,amount,1),' ',16),
-'',
+  cast('9' + cast(accountId as varchar) as int),
+  @ordSeed + cast(accountId as varchar) + '',
+  dbo.dailyDataFormatCollections(accountDesc,minNumber,maxNumber,rowCnt,amount),
+  dbo.padLeft(convert(varchar,glBalance,1),' ',16),
+  '   ' + dbo.padRight(accountDesc,' ',61),  
+  case when minNumber is null then '' else dbo.padLeft(minNumber, 0, 5) + ' - ' + dbo.padLeft(maxNumber, 0, 5) end,
+  dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
+  dbo.padLeft(convert(varchar,amount,1),' ',16),
   'detail',0
  from @wt
-pay
-
-
-
-
-
-
-
-
-
-
-
-
 
 -- headers
  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
  insert @rt
  select 0,@ordSeed+'00aa','  '
-  + dbo.padRight('Warrant Funds',' ',20)
-  + dbo.padLeft('registered',' ',20)
-  + dbo.padLeft('bought',' ',20),
+  + dbo.padRight(@sectionTitle,' ',20)
+  + dbo.padLeft('',' ',20)
+  + dbo.padLeft('',' ',20),
   '','  ' + @sectionTitle,'','','','sHeader',1
  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),
   replicate(' ',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
@@ -170,11 +131,12 @@ pay
   'gFooter',0
  from @wt 
  group by reportOrder,description
+*/
 
  insert @rt
  select
   0,
-  @ordSeed + reportOrder + 'e',
+  @ordSeed + 'YYYYY' + 'e',
   replicate(' ',80),
   '',
   '',
@@ -182,9 +144,6 @@ pay
   '',
   '',
   'lineFeed',0
- from @wt 
- group by reportOrder,description
-*/
 
 -- insert grand total
  if exists(select * from @wt)
@@ -201,9 +160,8 @@ pay
    dbo.padLeft('Total ' + @sectionTitle, ' ', 60)
    + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
    + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
---   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
-'',
-   dbo.padLeft('Total Journal Entry  ', ' ', 50),
+   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
+   dbo.padLeft('Total ' + @sectionTitle + '  ', ' ', 50),
    '',
    dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
