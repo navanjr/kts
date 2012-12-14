@@ -1,0 +1,53 @@
+@bb7=&Print; @bbproc7=gcInterestToDate=today(),printSelectedTaxes=;
+
+@keyReportMaintenance;
+
+@printSelectedTaxes=
+do(452,getSiteInfo=),
+ lcLm=250,
+ lcTm=450, 
+ do(452,getSiteInfo=),
+ lcsql5031='select taxyear,item,left(name,22),parcel,amount,due,penalty,fees,due+fees+penalty as total from dbo.taxrollBRW('&gcReceiptId&',''9999'',''Interest To: '&format(gcInterestToDate,@d1)&''','''') where selectedflag>'' 0''',
+ lcFont='Arial',
+ lcHeaderFontSize=12,
+ lcDetFont='courier new',
+ tr(
+ lcy=lcTm,
+ lcUnpaidTotal=0,
+ lcPenaltyTotal=0,
+ lcFeeTotal=0,
+ lcTotal=0,
+  box(450,lcTm,4000,lcTm+500,0),
+  prn(printed),
+  prn(page),
+  lcy=lcy+50,
+  prn(gcCounty&' COUNTY TREASURER',lcLm+1250,lcTm+75,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcLm+1250,lcTm+225),
+  lcy=lcy+500,
+  prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'TAX SUMMARY',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  lcy=lcy+125,
+  bnd(,'OFFICE OF THE TREASURER',8500C),
+  NL,
+  bnd(,gcCounty&' COUNTY '&gcFState,8500C),  
+  lcy=lcy+400,
+  prn('Interest To:'&format(gcInterestToDate,@d1),lcLm,lcy), 
+  bnd('HU','YEAR',500,'ITEM',500,'NAME',1600,'PARCEL',1600,'TAX AMOUNT',600R,'UNPAID',600R,'PENALTY',600R,'FEES',600R,'TOTAL',600R),
+  lcy=lcy+350,
+  prn(,,lcy,lcDetFont,8), 
+ det(lcsql5031),
+   bnd(,obj5:a1,500,obj5:a2,500,obj5:a3,1600,obj5:a4,1600,format(obj5:a5,@n-15.2),600R,format(obj5:a6,@n-15.2),600R,format(obj5:a7,@n-15.2),600R,format(obj5:a8,@n-15.2),600R,format(obj5:a9,@n-15.2),600R),
+   lcUnpaidTotal=lcUnpaidTotal+obj5:a6,
+   lcPenaltyTotal=lcPenaltyTotal+obj5:a7,
+   lcFeeTotal=lcFeeTotal+obj5:a8,
+   lcTotal=lcTotal+obj5:a9,
+   lcy=lcy+150,
+  edt,
+  lcy=lcy+35,
+  prn(,,lcy),
+  bnd('HO',,500,,500,,1600,,1600,'TOTAL',600R,format(lcUnpaidTotal,@n-15.2),600R,format(lcPenaltyTotal,@n-15.2),600R,format(lcFeeTotal,@n-15.2),600R,format(lcTotal,@n-15.2),600R),
+ );
+
+

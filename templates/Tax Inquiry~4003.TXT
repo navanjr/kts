@@ -1,0 +1,347 @@
+@select=078;
+
+@menuprocess=
+ lcHostName=kp('select host_name()'),
+ lcinquiry=kp('select top 1 id from object where typ=4003 and key2='''&lcHostName&''''),
+ if(lcinquiry+0>0,change(lcinquiry),new(4003,,004=lcHostName));
+
+@loadwindow=
+ create(150,12,110,3,'Show Paid',28),
+ create(154,12,160,3,'Protest Only',30),
+ create(151,10,220,3,'Order By:'),
+ create(152,12,260,3,'Name',32),
+ create(153,12,300,3,'Parcel',34),
+ create(155,12,460,3,'Adv Srch',36), 
+ reate(156,12,65,3,'Mtg Only',26),
+ if(instring('@group=publicuser',cur:options,1,1)>0,create(357,9,513,60,'&View Details(F7)')),
+ if(instring('@group=publicuser',cur:options,1,1)=0,createObjects=),
+ lcClearFilter=readstring(gcSiteBlob,'@clearFilter='),
+ if(lcClearFilter='1',set(078,'')),
+ createbrw=;
+
+@createObjects= 
+ create(352,9,513,300,'&Print(F9)'),
+ create(353,9,513,314,'Name/&Address(F10)'),
+ create(354,9,513,286,'Chg Mort Code(F8)'),
+ create(355,9,513,272,'Interest Date(F7)'),
+ create(356,9,513,258,'Adjust Balance(F6)'),
+ halfToggle=;
+
+@lbrw3forecolor=obj7:c10='COMMENT' or obj7:c10='ADJUSTMENT',255,obj7:c10=' Receipt',32768;
+@lbrw1color=obj7:c10=2,13428479,obj7:c10=1,13499135;
+@lbrw2color=obj7:c10=0,13428479;
+
+\v352120; \w352=119; 
+ @acc352=
+  do(452,getSiteInfo=),
+  gcInvoiceId=kpbrwid(1)*-1,
+  sql('dbo.taxRolladdressCheck '&gcInvoiceId),
+  trreport('TaxStatement');
+
+\v353121; \w353=119;
+ @acc353=
+  gcInvoiceId=kpbrwid(1)*-1,
+  do(4006,menuprocess=);
+
+\v354119; \w354=119;
+ @acc354=
+  gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1),
+  lcinvoiceType=kp('select typ from invoices where id='&gcInvoiceId),
+  if(lcinvoiceType='S' or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
+  break(lcinvoiceType='S' or gcInvoiceId>9000000),
+  gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
+  iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004N;'),
+  break(gcretval='esc'),
+  sql('update a set treamort='''&obj7:key1&''' from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
+  if(obj7:key2='Y',sql('update a set treamort='''&obj7:key1&''' from adtax a,invoices i, receiptlink r where r.invoiceId=i.id and r.receiptId='&obj:id&' and a.id=i.taxrollId')),
+  refreshBRW=;
+
+\v355118; \w355=119;
+ @acc355=
+  gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  gcInterestDate=kp('select interestdate from invoices where id='&gcInvoiceId),
+  iw('\t000Set Interest Date;,\t001Interest Date; \t002@d2; \w00245; \f002'&gcInterestDate&';'),
+  break(gcretval='esc'),
+  sql('update invoices set interestDate = '&obj7:key1&' where id='&gcInvoiceId),
+  refreshBRW=;
+
+\v356117; \w356=119;
+ @acc356=
+  gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  iw('\t000Adjust Balance; \t001Description; \t003Adj Amount By; \w00450; \t004@n-19.2; @acc004=set(006,0),tsc; \t005Adj Amount To; \w00650; \t006@n-19.2;  @acc006=set(004,0),tsc;'),
+  break(gcretval='esc'),
+  lcamount=obj7:key2+obj7:key3,
+  if(obj7:key3+0>0.00,lcDesc='ADJUST TO:'&kpfq(obj7:key1),lcDesc=kpfq(obj7:key1)),
+  sql('exec dbo.subInvoiceCRUD '&gcInvoiceId&', '&today()&', '''&lcDesc&''', '''', '''', ''A'', '&lcamount+0),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
+  refreshBRW=;
+
+\v357118; \w357=119; 
+ @acc357=
+  acc117=;
+
+@halfToggle=
+ gcTaxToggleF=14474460,
+ gcTaxToggleH=21759,
+ gcTaxToggle=gcTaxToggleF,
+ create(351,9,535,36,'&Half'),
+ prop(351,7cfah,gcTaxToggle);
+
+@acc351=
+ if(gcTaxToggle=gcTaxToggleF,gcTaxToggle=gcTaxToggleH,gcTaxToggle=gcTaxToggleF),
+ prop(351,7cfah,gcTaxToggle);
+
+@dk1;
+@createbrw=
+  kpmo('Selecting Taxroll Data...'),
+  gcsql='select top 1 0,'''','''','''','''','''',0,0,'''',0,0,0,'','' from object',
+  brw(160,1,gcsql,3,15,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n-14.2b@#7#|M45R(2)~Unpaid~@n-14.2b@#8#|M35R(2)~Fees~@n-14.2b@#10#|M35R(2)~Penalty~@n-14.2b@#11#|M18C(2)~Sel~#9#|M35R(2)~Queue~#13#|M35C(2)~Printed~#14#|M',7,1),
+  gcsql2='select invoiceId,display,taxyear,parcel,item,taxType,amount,due,selectedFlag,colorFlag from dbo.taxrollSearchBRW('&obj:id&',0) order by ord',
+  create(171,10,3,142,'Related Items...'),
+  create(172,10,3,283,'Comments...'),
+  prop(171,'FontSize',10),
+  prop(171,'FontStyle',700),
+  prop(171,'Font','Arial'),
+  prop(172,'FontSize',10),
+  prop(172,'FontStyle',700),
+  prop(172,'Font','Arial'),
+  brw(161,2,gcsql2,3,155,400,120,'200L(2)~~#2#|20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n-14.2b@#7#|M45R(2)~Unpaid~@n-14.2b@#8#|M35C(2)~Sel~#9#|M',7,1),
+  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW(0)',
+  if(instring('@group=publicuser',cur:options,1,1)=0,brw(162,3,gcsql3,3,296,400,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,)),
+  prop(160,'SelectedFillColor',65535),
+  prop(161,'SelectedFillColor',16777215),
+  prop(160,'SelectedColor',0),
+  prop(161,'SelectedColor',0),
+  kpmc();
+
+@brw1=
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ lcClickedId=kpbrwid(1),
+ lcMethod='tax',
+ brwClicked=;
+@brw2=
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ lcClickedId=kpbrwid(2),
+ lcMethod='tax',
+ brwClicked=;
+@brwClicked=
+ break(lcClickedId=0),
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ gcMortCode=kp('select rtrim(a.treamort) from adtax a,invoices i where a.id=i.taxrollId and i.id='&lcClickedId*-1),
+ if(gcMortCode>' 0',m('This item has a mortgage code on it. Are you sure that you want to select it?','Select Anyway?',,6)),
+ if(gcretval=2 or gcMortCode<=' 0',sql('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&''''),),
+ gcClickedId=lcClickedId*-1,
+ gcalreadylinked=kp('select receiptId from receiptlink where invoiceId='&gcClickedId&' and receiptId in (select id from object where typ=4502 and a17<>''Posted'' and a17<>''VOID'') and receiptId<>'&obj:id),
+ if(gcalreadylinked+0>1,alreadylinked=),
+ refreshBRW=;
+
+@alreadylinked=m('This tax item is already linked to another receipt in progress. Would you like to edit that receipt?','Edit Linked Receipt.',,6),
+  break(gcretval<>2),
+  change(gcalreadylinked);
+
+@lbrwclick160=
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ lcId=kpbrwid(1)*-1,
+ break(lcId<1),
+ d1select('exec dbo.invoiceUpdate '&lcId),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'InvoiceUpdate...')),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|&Owner Report|&Show Detail|&Cancel'),
+ if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
+ if(gcretval=2,selectedRateToggle=),
+ if(gcretval=3,releaseProtest=),
+ if(gcretval=4,ownerReport=),
+ if(gcretval=5,showFeePenalty=);
+
+@ownerReport=
+ gcInvoiceId=lcid,
+ trreport(ownerReport,5035,print=);
+
+@showFeePenalty=
+ lcBlob=kp('select dbo.taxrollInvoiceAmountsBlob('&lcId&')'),
+ m('id: '&lcid&'||AdTax Total: '&readstring(lcBlob,'@adtaxTotalDue')&'|AdTax Balance: '&readstring(lcBlob,'@adtaxBalanceDue')&'|Invoice Total: '&readstring(lcBlob,'@invoiceAmount=')&'|Invoice Due: '&readstring(lcBlob,'@invoiceDue=')&'|Interest Date: '&readstring(lcBlob,'@interestDate=')&'|','Fees and Penalty Details...');
+
+@selectedRateToggle=
+ sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
+ refreshBRW=;
+
+@releaseProtest=lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
+  break(lccheck+0<.01),
+  if(gcjeid+0<1,newje=,lcchange='dont'),
+  break(gcjeid+0<1),
+  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where invoiceId='&lcId&' 
+    and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
+  sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
+  if(lcchange<>'dont',change(gcjeid));
+
+@newje=fastinsert(-02=4512,004=today(),006='Protest Release',042='Apportion Protest'),
+  gcjeid=obj1:id;
+
+@gfwindow=
+ refreshBRW=;
+
+@brw3=
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ change(kpbrwid(3),,1),
+ refreshBRW3=,
+ focus(160);
+
+@newselbrw160=
+ lcSearchId=kpbrwid(1)*-1,
+ break(lcSearchId+0<1),
+ gcsql2='select invoiceId,display,taxyear,parcel,item,taxType,amount,due,selectedFlag,colorFlag from dbo.taxrollSearchBRW('&obj:id&','&lcSearchId&') order by ord',
+ brwreload(2,gcsql2),
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ refreshBRW3=;
+ 
+@acc150=tsc,refreshBRW=;
+@acc152=if(obj:a13+0>0,set(34,0),set(34,1)),tsc,refreshBRW=;
+@acc153=if(obj:a14+0>0,set(32,0),set(32,1)),tsc,refreshBRW=;
+@acc154=tsc,refreshBRW=;
+@acc155=tsc,refreshBRW=;
+
+@refreshBRW=
+  kpmo('Selecting Taxroll Data...'),
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort,queue,printed,colorFlag from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') order by ord',
+  brwreload(1,gcsql),
+  brwreload(2),
+  if(instring('@group=publicuser',cur:options,1,1)=0,refreshBRW3=),
+  kpmc();
+
+@refreshBRW3=
+  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by commentType',
+  brwreload(3,gcsql3);
+
+\t001&Year; \w00230; \x002-40; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
+\t003InitialsHostname; \h003004;r
+
+\t025MtgOnly; 
+\t027Unpaid;\f0281;
+\t029ProtestOnly;
+\t031OrderName;\f0321;
+\t033OrderParcel;
+\t035AdvanceSearch;
+\t037InterestTo;
+\h025038;r
+
+\t077&Filter;
+ \x077-30;
+ \x078-71;
+ \w078+40;
+
+@sel078=
+ if(lcClearFilter='1',set(078,''));
+
+ @acc078=
+   lcbrw1Filter=str_replace(obj:c1,'''','~{'),
+   if(readstring(gcSiteBlob,'@barcodeScanner=')=1,barcodeit=),
+   refreshBRW=,
+   if(lcFocus=078,focusit78=,focus(160));
+
+@focusit78=
+ set(078,'',1),
+ focus(078),
+ lcFocus='';
+
+@barcodeit=
+ lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
+ d1select('exec dbo.barcodeScan '''&lcbrw1Filter&''','&obj:id&','''&lcPart&''',''TAX'''),
+ if(readstring(obj7:d1,'@code=')=1,lcFocus=078),
+ if(readstring(obj7:d1,'@code=')=2,m('This item has a mortgage code on it')),
+ break(readstring(obj7:d1,'@code=')=2),
+ gcalreadylinked=readstring(obj7:d1,'@alreadyLinked='),
+ if(gcalreadylinked+0>1,alreadylinked=);
+
+
+\t108New &Receipt;
+@acc108=
+  d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
+@newReceiptRocks=
+ if(gcTaxToggleH=21759,halfToggle=),
+ sel078=,
+ focus(78),
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj7:d1),
+ change(obj7:d1);
+@newReceiptFail=
+ m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
+
+\t109Add Comment;
+  @acc109=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1),
+  sql('exec dbo.taxrollAddComment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
+  d1select('select top 1 id from object where typ=4002 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
+  change(obj7:d1,,1),
+  refreshBRW3=,
+  focus(160);
+
+\t110Add Omitted;
+ @acc110=neww(4201,2);
+
+\t111Print Selected;
+@acc111=
+ iw('\t001Interest To; \t002@d2; \w00250;'),
+ break(gcretval='esc'),
+ if(obj7:key1+0>5,gcInterestToDate=obj7:key1,gcInterestToDate=''),
+ gcReceiptId=obj:id,
+ sql('update object set a16='''&gcInterestToDate&''' where id='&obj:id),
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj:id),
+ trreport('SelectedTaxes',5031,'printSelectedTaxes=');
+
+\t112UnSelect &All;
+@acc112=
+ sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''reset'''),
+ refreshBRW=;
+
+\t113View Receipts;
+ @acc113=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1 or lcSearchId>9000000),
+  browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')');
+
+\t115Select &Parcel;
+@acc115=
+ lcClickedId=kpbrwid(1),
+ lcMethod='parcel',
+ brwClicked=;
+
+\t116Select &Name;
+@acc116=
+ lcClickedId=kpbrwid(1),
+ lcMethod='name',
+ brwClicked=;
+
+\t117&View/Correct;
+ @acc117=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1),
+  if(lcSearchId>9000000,lcSource='ADTAX',lcSource='INVOICES'),
+  sql('dbo.taxRolladdressCheck '&lcSearchId),
+  d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''','''&lcSource&''''),
+  change(obj7:d1);
+
+\t118View G/L; @acc118=new(4020,,-68=kpbrwid(1)*-1);
+
+\t119Add Fee;
+  @acc119=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1 or lcSearchId>9000000),
+  iw('\t001Date; \t002@d2; \w00250; \t003Description;\l0044504;r004002006004008006; @lf004=''a1=''''tax''''''; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE'''' and b3!=1'',2; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND'''' and b3!=1'',2; \t009Amount; \t010@n21.2; \w01050;'),
+  break(gcretval<>'OK'),
+  d1select('exec dbo.subInvoiceCRUD '&lcSearchId&','''&obj7:key1&''','''&obj7:key2&''','''&obj7:key3&''','''&obj7:a1&''',''F'','&obj7:a2),
+  lctempmess=obj7:d1,
+  if(readstring(lctempmess,'@code=')=1,m(lctempmess)),
+  refreshBRW=,
+  focus(160);
+
+\t120Add Assessment;
+  @acc120=lcSearchId=kpbrwid(1)*-1,
+  break(lcSearchId+0<1),
+  sql('exec dbo.taxrollAddAssessment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
+  d1select('select top 1 id from object where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
+  change(obj7:d1,,1),
+  refreshBRW=,
+  focus(160);
+
+\h108110instring('@group=publicuser',cur:options,1,1)>0;r
+\h112instring('@group=publicuser',cur:options,1,1)>0;
+\h115120instring('@group=publicuser',cur:options,1,1)>0;r

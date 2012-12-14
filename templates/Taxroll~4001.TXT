@@ -1,0 +1,278 @@
+\t110New Version;
+@acc110=
+ gcTaxInvoiceId=obj:link2,
+ do(4007,menuprocess=);
+\t111Re-Invoice; 
+@acc111=
+ m('Are you sure you want to cancel the current statement and make a new one?','Cancel Statement?',,6),
+ break(gcretval<>2),
+ gcpaid=0,
+ adjusttozero=,
+ d1select('dbo.taxrollInvoiceCorrection '&obj:link1+0&', '&gcpaid+0),
+ if(readstring(obj7:d1,'@code=')+0>0,m(obj7:d1)),
+ m('Invoiceing Complete.'),
+ gcpaid=0;
+
+@adjusttozero=
+  gcInvoiceId=obj:link2,
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  iw('\t001Description;'),
+  lcDesc=obj7:key1,
+  if(len(lcDesc)<2,lcDesc='VOID by Taxroll Correction - new statement issued.',lcDesc='VOID '&lcDesc),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
+  gcpaid=kp('select sum(amount)*-1 from dbo.invoiceGLTotalTF('&gcInvoiceId&') where left(slink,1) in (''l'',''o'') and accountType = ''RECEIVABLE'''),
+  lcamount=kp('select invoiceDue from invoices where id='&gcInvoiceId),
+  lcamount=lcamount*-1,
+  sql('exec dbo.subInvoiceCRUD '&gcInvoiceId&', '&today()&', '''&lcDesc&''', '''', '''', ''A'', '&lcamount+0),
+  sql('exec invoiceUpdate '&gcInvoiceId+0),
+  refreshBRW=;
+
+\h111instring('@group=publicuser',cur:options,1,1)>0 or (obj:a17=obj:a18 and obj:a19=obj:a20 and obj:c1=obj:c2);
+\h107instring('@group=publicuser',cur:options,1,1)>0;
+\h110instring('@group=publicuser',cur:options,1,1)>0;
+
+@noupdate;
+
+@loadwindow=
+ gcfieldnum='',
+ gclabel='',
+ gcoriginal='',
+ gctype='',
+ gcinvoice=0,
+ gcoptions='',
+ gcsetMillage='N',
+ create(151,2,247,68,'Assessed'),
+ create(152,2,247,147,'Exemptions'),
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ createbrw=;
+
+@createbrw=
+ break(tier=2),
+ gcsql='select id,key2,key3,original, corrected from taxrollCorrectionsView where taxrollId='&obj:link1&' order by key2 desc, id desc',
+ brw(160,1,gcsql,305,175,195,70,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
+ gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
+ brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),;
+@lbrw3forecolor=obj7:c10='COMMENT',255;
+
+
+@lbrwclick160=
+ lcId=kpbrwid(1),
+ get(lcId),
+ m(obj7:key3&'|  Original Value: '&obj7:a1&'|  New Value: '&obj7:a2&'||Choose from the following options...','Taxroll Correction...',,'&Edit|&Delete|&Cancel'),
+ if(gcretval=1,change(lcId)),
+ if(gcretval=2,fastmodify(lcId,-02=-4005)),
+ brwreload(1);
+
+@refreshBRW3=
+ gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
+ brwreload(3,gcsql3);
+
+\m160Right Click for more options...;
+
+@refreshBRW=brwreload(1);
+@sel002=gcfieldnum='002',gclabel='Name',gcoriginal=obj:key1,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel004=gcfieldnum='004',gclabel='Tax Year',gcoriginal=obj:key2,gctype='@n5;',gcinvoice=obj:link2,gcoptions='';
+@sel006=gcfieldnum='006',gclabel='Parcel',gcoriginal=obj:key3,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel008=gcfieldnum='008',gclabel='Item Number',gcoriginal=obj:a1,gctype='@n8.1;',gcinvoice=0,gcoptions='';
+@sel010=gcfieldnum='010',gclabel='Record Type',gcoriginal=obj:a2,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel012=gcfieldnum='012',gclabel='Business Name',gcoriginal=obj:a3,gctype='varchar',gcinvoice=0,gcoptions='';
+
+@sel028=gcfieldnum='028',gclabel='Country',gcoriginal=obj:a11,gctype='varchar',gcinvoice=0,gcoptions='';
+
+@sel032=gcfieldnum='032',gclabel='Fire District',gcoriginal=obj:a13,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel034=gcfieldnum='034',gclabel='Owner Number',gcoriginal=obj:a14,gctype='@n14.2;',gcinvoice=0,gcoptions='';
+@sel036=gcfieldnum='036',gclabel='Acres',gcoriginal=obj:a15,gctype='@n7.2;',gcinvoice=0,gcoptions='';
+@sel038=gcfieldnum='038',gclabel='Status',gcoriginal=obj:a16,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel040=gcfieldnum='040',gclabel='School District',gcoriginal=obj:a17,gctype='varchar',gcinvoice=obj:link2,gcoptions=' \l0044010; @lf004=''typ=4010 and key1 in (select key1 from object where typ=4012 and key3='''''&obj:key2&''''')''; @acc004=gcsetMillage=''Y'';';
+@sel042=gcfieldnum='042',gclabel='School District',gcoriginal=obj:a18,gctype='varchar',gcinvoice=obj:link2,gcoptions=' \l0044010; @lf004=''typ=4010 and key1 in (select key1 from object where typ=4012 and key3='''''&obj:key2&''''')''; @acc004=gcsetMillage=''Y'';';
+@sel044=gcfieldnum='044',gclabel='Tax Rate',gcoriginal=obj:a19,gctype='varchar',gcinvoice=obj:link2,gcoptions=' \l0044011; @lf004=''typ=4011 and key1 in (select key2 from object where typ=4012 and key3='''''&obj:key2&''''' and key1='''''&obj:a18&''''')''; @acc004=gcsetMillage=''Y'';';
+@sel046=gcfieldnum='046',gclabel='Tax Rate',gcoriginal=obj:a20,gctype='varchar',gcinvoice=obj:link2,gcoptions=' \l0044011; @lf004=''typ=4011 and key1 in (select key2 from object where typ=4012 and key3='''''&obj:key2&''''' and key1='''''&obj:a18&''''')''; @acc004=gcsetMillage=''Y'';';
+@sel048=gcfieldnum='048',gclabel='Lots',gcoriginal=obj:b1,gctype='@n5.2;',gcinvoice=0,gcoptions='';
+@sel050=gcfieldnum='050',gclabel='Land Assessed',gcoriginal=obj:b2,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel052=gcfieldnum='052',gclabel='Improvements Assessed',gcoriginal=obj:b3,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel054=gcfieldnum='054',gclabel='Miscellaneous Assessed',gcoriginal=obj:b4,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel056=gcfieldnum='056',gclabel='Mobile Home Assessed',gcoriginal=obj:b5,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel058=gcfieldnum='058',gclabel='Gross Assessed',gcoriginal=obj:b6,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel060=gcfieldnum='060',gclabel='Freeport Exemption',gcoriginal=obj:b7,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel062=gcfieldnum='062',gclabel='Base Exemption',gcoriginal=obj:b8,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel064=gcfieldnum='064',gclabel='Double Exemption',gcoriginal=obj:b9,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel066=gcfieldnum='066',gclabel='Exemption 1',gcoriginal=obj:b10,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel068=gcfieldnum='068',gclabel='Exemption 2',gcoriginal=obj:b11,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel070=gcfieldnum='070',gclabel='Exemption 3',gcoriginal=obj:b12,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel072=gcfieldnum='072',gclabel='Net Assessed',gcoriginal=obj:b13,gctype='@n11;',gcinvoice=0,gcoptions='';
+@sel074=gcfieldnum='074',gclabel='Millage',gcoriginal=obj:b14,gctype='@n11.7;',gcinvoice=0,gcoptions='';
+@sel076=gcfieldnum='078',gclabel='Tax Due',gcoriginal=obj:b15,gctype='@n19.2;',gcinvoice=obj:link2,gcoptions='';
+@sel078=gcfieldnum='078',gclabel='Tax Due',gcoriginal=obj:c1,gctype='@n19.2;',gcinvoice=obj:link2,gcoptions='';
+@sel082=gcfieldnum='082',gclabel='Certificate',gcoriginal=obj:c3,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel084=gcfieldnum='084',gclabel='Paid Off',gcoriginal=obj:c4,gctype='@d2;',gcinvoice=0,gcoptions='';
+@sel086=gcfieldnum='086',gclabel='Lien Code 1',gcoriginal=obj:c5,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel088=gcfieldnum='088',gclabel='Lien Amount 1',gcoriginal=obj:c6,gctype='@n19.2;',gcinvoice=0,gcoptions='';
+@sel090=gcfieldnum='090',gclabel='Lien Code 2',gcoriginal=obj:c7,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel092=gcfieldnum='092',gclabel='Lien Amount 2',gcoriginal=obj:c8,gctype='@n19.2;',gcinvoice=0,gcoptions='';
+@sel094=gcfieldnum='094',gclabel='Flag 1',gcoriginal=obj:c9,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel096=gcfieldnum='096',gclabel='Flag 2',gcoriginal=obj:c10,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel098=gcfieldnum='098',gclabel='Flag 3',gcoriginal=obj:d1,gctype='varchar',gcinvoice=0,gcoptions='';
+@sel102=gcfieldnum='102',gclabel='Legal',gcoriginal=obj:e1,gctype='memo',gcinvoice=0,gcoptions='';
+
+\r002102tier<>2;r
+@dk1;
+
+\t001Name; \q002;  \d002;
+\t003Tax Year; \t004@p####pb; \w00425; \q004;
+\t005Parcel #;
+\t007Item #; \t008@n8.1b; \q008;
+\t009Type; \u010; @choose010:IBROC; \w01013; \q010;
+\t011Business Name; \d012;
+
+
+
+\t027Country;
+\t029MortCD; \t030@n7; \w03050; \d030;
+\t031Fire District;
+\t033Owner Number; \t034@n14.2; \w03450;
+\t035Acres; \t036@n7.2; \w03650;
+\t037Status;
+\t039Orig School; \l0404010; @acc040=calcrecord(); \q040tier=2; \d040tier<>2;
+\t041School;
+\t043Orig Rate; \l0444011; @acc044=calcrecord(); \q044tier=2; \d044tier<>2;
+\t045Tax Rate;
+\t047Lots; \t048@n5.2; \w04850;
+
+\t049Land; 
+\t051Improvements;
+\t053Miscellaneous;
+\t055Mobile Home; 
+\t057Gross Assessed; \t050058@n9;r2 \w05005850;r2
+\y049058+13;r
+
+\t059Free Port; \t060@n9; \w06050;
+\t061Base; \t062@n9; \w06250;
+\t063Double Exempt; \t064@n9; \w06450;
+\t065Exemption 1; \t066@n9; \w06650;
+\t067Exemption 2; \t068@n9; \w06850;
+\t069Exemption 3; \t070@n9; \w07050;
+\t071Net Assessed; \t072@n9; \w07250;
+\y059072+26;r
+
+\t073Millage; \t074@n14.7; \w07450;
+\t075Orig Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076; \d076;
+\x073075=077;r2 \y073076-221;r
+\x074076=078;r2
+
+\t077Curr Tax Due; \t078@n14.2; \w07850;\s078-'select dbo.taxCorrectionsSF('&obj:b15&','&obj:link1&',''078'')'; 
+\t079Unpaid; \t080@n14.2; \w08050;
+\t081Certificate #;
+\t083Paid Off; \t084@d2;
+\t085Lien Code 1;
+\t087Lien Amount 1; \t088@n9.2; \w08850;
+\t089Lien Code 2;
+\t091Lien Amount 2; \t092@n9.2; \w09250;
+
+\t093Flag 1;
+\t095Flag 2;
+\t097Flag 3;
+\y077098+26;r
+
+
+\t101Legal;
+\y101102250;r
+\x101=001;
+\x102=002;
+\w102450;
+\z102+20;
+\t103Mailing Add; \d104;
+\y10381; \y10480; \w104118; \x1033; \x10464;
+
+\h105tier=2 or instring('@group=publicuser',cur:options,1,1)>0;
+\t105Correct Info;
+ @acc105=
+  gcCorrectTaxyear=obj:key2,
+  gcCorrectSchoolDist=obj:a18,
+  case(gctype='address',correctAddress=,gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.')),
+  if(gcNewValueSaved='Saved',updateScreen=),
+  if(gcsetMillage='Y',setMillage=),
+  refreshBRW=,
+  refreshBRW3=;
+
+
+@setMillage=
+ lcMillage=kp('select sum(cast(a2 as money)) from object where typ=4012 and key2='''&obj:a20&''' and key3='''&obj:key2&''' and key1='''&obj:a18&''''),
+ break(lcMillage+0.00000<.00001),
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&',074,'''&gccorrectiodate&''',''Millage'','''&obj:b14&''','''&lcMillage&''''),
+ set(074,lcMillage);
+
+
+@updateScreen=
+  sql('exec dbo.taxrollScreen '&obj:link1&','''&cur:ini&''',''Update'','&obj:id),
+  gcNewValueSaved='',
+  if(gcfieldnum='002',set(002,gcvalue)),
+  if(gcfieldnum='004',set(004,gcvalue)),
+  if(gcfieldnum='006',set(006,gcvalue)),
+  if(gcfieldnum='008',set(008,gcvalue)),
+  if(gcfieldnum='010',set(010,gcvalue)),
+  if(gcfieldnum='012',set(012,gcvalue)),
+  if(gcfieldnum='028',set(028,gcvalue)),
+  if(gcfieldnum='032',set(032,gcvalue)),
+  if(gcfieldnum='034',set(034,gcvalue)),
+  if(gcfieldnum='036',set(036,gcvalue)),
+  if(gcfieldnum='038',set(038,gcvalue)),
+  if(gcfieldnum='040',set(042,gcvalue)),
+  if(gcfieldnum='042',set(042,gcvalue)),
+  if(gcfieldnum='044',set(046,gcvalue)),
+  if(gcfieldnum='046',set(046,gcvalue)),
+  if(gcfieldnum='048',set(048,gcvalue)),
+  if(gcfieldnum='050',set(050,gcvalue)),
+  if(gcfieldnum='052',set(052,gcvalue)),
+  if(gcfieldnum='054',set(054,gcvalue)),
+  if(gcfieldnum='056',set(056,gcvalue)),
+  if(gcfieldnum='058',set(058,gcvalue)),
+  if(gcfieldnum='060',set(060,gcvalue)),
+  if(gcfieldnum='062',set(062,gcvalue)),
+  if(gcfieldnum='064',set(064,gcvalue)),
+  if(gcfieldnum='066',set(066,gcvalue)),
+  if(gcfieldnum='068',set(068,gcvalue)),
+  if(gcfieldnum='070',set(070,gcvalue)),
+  if(gcfieldnum='072',set(072,gcvalue)),
+  if(gcfieldnum='074',set(074,gcvalue)),
+  if(gcfieldnum='078',set(078,gcvalue)),
+  if(gcfieldnum='082',set(082,gcvalue)),
+  if(gcfieldnum='084',set(084,gcvalue)),
+  if(gcfieldnum='086',set(086,gcvalue)),
+  if(gcfieldnum='088',set(088,gcvalue)),
+  if(gcfieldnum='090',set(090,gcvalue)),
+  if(gcfieldnum='092',set(092,gcvalue)),
+  if(gcfieldnum='094',set(094,gcvalue)),
+  if(gcfieldnum='096',set(096,gcvalue)),
+  if(gcfieldnum='098',set(098,gcvalue)),
+  if(gcfieldnum='102',set(102,gcvalue)),
+  tsc;
+
+
+@correctAddress=
+ gcInvoiceId=obj:link2,
+ do(4006,menuprocess=);
+
+@correctVarchar=
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; '&gcoptions),
+ break(gcretval='esc'),
+ gcvalue=obj7:key2,
+ gccorrectiodate=obj7:key1,
+ gcNewValueSaved='Saved',
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&gcvalue&'''');
+@correctFormat=
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; \t004'&gctype&' '),
+ break(gcretval='esc'),
+ gcvalue=obj7:key2,
+ gccorrectiodate=obj7:key1,
+ gcNewValueSaved='Saved',
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&gcvalue&'''');
+@correctMemo=iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),update,tsc; \t103New Value; \w104200;'),
+ break(gcretval='esc'),
+ gcvalue=obj7:e2,
+ gccorrectiodate=obj7:key1,
+ gcNewValueSaved='Saved',
+ sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&obj7:e2&'''');

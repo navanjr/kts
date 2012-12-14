@@ -1,0 +1,59 @@
+@key2=obj:key1&obj:a2&obj:key2;
+@defaultbrowsekey=2;
+
+@format=35L(2)~Year~#1#|M20L(2)~Type~#6#|M100L(2)~City~#2#|M50R(2)~Population~#3#|M;
+
+@filter='1=1','key1='''&filterfield1&'''';
+@filtername=All,Year;
+
+@dk1;
+@fastinsert;
+@loadwindow=
+ propType=,
+ tabord('002004006150106107');
+@afterloadwindow=
+ if(obj:key1+0<1900,set(2,kp('select year(getdate())'))),
+ tsc;
+
+\t001Year;
+ \t002@n4;
+ \w00230;
+\t003City Name;
+ \l0044701; @lf004='typ=4701 and a1=''CITY'' and b3!=1',2,,'typ=4701 and a1 in (''CITY'',''FUND'') and b3!=1';
+\t005Population;
+ \t006@n14.2;
+ \w00650;
+\t009Type; \h010;
+@propType=
+ create(150,34,64,55,'',010),
+ prop(150,'7ca0h','M=motor vehicle | A=alcohol'),
+ prop(150,'From','A|M'),
+ prop(150,'Width',25),
+ prop(150,'Height',12),
+ prop(150,'Readonly',0),
+ prop(150,'Drop',5),
+ prop(150,7cfah,16777215);
+ 
+\u150; @choose150:AM;
+
+@closewindow=update,sql('exec dbo.populationFundReceivableVerification '''&obj:key1&''','''&obj:a2&'''');
+
+
+@bb4=Import Cities,,,gcadmin=1;
+@bbproc4=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''CITY'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a CITY account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ do(4701,getAcctType=),
+ sqlloop('select name,name from dbo.mike_apportionLookup() where [type]=''C''',impFunds=),
+ iw('\t001Year; \t002@n4; \w00230;'),
+ lcyear=obj7:key1,
+ if(lcyear+0<1,lcyear=year(today())),
+ sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popalco>0.00 then c.popalco else c.pop end,''A'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''A'')'),
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''A'''),
+ sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popmvt>0.00 then c.popmvt else c.pop end,''M'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''M'')'),
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''M''');
+@impFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''' and b3!=1'),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+

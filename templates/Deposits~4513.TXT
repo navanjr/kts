@@ -1,0 +1,186 @@
+@gfbnr=1;@browseholdposition;
+@format=40R(3)~Deposit~#1#|M50R(3)~Date~@d2@#2#|M50L(3)~Type~#3#|M200L(3)~Bank Account~#5#|M60R(3)~Amount~@n14.2b@#46#|M50C~Status~#29#;
+@filtername=All,Posted,Un-Posted;
+@filter='1=1','a17=''Posted''','a17<>''Posted''';
+@acc107=if(right(left(obj:attributes,11),1)<>'Y',sql('exec dbo.depositCRUD 3, @depositId='&obj:id),);
+
+@bb4=&Print Slip;
+@bbproc4=
+ break(obj:a17<>'Posted'),
+ acc108=;
+
+@bb5=&Balance Rpt;
+@bbproc5=
+ acc109=;
+
+@browsedelete=
+ lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.','Are you sure you wish to delete this Payment?'),
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
+ break(gcretval<>2),
+ sql('exec dbo.depositCRUD 3, @depositId='&obj:id);
+
+@loadwindow=
+ if(obj:link1=0,depositTypeCheck=),
+ if(tier=3,dotier3=),
+ create(160,9,3,120,'Link &Type'),
+ create(550,12,345,95,'&Show Un-Linked',78),
+ brwstuff=;
+
+@dotier3=
+ update,
+ linkAllTypes=;
+
+@dotier4=depositTypeCheck=,
+ set(006,''),
+ update,
+ linkAllTypes=;
+
+@afterloadwindow=
+ if(tier=4,dotier4=),
+ refreshbrw=;
+ 
+\t001Deposit #; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
+\t003Deposit Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \w00200455;r2 \d004obj:a17='Posted'; @acc004=update;
+\t005Deposit Type; \l0064503; \w00655; \d006obj:a17='Posted';
+@acc006=depositTypeCheck=;
+@depositTypeCheck=
+ break(obj:key3<'  0'),
+ lcBlob=kp('select dbo.receiptTypeBlob('''&obj:key3&''')'),
+ set(008,readstring(lcBlob,'@accountDesc=')),
+ set(-03,readstring(lcBlob,'@accountId=')),
+ set(010,readstring(lcBlob,'@accountNumber='));
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Created by; \f042=cur:fullname; 
+\t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName=');
+ \d042044obj:a17='Posted';r2
+\t045Print Status; \d046;
+ \w04204687;r2
+ 
+\t108&Post/Print Slip;
+@acc108=
+ if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);
+
+\t007Bank Account; \l0084701,1;r008004-03-01010018; @lf008='a1=''BANK'' and b3!=1',2; \d008obj:a17='Posted';
+\t009Bank Account #; \d010obj:a17='Posted';
+
+\t073Amount; \t074@n14.2;  \s074+'select sum(amount) from '&gcTable4513&' where amount > 0 and slink = ''o'&obj:id&''''; \p0740907cfah,13499135;r2 \p0740907c13h,700;r2 \p0740907c0ch,1;r2 \d074090;r2 \y073074+60;r \x073074-30;r
+
+\t109&Balance Report;
+ @acc109=gcReceiptType='',
+ update,
+ gcDepId=obj:id,
+ gcBeginDate=obj:key2,
+ gcEndDate=obj:key2,
+ trreport('depositBalance',5018,'printDepositBalance=');
+
+\t077Show Hide Flag; \h077078;r 
+@acc550=refreshbrw=;
+
+@setBRWvars=
+ lcShowGL=readstring(cur:options,'@showgl='),
+ gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.depositDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:c1=1,'1','0')&')order by ord';
+
+@brwstuff=
+ setBRWvars=,
+ brw(150,1,gcbrw1sql,65,81,270,200,'118L(2)~~#2#M100L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1),
+ prop(150,'SelectedFillColor',16776960),
+ prop(150,'SelectedColor',0);
+
+@lbrw1forecolor=obj7:c10=1,255,obj7:c9<0,255; 1959605, 32768
+@lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135; 2157055; 1959605; 2350115; 7467519
+
+@lbrwclick150=
+ bustItUp=,
+ if(lcMode+0=8,rightClickUnLinkOptions=),
+ if(lcMode+0=9,rightClickLinkOptions=);
+
+@brw1=
+ bustItUp=,
+ if(lcmode+0=1,linkPayment=),
+ if(lcMode+0=8,rightClickUnLinkOptions=),
+ if(lcMode+0=9,rightClickLinkOptions=);
+
+@bustItUp=
+ break(kpbrwid(1)=0),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+
+@rightClickLinkOptions=
+ lcReceiptType=kp('select key1 from object where id = '&lcid),
+ m(lcReceiptType&' receipts||Choose from the following options...','Right Click Options...','question.ico','Link &All|Link by &Date|&Cancel'),
+ lclinkDirection='link',
+ if(gcretval=1,linkAllPaymentsForType=),
+ if(gcretval=2,linkPaymentsByDate=);
+
+@rightClickUnLinkOptions=
+ lcReceiptType=kp('select key1 from object where id = '&lcid),
+ m(lcReceiptType&' receipts||Choose from the following options...','Right Click Options...','question.ico','UnLink &All|UnLink by &Date|&Cancel'),
+ lclinkDirection='unlink',
+ if(gcretval=1,linkAllPaymentsForType=),
+ if(gcretval=2,linkPaymentsByDate=);
+
+@linkAllPaymentsForType=
+ d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''',@mode='''&lclinkDirection&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
+ refreshbrw=;
+
+@linkPaymentsByDate=
+ iw('\t000Link '&lcReceiptType&' by Date...;\t001Enter Date;\t002@d2;\w00255;'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''', '&obj7:key1&',@mode='''&lclinkDirection&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
+ refreshbrw=;
+
+@linkPayment=
+ update,
+ d1select('exec dbo.depositLinkPayment '&obj:id&','&lcId),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
+ refreshbrw=;
+
+@acc160=
+ m('Are you sure you wish to link all '&obj:key3&' payments to this deposit?','Link Payments...',,6,2),
+ break(gcretval<>2),
+ linkAllTypes=,
+ refreshbrw=,
+ calcrecord(); 
+
+@linkAllTypes=
+ update,
+ d1select('exec dbo.depositLinkAllPayments '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
+ gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
+
+@doDepositDate=gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
+   m('Would you like to update the deposit date to '&format(gcNextBusinessDay,@d2)&' for... ',,,'&All Receipts|Ta&x Receipts|&Other Receipts|&Manual|&Cancel'),
+   if(gcretval=1 or gcretval=2,sql('update object set b9='''&gcNextBusinessDay&''' where typ=40')),
+   if(gcretval=1 or gcretval=3,sql('update object set b8='''&gcNextBusinessDay&''' where typ=40')),
+   if(gcretval=4,depositdatemanual=));
+
+@depositdatemanual=iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''MISC'''')'')),set(004,kp(''select dbo.depositDate(''''TAX'''')''));\t001Deposit Date; \w00250; \t002@d2; \t003Tax Deposit; \w00450; \t004@d2;'),
+   if(obj7:key2+0>2,sql('update object set b9='''&obj7:key2&''' where typ=40')),
+   if(obj7:key1+0>2,sql('update object set b8='''&obj7:key1&''' where typ=40')), 
+ ;
+
+@refreshbrw=
+ setBRWvars=,
+ gcTable4513=choose(obj:a17='Posted','gldetail','glDetailStage'),
+ brwreload(1,gcbrw1sql),
+ calcfld(74);
+
+@postAndPrint=
+ printDep=,
+ postGL=;
+
+@printDep=
+ gcDepId=obj:id,
+ gcAccountCode=kp('select key1 from object where id='&obj:link1),
+ trreport('printdep');
+
+@postGL=
+ break(obj:a17='Posted'),
+ set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
+ update,
+ d1select('dbo.glPost '&obj:id&',''o'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));

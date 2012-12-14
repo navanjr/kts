@@ -1,0 +1,156 @@
+** Written by nate.anderson@kellpro.com **
+bbgcolor=999B0Dh;
+wbgcolor=999B0Dh;
+@lmode=2;
+@commentboxe1;
+
+@loadbrowse=
+ prop(011,7cfah,16777215),
+ prop(026,7cfah,16777215),
+ prop(002,7cfah,16777215),
+ prop(001,font,Lucida Console),
+ prop(001,fontsize,8),
+ prop(002,font,Lucida Console),
+ prop(002,fontsize,8);
+
+@format=150L(2)~Name~#1#|M75L(2)~xType~#2#|M30C(2)~Order~#29#|M50L(2)~Status~#30#|M50L(2)~Skip~#4#|M;
+@browse4=choose(obj:a1=1,'X','');
+@browsecolor=obj:a19=1,1959605;
+
+@filtername=All,Function,Procedure,Query,View,Out-Dated,Up-Dated;
+@filter='1=1','charindex(''Function'',key2)>0','key2=''Procedure''','dbo.searchPipe('''&filterfield1&''',e1)=1','key2=''View''','a18=''Out-Dated'' and a1 !=''1''','a19=1';
+
+@ordername=Name,Create Order;
+@key2=format(obj:a17,@n05);
+
+@bb4=C&reate Object;  
+ @bbproc4=
+  acc105=,
+  calcrecord();
+
+@bb5=Create &All;  
+@bbproc5=
+ m('Are you sure?','Create all SQL Objects...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Creating SQL Objects...','Please wait...'),
+ d1select('exec dbo.keySQLObjectCreateAll'),
+ kpmc(),
+ m(obj7:d1,'Create SQLObjects...');
+
+@bb10=E&xecute Proc; @bbproc10=acc108=;
+
+@bb9=Import One; @bbproc9=sql('exec dbo.keySQLObjectUpdateFromRepo '''&obj:key1&'''');
+
+@bb8=Export &One; @bbproc8=exportObject1=;
+
+@reconfigSqlEnv=
+ lcid=kp('select id from object where typ = 451 and key1 = ''enableAdvancedSQLOptions'''),
+ break(lcid+0>0),
+ lcSqlCmd='create proc dbo.enableAdvancedSQLOptions as'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&'begin'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' EXEC master.dbo.sp_configure ''show advanced options'', 1'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' RECONFIGURE'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' EXEC master.dbo.sp_configure ''Ole Automation Procedures'', 1'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' RECONFIGURE'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' EXEC master.dbo.sp_configure ''Ole Automation Procedures'', 1'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' RECONFIGURE'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' EXEC master.dbo.sp_configure ''Ad Hoc Distributed Queries'', 1'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&' RECONFIGURE'&chr(13)&chr(10),
+ lcSqlCmd=lcSqlCmd&'end',
+ fastinsert(-02=451,002='enableAdvancedSQLOptions',004='Procedure',102=lcSqlCmd),
+ gcid=kp('select id from object where typ = 451 and key1 = ''enableAdvancedSQLOptions'''),
+ gcname=kp('select key1 from object where typ = 451 and key1 = ''enableAdvancedSQLOptions'''),
+ gctype=kp('select key2 from object where typ = 451 and key1 = ''enableAdvancedSQLOptions'''),
+ createobjectWError=;
+
+@browsedelete=
+ m('Deleting this object will remove a Key Object Record and drop the object from the '&upper(kp('database'))&' database...','Are you Sure?','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec keySQLObjectDispatcher '&obj:id&', @dropFlag=''TRUE'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Key Object Dispatcher...'));
+ ;
+ 
+@closewindow=update,calcfld(042),if(lcUpdated='1',m(obj:lastedittime)),update;
+
+@loadwindow=
+ gcRepoPath=getini('git','path','','c:\kellpro.ini'),
+ gcAppPath=kpexepath(),
+ create(150,33,64,15,'',004),
+ prop(150,'From','Procedure|ScalarFunction|Script|TableFunction|Trigger|View'),
+ prop(150,'Width',118),
+ prop(150,'Height',12),
+ prop(150,'Readonly',0),
+ prop(150,'Drop',5),
+ prop(150,7cfah,16777215),
+ tabord('002150102040'),
+ prop(102,font,Lucida Console),
+ prop(102,fontsize,8),
+ lccodeh=mh-100,
+ prop(102,height,lccodeh),
+ create(151,12,400,3,'&Skip this object',008);
+
+@afterloadwindow=;
+
+@select=102;
+
+\t001Object Name; \q002;
+\t003Type;  \h004;
+\t007Skip Flag; \h007008;r
+
+\t039Create Order;  \t040@n05; \f04099;
+\t041Status;  \s042-'select stat from dbo.sqlObjectCompare('&obj:id&')';
+\t043Updated; \h043044; \h043044;r
+\t101SQL Create Code;  \w102800;  @acc102=calcfld(042),set(044,1,1),update;
+
+\t105C&reate Object;
+@acc105=
+ if(obj:key1>'  0' and obj:key2>'  0' and obj:e1>'  0',createoneobject=),
+ calcfld(042);
+
+\t108Exec Proc;
+@acc108=
+ d1select('exec dbo.'&obj:key1),
+ if(obj7:d1>'  0',m(obj7:d1,'SQL Exec Response...'),m('Procedure finished. :)','Alrighty then...'));
+
+@createoneobject=
+ update,
+ gcid=obj:id,
+ gcname=obj:key1,
+ gctype=obj:key2,
+ createobjectWError=;
+
+@createobjectWError=
+ d1select('exec keySQLObjectDispatcher '&gcid),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Key Object Dispatcher...'));
+
+@createobject=sql('exec dbo.keySQLObjectDispatcher '&obj:id);
+
+@exportObject1=
+ sql('exec dbo.keySQLObjectWriteToRepo '&obj:id);
+
+@importobjects=
+ kpmo('Importing Objects...','Please wait...'),
+ lcorder=kp('select max(cast(a17 as money)) from object where typ=451'),
+ sqlloop('select 
+  a.name,
+  case a.xtype
+   when ''P'' then ''Procedure''
+   when ''FN'' then ''ScalarFunction''
+   when ''TF'' then ''TableFunction''
+  end,
+  a.id
+ from dbo.sysobjects a
+ where a.refdate>= ''2005-06-06 10:52:05.280''
+  and (a.name < ''wb0'' or a.name > ''wb9'')
+  and (a.name < ''wbf0'' or a.name > ''wbf9'')
+  and (a.name < ''wbl0'' or a.name > ''wbl9'')
+  and (a.name < ''wburl0'' or a.name > ''wburl9'')
+  and a.name not in (select key1 from object where typ=451)
+ order by a.refdate',imploop=),
+ kpmc();
+
+@imploop=
+ lcorder=lcorder+1, 
+ kpmo(lcorder&'. Importing '&obj5:a2&' '&obj5:a1,'Please wait...'),
+ lcsql=kp('select text from dbo.syscomments where id='&obj5:a3),
+ insert(-02=451,002=obj5:a1,004=obj5:a2,040=lcorder,102=lcsql);

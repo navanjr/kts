@@ -1,0 +1,116 @@
+** this template is no longer in use and will be removed soon ** 
+
+@dk1;
+@loadwindow=
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ brwstuff=;
+
+@select=004;
+
+@brwstuff=
+ gcbrw1sql='select id,key1,key2,d1,key3,a1,a2,a3 from object where typ=4507 and link1='&obj:id&' order by id',
+ brw(150,1,gcbrw1sql,65,94,450,200,'80L(2)~Mortgagor~#2#M
+80L(2)~Mortgagee~#3#M
+80L(2)~Property Description~#4#M
+30L(2)~Sec/Lot~#5#M
+35L(2)~Township~#6#M
+40R(2)~Range/Blk~#7#M
+80L(2)~Lender~#8#M
+',7,1),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10<0,255;
+
+@afterloadwindow=
+ refreshDetail=,
+ break(obj:a17='Posted'),
+ create(160,9,3,85,'&New Detail'),prop(160,7c04h,56),
+ create(161,9,3,98,'&Delete'),prop(161,7c04h,56),
+ blankEm=;
+
+@selr004008r2=mortDetail=;
+@selr040098r2=mortDetail=;
+
+\t001Receipt Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \s002-'select key1 from object where id='&obj:link1;
+\t003Mortgage Date; \t004@d2; \q004;
+\t005Maturity Date; \t006@d2; @acc006=set(008,int((obj:key3+0-obj:key2+0)/36.5)/10),calcrate=;
+\t007Term; \t008@n10.1; @acc008=set(006,obj:a1*365+obj:key2),calcrate=;
+\w00200850;r2
+@calcrate=lcrate=int(obj:a1)*.02,
+if(lcrate+0.00>.1,lcrate=.1),
+if(lcrate+0.00<.02,lcrate=.02),
+if(obj:a18+0.00>0.001 and obj:a18+0<100,lcrate=.1),
+set(044,lcrate),update,calctax=;
+@calctax=lcamount=int(obj:a18/100),
+if(lcamount=obj:a18/100,lctax=lcamount*obj:a19,lctax=(lcamount+1)*obj:a19),
+set(046,lctax);
+\t039Status;
+\t041Amount; \t042@n$21.2;@acc042=calcrate=;
+\t043Rate; \t044@n5.2;\r044;
+\t045Tax Amount;\t046@n$21.2;
+\t047Certification Fee;\t048@n$21.2;\f048$5.00;
+\w04004860;r2
+\t097Remarks; \x097=017;\x098=018;\y097098=049;r
+\w098250;
+
+\t009detailId;\d009010;r \h009010;r
+\t011Mortgagor; \y012=051;
+\t013Mortgagee;  
+\t015Description;  
+\t017Sec/Lot;
+\t019Township;
+\t021Range/Blk;
+\t023Lender;
+ @acc024=mortDetail=;
+ \h011023;r2
+ \w01282;
+ \x014147; \y014=012; \w01480;
+ \x016227; \y016=012; \w01680;
+ \x018307; \y018=012; \w01832;
+ \x020340; \y020=012; \w02035;
+ \x022376; \y022=012; \w02240;
+ \x024415; \y024=012; \w024100;
+ \h012024obj:a17='Posted';r2
+
+@mortDetail=
+ break(obj:a3<'  0' and obj:a4<'  0' and obj:a5<'  0' and obj:a6<'  0' and obj:a7<'  0' and obj:a8<'  0' and obj:a9<'  0'),
+ update,
+ sql('exec mortgageDetailCRUD '&obj:id&','&obj:type),
+ blankEm=,
+ focus(012),
+ refreshDetail=;
+ 
+@blankEm=
+ set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(020,'',1),set(022,'',1),set(024,'',1);
+
+@refreshDetail=
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ brwreload(1);
+
+@brw1=
+ break(obj:a17='Posted'),
+ lcid=kpbrwid(1),
+ break(lcid+0<1),
+ get(lcid),
+ set(-07,lcid),
+ set(012,obj7:key1),
+ set(014,obj7:key2),
+ set(016,obj7:d1),
+ set(018,obj7:key3),
+ set(020,obj7:a1),
+ set(022,obj7:a2),
+ focus(012);
+
+@acc160=
+ mortDetail=,
+ focus(012);
+
+@acc161=
+ lcid=kpbrwid(1)*-1,
+ sql('update object set typ=-4507 where typ=4507 and id='&lcid);
+
+@acc106=update,d1select('select message from mortgageDetailCheck('&obj:id&')'),
+ if(readstring(obj7:d1,'@code=1;')>0,abortsave=,gosave=);
+
+@abortsave=m(right(obj7:d1,len(obj7:d1)-8));
+@gosave=d1select('exec dbo.mortgageReceiptDetailCRUD '&obj:id),
+ if(readstring(obj7:d1,'@code=1;')>0,abortsave=);

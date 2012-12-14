@@ -1,0 +1,41 @@
+@format=150L(2)~Clerks Fund Name~#1#|M50L(2)~Clerks Code~#2#|M150L(2)~Treas Description~#33#|M50L(2)~Treas Code~#6#|M;
+
+@ordername=Name,Code;
+\t001Fund Name;
+\t003Fund Code;
+
+\t009Treasurers Acct; \l0104701;r010002048004; @lf010='a1=''FUND'' and b3!=1',2; \d010; \x010218;
+ \t047AccountDesc; \h047;  \x048=002; \w048151; \l0484701;r010002048004; @lf010='a1=''FUND'' and b3!=1',2;
+
+@bb2=Imp KPO Data,,,gcadmin=1;
+@bbproc2=
+ fileDialog('Locate KPO Fund List...','CSV|*.csv|All Files|*.*'),
+ lcCsvFile=gcretval,
+ break(lcCsvFile<'  0'),
+ kpmo('Ok this message needs to be real long so i dont miss anything...','importing clerks fund list...'),
+ gcCount=0,
+ scancsv(lcCsvFile,'loaddata=','Loading new data.'),
+ kpmc(),
+ kpmo('Assigning to Funds...','Assigning Clerks funds'),
+ sql('update c set a2=a.accountCode, b1=a.accountDesc from dbo.mike_clerksFund() f, glaccounts a, object c where f.kpofund=c.key2 and a.accountCode=f.kpsfund'),
+ kpmc(),
+ m('Number of records processed: '&gcCount,lcCsvFile);
+
+@bb3=Setup Accounts,,,gcadmin=1;
+@bbproc3=d1select('exec dbo.paymentAccountsVerificationall');
+
+
+@loaddata=
+ gcCount=gcCount+1,
+ kpmm(IMP:FLD01&', '&imp:fld02&', '&imp:fld05&', '&imp:fld05),
+ insert(-02=4704,002=imp:fld05,004=imp:fld06);
+
+@acc010=update,
+ break(obj:a2<'  0'),
+ d1select('exec dbo.paymentAccountsVerification '''&obj:a2&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1));
+
+@acc048=update,
+ break(obj:a2<'  0'),
+ d1select('exec dbo.paymentAccountsVerification '''&obj:a2&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1));

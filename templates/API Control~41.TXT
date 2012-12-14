@@ -1,0 +1,80 @@
+@menuprocess=
+ lcid=kp('select min(id) from object where typ=41 and id > 0'),
+ if(lcid+0>0,change(lcid),new(41));
+
+\h039040;r \t039Batch Size; \w04050; \x039275; \x040315; \e040; \f040=100;
+\t108&Service Toggle;
+\t109&Reset All Rows;
+\t110Run &Batch;
+\t112Refresh &Now; @acc112=brwrefresh=;
+ 
+@gfwindow=brwrefresh=;
+
+@acc109=
+ setVars=,
+ m('Are you sure you want to reset all the rows in '&lcResource&'?','API Control...','Exclem.ico',6,4),
+ if(gcretval=2,sql('exec dbo.apiControl '''&lcResource&''', @method=''reset''')),
+ brwrefresh=;
+
+@acc110=
+ setVars=,
+ kpmo('running '&lcResource&' batch...'),
+ sql('exec dbo.'&lcLogResource&' @method=''JOB'''),
+ kpmc(),
+ brwrefresh=;
+
+@setVars=
+ lcLogResource=choose(kpbrwid(1)*-1,'apiTaxroll','apiLegal','apiInvoices','apiReceipts','apimortgagecodes'),
+ lcResource=choose(kpbrwid(1)*-1,'taxroll','legal','invoices','receipts','mortgagecodes');
+
+@loadwindow=
+ if(acAPIService<'  0',acAPIService='on'),
+ brwstuff=,newselbrw150=,
+ serviceToggle=;
+@afterloadwindow=
+ lcSite=kp('select b12 from object where typ = 40'),
+ prop(000,'text','API Control - site_id:'&lcSite);
+
+@acc108=
+ jobServiceToggle=;
+@jobServiceToggle=
+ setVars=,
+ sql('exec dbo.apiJobs '''&lcResource&''', @method=''toggle'''),
+ brwrefresh=;
+
+@serviceToggle=
+ lcAPIToggleOff=14474460,
+ lcAPIToggleOn=2350115,
+ if(acAPIService='on',lcAPIToggle=lcAPIToggleOn,lcAPIToggle=lcAPIToggleOff),
+ prop(108,7cfah,lcAPIToggle),
+ brwrefresh=;
+
+@newselbrw150=
+ setVars=,
+ brwrefresh=;
+
+@brwstuff=
+ gcbrwsql41='select id,resource,total,stale,rate,blob,id,jobEnabled from dbo.apiControlBRW() order by ord',
+ brw(150,1,gcbrwsql41,2,3,270,110,'102L(2)~Resource~#2#M|55R(2)~Total~@n-9.0@#3#M|55R(2)~Stale~@n-9.0@#4#M|55R(2)~%~@n-9.2@#5#|M300L~~#6#|M100L~~#7#|M',,1),
+ prop(150,7CFAH,13499135),
+ prop(150,7c10h,'Arial'),
+ prop(150,7c11h,12),
+ prop(150,'LineHeight',17),
+ brw(151,2,'select top 50 -1, time, message from keyLog where procName = ''empty'' order by id desc',2,115,370,100,'50L(2)~~#2#M|100L(2)~~#3#M',,1),
+ prop(151,7c10h,'Courier New'),
+ prop(151,7c11h,8),
+ prop(151,'SelectedColor',225),
+ prop(151,'SelectedFillColor',13499135),
+ prop(151,'FontColor',14474460),
+ prop(151,7CFAH,black);
+
+lbrw1forecolor=obj7:c10<0,255;
+@lbrw1color=obj7:c10='1',2350115,obj7:c10='0',255;
+7467519; - light yellow
+2157055; - good yellow
+1959605; - lime green
+2350115; - good green
+
+@brwrefresh=
+ brwreload(1),
+ brwreload(2,'select top 50 -1, time, message from keyLog where procName = '''&lcLogResource&''' order by id desc');
