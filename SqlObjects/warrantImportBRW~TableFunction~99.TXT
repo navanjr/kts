@@ -93,9 +93,6 @@ begin
     debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob),
     expenseAcct = dbo.readString('@expenseCode=',accountBlob) 
 
- update @wt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
- update @wt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
-
  insert @rt 
   select
    fiscalYear,
@@ -108,7 +105,7 @@ begin
    accountBlob,
    debitAcct,
    creditAcct,
-   postCheck,
+   0,
    expenseAcct
   from @wt 
   group by
@@ -122,6 +119,9 @@ begin
    creditAcct,
    postCheck,
    expenseAcct
+
+ update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
+ update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
   
 
  return 

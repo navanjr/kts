@@ -1,5 +1,5 @@
 CREATE function dbo.dailyDataPayments(
- @paymentType varchar(50),
+ @paymentTypePassed varchar(50),
  @accountType varchar(50),
  @theDate int,
  @days int,
@@ -20,7 +20,13 @@ CREATE function dbo.dailyDataPayments(
 )
 begin
 
- declare @sectionTitle varchar(50) = dbo.proper(@paymentType) + 's'
+ declare
+  @paymentType varchar(50),
+  @sectionTitle varchar(50)
+
+ select
+  @paymentType = dbo.splitF(@paymentTypePassed,'|',1),
+  @sectionTitle = dbo.proper(case when charindex('|',@paymentTypePassed) > 0 then dbo.splitF(@paymentTypePassed,'|',2) else @paymentTypePassed end) + 's'
 
  declare @wt table(
   accountId int,
