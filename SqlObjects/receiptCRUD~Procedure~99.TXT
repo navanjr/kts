@@ -52,7 +52,8 @@ begin
                  @accountDesc varchar(50) = '',
                  @resultCode varchar(50) = '',
                  @resultMessage varchar(1000) = '',
-                 @newId int = ''
+                 @newId int = '',
+                 @receiptSLink varchar(16) = 'o'+cast(@receiptId as varchar(15))
          -- create new JE
                	select  @jeType = 'Tax Refund', @accountDesc = 'Tax Receipt Refund Control #'+cast(key1 as varchar) from object where id = @receiptId 
             exec dbo.journalEntryCRUD
@@ -69,8 +70,8 @@ begin
                   select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId 
 
          -- create gldetailstaged linked to object record
-                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
-                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar) from gldetail where slink = 'o'+cast(@receiptId as varchar)
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
+                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptSLink from gldetail where slink = @receiptSLink
                         and accountCode not in (select accountCode from glaccounts where accountType='SUSPENSE')
 
          -- create gldetailstage linked to penalty invoice
@@ -79,8 +80,8 @@ begin
                     (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP = 'p')
 
          -- create gldetailstage linked to journallink
-                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode)
-                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode from glDetail g ,receiptlink r,journalLink j
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar)
          select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
         end
