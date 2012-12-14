@@ -32,7 +32,7 @@ begin
    return
 
 --  declare 
---    @retval nvarchar(max)   
+--    @retval nvarchar(max)  
 --  exec dbo.nextObjectAutoNumber 4502, @series, @newNumber = @retval output
   insert object (typ,key1,key3,olink1) select 4502,'00000',upper(@series),'newReceipt'  
   set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)  
@@ -40,6 +40,70 @@ begin
   return
  end
 
+
+-- Refund
+ if @mode = 1 and @receiptId > 0
+    begin
+     if @debugMode = 'FALSE' 
+       begin
+
+         declare @jeType varchar(50),
+                 @accountDesc varchar(50) = '',
+                 @resultCode varchar(50) = '',
+                 @resultMessage varchar(1000) = '',
+                 @newId int = ''
+         -- create new JE
+               	select  @jeType = 'Tax Refund', @accountDesc = 'Tax Receipt Refund Control #'+cast(key1 as varchar) from object where id = @receiptId 
+            exec dbo.journalEntryCRUD
+                 @mode = 0,
+                 @description = @accountDesc,
+                 @jeType = @jeType,
+                 @resultCode = @resultCode output,
+                 @resultMessage = @resultMessage output,
+                 @newId = @newId output
+                 select @slink = 'o' + cast(@newId as varchar)
+
+         -- create journalLinks
+                insert into journalLink
+                  select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId 
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar) from gldetail where slink = 'o'+cast(@receiptId as varchar)
+
+         -- create gldetailstage linked to penalty invoice
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select accountId,accountCode,accountDesc,amount*-1,slink from gldetail where slink in 
+                    (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP = 'p')
+
+       /*  -- create gldetailstage linked to journallink
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode)
+                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar)
+*/
+        end
+      else
+        begin
+       select  'Tax Refund','Tax Receipt Refund Control #'+cast(key1 as varchar) from object where id = @receiptId
+       select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId 
+       select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar) from gldetail where slink = 'o'+cast(@receiptId as varchar)
+       union
+       select accountId,accountCode,accountDesc,amount*-1,slink from gldetail where slink in 
+                    (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP = 'p')
+
+        select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode from glDetail g ,receiptlink r,journalLink j
+               where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar)
+
+       select * from glDetail 
+               where slink in (select slink from receiptSLinks(@receiptId)) and left(slink,1) not in ('o','t')
+                     and slink not in 
+                    (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP <> 'p')
+
+
+        return
+    
+        end
+    end
 
 
 -- Delete
