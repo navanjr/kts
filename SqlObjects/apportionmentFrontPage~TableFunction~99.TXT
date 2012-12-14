@@ -2,18 +2,18 @@ create function dbo.apportionmentFrontPage(@beginDate int,@endDate int, @include
 	[sort] [varchar](60) NOT NULL default '',
 	[SECA] [varchar](60) NOT NULL default '',
 	[SECADesc] [varchar](50) NOT NULL default '',
-	[sourceTotal] [money] NOT NULL default 0,
-	[amount1] [money] NOT NULL default 0,
-	[amount2] [money] NOT NULL default 0,
-	[amount3] [money] NOT NULL default 0,
-	[amount4] [money] NOT NULL default 0,
-	[amount5] [money] NOT NULL default 0,
-	[amount6] [money] NOT NULL default 0,
-	[amount7] [money] NOT NULL default 0,
-	[amount8] [money] NOT NULL default 0,
-	[amount9] [money] NOT NULL default 0,
-	[amount10] [money] NOT NULL default 0,
-	[otheramount] [money] NOT NULL default 0,
+	[sourceTotal] money NOT NULL default 0,
+	[amount1] money NOT NULL default 0,
+	[amount2] money NOT NULL default 0,
+	[amount3] money NOT NULL default 0,
+	[amount4] money NOT NULL default 0,
+	[amount5] money NOT NULL default 0,
+	[amount6] money NOT NULL default 0,
+	[amount7] money NOT NULL default 0,
+	[amount8] money NOT NULL default 0,
+	[amount9] money NOT NULL default 0,
+	[amount10] money NOT NULL default 0,
+	[otheramount] money NOT NULL default 0,
 	[heading1] varchar(50) NOT NULL default '',
 	[heading2] varchar(50) NOT NULL default '',
 	[heading3] varchar(50) NOT NULL default '',
@@ -167,7 +167,7 @@ insert @headings
 select distinct [column],reportOrder,0 from @det2 order by reportOrder
 
 insert @rt (sort,SECA,SECADesc,sourceTotal)
- select SECA, SECA, sourceDesc, sum(amount) as amount from @det2 group by SECA, sourceDesc
+ select SECA+'BBB', SECA, sourceDesc, sum(amount) as amount from @det2 group by SECA, sourceDesc
 
 update r set amount1=b.amount, heading1 = c.heading from @rt r, @det2 b, @headings c
    where r.SECA=b.SECA 
@@ -225,7 +225,7 @@ update r set otheramount=b.amount, otherheading = c.heading from @rt r, @det2 b,
      and c.id=11
 
 insert @rt (sort,SECA,otheramount,otherheading)
- select SECA+'Z',case when SECA='SPECIAL' then 'SPECIAL' else '' end, amount, c.heading
+ select 'www'+SECA+'bbb',case when SECA='SPECIAL' then 'SPECIAL' else '' end, amount, c.heading
   from @det2 b, @headings c
   where  b.[column]=c.heading
    and c.id > 11
@@ -247,8 +247,8 @@ select 'ZZGRAND', sum(sourceTotal), sum(amount1), sum(amount2), sum(amount3), su
  from @rt 
  where SECA <> 'SPECIAL'
 
-insert @rt (sort,sourceTotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
-select 'ZZSPECIAL', sum(sourceTotal)*-1, sum(amount1)*-1, sum(amount2)*-1, sum(amount3)*-1, sum(amount4)*-1, sum(amount5)*-1, sum(amount6)*-1, sum(amount7)*-1, sum(amount8)*-1, sum(amount9)*-1, sum(amount10)*-1, sum(otheramount)*-1 
+insert @rt (sort,seca,sourceTotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
+select 'ZZSPECIAL','Special Apportionment & Other', sum(sourceTotal)*-1, sum(amount1)*-1, sum(amount2)*-1, sum(amount3)*-1, sum(amount4)*-1, sum(amount5)*-1, sum(amount6)*-1, sum(amount7)*-1, sum(amount8)*-1, sum(amount9)*-1, sum(amount10)*-1, sum(otheramount)*-1 
  from @rt 
  where SECA = 'SPECIAL'
 
@@ -258,16 +258,17 @@ select 'ZZZGRAND', sum(sourceTotal), sum(amount1), sum(amount2), sum(amount3), s
  where sort in ('ZZGRAND','ZZSPECIAL')
 
 insert @rt (sort,SECADesc,amount1, amount2) 
- select 'ZZZZ', otherheading, 
+ select 'ZZZZbbb', otherheading, 
  sum(otheramount),
  isnull((select sum(otheramount)*-1 from @rt where otherheading=r.otherheading and SECA='SPECIAL' ),0)
  from @rt r where SECA<>'SPECIAL' and otherheading>' 0' group by otherheading
 
-update @rt set amount3=amount1+amount2 where sort='ZZZZ'
+update @rt set amount3=amount1+amount2 where sort='ZZZZbbb'
  
 insert @rt (sort,amount1,amount2,amount3)
- select 'ZZZZGRAND',sum(amount1),sum(amount2),sum(amount3) from @rt where sort='ZZZZ' 
- 
+ select 'ZZZZGRAND',sum(amount1),sum(amount2),sum(amount3) from @rt where sort='ZZZZbbb' 
+
+
 delete from @rt where SECA='SPECIAL'
 
 return

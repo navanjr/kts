@@ -1,0 +1,81 @@
+create function dbo.apportionmentFrontPageSum(@beginDate int,@endDate int, @includeUnapportioned varchar(10)) returns @rt table(id int,
+	[sort] [varchar](60) NOT NULL default '',
+	[SECA] [varchar](60) NOT NULL default '',
+	[SECADesc] [varchar](50) NOT NULL default '',
+	[sourceTotal] varchar(50) NOT NULL default '',
+	[amount1] varchar(50) NOT NULL default '',
+	[amount2] varchar(50) NOT NULL default '',
+	[amount3] varchar(50) NOT NULL default '',
+	[amount4] varchar(50) NOT NULL default '',
+	[amount5] varchar(50) NOT NULL default '',
+	[amount6] varchar(50) NOT NULL default '',
+	[amount7] varchar(50) NOT NULL default '',
+	[amount8] varchar(50) NOT NULL default '',
+	[amount9] varchar(50) NOT NULL default '',
+	[amount10] varchar(50) NOT NULL default '',
+	[otheramount] varchar(50) NOT NULL default '',
+	[heading1] varchar(50) NOT NULL default '',
+	[heading2] varchar(50) NOT NULL default '',
+	[heading3] varchar(50) NOT NULL default '',
+	[heading4] varchar(50)  NOT NULL default '',
+	[heading5] varchar(50) NOT NULL default '',
+	[heading6] varchar(50) NOT NULL default '',
+	[heading7] varchar(50) NOT NULL default '',
+	[heading8] varchar(50) NOT NULL default '',
+	[heading9] varchar(50) NOT NULL default '',
+	[heading10] varchar(50) NOT NULL default '',
+	[otherheading] varchar(50) NOT NULL default ''
+)
+
+as
+begin
+
+insert @rt
+select * from dbo.apportionmentFrontPage(@beginDate,@endDate, @includeUnapportioned) 
+
+
+update @rt set
+        sourceTotal = LTRIM(RTRIM(sourceTotal)), 
+	amount1 = LTRIM(RTRIM(amount1)),
+	amount2 = LTRIM(RTRIM(amount2)),
+	amount3 = LTRIM(RTRIM(amount3)),
+	amount4 = LTRIM(RTRIM(amount4)),
+	amount5 = LTRIM(RTRIM(amount5)),
+	amount6 = LTRIM(RTRIM(amount6)),
+	amount7 = LTRIM(RTRIM(amount7)),
+	amount8 = LTRIM(RTRIM(amount8)),
+	amount9 = LTRIM(RTRIM(amount9)),
+	amount10 = LTRIM(RTRIM(amount10)),
+	otheramount = LTRIM(RTRIM(otheramount))
+
+
+	
+update @rt set
+        sourceTotal = dbo.formatCurr(sourceTotal),
+	amount1 = dbo.formatCurr(amount1),
+	amount2 = dbo.formatCurr(amount2),
+	amount3 = dbo.formatCurr(amount3),
+	amount4 = dbo.formatCurr(amount4),
+	amount5 = dbo.formatCurr(amount5),
+	amount6 = dbo.formatCurr(amount6),
+	amount7 = dbo.formatCurr(amount7),
+	amount8 = dbo.formatCurr(amount8),
+	amount9 = dbo.formatCurr(amount9),
+	amount10 = dbo.formatCurr(amount10),
+	otheramount = dbo.formatCurr(otheramount)
+	
+ 
+
+insert @rt (sort,SECAdesc,sourcetotal,amount1,amount2,amount3)
+  select 'ZZZYYYYAAA','Totals:','','Subtotal','Prev App','Total'
+
+insert @rt (sort,SECA,SECAdesc,sourcetotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
+select '    AAA', 'Issue For', 'Amount of Source', max(heading1), max(heading2), max(heading3), max(heading4), max(heading5), max(heading6), max(heading7), max(heading8), max(heading9), max(heading10), 'Other', 'Other Desc' 
+ from @rt 
+ 
+
+return
+end
+
+
+
