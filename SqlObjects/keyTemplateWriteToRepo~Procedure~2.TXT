@@ -9,7 +9,8 @@ begin
   @path varchar(100),
   @fullPath varchar(1000),
   @tally int,
-  @idToken int
+  @idToken int,
+  @newNamingConvention int = 1
 
  select @gitCommitter = dbo.readString('@gitCommitter=', b14) from object where typ = 0 and link1 = -1
 
@@ -24,6 +25,7 @@ begin
 
  declare @wt table(
   id int,
+  template varchar(50),
   fullPath varchar(1000),
   data varchar(max),
   processFlag int
@@ -32,17 +34,27 @@ begin
  if isnull(@id,0) = 0
   insert @wt select
    id,
-   @path + '\templates\T_' + cast(id as varchar) + '~' + ltrim(rtrim(template)) + '.TXT',  
+   replace(template,'/','..'),
+   '',
    cast(options as varchar(max)),
    0
    from template where id > 0 and template > '  0'
  else
   insert @wt select
    id,
-   @path + '\templates\T_' + cast(id as varchar) + '~' + ltrim(rtrim(template)) + '.TXT',  
+   replace(template,'/','..'),
+   '',
    cast(options as varchar(max)),
    0
    from template where id = @id and template > '  0'
+
+  update @wt set fullPath = 
+  case when @newNamingConvention = 0 then
+   @path + '\templates\T_' + cast(id as varchar) + '~' + ltrim(rtrim(template)) + '.TXT'
+  else
+   @path + '\templates\' + ltrim(rtrim(template)) + '~' + cast(id as varchar) + '.TXT'
+  end
+
 
  if not exists(select * from @wt)
  begin
@@ -61,7 +73,7 @@ begin
    @fullPath = fullPath,
    @txt = data
   from @wt where processFlag = 0 
-  order by id 
+  order by template 
  
   exec dbo.spOverwriteTextFile @fileName = @fullPath, @text = @txt
   update @wt set processFlag = 1 where id = @idToken
