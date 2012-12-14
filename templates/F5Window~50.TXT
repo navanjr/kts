@@ -1,0 +1,72 @@
+@nosave;
+@noupdate;
+@nolock;
+@loadbrowse=menuprocess=;
+@menuprocess=new(50);
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+@loadwindow=
+ brwstuff=;
+
+@afterloadwindow=
+ lcName=readstring(kp('select dbo.whoAmI()'),'@posName='),
+ prop(0,'Text','Let''s get started, '&lcName);
+
+@brw1=
+ lbrwclick150=;
+
+@lbrwclick150=
+ lcId=kpbrwid(1)*-1,
+ rightClickLinkOptions=;
+
+@rightClickLinkOptions=
+ lcWhoAmI=kp('select blob from dbo.posBrw() where id = '&lcId),
+ break(readstring(lcWhoAmI,'@receiptType=')>'  0'), 
+ m('Choose from the following options...','Right Click Options...','question.ico','&Print|&Cancel'),
+ if(gcretval=1,printBalanceReport=); 
+
+@printBalanceReport=
+ gcBeginDate=readstring(lcWhoAmI,'@Date='),
+ gcEndDate=readstring(lcWhoAmI,'@Date='),
+ gcDeputy=cur:Fullname,
+ gcStation=readstring(lcWhoAmI,'@station='),
+ if(readstring(lcWhoAmI,'@suspenseMethod=')='U',gcStation='',gcDeputy=''),
+ gcPrintDetail='Y',
+ trreport('balanceReport','5018','printDepositBalanceNew=');
+
+\t110O&fficial Deposit; @acc110=new(4522);
+\t111&Vouchers / Warrants; @acc111=do(4770,menuprocess=);
+\t113&Miscellaneous; @acc113=newRecLog=,do(4502,'newMisc=');
+\t114Mort&gage; @acc114=newRecLog=,do(4502,'newMort=');
+\t115&Trust; @acc115=newRecLog=,do(4502,'newTrust=');
+\t116Ta&x; @acc116=newRecLog=,do(4502,'goTax=');
+\t117&Individual Redeem; @acc117=newRecLog=,do(4502,'newIndiv=');
+\t118&Browse Receipts; @acc118=browse(1,4502);
+\t119Change &Dates; @acc119=do(4513,'doDepositDate=');
+
+@newRecLog=
+ sql('exec dbo.logit null,''NewReceipt'','''&gcretval&'''');
+
+\t120Generate;
+@acc120=
+ d1select('exec dbo.posAccountMaintenance'),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Maintenance...')),
+ refreshbrw=;
+
+@brwstuff=
+ gcbrwsql50='select id*-1,display,blob,accountId,rowType from dbo.posBRW() order by ord',
+ brw(150,1,gcbrwsql50,3,3,270,250,'280L(5)~~#2#M135R(10)~~#3#|M200L(20)~~#3#|M',7,1),
+ prop(150,'Color',13499135),
+ rop(150,7cfah,13499135),
+ prop(150,7c10h,'Courier New'),
+ prop(150,7c11h,14),
+ prop(150,'BevelOuter',10),
+ prop(150,'SelectedFillColor',13499135),
+ prop(150,'SelectedColor',0),
+ prop(150,'linewidth',10),
+ prop(150,'LineHeight',20);
+
+@refreshbrw=brwreload(1),focus(106);
+@gfwindow=refreshbrw=;
+@lbrw1color=obj7:c9+0=0,255,obj7:c10=1,13428479;
+255,230,204
+\t037ShowAll; \h037038;r
