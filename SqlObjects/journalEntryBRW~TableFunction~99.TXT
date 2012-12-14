@@ -15,11 +15,11 @@ begin
  if exists(select * from glDetailStage where slink = @slink)
   insert @rt
   select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0 
-  from glDetailStage where slink = @slink
+  from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
  else
   insert @rt
   select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0
-  from glDetail where slink = @slink
+  from glDetail where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
 
 -- import features
  select @importData = e2 from object where id = @id and typ = 4512
@@ -60,10 +60,10 @@ begin
 		end
   end
 
-if @showGl = 1
+/*if @showGl = 1
   begin
 
- if exists(select * from dbo.journalLink where jeId = @id)
+if exists(select * from dbo.journalLink where jeId = @id)
 		begin
 
 		declare @taxInvoices table (
@@ -115,9 +115,8 @@ if @showGl = 1
 			and a.slink = c. realslink
 			group by c.slink,a.accountDesc,b.accountType, c.ord, a.comment2 
 
- 
 	end
+*/ 
 
- end
  return
 end
