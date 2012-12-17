@@ -34,7 +34,7 @@ begin
 
  if @mode = 4
  begin
-   select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher') then 
+   select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher','MISCELLANEOUS') then 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
     + '@key1FieldLabel=Register #;'
@@ -209,7 +209,7 @@ begin
   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if @debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0'
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType<>'MISCELLANEOUS'
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -259,18 +259,19 @@ begin
 
  end
 
- if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher')
+ if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher','MISCELLANEOUS')
  begin
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
+  select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
   return
  end
 
+  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
 
- if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher')
+ if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher','MISCELLANEOUS')
  begin
 
-  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
   insert @stageRows 
     select @debitAcct, @amount, 'debitAcct'
    union all
@@ -313,6 +314,38 @@ begin
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end
+
+ if @mode = 2 and @paymentType in ('MISCELLANEOUS')
+ begin
+
+  insert @stageRows 
+    select @debitAcct, @amount, 'debitAcct'
+   union all
+    select @creditAcct, @amount * -1, 'creditAcct'
+
+ 
+  select @log = cast(count(*) as varchar) from @stageRows
+  exec dbo.logit @@procid, '@stageRows record count', @log
+
+  set @log = '@stageRows Table' + char(13) + char(10) + dbo.padRight('acctCode',' ',15) + dbo.padLeft('amount',' ',15) + ' ' + 'glType' + char(13) + char(10)
+  select @log = @log + dbo.padRight(acctCode,' ',15) + dbo.padLeft(cast(amount as varchar),' ',15) + glType + char(13) + char(10) from @stageRows
+  exec dbo.logit @@procid, @log
+  
+  delete from glDetailStage where slink=@slink
+  
+  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
+  select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @slink
+   from @stageRows a, glAccounts b 
+   where a.acctCode = b.accountCode
+
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+
+  -- post gl
+  exec dbo.glPost @id, 'o', @resultString = @postResult output
+  exec dbo.logit @@procid, 'glPost - @postResult', @postResult
+
+ end
+
 
  return
 end
