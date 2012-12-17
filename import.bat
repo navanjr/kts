@@ -74,10 +74,15 @@ IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="U" call:gitStatus
 IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
-IF /I "%runmode%"=="N" call:sendLog
+IF /I "%runmode%"=="N" call:ImportNew
 IF /I "%runmode%"=="O" call:ConfigureLogging
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:ImportNew
+echo calling keyUpdateAll...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll 'NewMethod'"
+GOTO:EOF
 
 :gitPush
 call git push origin dev --tags
