@@ -6,6 +6,7 @@ create function dbo.posBRW() returns @rt table(
  amount money,
  accountId int,
  blob varchar(500) default '',
+ postDate int,
  ord varchar(50),
  rowType int
 ) as 
@@ -15,7 +16,7 @@ begin
 
  select @whoAmI = dbo.whoAmI()
 
- insert @rt (depositDate,receiptType,amount,accountId,ord,rowType,blob)
+ insert @rt (depositDate,receiptType,amount,accountId,ord,rowType,blob,postDate)
  select
   depositDate, 
   receiptType,
@@ -23,9 +24,10 @@ begin
   min(accountId),
   cast(depositDate as varchar) + 'b',
   0,
-  '@receiptType='+receiptType+';' 
+  '@receiptType='+receiptType+';@receiptMaxDate='+cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';',
+  postDate
  from dbo.posTF()
- group by id, depositDate, receiptType
+ group by id, depositDate, receiptType, postdate
 
 -- depositDate grouping
  insert @rt (depositDate,amount,accountId,ord,blob,rowType)
@@ -34,22 +36,27 @@ begin
   sum(amount),
   1, 
   cast(depositDate as varchar) + 'a',
-  @whoamI+'@Date='+cast(depositDate as varchar)+';',
+  @whoamI+'@Date='+cast(depositDate as varchar)+';'+'@receiptType=ALL;',
   1 
  from @rt
  where depositDate is not null
  group by depositDate
 
  update @rt set display = 
-  dbo.padRight(dbo.date1(depositDate),' ',15) + dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20)
+  dbo.padRight(dbo.date1(depositDate),' ',21) + dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20)
  where rowType = 1
 
+
  update @rt set display = 
-  dbo.padRight('  ' + receiptType,' ',15) + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20) else '' end
+    dbo.padRight('  ' + receiptType,' ',9) 
+  + dbo.padright(case when isnull(postdate,0) != isnull(depositDate,0) and  dbo.readstring('@receiptMaxDate=',blob) = isnull(depositDate,0) then '  '+dbo.date1(postdate) else '' end,' ',12) 
+  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20) else '' end
  where rowType = 0
 
 -- update @rt set displayAmount = convert(varchar,amount,1) where rowType = 0
 --  '   ' + dbo.padRight(receiptType,' ',10) + dbo.padLeft('$ ' + convert(varchar,sum(amount),1),' ',20),
+
+
 
  return
 end

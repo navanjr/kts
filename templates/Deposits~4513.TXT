@@ -152,16 +152,15 @@
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
  gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
 
-@doDepositDate=gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
-   m('Would you like to update the deposit date to '&format(gcNextBusinessDay,@d2)&' for... ',,,'&All Receipts|Ta&x Receipts|&Other Receipts|&Manual|&Cancel'),
-   if(gcretval=1 or gcretval=2,sql('update object set b9='''&gcNextBusinessDay&''' where typ=40')),
-   if(gcretval=1 or gcretval=3,sql('update object set b8='''&gcNextBusinessDay&''' where typ=40')),
-   if(gcretval=4,depositdatemanual=));
-
-@depositdatemanual=iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''MISC'''')'')),set(004,kp(''select dbo.depositDate(''''TAX'''')''));\t001Deposit Date; \w00250; \t002@d2; \t003Tax Deposit; \w00450; \t004@d2;'),
-   if(obj7:key2+0>2,sql('update object set b9='''&obj7:key2&''' where typ=40')),
-   if(obj7:key1+0>2,sql('update object set b8='''&obj7:key1&''' where typ=40')), 
- ;
+@doDepositDate=
+   gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
+   m('Would you like to advance the deposit date to '&format(gcNextBusinessDay,@d2)&' for... ',,,'&All Receipts|&Misc|Mt&g|&Trust|Ta&x|&Indiv|&Cancel'),
+   if(gcretval=1,sql('exec dbo.advanceDate ''All'','&gcNextBusinessDay&'')),
+   if(gcretval=2,sql('exec dbo.advanceDate ''MISC'','&gcNextBusinessDay&'')),
+   if(gcretval=3,sql('exec dbo.advanceDate ''MTG'','&gcNextBusinessDay&'')),
+   if(gcretval=4,sql('exec dbo.advanceDate ''TRUST'','&gcNextBusinessDay&'')),
+   if(gcretval=5,sql('exec dbo.advanceDate ''TAX'','&gcNextBusinessDay&'')),
+   if(gcretval=6,sql('exec dbo.advanceDate ''INDIV'','&gcNextBusinessDay&''));
 
 @refreshbrw=
  setBRWvars=,
