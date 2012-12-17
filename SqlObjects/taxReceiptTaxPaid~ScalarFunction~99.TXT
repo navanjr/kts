@@ -23,6 +23,24 @@ if @switch = 1
 					and b.receiptId < @recId
 
 
+if @switch = 2
+
+	insert into @wt  
+		select a.amount,a.accountCode,''
+			from gldetail a, receiptlink b
+			where	a.slink = 'l'+cast(b.id as varchar(30)) 
+					and b.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+                union all
+		select a.amount,a.accountCode,''
+			from gldetail a, receiptlink b, invoices i, receiptlink rl
+			where	a.slink = 'l'+cast(rl.id as varchar(30)) 
+                                        and rl.invoiceId = i.id
+                                        and i.invoiceId = b.invoiceId
+                                        and i.typ='A'
+					and b.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+
 	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
 	
 	delete from @wt where AccType<>'Receivable' or taxAmount > 0
