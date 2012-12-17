@@ -19,7 +19,8 @@ begin
   sourceCode varchar(60),
   invoiceTyp varchar(1),
   pertyp varchar(1),
-  payord int
+  payord int,
+  parentInvoiceId int
  )
  declare @glFundDebits table(
   slink varchar(15),
@@ -91,7 +92,7 @@ begin
   set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp, payord)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -104,13 +105,14 @@ begin
    case when b.invoiceId>0 then 'GETSOURCE' else '' end,
    b.typ,
    case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end,
-   case when b.invoiceId > 0 then 1 else 2 end
+   case when b.invoiceId > 0 then 1 else 2 end,
+   b.invoiceId
   from receiptLink a, invoices b 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
     and b.typ <> 'S'
 
- insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, payord)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -123,7 +125,8 @@ begin
    0,
    r.sourceCode,
    b.typ,
-   case when b.invoiceId > 0 then 1 else 2 end
+   case when b.invoiceId > 0 then 1 else 2 end,
+   b.invoiceId
   from receiptLink a, invoices b, receiptDetail r 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
@@ -204,6 +207,10 @@ begin
      and w.invoicetyp=c.invoicetyp 
      and isnull(w.protestId,0) = 0
      and w.protestAmount > 0
+
+ update w set contraAccountId = pi.contraAccountId, protestId=pi.protestId 
+   from @wt w, @wt pi
+   where w.parentInvoiceId=pi.invoiceId
 
 
  update @wt set
