@@ -67,11 +67,14 @@ begin
   select top 1 @fundCode = fundCode from receiptDetail where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
           and left(slink,1)='t'
 
+  exec dbo.logit @@procid, 'Type Adjust @sourceCode', @sourceCode,'@fundCode', @fundCode
+
 
  end
 
  if @fundCode <= ' 0'
  begin
+  exec dbo.logit @@procid, 'FundCode Missing... @mainInvoiceId', @mainInvoiceId
   select '@code=1; Missing Fund Code Information.'
   return
  end
@@ -109,6 +112,8 @@ begin
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
    set @slink='t'+cast(@invoiceId as varchar)
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@slink', @slink
    
   if left(@description,4) = 'VOID'
    begin
@@ -121,7 +126,7 @@ begin
     select
      @slink,
      @description,
-     rtrim(@sourceCode) + '/' + rtrim(@fundCode),
+     left(rtrim(@sourceCode) + '/' + rtrim(@fundCode),50),
      @sourceCode,
      @fundcode,
      cast(@amount as varchar(50))

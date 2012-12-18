@@ -353,10 +353,16 @@ begin
 -- update the fundDebits with the proper accountId
  update a set a.accountId = b.accountId
   from @glFundDebits a, glAccounts b
-  where a.fundCode = b.targetAccountCode and b.accountType='ACCRUED RECEIVABLE'
+  where a.fundCode>' 0' and a.fundCode = b.targetAccountCode and b.accountType='ACCRUED RECEIVABLE'
  update a set a.accountId = b.accountId 
   from @glFundDebits a, glAccounts b
-  where a.fundCode = b.accountCode and a.accountId = 0
+  where a.fundCode >' 0' and a.fundCode = b.accountCode and a.accountId = 0
+
+ if exists(select * from @glFundDebits where fundCode<' 0')
+  begin
+   select '@code=1;@message=Fund Code Information Missing;'
+   return
+  end
 
 -- add the credit to the Treasures collection Account and include the contraId to the receiptLink parent
  insert @glSalesCredits 
