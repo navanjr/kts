@@ -8,6 +8,7 @@ begin
         @months int,
         @days int,
         @rate int,
+        @defaultdate varchar (10),
         @begindate varchar (10),
         @enddate varchar (10),
         @typ varchar (1),
@@ -24,8 +25,13 @@ begin
   @rate  = cast(b1 as int)
  from object
  where typ=40
+
+
+ select @defaultdate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
+ select @begindate = dbo.date1(@interestDate)
+
  
- if @interestDate > 0
+ if @interestDate > 0 and @defaultdate <> @begindate
  begin
   select @begindate = dbo.date1(@interestDate)
  end
@@ -48,7 +54,10 @@ begin
   end 
   else
   begin
-   select @begindate = dbo.date1(postdate) from invoices where id = @invoiceId
+   if @interestDate <= 0
+   begin
+    select @begindate = dbo.date1(postdate) from invoices where id = @invoiceId
+   end
   end
  end
 
