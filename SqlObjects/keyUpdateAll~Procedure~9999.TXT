@@ -114,6 +114,26 @@ begin
 
  end
 
+-- if we need to alter glCreateTables...
+ if exists(select * from @wt where objectName = 'glCreateTables' and processFlag = -2)
+ begin
+  set @result = null
+  select @wtIdToken = id, @idToken = objectId from @wt where objectName = 'glCreateTables' and processFlag = -2
+  exec dbo.keySQLObjectDispatcher
+   @id = @idToken,
+   @silentMode = 'TRUE',
+   @result = @result output,
+   @log = @dispatcherLog output
+
+  if @result = 0
+   update @wt set processflag = 2, data = @dispatcherLog where id = @wtIdToken 
+  else
+   update @wt set processflag = -3, data = @dispatcherLog where id = @wtIdToken 
+ end
+
+-- now we run glCreateTables
+ exec dbo.glCreateTables
+
 -- ok so now lets create or alter the bad items
  while exists(select * from @wt where processFlag = -2)
  begin
@@ -140,7 +160,7 @@ begin
 
 -- TODO: delete the object records that are not needed any longer
 
- select objectName, objectType, data from @wt where processFlag != 1 order by cast(objectOrder as int), objectName
+ select objectType + objectName, data from @wt where processFlag != 1 order by cast(objectOrder as int), objectName
 
 -- upate templates
  exec dbo.keyTemplateUpdateFromRepo null
