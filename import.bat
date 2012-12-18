@@ -66,7 +66,7 @@ echo    e[x]it
 echo ------------------------------
 SET /P runmode=Please Choose:
 IF /I "%runmode%"=="T" call:TestConnection
-IF /I "%runmode%"=="I" call:ImportRepo
+IF /I "%runmode%"=="I" call:ImportNew
 IF /I "%runmode%"=="G" call:SetGitCommitterQ
 IF /I "%runmode%"=="S" call:SetServerPath
 IF /I "%runmode%"=="C" call:gitCommit
@@ -74,7 +74,7 @@ IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="U" call:gitStatus
 IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
-IF /I "%runmode%"=="N" call:ImportNew
+IF /I "%runmode%"=="N" call:ImportRepo
 IF /I "%runmode%"=="O" call:ConfigureLogging
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
