@@ -23,7 +23,8 @@ begin
   maxControlNumber varchar(50),
   rowCnt int,
   amount money,
-  glBalance money
+  glBalance money,
+  typ int
  )
  declare @wtRaw table(
   id int,
@@ -40,6 +41,10 @@ begin
   collectionDescription varchar(50),
   reportOrder varchar(50)
  )
+
+--check for grouping
+declare @byAccount int = 0
+ select @byAccount = a17 from object where typ = 4703 and key1 = 'Deposits & Disbursements'
 
 -- get the bank accounts 
  insert @accounts select accountId,collectionDescription,reportOrder from dbo.glBankAccounts
@@ -62,6 +67,9 @@ begin
   and dbo.slinkId(b.slink) = c.id
   and c.key2 between @theDate and @theDate + @days
 
+if @byAccount = 1
+begin
+
 -- this will get just the account
  insert @wt
  select
@@ -83,14 +91,14 @@ begin
   subDescription
  order by ord
 
--- this will get both the deposit and disburment rows
+-- this will get both the deposit and disbursement rows
  insert @wt
  select
   0,
   ord + cast(id as varchar) + 'b',
   ord,
   description,
-  case when typ = 4771 then '   Disbursments' else '   Deposits' end, --subDescription,
+  case when typ = 4771 then '   Disbursements' else '   Deposits' end, --subDescription,
   min(depositNumber),
   max(depositNumber),
   COUNT(depositNumber),
@@ -104,9 +112,6 @@ begin
   subDescription,
   typ
  order by ord
-
--- get the balance of the accounts
- update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
 
 --insert main data
  insert @rt
@@ -124,8 +129,12 @@ begin
 
  -- headers
  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
- insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursments','','  Deposits & Disbursments','','','','sHeader',1
+ insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1
  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+
+-- get the balance of the accounts
+ update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
 
 -- insert subtotals
  insert @rt
@@ -158,6 +167,7 @@ begin
  from @wt 
  group by reportOrder,description
 
+
  insert @rt
  select
   0,
@@ -172,6 +182,154 @@ begin
  from @wt 
  group by reportOrder,description
 
+-- insert grand total
+ if exists(select * from @wt)
+ begin
+  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+  insert @rt
+  select
+   0,
+   @ordSeed + 'ZZZZZ' + 'dzb',
+   dbo.padLeft('Total Deposits & Disbursements ', ' ', 60)
+   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
+   dbo.padLeft('Total Deposits & Disbursements  ', ' ', 35),
+   '',
+   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
+   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   'grandTotal',0
+  from @wt 
+ end
+
+end 
+else
+begin
+ insert @wt
+ select
+  id,
+  ord  + case when typ = 4771 then 'Dis' else 'Dep' end + CAST(id as varchar) + 'b',
+  ord,
+  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
+  '   '+subDescription,
+  min(depositNumber),
+  max(depositNumber),
+  COUNT(depositNumber),
+  SUM(amount), -- removed abs()
+  0
+ from @wtRaw
+ group by
+  id,
+  ord,
+  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
+  subDescription,
+  typ
+  order by ord
+  
+insert @wt (id,ord,reportOrder,description,subDescription)
+ select
+  0,
+  ord  + case when typ = 4771 then 'Dis' else 'Dep' end + '000' + 'a',
+  ord,
+  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
+  case when typ = 4771 then 'Disbursements' else 'Deposits' end
+ 
+ from @wtRaw
+ group by
+  typ,
+  ord
+  
+--insert main data
+ insert @rt
+ select
+  cast('9' + cast(id as varchar) as int),
+  @ordSeed + ord + '', -- removed b
+  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount),
+  dbo.padLeft(convert(varchar,glBalance,1),' ',16),
+  '   ' + dbo.padRight(subDescription,' ',61),  
+  case when minControlNumber is null then '' else dbo.padLeft(minControlNumber, 0, 5) + ' - ' + dbo.padLeft(maxControlNumber, 0, 5) end,
+  dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
+  dbo.padLeft(convert(varchar,amount,1),' ',16),
+  'detail',0
+ from @wt
+
+ -- headers
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
+ insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+ insert @rt
+ select
+  0,
+  @ordSeed + reportOrder + substring(ord,2,3) + cast(max(id) as varchar) + 'c',
+  ' ' + replicate('-',79),
+  replicate('-',16),
+  ' ' + replicate('-',79),
+  replicate('-',22),
+  replicate('-',10),
+  replicate('-',16),
+  'line',0
+ from @wt 
+ group by reportOrder,description,substring(ord,2,3)
+
+ insert @rt
+ select
+  0,
+  @ordSeed + reportOrder + substring(ord,2,3) +  cast(max(id) as varchar) + 'd',
+  dbo.padRight('      Total ' + description, ' ', 60)
+  + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  '',
+  dbo.padRight('      Total ' + description, ' ', 60),
+  '',
+  dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
+  dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  'gFooter',0
+ from @wt 
+ group by reportOrder,description,substring(ord,2,3)
+
+
+ insert @rt
+ select
+  0,
+  @ordSeed + reportOrder + substring(ord,2,3) + cast(max(id) as varchar) + 'e',
+  replicate(' ',80),
+  '',
+  '',
+  '',
+  '',
+  '',
+  'lineFeed',0
+ from @wt 
+ group by reportOrder,description,substring(ord,2,3)
+
+-- insert grand total
+ if exists(select * from @wt)
+ begin
+  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+  insert @rt
+  select
+   0,
+   @ordSeed + 'ZZZZZ' + 'dzb',
+   dbo.padLeft('Total Deposits & Disbursements ', ' ', 60)
+   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
+   dbo.padLeft('Total Deposits & Disbursements  ', ' ', 35),
+   '',
+   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
+   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   'grandTotal',0
+  from @wt 
+ end
+
+update @rt set glBalanceString = ''
+
+end
+
+
 
 /*
  if exists(select * from @wt where description = 'Depository')
@@ -184,26 +342,7 @@ begin
  end
 */ 
 
--- insert grand total
- if exists(select * from @wt)
- begin
-  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
-  insert @rt
-  select
-   0,
-   @ordSeed + 'ZZZZZ' + 'dzb',
-   dbo.padLeft('Total Deposits & Disburments ', ' ', 60)
-   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
-   dbo.padLeft('Total Deposits & Disbursments  ', ' ', 35),
-   '',
-   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
-   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-   'grandTotal',0
-  from @wt 
- end
 
  return
 end
