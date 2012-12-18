@@ -6,7 +6,9 @@ create procedure dbo.receiptCRUD(
  @voidReceipt varchar(5) = 'FALSE',
  @debugMode varchar(5) = 'FALSE',
  @newReceiptId int = 0 output,
- @newJeId int = 0 output
+ @newJeId int = 0 output,
+ @invoiceId int = 0,
+ @refundAmount money = 0
 ) as
 /*
  remember
@@ -65,6 +67,39 @@ begin
                  @newId = @newId output
                  select @slink = 'o' + cast(@newId as varchar)
 
+         -- Refund a portion of an invoice
+         if @invoiceId > 0
+         begin
+
+         -- create journalLinks
+                insert into journalLink
+                  select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId and invoiceId=@invoiceId
+
+         -- create gldetailstage linked to journallink
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
+
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar) and g.amount<0.00
+
+         -- create gldetailstaged linked to collection account
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
+                  select contraId,
+                   isnull((select accountCode from glaccounts where accountId=contraId),''),
+                   isnull((select accountDesc from glaccounts where accountId=contraId),''),
+                   case when @refundAmount > 0.00 then @refundAmount else amount end,
+                   'o'+cast(@newId as varchar),@receiptSLink 
+                   from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
+
+
+         end
+         else
+         begin
+
+
          -- create journalLinks
                 insert into journalLink
                   select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId 
@@ -83,6 +118,7 @@ begin
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
                   select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar)
+         end
          select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
         end
       else

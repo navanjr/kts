@@ -2,6 +2,7 @@
 @acc110=
  gcTaxInvoiceId=obj:link2,
  do(4007,menuprocess=);
+
 \t111Re-Invoice; 
 @acc111=
  m('Are you sure you want to cancel the current statement and make a new one?','Cancel Statement?',,6),
@@ -10,8 +11,11 @@
  adjusttozero=,
  d1select('dbo.taxrollInvoiceCorrection '&obj:link1+0&', '&gcpaid+0),
  if(readstring(obj7:d1,'@code=')+0>0,m(obj7:d1)),
- m('Invoiceing Complete.'),
+ if(readstring(obj7:d1,'@code=')+0=0,gcnewInvoiceId=readstring(obj7:d1,'@newId=')),
+ sql('exec invoiceUpdate '&gcnewInvoiceId+0),
+ m('Invoicing Complete.'),
  gcpaid=0;
+
 
 @adjusttozero=
   gcInvoiceId=obj:link2,
@@ -32,6 +36,8 @@
 \h110instring('@group=publicuser',cur:options,1,1)>0;
 
 @noupdate;
+
+@closewindow=sql('exec invoiceUpdate '&obj:link2+0);
 
 @loadwindow=
  gcfieldnum='',
