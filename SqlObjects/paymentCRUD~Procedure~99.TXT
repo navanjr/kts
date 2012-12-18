@@ -34,7 +34,9 @@ begin
 
  if @mode = 4
  begin
-   select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher','MISCELLANEOUS') then 
+  exec dbo.logit @@procId, '@paymentType', @paymentType
+
+   select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher') then 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
     + '@key1FieldLabel=Register #;'
@@ -59,6 +61,15 @@ begin
     + '@key2FieldLabel=Date Created;'
     + '@key3FieldLabel=Treasurers #;'
     + '@a1FieldLabel=Check Date;'
+
+  when @paymentType = 'Miscellaneous'
+   then
+    '@debitFieldLabel=Fund Account;'
+    + '@creditFieldLabel=Bank Account;'
+    + '@key1FieldLabel=Voucher #;'
+    + '@key2FieldLabel=Date Created;'
+    + '@key3FieldLabel=Hidden Key3;'
+    + '@a1FieldLabel=Hidden A1;'
 
    else
     '@debitFieldLabel=Deposit Account;'
@@ -148,7 +159,7 @@ begin
 
 -- TODO: add gl check here
 
-  declare @nextVoucherNumber varchar(50)
+  declare @nextVoucherNumber varchar(50) = ''
 
  -- Issued from Trust or Protest Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
   if @paymentType = 'Trust Voucher'
@@ -206,7 +217,8 @@ begin
    from object a where a.typ = 4771 and a.id = @id
   end
 
-  exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
+  if @paymentType not in ('Miscellaneous')
+   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
   if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType<>'MISCELLANEOUS'

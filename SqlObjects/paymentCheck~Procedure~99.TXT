@@ -1,0 +1,55 @@
+create proc dbo.paymentCheck(
+ @id int,
+ @silentMode varchar(5) = 'false',
+ @log varchar(max) = null output
+) as
+begin
+-- currently only using this check for miscellaneous payments
+
+-- required data postdate, debit acct, credit acct, amount, payee
+
+ declare
+  @postDate int,
+  @fpId int,
+  @debitAccountCode varchar(50),
+  @creditAccountCode varchar(50),
+  @amount money,
+  @payee varchar(50)
+
+ select
+  @postDate = cast(key2 as int),
+  @fpId = dbo.glGetFiscalPeriodId(cast(key2 as int)),
+  @debitAccountCode = a4,
+  @creditAccountCode = a5,
+  @amount = cast(a3 as money),
+  @payee = a2
+ from object where typ = 4771 and id = @id
+
+ select @log = 
+  '@postDate=' + isnull(cast(@postDate as varchar),'') + ';'
+  + '@fpId=' + isnull(cast(@fpId as varchar),'') + ';'
+  + '@debitAccountCode=' + isnull(@debitAccountCode,'') + ';'
+  + '@creditAccountCode=' + isnull(@creditAccountCode,'') + ';'
+  + '@amount=' + isnull(cast(@amount as varchar),'') + ';'
+  + '@payee=' + isnull(@payee,'') + ';'
+
+
+ select @log = '@code=0;@message=Passed PaymentCheck;' + @log
+  
+ if @fpid = 0
+  select @log = '@code=1;@message=Fiscal Failed locked or does not exist;' + @log
+ if @debitAccountCode < '  0'
+  select @log = '@code=1;@message=Missing Debit Account;' + @log
+ if @creditAccountCode < '  0'
+  select @log = '@code=1;@message=Missing Credit Account;' + @log
+ if @amount = 0
+  select @log = '@code=1;@message=Missing Payment Amount;' + @log
+ if @payee < '  0'
+  select @log = '@code=1;@message=Missing Payment Payee;' + @log
+
+ exec dbo.logit @@procId, @log
+ if @silentMode != 'TRUE'
+  select @log
+  
+ return
+end
