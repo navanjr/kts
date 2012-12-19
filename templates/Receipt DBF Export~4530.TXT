@@ -105,22 +105,36 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  @acc111=gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcTheDays=gcEndDate-gcBeginDate,
- sqlexport('select postDate1,recnum,recFrom,deputy from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC''','MISCHEAD.csv',4),
+ sqlexport('select postDate1,recnum,recFrom,deputy from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted''','MISCHEAD.csv',4),
  sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
  source,
  case when right(fund,4)=''_ACR'' then ''TBA'' else fund end,
  total,
  case when exists(select * from gldetail j where right(accountCode,4)=''_ACR'' and  j.slink in (select slink from dbo.receiptSLinks(r.recId) rsl) and isnull(bsId,0)>0) then ''Y'' else ''N'' end
-  from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'') r where rd.reclink=r.slink','MISCDET.csv',4),
- sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'') r where p.slink=r.slink','MISCPAID.csv',4),
+  from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted'') r where rd.reclink=r.slink','MISCDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted'') r where p.slink=r.slink','MISCPAID.csv',4),
  filecopy('MISCHEAD.csv','c:\kps\MISCHEAD.csv'),
  filecopy('MISCDET.csv','c:\kps\MISCDET.csv'),
  filecopy('MISCPAID.csv','c:\kps\MISCPAID.csv'),
  m('MISC Receipts Exported')
 ;
 
-\t112Warrant Exp;
+\t112Mort Receipt Exp;
  @acc112=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select postDate1,recnum,recFrom,deputy,mortgagedate1,maturitydate1,term,mortgageamount,taxrate,taxamount,feeamount,0.00 from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted''','MORTHEAD.csv',4),
+ sqlexport('select r.postDate1,r.recnum,key1,key2 from object md, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where md.typ=4507 and md.link1 = r.recId  ','MORTDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where p.slink=r.slink','MORTPAID.csv',4),
+ filecopy('MORTHEAD.csv','c:\kps\MORTHEAD.csv'),
+ filecopy('MORTDET.csv','c:\kps\MORTDET.csv'),
+ filecopy('MORTPAID.csv','c:\kps\MORTPAID.csv'),
+ m('MORT Receipts Exported')
+;
+
+
+\t113Warrant Exp;
+ @acc113=gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcTheDays=gcEndDate-gcBeginDate,
  sqlexport('SELECT fiscalYear,FundCode,WarNo,WarDate,RegDate,Payee,amount,PayDate,PayNo,'''' FROM dbo.warrants where (RegDateNo >= '&gcBeginDate&' and RegDateNo<= '&gcEndDate&') or (PayDateNo >= '&gcBeginDate&' and PayDateNo<= '&gcEndDate&')','WARRANT.csv',4),
