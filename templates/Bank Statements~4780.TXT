@@ -8,6 +8,7 @@
 
 \t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=;
 \t009through;  \w01050;  \t010@d2;
+\t011Stated Ending Balance; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
 
 \t037Fund; \h037038;r
 \t039Fund Desc; \l0404701;r038002040004; @lf040='typ=4701 and a1 in (select accountType from dbo.glBankFundTypes(''FUND'')) and b3!=1',2; \h039040obj:c2+0<>1;r
@@ -15,7 +16,8 @@
 
 \t045Begin Balance; \w04660;
 \t047Ending Balance; \w04860;
- \p0460487cfah,13499135;r2 \p0460487c13h,700;r2 \d046048;r2 \p0460487c0ch,1;r2 \t046048@n-14.2;r2
+\t049Variance; \w05060; @calculate:050=obj:a3-obj:b1;
+ \p0460507cfah,13499135;r2 \p0460507c13h,700;r2 \d046050;r2 \p0460507c0ch,1;r2 \t046050@n-14.2;r2
 
 \t077ShowLinksFlag; \h077078;r
 \t079ShowWarrantsFlag; \h079080;r
@@ -43,7 +45,7 @@
 
 @gcvars=
  lcShowFlag=obj:c1,
- gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&') order by ord';
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&') order by ord';
 
 @brw1=
  lcid=kpbrwid(1)*-1,
@@ -71,15 +73,20 @@
 
 @brwstuff=
  gcvars=,
- brw(150,1,gcsql,65,81,425,200,
-  '118L(2)~~#3#M
-158L(2)~~#4#M|
-50R(2)~debit~@n-14.2b@#5#M|
-50R(2)~credit~@n-14.2b@#6#M|
-50R(2)~~#7#M',7,1),
- prop(150,7CFAH,13499135);
-@lbrw1forecolor=obj7:c10<0,255;
-@lbrw1color=obj7:c10='X',1959605; 2350115;
+ brw(150,1,gcsql,65,81,425,200,'118L(2)~~#3#M158L(2)~~#4#M|50R(2)~debit~@n-14.2b@#5#M|50R(2)~credit~@n-14.2b@#6#M|50R(2)~~#7#M',7,1),
+ lccodeh=mh-200,
+ prop(150,height,lccodeh),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0);
+
+ rop(150,7CFAH,13499135);
+
+lbrw1forecolor=obj7:c10<0,255;
+lbrw1color=obj7:c9='X',1959605; 2350115;
+
+@lbrw1forecolor=obj7:c10=1,255,obj7:c9<0,255; 1959605, 32768
+@lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135,obj7:c10='3',8308990,obj7:c9='X',1959605; 2157055; 1959605; 2350115; 7467519
+
 
 @refreshBRW=
  sums=,

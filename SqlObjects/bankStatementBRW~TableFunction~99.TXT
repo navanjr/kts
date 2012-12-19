@@ -6,13 +6,21 @@ create function dbo.bankStatementBRW(
 ) returns @rt table(
  id int,
  fpid int,
+ fpCode varchar(50),
  slink varchar(15),
+ paymentType varchar(50),
+ template varchar(50),
+ typ int,
+ depositDate varchar(50),
+ instrumentNumber varchar(50),
+ instrumentNumber2 varchar(50),
  description varchar(100),
  subDescription varchar(100),
  dbAmount money,
  crAmount money,
+ rowType int,
  selectedFlag char(1),
- ord varchar(50)
+ ord varchar(150)
 )
 begin
 
@@ -22,32 +30,75 @@ begin
   insert @showTable select @id
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
- insert @rt (id,fpid,slink,dbAmount,crAmount,subDescription,selectedFlag)
- select id* -1, fpid, slink,
+ insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType)
+ select id* -1, fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
   case when amount < 0 then amount else 0 end,
   slink,
-  case when isnull(bsId,0) = 0 then '' else 'X' end
+  case when isnull(bsId,0) = 0 then '' else 'X' end,
+  0
  from dbo.glDetail 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
 
 -- populate the items with more details
  update a set
-  a.description = '   ' + dbo.date1(b.key2),
-  a.subDescription = c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
-  ord = cast(fpid as varchar) + 'b' 
+  a.description = '      ' + b.key1,
+  a.depositDate = b.key2,
+  a.instrumentNumber = b.key1,
+  a.instrumentNumber2 = b.key3,
+  a.subDescription = b.a2, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
+  paymentType = b.a18,
+  template = c.template,
+  a.typ = b.typ
  from @rt a, object b, template c
  where left(slink,1) = 'o' 
   and cast(substring(slink,2,14) as int) = b.id
   and b.typ = c.id
 
+-- deposit Fixes
+ update @rt set
+  paymentType = 'z' + template
+ where template = 'Deposits' and rowType = 0
+
+-- je Fixes
+ update @rt set
+  subDescription = instrumentNumber2
+ where template = 'Journal Entries' and rowType = 0
+
+-- payment Fixes except miscellaneous
+ update @rt set 
+  instrumentNumber = instrumentNumber2
+ where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
+
+
+-- set description and ord
+ update @rt set
+  description = '      ' + dbo.padLeft(instrumentNumber,'0',6) + '   ' + dbo.date2(depositDate),
+  ord = fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+ where rowtype = 0
+
 -- add Period headers for the account details
- insert @rt (id,description,ord)
-  select 0,'Period: ' + b.key1 + ' ' + key2,b.id 
-   from @rt a, object b
-   where a.fpid = b.id
-   group by b.key1,b.key2,b.id
+ insert @rt (id,description,ord,rowType)
+  select
+   0,
+   'Period: ' + a.fpCode + ' ' + key2,
+   a.fpCode,
+   3 
+  from @rt a, object b
+  where a.fpid = b.id and a.rowType = 0
+  group by b.key1,b.key2,b.id,a.fpCode
+
+-- add paymentType headers
+ insert @rt (id,description,ord,rowType)
+  select
+   0,
+   '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+   fpCode +  paymentType + 'a',
+   2 
+  from @rt 
+  where rowType = 0 and paymentType is not null
+  group by fpCode, paymentType
 
 -- add Warrants, Maybe
  if not @warrantFlag = 1
