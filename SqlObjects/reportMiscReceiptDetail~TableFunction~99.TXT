@@ -10,10 +10,88 @@ create function dbo.reportMiscReceiptDetail(@beginDate varchar(15), @endDate var
    description varchar(150),
    sourceDesc varchar(60),
    detCount int,
-   recId int)
+   recId int,
+   amountToApportion money)
 
 as   
 begin   
+
+declare @mr table(id int identity(1,1),
+   postDate int, 
+   postDate1 varchar(50),
+   ReceiptNo varchar(50),
+   FundDesc varchar(60),
+   ReceivedOf varchar(60),
+   amount money,
+   PrevApportioned money,
+   slink varchar(16),
+   fundCode varchar(60),
+   [description] varchar(150),
+   sourceCode varchar(60),
+   sourceDesc varchar(60),
+   detCount int,
+   recId int,
+   processFlag int,
+   bsId int)
+
+declare @mrd table(id int identity(1,1),
+   FundDesc varchar(60),
+   amount money,
+   PrevApportioned money,
+   fundCode varchar(60),
+   [description] varchar(150),
+   sourceCode varchar(60),
+   sourceDesc varchar(60),
+   recId int,
+   processFlag int)
+
+
+
+declare @miscCollectionAccountCode varchar(60),
+        @miscTaxAccountId int
+
+select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
+
+select @miscTaxAccountId = accountId from glAccounts where accountCode=@miscCollectionAccountCode
+
+
+insert @mr
+select d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1,case when isnull(d.bsId,0)=0 then amount else 0.00 end,
+  case when isnull(d.bsId,0)>0 then amount else 0.00 end as PrevApportioned, d.slink, '','','','',0, r.id, 0, d.bsId 
+from dbo.glDetailReports d, glAccounts a, object r 
+where d.accountCode=a.accountCode 
+ and (dbo.slinkId(d.slink)=r.id)
+ and d.[sourcedate]>=@beginDate 
+ and d.[sourcedate]<=@endDate 
+ and contraId=@miscTaxAccountId
+ 
+ 
+ 
+declare @idToken int, @recIdToken int
+ while exists(select * from @mr where processFlag=0)
+ begin
+  select top 1 @idToken = id, @recIdToken = recId from @mr where processFlag=0
+  insert @mrd (recId,amount,fundCode,sourceCode,[description])
+  select @recIdToken,amount,creditCode,sourceCode,comment from dbo.apportionCollectionsWT(@recIdToken,@endDate,'') where creditCode > ' 0' and isnull(contraId,0)=0
+  update @mr set processFlag=1 where recid=@recIdToken
+ end
+ insert @rt
+ select postDate, postDate1,mr.receiptNo,f.accountDesc,ReceivedOf,mrd.amount,0,mr.slink,mrd.fundCode,mrd.[description],s.accountDesc,0,mr.recId,mrd.amount 
+  from @mr mr, @mrd mrd, glaccounts f, glaccounts s
+  where mr.recId=mrd.recId
+   and mrd.fundCode=f.accountCode
+   and mrd.sourceCode=s.accountCode
+   
+ insert @rt  
+ select postDate, postDate1,mr.receiptNo,f.accountDesc,ReceivedOf,g.amount*-1,mr.PrevApportioned,mr.slink,g.accountCode,isnull((select max(comment) from gldetail where slink=g.slink),''),s.accountDesc,0,mr.recId,(g.amount*-1)-mr.PrevApportioned  
+ from @mr mr, gldetail g, glaccounts f, glaccounts s 
+  where 'o'+cast(mr.bsId as varchar(15))=g.slink 
+   and g.accountCode=f.accountCode
+   and g.sourceCode=s.accountCode
+   and f.accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+
+
+/*  OLD CODE MAK: 12/19/12
 
 declare @wt table(postDate int, 
    postDate1 varchar(50),
@@ -29,18 +107,9 @@ declare @wt table(postDate int,
    detCount int,
    recId int)
 
-
-declare @miscCollectionAccountCode varchar(60),
-        @miscTaxAccountId int
-
-select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
-
-select @miscTaxAccountId = accountId from glAccounts where accountCode=@miscCollectionAccountCode
-
-
 insert @rt
 select d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,f.accountDesc,r.a1,amount,
-  0000000.0000 as PrevApportioned, d.slink, d.accountCode,'','',0, r.id 
+  0000000.0000 as PrevApportioned, d.slink, d.accountCode,'','',0, r.id, 0.00 
 from dbo.glDetailReports d, glAccounts a, glAccounts f, object r 
 where d.accountCode=a.accountCode 
  and a.targetAccountCode=f.accountCode
@@ -91,7 +160,7 @@ where d.accountCode=a.accountCode
  and contraId=@miscTaxAccountId
 
 
-
+*/
 
 return
 end
