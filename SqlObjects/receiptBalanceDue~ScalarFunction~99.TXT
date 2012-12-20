@@ -1,7 +1,8 @@
 CREATE function dbo.receiptBalanceDue(@receiptId int) returns money
 as 
 begin
- declare @totalDue money
+ declare @totalDue money,
+         @receiptType varchar(50)
  
  
  declare @wt table(
@@ -13,6 +14,17 @@ begin
   invoiceType varchar(1)
  )
 
+ declare
+  @glAmt money,
+  @glAmtStage money,
+  @amount money,
+  @credit money,
+  @due money
+
+select @receiptType = key3 from object where id = @receiptId
+
+if @receiptType = 'TAX'
+ begin
 -- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, methodRate,mainInvoiceId,invoiceType)
   select a.id, a.invoiceId, a.methodRate,b.invoiceId,b.typ
@@ -26,41 +38,31 @@ begin
 
  set @totalDue = (select sum(due) from @wt)
 
- declare
-  @glAmt money,
-  @glAmtStage money,
-  @amount money,
-  @credit money,
-  @due money
+ select @glAmtStage = sum(a.amount) 
+ from glDetailStage a, glAccounts b 
+  where a.accountId = b.accountId and 
+  b.accountType = 'RECEIVABLE' and 
+  slink in (select slink from dbo.receiptSLinks(@receiptId))
+
+ select @due = isnull(@totalDue,0) + isnull(@glAmtStage,0)
+ return @due
+
+ end
 
  select @glAmt = sum(a.amount) 
  from glDetail a, glAccounts b 
-  where 
-   a.accountId = b.accountId and 
-   b.accountType = 'RECEIVABLE' and 
-   (a.amount>0 or left(a.slink,1)='t') and 
-   left(a.slink,1) in ('t','l','o') and 
-   slink in (select slink from dbo.receiptSLinks(@receiptId))
+  where a.accountId = b.accountId and 
+  b.accountType = 'RECEIVABLE' and 
+  slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @glAmtStage = sum(a.amount) 
  from glDetailStage a, glAccounts b 
   where a.accountId = b.accountId and 
   b.accountType = 'RECEIVABLE' and 
-  (a.amount>0 or left(a.slink,1)='t') and 
-  left(a.slink,1) in ('t','l','o') and 
   slink in (select slink from dbo.receiptSLinks(@receiptId))
 
- select @due = isnull(@glAmt,0) + isnull(@glAmtStage,0)
 
- select @glAmt = sum(a.amount) 
- from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and a.amount<0 and left(a.slink,1) in ('l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
-
- select @glAmtStage = sum(a.amount) 
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE'  and a.amount<0 and left(a.slink,1) in ('l','o') and slink in (select slink from dbo.receiptSLinks(@receiptId))
-
- select @amount = isnull(@glAmt,0) + isnull(@glAmtStage,0)
-
- set @totalDue = case when @totalDue > 0 then @totalDue else @due end+@amount
+ set @totalDue = isnull(@glAmt,0) + isnull(@glAmtStage,0)
 
  return @totalDue
 end
