@@ -1,4 +1,8 @@
-create procedure dbo.invoiceUpdateAll( @receiptId int = null ) as
+create procedure dbo.invoiceUpdateAll(
+ @receiptId int = null,
+ @idBlob varchar(max) = null,
+ @taxyear varchar(4) = null
+) as
 begin
 
  set nocount on
@@ -7,8 +11,29 @@ begin
 
  declare @wt table(invoiceId int)
 
- if @receiptId = 0
+-- here we insert ever invoice in the system
+ if @receiptId = 0 and @idBlob is null
   insert @wt select id from invoices
+
+-- here we use the invoice ids from the blob
+ if @idBlob is not null
+  insert @wt select data from dbo.split(@idBlob,',')
+/*
+ -- if @taxyear passed. update all invoices in this taxyear with invoiceDue of Zero
+ if isnull(@taxyear,'') > '  0'
+ begin
+  exec dbo.logit @@procid, 'update all Zero invoices in @taxyear', @taxyear
+  declare @tokenId int
+  declare @wt table(id int)
+  insert @wt select id from invoices where taxyear = @taxyear and invoiceDue = 0
+  while exists(select * from @wt)
+  begin
+   select @tokenId = min(id) from @wt
+   exec dbo.invoiceUpdate @tokenId
+   delete @wt where id = @tokenId
+  end   
+*/
+
 
  if isnull(@receiptId,0) > 0
   insert @wt select invoiceId from receiptLink where receiptId = @receiptId  
@@ -17,7 +42,8 @@ begin
  while exists(select * from @wt)
  begin
   select top 1 @idToken = invoiceId from @wt 
-  exec dbo.invoiceUpdate @idToken
+  if @idToken > 0
+   exec dbo.invoiceUpdate @idToken
   delete @wt where invoiceId = @idToken
  end
 

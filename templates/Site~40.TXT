@@ -117,6 +117,31 @@
 \t073apiControlString;
 \t077Mrtg Stmt Note; \x0773; \x07863; \y077078236;r \w078301;
 
+\t114&Invoice Update;
+@acc114=
+ m('Choose one of the following options:','Update Invoices...','question.ico','&All Invoices|&Tax Year|&Cancel'),
+ if(gcretval=1,invUpdateAll=),
+ if(gcretval=2,invUpdateYear=);
+
+@invUpdateAll=
+ m('Are you sure you wish to update all invoices?','Invoice Update...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Updating all Invoices in the system...','Please wait...'),
+ d1select('exec dbo.invoiceUpdateAll 0'),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Invoice Update All...')),
+ kpmc();
+@invUpdateYear=
+ iw(',.t000Which Tax Year?..., ,.t001Tax Year., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcTaxYear=obj7:key1,
+ m('Are you sure you wish to update all invoices for tax year: '&lcTaxYear&' ?','Invoice Update...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Updating all Invoices in tax year '&lcTaxYear&'...','Please wait...'),
+ d1select('exec dbo.invoiceUpdate @taxyear='''&lcTaxYear&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Invoice Update...')),
+ kpmc();
+
+
 
 
 \t116apiSite new();
