@@ -17,6 +17,7 @@ begin
   protestAmount money,
   protestId int,
   sourceCode varchar(60),
+  fundCode varchar(60),
   invoiceTyp varchar(1),
   pertyp varchar(1),
   payord int,
@@ -80,8 +81,7 @@ begin
   @processCount int,
   @suspenseMethod varchar(50)
 
- select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
-
+ select @suspenseMethod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
 
 --TODO: bail if there is already gldetail for these receiptLinks 
 --TODO: bail if we are offered too much money
@@ -92,7 +92,9 @@ begin
   set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp, payord, parentInvoiceId)
+ insert @wt (
+  linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId,
+  sourceCode, invoiceTyp, pertyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -112,7 +114,7 @@ begin
     and a.receiptId = @receiptId
     and b.typ <> 'S'
 
- insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, payord, parentInvoiceId)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, fundCode, invoiceTyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -124,6 +126,7 @@ begin
    a.protestAmount,
    0,
    r.sourceCode,
+   r.fundCode,
    b.typ,
    case when b.invoiceId > 0 then 1 else 2 end,
    b.invoiceId
@@ -317,11 +320,8 @@ begin
   update @wt set processFlag = 1 where id = @idToken
  end
 
-
 -- Set source code on worktable for subinvoices
  update b set sourceCode = isnull((select top 1 a.sourceCode from receiptDetail a where a.slink=b.invoiceSLink),'') from @wt b where b.sourceCode='GETSOURCE'
-
-
 
 -- populate fundDebits
 -- add the debit to funds accounts from the invoice detail
@@ -334,11 +334,22 @@ begin
 
  insert @glFundDebits
  select
+  c.slink, c.fundCode, 0, round(sum(c.due),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId,
+  c.due,
+  c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
+ from @wt c 
+ where
+   c.due <> 0.00 and c.invoiceTyp = 'S' 
+ group by
+  c.slink, c.fundCode, c.contraAccountId,
+  c.due, 
+  c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
+/* select
   c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
  from receiptDetail a, @wt c 
  where a.slink = c.invoiceSLink and c.due<>0.00 and c.invoiceTyp = 'S' and a.sourceCode=c.sourceCode
  group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due, c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
-
+*/
  update @glFundDebits set amount=due where abs(amount)>abs(due)
  update @glFundDebits set payamount=due where abs(payamount)>abs(due)
  update @glFundDebits set protestAmount=due where abs(protestAmount)>abs(due)
@@ -367,7 +378,23 @@ begin
 -- begin test code here
 if @mode = 1
 begin
- select * from @wt
+-- select * from receiptlink where receiptId = @receiptId
+-- select * from receiptDetail where slink in (select slink from dbo.receiptSlinks(@receiptId))
+-- select * from @wt
+
+ select
+  c.slink, c.fundCode, 0, round(sum(c.due),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId,
+  c.due,
+  c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
+ from @wt c 
+ where
+   c.due <> 0.00 and c.invoiceTyp = 'S' 
+ group by
+  c.slink, c.fundCode, c.contraAccountId,
+  c.due, 
+  c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
+
+
  select * from @glFundDebits
  
  select @receiptSlink, b.contraId, sum(b.payAmount), null, COUNT(*)
