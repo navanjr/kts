@@ -80,6 +80,10 @@ IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
 
 :ImportNew
+echo dropping keyUpdateAll...
+sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q"drop dbo.keyUpdateAll"
+echo creating keyUpdateAll...
+sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\keyUpdateAll~Procedure~9999.TXT"
 echo calling keyUpdateAll...
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll 'NewMethod'"
 GOTO:EOF
