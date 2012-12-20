@@ -7,44 +7,53 @@ begin
 
  set nocount on
 
- declare @idToken int
+ exec dbo.logit @@procid, '@receiptId', @receiptId, '@taxyear', @taxyear
+
+ declare
+  @idToken int,
+  @tally int
 
  declare @wt table(invoiceId int)
 
 -- here we insert ever invoice in the system
  if @receiptId = 0 and @idBlob is null
+ begin
   insert @wt select id from invoices
+  GOTO mainLoop
+ end
 
 -- here we use the invoice ids from the blob
  if @idBlob is not null
+ begin
   insert @wt select data from dbo.split(@idBlob,',')
-/*
- -- if @taxyear passed. update all invoices in this taxyear with invoiceDue of Zero
+  GOTO mainLoop
+ end
+
+-- if @taxyear passed. update all invoices in this taxyear with invoiceDue of Zero
  if isnull(@taxyear,'') > '  0'
  begin
-  exec dbo.logit @@procid, 'update all Zero invoices in @taxyear', @taxyear
-  declare @tokenId int
-  declare @wt table(id int)
-  insert @wt select id from invoices where taxyear = @taxyear and invoiceDue = 0
-  while exists(select * from @wt)
-  begin
-   select @tokenId = min(id) from @wt
-   exec dbo.invoiceUpdate @tokenId
-   delete @wt where id = @tokenId
-  end   
-*/
-
+  insert @wt select id from invoices where taxyear = @taxyear
+  GOTO mainLoop
+ end
 
  if isnull(@receiptId,0) > 0
+ begin
   insert @wt select invoiceId from receiptLink where receiptId = @receiptId  
   insert @wt select invoiceId from journalLink where jeId = @receiptId  
-
- while exists(select * from @wt)
- begin
-  select top 1 @idToken = invoiceId from @wt 
-  if @idToken > 0
-   exec dbo.invoiceUpdate @idToken
-  delete @wt where invoiceId = @idToken
+  GOTO mainLoop
  end
+
+
+ mainLoop:
+  select @tally = count(*) from @wt
+  while exists(select * from @wt)
+  begin
+   select top 1 @idToken = invoiceId from @wt 
+   if @idToken > 0
+    exec dbo.invoiceUpdate @idToken, @tallyEcho = @tally
+   delete @wt where invoiceId = @idToken
+   select @tally = @tally - 1
+  end
+ return
 
 end
