@@ -1,0 +1,86 @@
+create proc dbo.glUnPost(
+ @id int = null,
+ @styp varchar(1) = null,
+ @slink varchar(15) = null,
+ @verbose varchar(5) = 'TRUE'
+) as 
+begin
+
+ if @slink is null
+  set @slink = @styp + cast(@id as varchar)
+
+ if @slink is null
+  RAISERROR ('procedure was called with incompatible options',16,1)
+
+ declare 
+  @postDate int,
+  @fpid int,
+  @log varchar(max),
+  @objTyp int,
+  @code int = 0,
+  @message varchar(max) = '',
+  @sql nvarchar(max) = ''
+
+ exec dbo.glGetPostDateFromSlink
+  @slink = @slink,
+  @postDate = @postDate output,
+  @fpid = @fpid output
+
+-- bail if fiscal period is closed
+ if @fpid = 0
+ begin
+  select
+   @code = 1,
+   @message = 'Fiscal Period is Closed. Can not continue... Sorry.'
+   GOTO bail
+ end
+
+-- currently we only allow unposting of deposits
+ if dbo.slinkType(@slink) != 'o'
+ begin
+  select
+   @code = 1,
+   @message = 'Unposting can only be use on a deposit... Sorry.'
+   GOTO bail
+ end
+
+ select @objTyp = typ from object where id = dbo.slinkId(@slink)
+ if isnull(@objTyp,0) not in (4513)
+ begin
+  select
+   @code = 1,
+   @message = 'Unposting can only be use on a deposit... Sorry.'
+   GOTO bail
+ end 
+
+-- we are good so lets delete glDetail and leave it to the calling proc to re-stage
+ begin transaction
+ exec dbo.logit @@procId, '@slink', @slink, 'begin transaction'
+ delete glDetail where slink = @slink
+
+-- flag source record as Unposted if your not a receiptlink
+ if dbo.slinkType(@slink) not in ('l','j')
+ begin
+  select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = '''' where ['+idFieldName+'] = '+cast(dbo.slinkId(@slink) as varchar) 
+  from dbo.keyExternalTableReference(dbo.slinkType(@slink))
+  exec(@sql)
+  exec dbo.logit @@procId,'@sql',@sql
+ end
+
+ commit transaction
+ exec dbo.logit @@procId, '@slink', @slink, 'commit transaction'
+
+ set @message = 'UnPost Complete... :), come back and see us!'
+ select @log = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+ exec dbo.logit @@procId, '@slink', @slink, @log
+ if @verbose = 'TRUE' select @log
+ return
+  
+
+ bail:
+  select @log = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+  exec dbo.logit @@procId, '@slink', @slink, @log
+  if @verbose = 'TRUE' select @log
+  return
+
+end
