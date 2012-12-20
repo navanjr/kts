@@ -6,7 +6,8 @@ create function dbo.posTF() returns @rt table(
  depositDate int,
  amount money,
  accountId int,
- postDate int
+ postDate int,
+ objTyp int
 ) as 
 begin
 
@@ -19,13 +20,15 @@ begin
   case when o.key2 is null then dbo.clarionDate(getDate()) else o.key2 end,
   b.amount,
   x.accountId,
-  a.postDate
+  a.postDate,
+  o.typ
  from dbo.posAccounts() a
  left outer join gldetail b on a.accountCode = b.accountCode
  left outer join object o on dbo.slinkId(b.slink) = o.id
  left outer join paid p on dbo.slinkId(b.slink2) = p.id
  left outer join dbo.glAccounts x on a.accountCode = x.accountCode
- where isnull(p.depositId,0) = 0 -- this where clause will remove the receipts from your pos when they are linked to a deposit
-
+ where
+  isnull(p.depositId,0) = 0 -- this where clause will remove the receipts from your pos when they are linked to a deposit
+  and isnull(o.typ,0) != 4513  
  return
 end
