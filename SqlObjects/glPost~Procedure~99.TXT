@@ -82,15 +82,22 @@ begin
    end
 
    -- check to see if the post was successful
-   select
-    @rowCount2 = count(*),
-    @absValue2 = sum(abs(amount)) 
-   from glDetail 
-   where slink in (select slink from @slinks)
+   exec dbo.glPostCheckProc
+    @slink = @slink,
+    @result = @result output,
+    @message = @message output  
 
-   exec dbo.logit @@procid, '@rowCount2', @rowCount2, '@absValue2', @absValue2
+--   select
+--    @rowCount2 = count(*),
+--    @absValue2 = sum(abs(amount)) 
+--   from glDetail 
+--   where slink in (select slink from @slinks)
+
+--   exec dbo.logit @@procid, '@rowCount2', @rowCount2, '@absValue2', @absValue2
    
-   if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
+--   if @rowCount = @rowCount2 and @absValue = @absValue2 and @absValue > 0
+
+   if @result = 0
    begin
     set @message = 'Posting complete.'
     if @skipSQLTransaction = 'FALSE'
@@ -101,6 +108,7 @@ begin
    end
    else
    begin 
+    exec dbo.logit @@procid, 'Failed glPostCheckProc @message', @message
     select
      @code = 1,
      @message = 'Posting transaction was rolled back.  oops.  please contact support.'
