@@ -1,11 +1,14 @@
 create procedure dbo.depositLinkPayment(
  @depositId int, 
  @paymentId int, 
- @supressOutput int = 0
+ @supressOutput int = 0,
+ @debugMode varchar(5) = 'FALSE'
 ) as
 begin
 
- declare @styp char(1) = 'o'
+ declare
+  @styp char(1) = 'o',
+  @balance money
  declare 
   @slink varchar(15) = @styp + cast(@depositId as varchar),
   @code int,
@@ -34,6 +37,7 @@ begin
  end
 
  begin transaction
+ exec dbo.logit @@procId, 'Begin Transaction...'
 
   if exists(select * from paid where id = @paymentId and depositId = @depositId)
    update paid set depositId = 0 where id = @paymentId 
@@ -42,13 +46,23 @@ begin
 
   exec dbo.depositStagePayments @depositId
 
-  if (select balance from dbo.glSummary(@depositId,'o')) <> 0
-   rollback transaction
-  else
-   commit transaction
+  select @balance = balance from dbo.glSummary(@depositId,'o')
+  if @debugMode = 'TRUE'
+   select * from glDetailStage where slink = 'o' + cast(@depositId as varchar)
 
- if @supressOutput = 0
-  select '@code=0;@message=link was sucessful;'
+  if @balance <> 0
+  begin
+   rollback transaction
+   exec dbo.logit @@procId, 'Rolling Back Transaction...', '@balance', @balance
+  end
+  else
+  begin
+   commit transaction
+   exec dbo.logit @@procId, 'Commiting Transaction...'
+   if @supressOutput = 0
+    select '@code=0;@message=link was sucessful;'
+  end
+
  return
  
 end
