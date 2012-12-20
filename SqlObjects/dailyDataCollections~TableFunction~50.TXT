@@ -37,13 +37,13 @@ begin
   ord varchar(50),
   description varchar(50),
   subDescription varchar(50),
-  controlNumber varchar(50),
   receiptNumber varchar(50),
   amount money,
   slink2 varchar(15),
   ticketNumber varchar(50),
   dptno varchar(50),
-  receiptId int
+  receiptId int,
+  countit int
  )
   declare @accounts table(
   accountId int,
@@ -73,13 +73,13 @@ begin
   a.reportOrder,
   a.collectionDescription,
   b.accountDesc,
-  c.key1,
-  '',
+  case when c.key2 = 'TAX' then null else c.key1 end,
   b.amount,
   b.slink,
   case when c.typ=4522 then c.b2 else '' end,
   a.dptno,
-  c.id
+  c.id,
+  1
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4502,4522) --,4512,4522
@@ -87,39 +87,34 @@ begin
   and substring(b.slink,2,14) = c.id
   and c.key2 between @theDate and @theDate + @days
 
--- insert all raw receipt data
- insert @wtRaw (receiptNumber,description,receiptId) 
+-- insert all raw receipt data Tax
+ insert @wtRaw (receiptNumber,subDescription,receiptId) 
  select l.receiptNumber, acct.accountDesc, l.receiptId
   from gldetail g
   join receiptlink l on  dbo.slinkType(g.slink) = 'l' and dbo.slinkId(g.slink) = l.id
   join glAccounts acct on acct.accountId = g.contraId
  where 
-  l.receiptId in (select receiptId from @wtRaw)
-  and l.receiptNumber > '  0'
+   l.receiptId in (select receiptId from @wtRaw)
+   and l.receiptNumber > '  0'
 
- insert @wt
+--- insert all raw into @wt
+insert @wt
  select
-  id,
-  ord,
-  description,
+  max(id),
+  max(ord),
+  max(description),
   subDescription,
-  min(receiptNumber),
+  min(isnull(receiptNumber,'9999999999')),
   max(receiptNumber),
-  COUNT(receiptNumber),
+  sum(countit),
   abs(SUM(amount)),
   0,
   min(ticketNumber),
   max(ticketNumber),
-  dptno
- from @wtRaw
+  max(dptno)
+ from @wtRaw --where  slink2 = 'o29091'
  group by
-  id,
-  ord,
-  description,
-  subDescription,
-  dptno
- order by
-  ord
+  subDescription
 
  update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
 
