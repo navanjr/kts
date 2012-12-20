@@ -363,44 +363,59 @@ begin
    select '@code=1;@message=Fund Code Information Missing;'
    return
   end
+  
+-- begin test code here
+if @mode = 1
+begin
+ select * from @wt
+ select * from @glFundDebits
+ 
+ select @receiptSlink, b.contraId, sum(b.payAmount), null, COUNT(*)
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink 
+  and a.invoiceTyp='S' 
+  and a.sourceCode=b.sourceCode
+ group by b.slink, b.contraId, a.slink, a.id
+end
+-- end test code here
 
 -- add the credit to the Treasures collection Account and include the contraId to the receiptLink parent
  insert @glSalesCredits 
- select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2), null
+ select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2) / COUNT(*), null
  from @wt a, @glFundDebits b
  where a.slink = b.slink 
   and a.invoiceTyp<>'S'
- group by b.slink, b.contraId, a.slink
+ group by b.slink, b.contraId, a.slink, a.id
 
  insert @glSalesCredits 
- select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2), null
+ select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2) / COUNT(*), null
  from @wt a, @glFundDebits b
  where a.slink = b.slink 
   and a.invoiceTyp='S' 
   and a.sourceCode=b.sourceCode
- group by b.slink, b.contraId, a.slink
+ group by b.slink, b.contraId, a.slink, a.id
 
 -- add the credit to AR Accounts
  insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null 
+ select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2) / COUNT(*), null 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
   and a.invoiceTyp<>'S'
- group by b.slink, a.arAccountId
+ group by b.slink, a.arAccountId, a.id
 
  insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null 
+ select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2) / COUNT(*), null 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
   and a.invoiceTyp='S' 
   and a.sourceCode=b.sourceCode
- group by b.slink, a.arAccountId
+ group by b.slink, a.arAccountId, a.id
 
 
  insert @glStage
-  select slink,accountId,sum(round(payAmount,2)) as payAmount,contraId,'fundDebit',slink2,sourceCode from @glFundDebits group by slink,accountId,contraId,slink2,sourceCode
+  select slink,accountId,round(sum(payAmount),2) as payAmount,contraId,'fundDebit',slink2,sourceCode from @glFundDebits group by slink,accountId,contraId,slink2,sourceCode
  union all
-  select *,'salesCredit','','' from @glSalesCredits
+  select slink,accountId,round(SUM(amount),2),contraId,'salesCredit','','' from @glSalesCredits group by slink, accountId, contraId
  union all
   select slink,accountId,amount,null,'suspense',slink2,'' from @glSuspense
 
