@@ -6,7 +6,8 @@ create procedure dbo.receiptDetailCRUD(
  @sourceCode varchar(50) = '',
  @fundCode varchar(50) = '',
  @amount money = 0.00,
- @altContraId int = 0
+ @altContraId int = 0,
+ @method varchar(50) = null
 ) as
 begin
 
@@ -19,7 +20,14 @@ begin
   + '@sourceCode=' + isnull(@sourceCode,'null') + ';'
   + '@fundCode=' + isnull(@fundCode,'null') + ';'
   + '@amount=' + isnull(cast(@amount as varchar),'null') + ';'
+  + '@method=' + isnull(@method,'null') + ';'
  exec dbo.logit @@procid, @log
+
+ if @method = 'fixFund' and @receiptDetailId > 0 and @fundCode > '  0'
+ begin
+  update receiptDetail set fundCode = @fundCode where id = @receiptDetailId
+  return
+ end
 
  declare @styp char(1) = 'o'
  declare 
