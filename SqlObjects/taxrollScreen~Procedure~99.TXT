@@ -2,7 +2,8 @@ create procedure dbo.taxrollScreen ( @invoiceId int, @initials varchar(5), @sour
 as
 begin
 
- declare @taxrollId int
+ declare @taxrollId int,
+         @invoiceType varchar(10)
 
 
 if @source = 'Update'
@@ -62,13 +63,16 @@ if @source = 'Update'
 
  if @source = 'ADTAX' 
   begin
-   select @taxrollId = @invoiceId-9000000
+   select @taxrollId = @invoiceId-9000000, @invoiceType = ''
   end
  else
   begin
-   select @taxrollId = taxrollId from invoices where id=@invoiceId
+   select @taxrollId = taxrollId, @invoiceType = typ from invoices where id=@invoiceId
+
   end
 
+ if @invoiceType <> 'S'
+ begin
  update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
 
  insert into object (typ,link1,link2,key1,key2,key3,a1,a2,a3,a11,a12,a13,a14,a15,A17,a18,a19,a20,b1,b2,b3,b4,b5,b6,b7,b8,b9
@@ -125,8 +129,8 @@ if @source = 'Update'
 
   FROM [adtax]
   WHERE id=@taxrollId
-
- select @@identity
+  select @@identity
+ end
  end
 -- TODO: remove this next line when you are all happy
 -- select top 1 id from object where typ=4001 and left(attributes,len(@initials))=@initials order by id desc

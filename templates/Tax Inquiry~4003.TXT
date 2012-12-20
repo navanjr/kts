@@ -149,13 +149,26 @@
  break(lcId<1),
  d1select('exec dbo.invoiceUpdate '&lcId),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'InvoiceUpdate...')),
- m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|Refund &Invoice|&Owner Report|&Show Detail|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|Refund &Invoice|&Apply Refund|&Owner Report|&Show Detail|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
  if(gcretval=2,selectedRateToggle=),
  if(gcretval=3,releaseProtest=),
  if(gcretval=4,refundInvoice=),
- if(gcretval=5,ownerReport=),
- if(gcretval=6,showFeePenalty=),
+ if(gcretval=5,applyRefund=),
+ if(gcretval=6,ownerReport=),
+ if(gcretval=7,showFeePenalty=),
+ refreshBRW=;
+
+@applyRefund=
+ gcInvoiceId=lcid,
+ select(1,4512,'a17<>''Posted'' and a18=''Tax Refund'''),
+ gcJEId=PIC:id,
+ lcrefundAmount=PIC:b15,
+ break(gcretval='esc' or lcrefundAmount+0 <= 0),
+ d1select('exec dbo.applyRefundStageGL 1, '&gcInvoiceId+0&', '&gcJEId+0&', '&lcrefundAmount+0&''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Apply Journal...')),
+ change(gcJEId,,1),
+ sql('exec invoiceUpdate '&gcInvoiceId+0),
  refreshBRW=;
 
 @refundInvoice=
@@ -165,12 +178,17 @@
  lcrefundAmount=obj7:key1,
  break(gcretval='esc' or lcrefundAmount+0 <= 0),
  gcreceiptId=kp('select top 1 receiptId from receiptlink where invoiceId='&gcInvoiceId+0),
+ lccheck=kp('select count(*) from receiptlink where invoiceId='&gcInvoiceId+0),
+ if(lccheck+0>1,pickreceipt=),
  d1select('exec dbo.receiptCRUD @mode=1, @receiptId='&gcreceiptId+0&', @invoiceId='&gcInvoiceId+0&', @refundAmount='&lcrefundAmount+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
  if(lcjeId>0,change(lcjeId,,1)),
  sql('exec invoiceUpdate '&gcInvoiceId+0),
  refreshBRW=;
+
+@pickreceipt=select(1,4502,'id in (select receiptId from receiptlink where invoiceId='&gcInvoiceId+0&')'),
+ gcreceiptId=PIC:id;
 
 @ownerReport=
  gcInvoiceId=lcid,
