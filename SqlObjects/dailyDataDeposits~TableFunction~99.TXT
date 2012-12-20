@@ -244,12 +244,12 @@ insert @wt (id,ord,reportOrder,description,subDescription)
  select
   cast('9' + cast(id as varchar) as int),
   @ordSeed + ord + '', -- removed b
-  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount),
+  dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,abs(amount)),
   dbo.padLeft(convert(varchar,glBalance,1),' ',16),
   '   ' + dbo.padRight(subDescription,' ',61),  
   case when minControlNumber is null then '' else dbo.padLeft(minControlNumber, 0, 5) + ' - ' + dbo.padLeft(maxControlNumber, 0, 5) end,
   dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
-  dbo.padLeft(convert(varchar,amount,1),' ',16),
+  dbo.padLeft(convert(varchar,abs(amount),1),' ',16),
   'detail',0
  from @wt
 
@@ -278,12 +278,12 @@ insert @wt (id,ord,reportOrder,description,subDescription)
   @ordSeed + reportOrder + substring(ord,2,3) +  cast(max(id) as varchar) + 'd',
   dbo.padRight('      Total ' + description, ' ', 60)
   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  + dbo.padLeft(convert(varchar,abs(sum(amount)),1), ' ', 16),
   '',
   dbo.padRight('      Total ' + description, ' ', 60),
   '',
   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
-  dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  dbo.padLeft(convert(varchar,abs(sum(amount)),1), ' ', 16),
   'gFooter',0
  from @wt 
  group by reportOrder,description,substring(ord,2,3)

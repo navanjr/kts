@@ -53,7 +53,7 @@ begin
   a.accountId,
   g.accountDesc,
   p.paymentType,
-  case when 1 = 1 then p.treasurersNumber else p.clerksNumber end,
+  case when @accountType <> 'Official' then p.treasurersNumber else p.clerksNumber end,
   g.amount
  from dbo.glDetail g
  join payments p on g.slink = p.slink 
@@ -152,8 +152,8 @@ begin
   'lineFeed',0
 
 -- insert grand total
- if exists(select * from @wt)
- begin
+-- if exists(select * from @wt)
+-- begin
   -- just lines :)
   insert @rt 
   select 0,@ordSeed+'ZZZZZ'+'da',dbo.padLeft(replicate('=',20),' ',80),
@@ -165,15 +165,15 @@ begin
    @ordSeed + 'ZZZZZ' + 'db',
    dbo.padLeft('Total ' + @sectionTitle, ' ', 60)
    + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-   dbo.padLeft(convert(varchar,sum(glBalance),1), ' ', 16),
+   + dbo.padLeft(convert(varchar,isnull(sum(amount),0),1), ' ', 16),
+   dbo.padLeft(convert(varchar,isnull(sum(glBalance),0),1), ' ', 16),
    dbo.padLeft('Total ' + @sectionTitle + '  ', ' ', 50),
    '',
    dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
-   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,isnull(sum(amount),0),1), ' ', 16),
    'grandTotal',0
   from @wt 
- end
+-- end
 
  return
 end
