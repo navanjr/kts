@@ -37,11 +37,13 @@ begin
   ord varchar(50),
   description varchar(50),
   subDescription varchar(50),
+  controlNumber varchar(50),
   receiptNumber varchar(50),
   amount money,
   slink2 varchar(15),
   ticketNumber varchar(50),
-  dptno varchar(50)
+  dptno varchar(50),
+  receiptId int
  )
   declare @accounts table(
   accountId int,
@@ -72,10 +74,12 @@ begin
   a.collectionDescription,
   b.accountDesc,
   c.key1,
+  '',
   b.amount,
   b.slink,
   case when c.typ=4522 then c.b2 else '' end,
-  a.dptno
+  a.dptno,
+  c.id
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4502,4522) --,4512,4522
@@ -84,24 +88,14 @@ begin
   and c.key2 between @theDate and @theDate + @days
 
 -- insert all raw receipt data
- insert @wtRaw
- select
-  b.accountId,
-  a.reportOrder,
-  a.collectionDescription,
-  b.accountDesc,
-  c.receiptNumber,
-  b.amount,
-  b.slink,
-  '',
-  a.dptno
- from @accounts a, glDetail b, receiptLink c, object d
- where a.accountId = b.accountId
-  and d.typ in (4502)
-  and dbo.slinkType(b.slink) = 'l'
-  and substring(b.slink,2,14) = c.id
-  and c.receiptId=d.id
-  and d.key2 between @theDate and @theDate + @days
+ insert @wtRaw (receiptNumber,description,receiptId) 
+ select l.receiptNumber, acct.accountDesc, l.receiptId
+  from gldetail g
+  join receiptlink l on  dbo.slinkType(g.slink) = 'l' and dbo.slinkId(g.slink) = l.id
+  join glAccounts acct on acct.accountId = g.contraId
+ where 
+  l.receiptId in (select receiptId from @wtRaw)
+  and l.receiptNumber > '  0'
 
  insert @wt
  select
