@@ -2,6 +2,7 @@ create procedure dbo.keySQLObjectDispatcher(
  @id int,
  @dropFlag varchar(5) = 'FALSE',
  @silentMode varchar(5) = 'FALSE',
+ @alter varchar(5) = 'TRUE',
  @result int = null output,
  @log varchar(max) = null output
 ) as
@@ -11,15 +12,20 @@ declare
   @objectName nvarchar(50),
   @objectType nvarchar(50),
   @objectDropType nvarchar(50),
-  @sqlMax nvarchar(max)
+  @sqlMax nvarchar(max),
+  @sysObjMax nvarchar(max) = '',
+  @sysObjId int
 
 -- Gather information about this Object
- select -- @loopcount=(datalength(e1)/4000)+1,
+ select
   @objectName=Key1,
   @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
   @objectDropType=Key2,
   @sqlMax = e1
  from object where id = @id
+
+ select @sysObjId = id from dbo.sysobjects where Name = @objectName
+ select @sysObjMax = @sysObjMax + c.text from dbo.sysobjects s,dbo.syscomments c where s.id = c.id and s.id = @sysObjId
 
  set @log = '@objectName=' + @objectName + ';'
   + '@objectType=' + @objectType + ';'
@@ -27,6 +33,47 @@ declare
 
 -- exec dbo.logit @@procid, @log
 
+if @alter = 'TRUE'
+begin
+
+ -- create if we do not find the object
+ if isnull(@sysObjId,0) = 0
+ begin
+  exec dbo.keySQLObjectDispatcher @id, @alter = 'FALSE'
+  select '@code=1;@message=Ran Legacy Create;'
+ end
+
+ -- bail if we find the object and it does not need to be altered
+ if @sysObjId > 0 and @sysObjMax = @sqlMax
+ begin
+  select '@code=1;@message=no changes detected;'
+  return
+ end
+
+ -- alter if we find the object and it needs to be altered
+ if @sysObjId > 0 and @sysObjMax != @sqlMax
+ begin
+
+  set @sqlMax = stuff(@sqlMax, charindex('create', @sqlMax), len('create'), 'alter')
+
+  begin try
+   exec(@sqlMax)
+  end try
+  begin catch
+   select @log = '@code=1;@message='+ERROR_MESSAGE()+';'
+   if @silentMode = 'FALSE'
+    select @log
+    
+   set @result = 1
+--   exec dbo.logit @@procid, 'SQL Error Catch', @log
+   return
+  end catch
+  select '@code=1;@message=Ran New Alter;'
+  return
+ end
+end
+else
+begin
 -- Drop the Object
  if @objectType = 'Trigger'
  begin
@@ -81,6 +128,7 @@ declare
 --   exec dbo.logit @@procid, 'SQL Error Catch', @log
    return
   end catch
+end
 
   if @silentMode = 'FALSE'
    select '@code=0;@message=OK;'
