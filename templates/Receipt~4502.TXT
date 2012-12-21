@@ -112,12 +112,16 @@ key7=apiUpdate
 @select=008;
 
 @brwstuff=
+ set(-69,0),
+ create(550,12,5,100,'show &Funds',-69),
  lcShowGL=readstring(cur:options,'@showgl='),
- gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') order by ord',
+ gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
  brw(150,1,gcbrw1sql,65,81,270,200,'138L(2)~~#2#M70L(2)~~#3#M60R(2)~Amount~@n-14.2b@#4#M',7,1),
  prop(150,7CFAH,13499135);
 @lbrw1forecolor=obj7:c9<0,255;
 @lbrw1color=obj7:c10=1,255;
+
+@acc550=refreshDetail=;
 
 @afterloadwindow=lccheck=kp('select case when key2<'' 0'' or key3<'' 0'' then id else 0 end from object where typ=4503 and key1='''&obj:key3&''''),if(lccheck+0>1,change(lccheck,,1)),
  refreshDetail=,
@@ -454,7 +458,8 @@ key7=apiUpdate
 @refreshDetail=
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  calcfld(092),calcfld(094),
- brwreload(1),
+ gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
+ brwreload(1,gcbrw1sql),
  break(obj:key3<>'MTG'),
  brwreload(2);
 
@@ -477,7 +482,7 @@ key7=apiUpdate
  focus(012);
 
 @doFixReceiptDetail=
- lcOops=kp('select colorFlag from dbo.receiptDetailBRW('&obj:id&',0) where id = -5'&lcid),
+ lcOops=kp('select colorFlag from dbo.receiptDetailBRW('&obj:id&',0,1) where id = -5'&lcid),
  iw('\t000Select Fund...;\t001Fund; \t003Description; \d004; \l0024701;r002002004004; @lf002=''typ = 4701 and (a1 in (select accountType from dbo.glBankFundTypes(''''FUND'''')))or (id in (select id from dbo.latestReceivables())) and b3!=1'',2;'),
  break(gcretval<>'OK'),
  d1select('exec dbo.receiptDetailCRUD '&obj:id&','&obj:type&', @receiptDetailId='&lcid&',@fundCode='''&obj7:key1&''',@method=''fixFund'''),
@@ -600,15 +605,15 @@ key7=apiUpdate
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
  if(gcposted='Posted',close('ok'),m('Receipt Failed to Post, please try again.'));
 
-@checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 
+@checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0,0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 
   and subdescription in (select key1 from object where typ=4100 and key2=''A'')'),
  if(gcparcel>' 0',docert=);
 
 @docert=m('Parcel# '&gcparcel&' has a certificate.  Would you like to endorse it now?','Endorse Certificate?',,6),
  break(gcretval<>2),
  lccertid=kp('select top 1 id from object where typ=4100 and key2=''A'' and key1='''&gcparcel&''''),
- lcinvoiceId=kp('select substring(ord,3,len(ord)-3) from receiptDetailBRW('&obj:id&',0) where subdescription='''&gcparcel&''''),
- lctaxamount=kp('select amount from receiptDetailBRW('&obj:id&',0) where subdescription='''&gcparcel&''''),
+ lcinvoiceId=kp('select substring(ord,3,len(ord)-3) from receiptDetailBRW('&obj:id&',0,0) where subdescription='''&gcparcel&''''),
+ lctaxamount=kp('select amount from receiptDetailBRW('&obj:id&',0,0) where subdescription='''&gcparcel&''''),
  lctaxyear=kp('select taxyear from invoices where id='&lcinvoiceId),
  lcitem=kp('select item from invoices where id='&lcinvoiceId),
  lcname=kp('select name from invoices where id='&lcinvoiceId),

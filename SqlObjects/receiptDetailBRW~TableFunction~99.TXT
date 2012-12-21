@@ -1,4 +1,4 @@
-create function dbo.receiptDetailBRW(@receiptId int, @showGL int) returns 
+create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int) returns 
 @rettable table(
  ord varchar(80),
  id int,
@@ -48,6 +48,8 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
 
+  if @showFunds = 1
+  begin
 -- get subInvoice and Invoices exclude tax invoice
   insert @rettable (ord,id,description,subdescription,amount,colorFlag)
   select
@@ -63,6 +65,7 @@ begin
    and receiptId = @receiptId
 --   and c.invoiceId > 0
   group by c.id, c.invoiceId, c.typ, b.fundCode, b.id
+  end
  end
 
  if exists(select * from dbo.paid where slink = @slink)
