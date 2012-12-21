@@ -1,0 +1,67 @@
+create procedure dbo.diagnostics(
+ @method varchar(50) = 'all',
+ @verbose varchar(5) = 'TRUE'
+) as 
+begin
+
+ declare @results table(
+  id int identity(1,1),
+  method varchar(50),
+  code int,
+  message varchar(max),
+  tally int
+ )
+
+ declare 
+  @methodUnit varchar(50),
+  @code int = 0,
+  @message varchar(max) = '',
+  @tally int = 0
+ 
+
+
+
+-- receiptLinks
+ set @methodUnit = 'receiptLinks'
+ if @method in ('all', @methodUnit)
+ begin
+  -- get your stats
+  
+  select 
+   @tally = 0 
+
+  -- set your result code and message
+  select 
+   @code = 1,
+   @message = 'TEST message'
+
+  -- insert into results
+  insert @results
+   select @methodUnit, @code, @message, @tally  
+ 
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+ end
+
+
+-- Next unit test here
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+  if @verbose = 'TRUE'
+   select * from @results order by id
+  return
+
+end
