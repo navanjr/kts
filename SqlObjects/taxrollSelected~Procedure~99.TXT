@@ -158,13 +158,13 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
 
  update r set methodRate = 1 from @rd r, invoices i where r.invoiceId=i.id and i.invoiceAmount < 25.01 and i.typ<>'O' and i.typ <>'S'
  
- insert receiptLink (receiptId, invoiceId, methodRate) 
-   select * from @rd
-
- update receiptLink set invoiceId=invoiceId*-1,receiptId=receiptId*-1  where receiptId = @receiptId 
+ delete from @rd where receiptId = @receiptId 
    and invoiceId in (select invoiceId from receiptLink where receiptId in (select id from object where typ=4502 and a17<>'Posted' and a17<>'VOID'))
  
- update receiptLink set invoiceId=invoiceId*-1,receiptId=receiptId*-1  where receiptId = @receiptId 
+ delete from @rd where receiptId = @receiptId 
    and dbo.invoiceTotalAR(invoiceId)=0
+
+ insert receiptLink (receiptId, invoiceId, methodRate) 
+   select * from @rd
 
 end
