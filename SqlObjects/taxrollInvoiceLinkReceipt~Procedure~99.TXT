@@ -15,14 +15,13 @@ exec dbo.logit @@procid, '@taxInquiryId', @taxInquiryId, '@receiptId', @receiptI
  if not exists(select * from object where typ = 4502 and id = @receiptId)
   return
 
+ update receiptLink set invoiceId=invoiceId*-1,receiptId=receiptId*-1 where receiptId = @taxInquiryId and dbo.invoiceTotalAR(invoiceId) = 0.00
+
  update receiptlink set receiptId = @receiptId where receiptId = @taxInquiryId  
 
  exec dbo.taxrollPenaltyBatch @receiptId
 
  insert receiptLink (receiptId,invoiceId,methodRate)
   select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId)
-
- update receiptLink set invoiceId=invoiceId*-1,receiptId=receiptId*-1 where receiptId = @receiptId and dbo.invoiceTotalAR(invoiceId) = 0.00
-
 
 end
