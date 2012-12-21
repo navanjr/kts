@@ -71,7 +71,6 @@ begin
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
 
-
  update w
   set itemNumber = cast(b.ITEMNUMBER as varchar(50)),
       parcelNumber = cast(b.FullPIDNUMBER as varchar(50)),
@@ -80,6 +79,18 @@ begin
  from @wt w, invoices a, adtax b
  where w.invoiceId=a.id 
   and a.taxrollId=b.id
+  and invoiceType <> 'S'
+
+
+ update w
+  set taxYear = cast(a.taxyear as varchar(50)),
+      itemNumber = cast(a.ITEM as varchar(50)),
+      parcelNumber = cast(a.PARCEL as varchar(50)),
+      ownerName = a.name,
+      perTyp = ''
+ from @wt w, invoices a
+ where w.invoiceId=a.id 
+  and invoiceType = 'S'
 
 
  declare @wt2 table(penalty money,
@@ -97,7 +108,7 @@ insert @wt2
    '',
    c.parentInvoiceId,
      recId 
-  from receiptLink a, receiptDetail b,@wt c
+  from receiptLink a, receiptDetail b, @wt c
  where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.invoiceId
    and receiptId in (select recId from @wt)
