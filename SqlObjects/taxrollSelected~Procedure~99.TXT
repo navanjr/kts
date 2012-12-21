@@ -9,7 +9,8 @@ begin
  declare @unPaidSelected varchar(50),
          @parcel varchar(60),
          @item varchar(60),
-         @name varchar(60)
+         @name varchar(60),
+         @taxYear varchar(60)
        select top 1 @unPaidSelected = a15 from object where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
@@ -53,7 +54,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
      end
      else
      begin
-       select @parcel=parcel,@item=item,@name=name from dbo.invoices where id = @invoiceId
+       select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
      end
 
   exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
@@ -78,7 +79,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
    begin
     insert @rd (receiptId, invoiceId, methodRate) 
    select @receiptId, id, @methodRate from invoices 
-    where name = @name
+    where name = @name and taxyear < @taxYear
     and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    end
 
@@ -131,7 +132,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
 
  if lower(@method) = 'mtgcodeall'
  begin
-  declare @mtgcodeAll varchar(60),@taxYear varchar(60)
+  declare @mtgcodeAll varchar(60)
   select @mtgcodeAll = key1,@taxYear = a10 from object where id = @receiptId and typ = 4030
   exec dbo.logit @@procid, '@mtgcodeAll = ', @mtgcodeAll,'@taxYear = ',@taxYear, @level = 2 
  
