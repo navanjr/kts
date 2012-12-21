@@ -49,9 +49,12 @@
  );
 
 
+
+/*** this is a test unstaged apportionment report by Steve - uses fixed dates for now***/
 @testreportSLS=
  do(452,getSiteInfo=),
  lcsql='select accountCode,accountDesc,sum(amount) as amount from dbo.rpMonthEndDetail(''77405'',''77435'',''TRUE'') where journalType=''APPORTIONMENT'' and accountType in (select accountType from dbo.glBankFundTypes(''FUND'')) group by accountCode,accountDesc',
+
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=12,
@@ -79,3 +82,39 @@ tr(
   edt,
   nl,
  );
+
+
+/*** this is a test MISC apportionment report by Steve***/
+@testreportSLS1=
+ do(452,getSiteInfo=),
+
+lcsql='select accountId as id,accountCode,accountDesc,Comment,amount from dbo.apportionCollectionsBRW('&gc4794id+0&','&gcApportionToDate+0&') order by contraAccountCode, acrAccountCode, id',
+
+ lcDetFont='Arial',
+ lcFont='Arial',
+ lcFontSize=12,
+ 
+tr(
+  lcx=400,
+  lcTm=400,
+  box(lcx,lcTm,lcx+3000,lcTm+550,0),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+1000,lcy,lcFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),
+  prn('Staged Apportionment',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4),
+  prn(,lcx),
+  bnd('HU','Name',2500,'Account Code',1500,'Balance   ',1000R),
+ 
+ det(lcsql),
+   prn(,,,lcFontSize-2,,lcDetFont),
+   bnd('D',obj5:a2,1500,obj5:a1,2500,format(obj5:a3,@n$-14.2),1000R,
+  edt,
+  nl,
+ );
+
