@@ -52,12 +52,14 @@ begin
   objectPath,
   '',0,''
  from dbo.dir(@path + '\SqlObjects')
- where objectName != 'keyUpdateAll'
 
 -- gather data from object
  update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1 and b.typ = 451
 -- gather data from sysobject
  update a set a.sqlId = b.id from @wt a, dbo.sysobjects b where a.objectName = b.name
+
+-- turn off the trigger on object
+ alter table object disable trigger keySqlObjectWriteToRepoTR
 
  while exists(select * from @wt where processFlag = 0)
  begin
@@ -73,9 +75,6 @@ begin
   order by cast(objectOrder as int), objectName
 
   exec dbo.spReadTextFile @fullPath, @fileContents = @repoData out
-
--- turn off the trigger on object
-  alter table object disable trigger keySqlObjectWriteToRepoTR
 
 -- add or update objects
   if isnull(@idToken,0) = 0
@@ -95,9 +94,6 @@ begin
    where a.typ = 451 and a.id = b.objectId and a.id = @idToken
   end
 
--- turn the trigger back on
-  alter table object enable trigger keySqlObjectWriteToRepoTR
-
 -- verify everything
   set @sqlData = ''
   select @sqlData = @sqlData + c.text from dbo.sysobjects s,dbo.syscomments c where s.id = c.id and s.id = @sqlIdToken
@@ -113,6 +109,10 @@ begin
    update @wt set processflag = 1 where id = @wtIdToken 
 
  end
+
+-- turn the trigger back on
+ alter table object enable trigger keySqlObjectWriteToRepoTR
+
 
 -- if we need to alter glCreateTables...
  if exists(select * from @wt where objectName = 'glCreateTables' and processFlag = -2)
@@ -135,6 +135,8 @@ begin
  exec dbo.glCreateTables
 
 -- ok so now lets create or alter the bad items
+ update @wt set processflag = 2 where objectName = 'keyUpdateAll' -- we want to skip the dispatcher for ourselves
+ alter table object disable trigger keySqlObjectWriteToRepoTR
  while exists(select * from @wt where processFlag = -2)
  begin
 
@@ -152,11 +154,10 @@ begin
    update @wt set processflag = -3, data = @dispatcherLog where id = @wtIdToken 
   
  end
+ alter table object enable trigger keySqlObjectWriteToRepoTR
 
 -- update the status of the sql objects
-  alter table object disable trigger keySqlObjectWriteToRepoTR
   update object set a18 = 'OK' where typ = 451 and id in (select objectId from @wt where processFlag > 0)
-  alter table object enable trigger keySqlObjectWriteToRepoTR
 
 -- TODO: delete the object records that are not needed any longer
 
