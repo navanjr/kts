@@ -75,6 +75,16 @@ begin
                 insert into journalLink
                   select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId and invoiceId=@invoiceId
 
+         -- If no refund Amount entered then adjust out sub invoices as well    
+            if @refundAmount <= 0.00
+             begin
+           -- create journalLinks
+                insert into journalLink
+                  select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId and invoiceId 
+                   in (select id from invoices where invoiceId=@invoiceId)
+
+             end
+
          -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
                   select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
@@ -93,6 +103,8 @@ begin
                    'o'+cast(@newId as varchar),@receiptSLink 
                    from glDetail g ,receiptlink r,journalLink j
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
+
+
 
 
          end

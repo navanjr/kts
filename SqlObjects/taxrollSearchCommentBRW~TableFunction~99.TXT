@@ -133,6 +133,42 @@ insert @rt
     typ
     from @wt
 
+--Journal Entries
+  delete from @wt where invoiceId<>0
+  insert @wt
+     select 
+       @selectedId,
+       '',
+       '',
+       o.key1,
+       sum(b.amount),
+       a.jeId,
+       o.key2, 
+       ' Journal'
+      from journalLink a, glDetail b, invoices c, glaccounts ac, object o
+     where 'j'+CAST(a.id as varchar) = b.slink
+         and o.typ = 4512
+         and o.id = a.jeId
+         and b.accountCode=ac.accountCode
+         and a.invoiceId = c.ID
+         and (c.id = @selectedId or c.invoiceId = @selectedId) 
+         and ac.accountType = 'RECEIVABLE'
+        group by o.key1, a.jeId, o.key2
+
+ update @wt set
+       name = key3
+      from @wt,object where id = receiptId
+
+ 
+ insert @rt
+  select 
+    invoiceId*-1,
+    recDate,
+    '',
+    'Journal: '+controlNum+'   '+NAME+'  Amount: '+cast(dbo.formatcurr(amount) as varchar),
+    typ
+    from @wt
+
 
  return
 end
