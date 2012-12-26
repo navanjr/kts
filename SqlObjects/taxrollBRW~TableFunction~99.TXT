@@ -10,8 +10,8 @@ create function dbo.taxrollBRW(
  taxYear numeric(5,0),
  item numeric(22,1),
  taxType nvarchar(1),
- amount money,
- due money,
+ amount varchar(50),
+ due varchar(50),
  slink varchar(15),
  selectedFlag char(4),
  methodRate money,
@@ -50,7 +50,7 @@ set @searchString=replace(@searchstring,'~{','''')
 -- get the already selected items
   insert @rt
     select 
-     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,invoiceAmount,invoiceDue,
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_'+cast(item as varchar)+cast(taxyear as varchar),case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed,1
     from dbo.invoices a, receiptLink b 
     where a.id = b.invoiceId and b.receiptId = @receiptId
@@ -64,7 +64,7 @@ set @searchString=replace(@searchstring,'~{','''')
      if @AdvSrch = 1
       insert @rt
        select top 1000 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0
+        id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0
        from dbo.invoices
        where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
@@ -75,7 +75,7 @@ set @searchString=replace(@searchstring,'~{','''')
 ---Regular Search 
       insert @rt
        select top 1000 
-        id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
+        id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
        from dbo.invoices
        where 
         name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar)+'0'+cast(item as varchar) like '%'+@searchString+'%'
@@ -89,7 +89,7 @@ set @searchString=replace(@searchstring,'~{','''')
    else
      insert @rt
      select top 1000 
-      id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
+      id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
      from dbo.invoices
      where
       taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
@@ -108,7 +108,7 @@ set @searchString=replace(@searchstring,'~{','''')
      if @AdvSrch = 1  
        insert @rt
          select top 1000 
-          (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
+          (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
          from dbo.adtax
           where 
               id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
@@ -117,7 +117,7 @@ set @searchString=replace(@searchstring,'~{','''')
 ---Regular Search 
        insert @rt
          select top 1000 
-          (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0,0,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
+          (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
          from dbo.adtax
           where 
               OWNERNAME+' '+FULLPIDNUMBER+' '+cast(REALTAXYEAR as varchar(4))+'0'+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%'
@@ -156,11 +156,11 @@ set @searchString=replace(@searchstring,'~{','''')
    update a set 
     fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
     penalty = round((due*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2),
-    toPay = due * methodRate
+    toPay = cast(due as money) * methodRate
    from @rt a where selectedFlag in (char(189),'x')
      
    insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel,colorFlag) 
-   select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',sum(amount),sum(due),sum(fees),sum(penalty),'--Grand Total: '+convert(varchar,sum((topay+fees+penalty)),1),2
+   select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',cast(sum(cast(amount as money)) as varchar),cast(sum(cast(due as money)) as varchar),sum(fees),sum(penalty),'--Grand Total: '+convert(varchar,sum((topay+fees+penalty)),1),2
    from @rt where selectedFlag > '  0'
 
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
