@@ -39,16 +39,14 @@ begin
  select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station
  from receipt 
  where 
- --recNum>=@beginReceiptNo and recNum<=@endReceiptNo and 
- postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+  postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
   and recType<>'TAX'
 
  insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
    'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station
   from taxReceipt where 
- --recNum>=@beginReceiptNo and recNum<=@endReceiptNo and 
- postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+   postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
    and parentInvoiceId<1
    order by recNum
 
@@ -58,6 +56,7 @@ begin
   from taxReceipt where recId in (select recId from @wt)
    and parentInvoiceId>0
    order by recNum
+
 
 
  update w 
@@ -70,6 +69,7 @@ begin
    and b.accountType='ACCRUED RECEIVABLE' 
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
+
 
  update w
   set itemNumber = cast(b.ITEMNUMBER as varchar(50)),
@@ -93,12 +93,22 @@ begin
   and invoiceType = 'S'
 
 
+
+
  declare @wt2 table(penalty money,
                    fee money,
                    adjust money,
                    invoiceType varchar(50),
                    parentInvoiceId int,
-                   recId int)
+                   recId int,
+                   slink varchar(16))
+
+ declare @wt3 table(fee money,
+                   adjust money,
+                   invoiceId int,
+                   slink varchar(16))
+
+
 
 insert @wt2
      select
@@ -107,7 +117,8 @@ insert @wt2
    sum(case when c.invoiceType='A' then b.amount else 0 end),
    '',
    c.parentInvoiceId,
-     recId 
+   recId,
+   '' 
   from receiptLink a, receiptDetail b, @wt c
  where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.invoiceId
@@ -116,14 +127,57 @@ insert @wt2
      group by c.parentInvoiceId, recId
 
 update w set
-  paid=w.paid+isnull(a.adjust,0),   
-  penalty=a.penalty, 
+  paid=isnull(w.paid,0)+isnull(a.adjust,0),   
+  penalty=isnull(a.penalty,0), 
   fee=isnull(a.fee,0) 
   from @wt w, @wt2 a
  where a.parentInvoiceId=w.invoiceId 
   and a.parentInvoiceId>0 
   and w.recId=a.recId
 
+delete from @wt2 where parentInvoiceId > 0
+
+insert @wt2 (slink,adjust,recId,parentInvoiceId)
+     select
+           c.slink,
+           d.amount,
+           c.recId,
+           c.invoiceId
+  from @wt c, (select a.slink,sum(a.amount) as amount,a.accountCode from gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE'
+   group by a.slink,a.accountCode) d
+ where c.slink=d.slink and d.amount<>c.paid
+
+update w set fee = adjust, adjust=0 from @wt2 w where adjust not in (select top 1 adjust from @wt2 where slink=w.slink)
+
+insert @wt3 
+  select sum(isnull(fee,0)),sum(isnull(adjust,0)),parentInvoiceId,slink from @wt2 group by parentInvoiceId,slink
+
+update w set
+  paid=isnull(a.adjust,0),
+  fee=isnull(a.fee,0)+isnull(w.fee,0)
+  from @wt w, @wt3 a
+ where a.invoiceId=w.invoiceId 
+  and a.invoiceId>0 
+  and a.slink=w.slink
+
+
+
+
+
+update w set 
+  taxYear=case when isnull(w.taxYear,'NULL')='NULL' then d.taxYear else w.taxYear end,
+  school=case when isnull(w.school,'NULL')='NULL' then d.school else w.school end,
+  rate=case when isnull(w.rate,'NULL')='NULL' then d.rate else w.rate end,
+  taxType=case when isnull(w.taxType,'NULL')='NULL' then d.taxType else w.taxType end
+ from @wt w, @wt d
+  where w.parentinvoiceId<=0
+   and d.parentInvoiceId=w.invoiceId
+   and w.recId=d.recId 
+   and isnull(w.taxYear,'NULL')='NULL'
+   and isnull(d.taxYear,'NULL')<>'NULL'
+ 
 update w set
   w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortgage fee',Description)>0)
   from @wt w where w.recType='MTG'
