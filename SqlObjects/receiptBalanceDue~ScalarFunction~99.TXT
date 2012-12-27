@@ -1,4 +1,4 @@
-CREATE function dbo.receiptBalanceDue(@receiptId int) returns money
+CREATE function [dbo].[receiptBalanceDue](@receiptId int) returns money
 as 
 begin
  declare @totalDue money,
@@ -42,6 +42,7 @@ if @receiptType = 'TAX'
  from glDetailStage a, glAccounts b 
   where a.accountId = b.accountId and 
   b.accountType = 'RECEIVABLE' and 
+  left(slink,1) <> 't' and 
   slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @due = isnull(@totalDue,0) + isnull(@glAmtStage,0)
