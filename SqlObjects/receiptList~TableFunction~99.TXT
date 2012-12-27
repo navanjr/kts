@@ -137,6 +137,7 @@ update w set
 
 delete from @wt2 where parentInvoiceId > 0
 
+--Collect information on Tax Receipts with more than one line of receiptDetail
 insert @wt2 (slink,adjust,recId,parentInvoiceId)
      select
            c.slink,
@@ -147,9 +148,11 @@ insert @wt2 (slink,adjust,recId,parentInvoiceId)
  where a.accountCode=b.accountCode 
    and b.accountType='ACCRUED RECEIVABLE'
    group by a.slink,a.accountCode) d
- where c.slink=d.slink and d.amount<>c.paid
+ where c.recType='TAX' and c.slink=d.slink and c.slink in 
+  (select d.slink from @wt w, gldetail d, glaccounts a 
+    where d.slink=w.slink and d.accountCode=a.accountCode and a.accountType='ACCRUED RECEIVABLE' and w.recType='TAX' group by d.slink having count(*)>1)
 
-update w set fee = adjust, adjust=0 from @wt2 w where adjust not in (select top 1 adjust from @wt2 where slink=w.slink)
+update w set fee = adjust, adjust=0 from @wt2 w where adjust not in (select top 1 adjust from @wt2 where slink=w.slink order by adjust desc)
 
 insert @wt3 
   select sum(isnull(fee,0)),sum(isnull(adjust,0)),parentInvoiceId,slink from @wt2 group by parentInvoiceId,slink
