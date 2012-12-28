@@ -4,51 +4,367 @@ begin
  exec dbo.logit @@procid, 'Running...'
 
 
+------Object
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'ID_Key3_A1')
+   CREATE INDEX [ID_Key3_A1] ON [dbo].[Object] ([Typ],[A17]) INCLUDE ([ID], [Key3], [A1])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'Attributes_auto')
+   CREATE NONCLUSTERED INDEX [Attributes_auto] ON [dbo].[Object] 
+       ([Attributes] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON, FILLFACTOR = 90) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'typ, key1')
+   CREATE NONCLUSTERED INDEX [typ, key1] ON [dbo].[Object] 
+       ([Typ] ASC,
+	[Key1] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'typ,key1 include key2')
+   CREATE NONCLUSTERED INDEX [typ,key1 include key2] ON [dbo].[Object] 
+       ([Typ] ASC,
+	[Key1] ASC)
+   INCLUDE ( [Key2]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'typ include key1,key2')
+   CREATE NONCLUSTERED INDEX [typ include key1,key2] ON [dbo].[Object] 
+       ([Typ] ASC)
+   INCLUDE ( [Key1],
+             [Key2]) 
+WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'link1')
+   CREATE NONCLUSTERED INDEX [link1] ON [dbo].[Object] 
+       ([Link1] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'Typ,olink include id')
+   CREATE NONCLUSTERED INDEX [Typ,olink include id] ON [dbo].[Object] 
+       ([Typ] ASC,
+	[OLink1] ASC)
+    INCLUDE ( [ID]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+------receiptDetail
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'Desc_SrcCode_amt')
+   CREATE INDEX [Desc_SrcCode_amt] ON [dbo].[receiptDetail] ([slink]) INCLUDE ([description], [sourceCode], [amount])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'id')
+   CREATE NONCLUSTERED INDEX [id] ON [dbo].[receiptDetail] 
+       ([id] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+------Invoices
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'typ,id')
 
    CREATE NONCLUSTERED INDEX [typ,id]
       ON [dbo].[invoices] ([TYP])
        INCLUDE ([ID])
 
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceID_typ')
+   CREATE INDEX [invoiceID_typ] ON [dbo].[invoices] ([invoiceId],[TYP])
 
- IF not EXISTS(SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue')
+IF not EXISTS(SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue')
 
    CREATE NONCLUSTERED INDEX [id,taxrollid,typ,parcel,item,name,invoiceamount,invoicedue,subinvoicedue]
       ON [dbo].[invoices] ([STATUS])
         INCLUDE ([ID],[TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[invoiceAmount],[invoiceDue],[subInvoiceDue])
 
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'ID')
+   CREATE NONCLUSTERED INDEX [ID] ON [dbo].[invoices] 
+       ([ID] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
- if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
-  begin
-   CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
-     ([ID] ASC)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF,
-      DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
-  end
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'Name,Id')
+   CREATE NONCLUSTERED INDEX [Name,Id] ON [dbo].[invoices] 
+       ([NAME] ASC,
+	[ID] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
- IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountcode_amount')
-   CREATE nonclustered INDEX [accountcode_amount] ON [dbo].[gldetail] ([accountCode], [amount])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'PARCEL,Id')
+   CREATE NONCLUSTERED INDEX [PARCEL,Id] ON [dbo].[invoices] 
+       ([PARCEL] ASC,
+	[ID] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
-/*
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'Id,TaxrollId')
+   CREATE NONCLUSTERED INDEX [Id,TaxrollId] ON [dbo].[invoices] 
+       ([ID] ASC,
+	[TAXROLLID] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
----Jeff's Initial
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'Id,invoiceAmount')
+   CREATE NONCLUSTERED INDEX [Id,invoiceAmount] ON [dbo].[invoices] 
+       ([ID] ASC,
+	[invoiceAmount] ASC) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'InvoiceAmount include Id')
+   CREATE NONCLUSTERED INDEX [InvoiceAmount include Id] ON [dbo].[invoices] 
+       ([invoiceAmount] ASC)
+       INCLUDE ( [ID]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') 
+       AND name = N'id include taxrollId,typ,parcel,item,taxyear,name,invoiceamount,invoicedue,subinvoiceDue,printed,queue')
+   CREATE NONCLUSTERED INDEX [id include taxrollId,typ,parcel,item,taxyear,name,invoiceamount,invoicedue,subinvoiceDue,printed,queue] ON [dbo].[invoices] 
+     ([ID] ASC)
+INCLUDE ( [TAXROLLID],
+[TYP],
+[PARCEL],
+[ITEM],
+[TAXYEAR],
+[NAME],
+[invoiceAmount],
+[invoiceDue],
+[subInvoiceDue],
+[printed],
+[queue]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') 
+       AND name = N'status include id,taxrollId,typ,parcel,item,taxyear,name,invoiceamount,invoicedue,subinvoiceDue,printed,queue')
+   CREATE NONCLUSTERED INDEX [status include id,taxrollId,typ,parcel,item,taxyear,name,invoiceamount,invoicedue,subinvoiceDue,printed,queue] ON [dbo].[invoices] 
+       ([STATUS] ASC)
+INCLUDE ( [ID],
+[TAXROLLID],
+[TYP],
+[PARCEL],
+[ITEM],
+[TAXYEAR],
+[NAME],
+[invoiceAmount],
+[invoiceDue],
+[subInvoiceDue],
+[printed],
+[queue]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id, invoiceId include parcel,name')
+   CREATE NONCLUSTERED INDEX [id, invoiceId include parcel,name] ON [dbo].[invoices] 
+       ([ID] ASC,
+	[invoiceId] ASC)
+   INCLUDE ( [PARCEL],
+             [NAME]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceId include id,Parcel,name')
+   CREATE NONCLUSTERED INDEX [invoiceId include id,Parcel,name] ON [dbo].[invoices] 
+       ([invoiceId] ASC)
+   INCLUDE ( [ID],
+             [PARCEL],
+             [NAME]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,invoicId include taxyear')
+   CREATE NONCLUSTERED INDEX [id,invoicId include taxyear] ON [dbo].[invoices] 
+       ([ID] ASC,
+	[invoiceId] ASC)
+   INCLUDE ( [TAXYEAR]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceId include id,taxyear')
+   CREATE NONCLUSTERED INDEX [invoiceId include id,taxyear] ON [dbo].[invoices] 
+       ([invoiceId] ASC)
+    INCLUDE ( [ID],
+              [TAXYEAR]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id,invoiceId include typ')
+   CREATE NONCLUSTERED INDEX [id,invoiceId include typ] ON [dbo].[invoices] 
+       ([ID] ASC,
+	[invoiceId] ASC)
+   INCLUDE ( [TYP]) WITH 
+ (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceId include id,typ')
+   CREATE NONCLUSTERED INDEX [invoiceId include id,typ] ON [dbo].[invoices] 
+       ([invoiceId] ASC)
+  INCLUDE ( [ID],
+            [TYP]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'Id include typ,invoiceId')
+   CREATE NONCLUSTERED INDEX [Id include typ,invoiceId] ON [dbo].[invoices] 
+       ([ID] ASC)
+   INCLUDE ([TYP],
+            [invoiceId]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id include typ,taxyear,invoicId')
+   CREATE NONCLUSTERED INDEX [id include typ,taxyear,invoicId] ON [dbo].[invoices] 
+       ([ID] ASC)
+   INCLUDE ( [TYP],
+             [TAXYEAR],
+             [invoiceId]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'typ include id,taxyear,invoiceId')
+    CREATE NONCLUSTERED INDEX [typ include id,taxyear,invoiceId] ON [dbo].[invoices] 
+       ([TYP] ASC)
+    INCLUDE ( [ID],
+              [TAXYEAR],
+              [invoiceId]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'id include Taxyear')
+   CREATE NONCLUSTERED INDEX [id include Taxyear] ON [dbo].[invoices] 
+       ([ID] ASC)
+    INCLUDE ( [TAXYEAR]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'taxyear include Id')
+   CREATE NONCLUSTERED INDEX [taxyear include Id] ON [dbo].[invoices] 
+       ([TAXYEAR] ASC)
+   INCLUDE ( [ID]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') 
+       AND name = N'id include taxrollid,typ,parcel,item,taxyear,name,invoiceid,invoiceAmount')
+   CREATE NONCLUSTERED INDEX [id include taxrollid,typ,parcel,item,taxyear,name,invoiceid,invoiceAmount] ON [dbo].[invoices] 
+       ([ID] ASC)
+   INCLUDE ( [TAXROLLID],
+             [TYP],
+             [PARCEL],
+             [ITEM],
+             [TAXYEAR],
+             [NAME],
+             [invoiceId],
+             [invoiceAmount]) WITH 
+(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+
+------glDetail
+
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'Acctid')
-   CREATE INDEX [Acctid] ON [dbo].[gldetail] ([slink]) INCLUDE ([accountId])
+   CREATE NONCLUSTERED INDEX [Acctid] ON [dbo].[gldetail] 
+    ([slink] ASC)
+     INCLUDE ( [accountId]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'slink')
    CREATE INDEX [slink] ON [dbo].[gldetail] ([slink])
 
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'Desc_SrcCode_amt')
-   CREATE INDEX [Desc_SrcCode_amt] ON [dbo].[receiptDetail] ([slink]) INCLUDE ([description], [sourceCode], [amount])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountcode_amount')
+  CREATE nonclustered INDEX [accountcode_amount] ON [dbo].[gldetail] ([accountCode], [amount])
 
 
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'invoiceID_typ')
-   CREATE INDEX [invoiceID_typ] ON [dbo].[invoices] ([invoiceId],[TYP])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'contraId')
+ CREATE NONCLUSTERED INDEX [contraId] ON [dbo].[gldetail] 
+      ([contraId] ASC)
+         INCLUDE ( [accountId],
+    [amount]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'ID_Key3_A1')
-   CREATE INDEX [ID_Key3_A1] ON [dbo].[Object] ([Typ],[A17]) INCLUDE ([ID], [Key3], [A1])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId include id,fpid,amount,slink,bsId')
+   CREATE NONCLUSTERED INDEX [accountId] ON [dbo].[gldetail] 
+		([accountId] ASC)
+			INCLUDE ( [id],
+			[fpid],
+			[amount],
+			[slink],
+			[bsId]) WITH 
+			(PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId Include accountCode,accountDesc,amount,slink')
+ CREATE NONCLUSTERED INDEX [accountId Include accountCode,accountDesc,amount,slink] ON [dbo].[gldetail] 
+    ([accountId] ASC)
+     INCLUDE ( [accountCode],
+       [accountDesc],
+       [amount],
+       [slink]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
 
 
-*/
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'acccountId include amount,bsId')
+   CREATE NONCLUSTERED INDEX [acccountId include amount,bsId] ON [dbo].[gldetail] 
+        ([accountId] ASC)
+           INCLUDE ( [amount],
+           [bsId]) WITH 
+          (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId,bsId include Amount')
+    CREATE NONCLUSTERED INDEX [accountId,bsId include Amount] ON [dbo].[gldetail] 
+       ([accountId] ASC,
+	[bsId] ASC)
+          INCLUDE ( [amount]) WITH 
+         (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId include accountDesc,amount,slink')
+    CREATE NONCLUSTERED INDEX [accountId include accountDesc,amount,slink] ON [dbo].[gldetail] 
+       ([accountId] ASC)
+        INCLUDE ( [accountDesc],
+                  [amount],
+                  [slink]) WITH 
+        (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId Include amount')
+CREATE NONCLUSTERED INDEX [accountId Include amount] ON [dbo].[gldetail] 
+       ([accountId] ASC)
+       INCLUDE ( [amount]) WITH 
+       (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId include accountCode,amount,slink')
+CREATE NONCLUSTERED INDEX [accountId include accountCode,amount,slink] ON [dbo].[gldetail] 
+       ([accountId] ASC)
+       INCLUDE ([accountCode],
+                [amount],
+                [slink]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
+
+-------Adtax
+if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
+   CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
+     ([ID] ASC)WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF,
+      DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+ 
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[AdTax]') AND name = N'Id,OwnerName')
+
+CREATE NONCLUSTERED INDEX [Id,OwnerName] ON [dbo].[AdTax] 
+(
+	[ID] ASC,
+	[OWNERNAME] ASC
+)
+INCLUDE ( [RECORDTYPE],
+[ADDITIONNUMBER],
+[TOWNSHIPBLOCK],
+[RANGELOT],
+[FULLPIDNUMBER],
+[ITEMNUMBER],
+[REALTAXYEAR],
+[ADDRESS1],
+[ADDRESS2],
+[CITY],
+[STATE],
+[ZIP1],
+[SCHOOLDISTRICTMAIN],
+[ACRES],
+[MFGHOMEASSESSED],
+[GROSSASSESSED],
+[BASEEXEMPTION],
+[NETASSESSEDVALUE],
+[TOTALTAXRATE],
+[proploc],
+[LandAssessed],
+[ImprovedAssessed],
+[MiscAssessed],
+[modified],
+[apiUpdated]) WITH (PAD_INDEX  = OFF, STATISTICS_NORECOMPUTE  = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON, ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
+
 
 
 
