@@ -57,8 +57,6 @@ begin
    and parentInvoiceId>0
    order by recNum
 
-
-
  update w 
  set paid = amount, 
      taxYear = apyear, 
@@ -69,7 +67,34 @@ begin
    and b.accountType='ACCRUED RECEIVABLE' 
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
+   and parentInvoiceId=0
 
+ update w 
+ set fee = amount 
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType not in ('A','P')
+
+ update w 
+ set penalty = amount
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType ='P'
+
+ update w 
+ set paid = amount
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType ='A'
 
  update w
   set itemNumber = cast(b.ITEMNUMBER as varchar(50)),
@@ -81,7 +106,6 @@ begin
   and a.taxrollId=b.id
   and invoiceType <> 'S'
 
-
  update w
   set taxYear = cast(a.taxyear as varchar(50)),
       itemNumber = cast(a.ITEM as varchar(50)),
@@ -92,38 +116,28 @@ begin
  where w.invoiceId=a.id 
   and invoiceType = 'S'
 
-
-
-
  declare @wt2 table(penalty money,
                    fee money,
                    adjust money,
-                   invoiceType varchar(50),
                    parentInvoiceId int,
                    recId int,
-                   slink varchar(16))
+                   slink varchar(30))
 
  declare @wt3 table(fee money,
                    adjust money,
-                   invoiceId int,
-                   slink varchar(16))
-
-
+                   parentInvoiceId int,
+                   slink varchar(30))
 
 insert @wt2
      select
-   sum(case when c.invoiceType='P' then b.amount else 0 end),
-   sum(case when c.invoiceType not in ('P','A') then b.amount else 0 end),
-   sum(case when c.invoiceType='A' then b.amount else 0 end),
-   '',
+   sum(isnull(c.penalty,0)),
+   sum(isnull(c.fee,0)),
+   sum(isnull(c.paid,0)),
    c.parentInvoiceId,
-   recId,
-   '' 
-  from receiptLink a, receiptDetail b, @wt c
- where 't'+CAST(a.invoiceId as varchar) = b.slink
-   and a.invoiceId = c.invoiceId
-   and receiptId in (select recId from @wt)
-   and c.parentInvoiceId > 0
+   c.recId,
+   ''
+  from @wt c
+ where c.parentInvoiceId > 0
      group by c.parentInvoiceId, recId
 
 update w set
@@ -161,13 +175,9 @@ update w set
   paid=isnull(a.adjust,0),
   fee=isnull(a.fee,0)+isnull(w.fee,0)
   from @wt w, @wt3 a
- where a.invoiceId=w.invoiceId 
-  and a.invoiceId>0 
+ where a.parentInvoiceId=w.invoiceId 
+  and a.parentInvoiceId>0 
   and a.slink=w.slink
-
-
-
-
 
 update w set 
   taxYear=case when isnull(w.taxYear,'NULL')='NULL' then d.taxYear else w.taxYear end,
@@ -185,7 +195,6 @@ update w set
   w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortgage fee',Description)>0)
   from @wt w where w.recType='MTG'
 
-
 delete from @wt where parentInvoiceId>0
 
 update @wt set
@@ -194,11 +203,9 @@ update @wt set
   SAtyp = case when invoiceType not in ('B','I','R','P', 'A')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
 where recType='TAX'
 
-
 update @wt set 
  paid=isnull(paid,0)-isnull(fee,0) 
  where left(recType,3)<>'TAX'
-
 
 return 
 end
