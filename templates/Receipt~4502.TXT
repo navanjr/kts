@@ -121,10 +121,15 @@ key7=apiUpdate
 @lbrw1forecolor=obj7:c9<0,255;
 @lbrw1color=obj7:c10=1,255;
 
-@acc550=refreshDetail=;
+@acc550=
+ refreshDetail=;
 
-@afterloadwindow=lccheck=kp('select case when key2<'' 0'' or key3<'' 0'' then id else 0 end from object where typ=4503 and key1='''&obj:key3&''''),if(lccheck+0>1,change(lccheck,,1)),
+@afterloadwindow=
+ lcAfter=1,
+ lccheck=kp('select case when key2<'' 0'' or key3<'' 0'' then id else 0 end from object where typ=4503 and key1='''&obj:key3&''''),
+ if(lccheck+0>1,change(lccheck,,1)),
  refreshDetail=,
+ lcAfter='',
  d1select('select case when sum(isnull(amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetailreports where slink in (select * from dbo.receiptSLinks('&obj:id&')) and accountType = ''ACCRUED RECEIVABLE'''),
  gcAlreadyCancelled=obj7:d1,
  tsc,
@@ -469,7 +474,7 @@ key7=apiUpdate
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  calcfld(092),calcfld(094),
  gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
- brwreload(1,gcbrw1sql),
+ if(lcAfter<>1,brwreload(1,gcbrw1sql)),
  break(obj:key3<>'MTG'),
  brwreload(2);
 
