@@ -1,6 +1,9 @@
-create function dbo.journalTypes() returns @rt table(journalType varchar(60),auditorReportGroup varchar(60),detail varchar(10)) as
+create function dbo.journalTypes() returns @rt table(journalType varchar(60),auditorReportGroup varchar(60),detail varchar(60)) as
 begin
-insert @rt
+
+declare @wt table(journalType varchar(60),auditorReportGroup varchar(60),detail varchar(10))
+
+insert @wt
  select 'APPORTIONMENT','COLLECTIONS','N'
   union
  select 'APPORTIONMENT SPECIAL','COLLECTIONS','N'
@@ -10,5 +13,14 @@ insert @rt
  select 'MANUAL','JOURNAL','N'
   union
  select 'Tax Refund','JOURNAL','N'
+
+insert @rt 
+ select key1, key2, key3 from object where typ=1516
+
+insert @rt 
+ select * from @wt where journalType not in (select journalType from @rt)
+
+
+
 return
 end
