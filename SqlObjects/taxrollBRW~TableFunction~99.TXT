@@ -156,12 +156,15 @@ set @searchString=replace(@searchstring,'~{','''')
   begin
    update a set 
     fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
-    penalty = round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2),
-    toPay = cast(due as money) 
+    penalty = round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2)
    from @rt a where selectedFlag in (char(189),'x')
-     
+ 
+  update a set
+    toPay = cast(due as money)+fees+penalty
+     from @rt a where selectedFlag in (char(189),'x')
+   
    insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel,colorFlag) 
-   select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',dbo.formatcurr(sum(cast(amount as money))),dbo.formatcurr(sum(cast(due as money))),sum(fees),sum(penalty),'--Grand Total: '+convert(varchar,sum((topay+fees+penalty)),1),2
+   select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',dbo.formatcurr(sum(cast(amount as money))),dbo.formatcurr(sum(cast(due as money))),sum(fees),sum(penalty),'--Grand Total: '+convert(varchar,sum((topay)),1),2
    from @rt where selectedFlag > '  0'
 
    insert @rt (invoiceId,name,ord) select 0,'','a_zzzzzzz'
