@@ -51,7 +51,7 @@ set @searchString=replace(@searchstring,'~{','''')
 -- get the already selected items
   insert @rt
     select 
-     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,dbo.formatcurr(invoiceAmount),dbo.formatcurr(invoiceDue),
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,dbo.formatcurr(invoiceAmount),dbo.formatcurr(invoiceDue) * b.methodRate,
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_'+cast(item as varchar)+cast(taxyear as varchar),case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed,1
     from dbo.invoices a, receiptLink b 
     where a.id = b.invoiceId and b.receiptId = @receiptId
@@ -157,7 +157,7 @@ set @searchString=replace(@searchstring,'~{','''')
    update a set 
     fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
     penalty = round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2),
-    toPay = cast(due as money) * methodRate
+    toPay = cast(due as money) 
    from @rt a where selectedFlag in (char(189),'x')
      
    insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel,colorFlag) 
