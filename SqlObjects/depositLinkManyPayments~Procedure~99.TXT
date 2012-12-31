@@ -2,7 +2,8 @@ create proc dbo.depositLinkManyPayments(
  @depositId int,
  @receiptType varchar(50),
  @receiptDepositDate int = null,
- @mode varchar(10) = 'link'
+ @mode varchar(10) = 'link',
+ @debugMode varchar(5) = 'FALSE'
 ) as 
 begin
  --  either link all the payments within the given type or limit it by the receipts deposit date
@@ -41,10 +42,16 @@ begin
  end
 
  -- process em
+ if @debugMode = 'TRUE'
+ begin
+  select * from @token
+  return
+ end
+
  while exists(select * from @token)
  begin
   select top 1 @idToken = paymentId from @token order by paymentId
-  exec dbo.depositLinkPayment @depositId, @idToken, 1
+  exec dbo.depositLinkPayment @depositId, @idToken, 1, @skipSQLTransaction = 'TRUE'
   delete @token where paymentId = @idToken
  end
 
