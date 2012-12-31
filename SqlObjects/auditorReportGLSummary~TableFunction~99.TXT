@@ -1,0 +1,49 @@
+create function dbo.auditorReportGLSummary(@begindate varchar(15),@enddate varchar(15))
+returns @rt table(auditorReportGroup varchar(60),amount money)
+
+as
+begin
+
+declare @wtdetail table(auditorReportGroup varchar(60),amount money)
+
+
+declare @wttypes table(sourceType varchar(60),auditorReportGroup varchar(60),detail varchar(60))
+
+
+insert @wttypes
+select * from dbo.journalTypes()
+insert @wttypes
+select * from dbo.paymentTypes()
+
+
+insert @wtdetail
+select auditorReportGroup,amount*-1 from gldetailreports g, @wttypes w
+where sourceDate >= @beginDate 
+and sourceDate <= @endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+and g.sourcea18 = w.sourceType
+
+insert @wtdetail
+select 
+case when auditReportGroup>' 0' then auditReportGroup when accountType='OFFICIAL' then 'OFFICIAL' else 'FUND' end,
+amount*-1 from gldetailreports 
+where sourceDate >= @beginDate 
+and sourceDate <= @endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+and sourcea18 not in (select sourceType from @wttypes)
+
+insert @rt
+select auditorReportGroup,sum(amount) as amount from @wtdetail group by auditorReportGroup
+
+insert @rt 
+select 'BEGINNING FUND BALANCE',sum(amount)*-1 from gldetailreports 
+ where sourceDate < @beginDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+ 
+
+
+return
+end
