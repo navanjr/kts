@@ -128,12 +128,14 @@
  lcClickedId=kpbrwid(2),
  lcMethod='tax',
  brwClicked=;
+
 @brwClicked=
  break(lcClickedId=0),
  lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
  gcMortCode=kp('select rtrim(a.treamort) from adtax a,invoices i where a.id=i.taxrollId and i.id='&lcClickedId*-1),
  if(gcMortCode>' 0',m('This item has a mortgage code on it. Are you sure that you want to select it?','Select Anyway?',,6)),
- if(gcretval=2 or gcMortCode<=' 0',sql('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&''''),),
+ if(gcretval=2 or gcMortCode<=' 0',d1select('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&'''')),
+ if(readstring(obj7:d1,'@code=')=3,m(readstring(obj7:d1,'@message='),'Unpaid Back Taxes!...','MISC01.ico')),
  gcClickedId=lcClickedId*-1,
  gcalreadylinked=kp('select receiptId from receiptlink where invoiceId='&gcClickedId&' and receiptId in (select id from object where typ=4502 and a17<>''Posted'' and a17<>''VOID'') and receiptId<>'&obj:id),
  if(gcalreadylinked+0>1,alreadylinked=),
@@ -286,6 +288,7 @@
  if(readstring(obj7:d1,'@code=')=1,lcFocus=078),
  if(readstring(obj7:d1,'@code=')=2,m('This item has a mortgage code on it')),
  break(readstring(obj7:d1,'@code=')=2),
+ if(readstring(obj7:d1,'@code=')=3,m(readstring(obj7:d1,'@message='),'Unpaid Back Taxes!...','MISC01.ico')),
  gcalreadylinked=readstring(obj7:d1,'@alreadyLinked='),
  if(gcalreadylinked+0>1,alreadylinked=);
 

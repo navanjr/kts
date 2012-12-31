@@ -5,12 +5,16 @@ create procedure dbo.taxrollSelected(
  @method varchar(10)
 ) as 
 begin
+
+set nocount on
  
  declare @unPaidSelected varchar(50),
          @parcel varchar(60),
          @item varchar(60),
          @name varchar(60),
-         @taxYear varchar(60)
+         @taxYear varchar(60),
+         @unPaidCnt int = 0
+
        select top 1 @unPaidSelected = a15 from object where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
@@ -42,10 +46,18 @@ begin
   if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
    delete receiptlink where receiptId = @receiptId and invoiceId = @invoiceId
   else
+  begin
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
+   select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
+   select @unPaidCnt = count(id) from invoices where 
+          (parcel = @parcel and taxyear < @taxYear or name = @name and taxyear < @taxYear)
+          and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+   if @unPaidCnt>0
+     select '@code=3;@message=There are unpaid paid back taxes!;'
+  end   
  end
 
---UnPaidSelect by Parcel and Item
+--UnPaidSelect by Parcel and Item and name
 if @unPaidSelected = 1 and lower(@method) = 'tax'
  begin
   if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
@@ -84,7 +96,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
    end
 
  end
-
+ 
  if lower(@method) = 'name'
  begin
   insert @rd (receiptId, invoiceId, methodRate) 
