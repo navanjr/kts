@@ -1,0 +1,41 @@
+create function dbo.auditorReportLedger(@begindate varchar(15),@enddate varchar(15)) 
+returns @rt table(
+accountCode varchar(60),
+accountDesc varchar(60),
+beginbalance money,
+apportionIn money,
+tranin money,
+transferOut money,
+paid money,
+endbalance money,
+reportOrder varchar(50))
+
+as 
+begin
+
+declare  @dailyledgerdetail table(
+ accountCode varchar(50),
+ accountDesc varchar(50),
+ beginbalance money,
+ paid money,
+ appout money,
+ appin money,
+ tranout money,
+ tranin money,
+ deposits money,
+ endbalance money,
+ accountType varchar(50),
+ reportOrder varchar(50)
+)
+
+insert @dailyledgerdetail
+select * from dailyledgerdata(@beginDate,@endDate) 
+
+insert @rt
+select accountCode,accountDesc,beginbalance,appin+deposits as apportionIn,tranin,tranout+appout as transferOut,paid,endbalance,reportOrder from @dailyledgerdetail 
+where accountType='FUND'
+ and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+order by accountType,reportOrder
+
+return
+end
