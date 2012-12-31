@@ -1,0 +1,35 @@
+create function dbo.auditorReportOfficialDepository(@begindate varchar(15),@enddate varchar(15)) 
+returns @rt table(
+officertitle varchar(60),
+beginbalance money,
+deposits money,
+cancelvoid money,
+journals money,
+vouchers money,
+endbalance money)
+
+as 
+begin
+
+declare @officialquery table(id int, 
+OfficerName varchar(50), 
+OfficerTitle varchar(50), 
+Department varchar(50),
+AccountCode varchar(60),
+BeginBalance money,
+CancelVoid money,
+Journals money,
+Deposits money,
+Vouchers money,
+EndBalance money,
+bankAccountCode varchar(50)
+)
+insert @officialquery
+select * from dbo.officialAccountQuery(@beginDate,@endDate)
+
+insert @rt
+select officertitle,beginbalance,deposits,cancelvoid,journals,vouchers,endbalance from @officialquery
+order by department
+
+return
+end

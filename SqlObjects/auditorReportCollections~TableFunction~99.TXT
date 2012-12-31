@@ -1,0 +1,38 @@
+create function dbo.auditorReportCollections(@begindate varchar(15),@enddate varchar(15)) 
+returns @rt table(
+ accountCode varchar(50),
+ accountDesc varchar(50),
+ apportionOut money,
+ reportOrder varchar(50)
+)
+
+as 
+begin
+
+declare  @dailyledgerdetail table(
+ accountCode varchar(50),
+ accountDesc varchar(50),
+ beginbalance money,
+ paid money,
+ appout money,
+ appin money,
+ tranout money,
+ tranin money,
+ deposits money,
+ endbalance money,
+ accountType varchar(50),
+ reportOrder varchar(50)
+)
+
+insert @dailyledgerdetail
+select * from dailyledgerdata(@beginDate,@endDate) 
+
+insert @rt
+ select accountCode,accountDesc,appout,reportOrder from @dailyledgerdetail 
+  where accountType='FUND'
+   and accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+  order by accountType,reportOrder
+
+
+return
+end
