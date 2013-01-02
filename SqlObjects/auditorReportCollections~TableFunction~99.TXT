@@ -1,37 +1,37 @@
 create function dbo.auditorReportCollections(@begindate varchar(15),@enddate varchar(15)) 
 returns @rt table(
- accountCode varchar(50),
- accountDesc varchar(50),
+ auditorReportGroup varchar(50),
+ auditReportGroup varchar(60),
  apportionOut money,
- reportOrder varchar(50)
+ reportOrder varchar(60)
 )
 
 as 
 begin
 
-declare  @dailyledgerdetail table(
- accountCode varchar(50),
- accountDesc varchar(50),
- beginbalance money,
- paid money,
- appout money,
- appin money,
- tranout money,
- tranin money,
- deposits money,
- endbalance money,
- accountType varchar(50),
- reportOrder varchar(50)
-)
+declare @wtdetail table(auditorReportGroup varchar(60),auditReportGroup varchar(60),amount money,reportOrder varchar(60))
 
-insert @dailyledgerdetail
-select * from dailyledgerdata(@beginDate,@endDate) 
+
+declare @wttypes table(sourceType varchar(60),auditorReportGroup varchar(60),detail varchar(60))
+
+
+insert @wttypes
+select * from dbo.journalTypes()
+insert @wttypes
+select * from dbo.paymentTypes()
+
+
+insert @wtdetail
+select auditorReportGroup,case when auditReportGroup > ' 0' then auditReportGroup else accountDesc end,amount,reportOrder from gldetailreports g, @wttypes w
+where sourceDate >= @beginDate 
+and sourceDate <= @endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+and g.sourcea18 = w.sourceType
+and auditorReportGroup = 'Collections'
 
 insert @rt
- select accountCode,accountDesc,appout,reportOrder from @dailyledgerdetail 
-  where accountType='FUND'
-   and accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%')
-  order by accountType,reportOrder
+select auditorReportGroup,auditReportGroup,sum(amount),max(reportOrder) as amount from @wtdetail group by auditorReportGroup,auditReportGroup
 
 
 return
