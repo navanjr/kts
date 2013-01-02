@@ -50,12 +50,12 @@ set nocount on
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
    select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
    select @unPaidCnt = count(id) from invoices where 
-          (parcel = @parcel and taxyear < @taxYear or name = @name and taxyear < @taxYear)
+          (@parcel > '  0' and parcel = @parcel and taxyear < @taxYear or name = @name and taxyear < @taxYear)
           and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    if @unPaidCnt>0
      select '@code=3;@message=There are unpaid paid back taxes!;'
   end   
- end
+ end 
 
 --UnPaidSelect by Parcel and Item and name
 if @unPaidSelected = 1 and lower(@method) = 'tax'
