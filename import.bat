@@ -76,8 +76,20 @@ IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
 IF /I "%runmode%"=="N" call:ImportRepo
 IF /I "%runmode%"=="O" call:ConfigureLogging
+IF /I "%runmode%"=="DRE" call:dropRecreateExecute
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:dropRecreateExecute
+SET /P sqlObjectName=Please enter SQL Object Name:
+SET /P sqlObjectOrder=Please enter the SQL Objects(%sqlObjectName%) Order Number:
+echo dropping  dbo.%sqlObjectName%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"drop procedure dbo.%sqlObjectName%"
+echo creating %sqlObjectName%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -iSqlObjects\%sqlObjectName%~Procedure~%sqlObjectOrder%.TXT
+echo calling %sqlObjectName%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.%sqlObjectName%"
+GOTO:EOF
 
 :ImportNew
 set targetFile=keySQLObjectDispatcher
