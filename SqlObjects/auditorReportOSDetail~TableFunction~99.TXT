@@ -1,0 +1,67 @@
+create function dbo.auditorReportOSDetail(@endDate varchar(20))
+returns
+ @rt table(
+ auditReportGroup varchar(60),
+ amount money)
+
+as
+begin
+declare @wt table(
+ fpCode varchar(60),
+ fpDesc varchar(60),
+ accountCode varchar(60),
+ accountDesc varchar(60),
+ amount money,
+ debit varchar(60),
+ credit varchar(60),
+ [date] int,
+ slink varchar(60),
+ sourceKey1 varchar(60),
+ sourceDate varchar(60), 
+ sourceKey3 varchar(60),
+ sourceType varchar(60),
+ sourcea18 varchar(60),
+ accountType varchar(60),
+ contraId int,
+ slink2 varchar(60),
+ id int,
+ accountId int,
+ sourceCode varchar(60),
+ bsId int,
+ auditReportGroup varchar(60),
+ reportOrder varchar(60)
+)
+insert @wt
+select * from gldetailreports 
+where 
+accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+and isnull(bsId,0)<1
+and sourceDate <= @endDate  
+
+union all
+
+select * from gldetailreports 
+where 
+accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
+and sourceDate <=@endDate 
+
+update @wt set auditReportGroup='OS Journals' where auditReportGroup<' 0' and sourceType = '4512'
+
+update @wt set auditReportGroup='OS Official Vouchers' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Official Voucher'
+
+update @wt set auditReportGroup='OS Cancelled Vouchers' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Cancel Voucher'
+
+update @wt set auditReportGroup='OS MISC Payments' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Miscellaneous'
+
+update @wt set auditReportGroup='OS Treasurers Checks' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Treasurers Check'
+
+update @wt set auditReportGroup='OS Payments' where auditReportGroup<' 0' and sourceType = '4771'
+
+update @wt set auditReportGroup='OS Deposits' where auditReportGroup<' 0' and sourceType = '4513'
+
+insert @rt
+select auditReportGroup,sum(amount) from @wt group by auditReportGroup
+
+return
+end
