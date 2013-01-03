@@ -1,4 +1,4 @@
-create function dbo.auditorReportOSDetail(@endDate varchar(20))
+create function dbo.auditorReportOSDetail(@beginDate varchar(20),@endDate varchar(20))
 returns
  @rt table(
  auditReportGroup varchar(60),
@@ -45,6 +45,14 @@ where
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
 and sourceDate <=@endDate 
+
+union all
+
+select * from gldetailreports 
+where 
+accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+and isnull(bsId,0) in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
+and sourceDate > @endDate 
 
 update @wt set auditReportGroup='OS Journals' where auditReportGroup<' 0' and sourceType = '4512'
 
