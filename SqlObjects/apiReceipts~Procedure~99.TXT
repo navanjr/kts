@@ -5,7 +5,8 @@ create proc dbo.apiReceipts(
  @postFile varchar(50) = 'apiPostReceipts.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
- @result varchar(max) = null output
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
@@ -17,11 +18,13 @@ begin
   @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
+  @postFileFullRaw varchar(100), 
   @apiCode varchar(50),
   @apiwt JSONHierarchy,
   @filter varchar(500),
   @apiResource varchar(50) = '/v2/treasurer/receipts',
   @dump varchar(max),
+  @dumpRaw varchar(max),
   @log varchar(max),
   @tokenId int,
   @apiResultWt JSONHierarchy,
@@ -37,6 +40,7 @@ begin
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
+ set @postFileFullRaw = @tempPath + '\' + @postFile + '.raw'
  if @scratchFile is null
   set @scratchFile = @tempPath + '\' + 'apiResultReceipts.tmp'
 
@@ -66,7 +70,7 @@ begin
  if @method = 'JOB'
  begin
   select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
-  exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize
+  exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
  end
 
 /*
@@ -180,9 +184,13 @@ declare @it table (receiptId int)
 
   insert @apiwt select * from @jsonPrep
   select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @dumpRaw = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
 
   exec spOverwriteTextFile @postFileFull, @dump
-  
+exec dbo.logit @@procId, 'Nate', @dropRawFile
+  if @dropRawFile = 'TRUE'
+   exec spOverwriteTextFile @postFileFullRaw, @dumpRaw
+
   exec dbo.api
    @method = @method,
    @resource = @apiResource,
