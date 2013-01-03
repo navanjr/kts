@@ -141,3 +141,18 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  filecopy('WARRANT.csv','c:\kps\WARRANT.csv'),
  m('Warrants Exported')
 ;
+
+\t114Trust Receipt Exp;
+ @acc114=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select postDate1,recnum,recFrom,deputy,parcel,vin,title from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted''','TRUSHEAD.csv',4),
+ sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
+ total
+  from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted'') r where rd.reclink=r.slink','TRUSDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted'') r where p.slink=r.slink','TRUSPAID.csv',4),
+ filecopy('TRUSHEAD.csv','c:\kps\TRUSHEAD.csv'),
+ filecopy('TRUSDET.csv','c:\kps\TRUSDET.csv'),
+ filecopy('TRUSPAID.csv','c:\kps\TRUSPAID.csv'),
+ m('TRUST Receipts Exported')
+;
