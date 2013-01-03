@@ -8,12 +8,12 @@ begin
    insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS],[interestDate],[origin])
    select
     [ID],
-    [RECORDTYPE],
-    [FULLPIDNUMBER],
-    [ITEMNUMBER],
-    [REALTAXYEAR],
-    [OWNERNAME],
-    [BUSINESSNAME],
+    dbo.taxCorrectionsSF([RECORDTYPE],@taxrollId,'010'),
+    dbo.taxCorrectionsSF([FULLPIDNUMBER],@taxrollId,'006'),
+    dbo.taxCorrectionsSF([ITEMNUMBER],@taxrollId,'008'),
+    dbo.taxCorrectionsSF([REALTAXYEAR],@taxrollId,'004'),
+    dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber)),
+    dbo.readstring('@BUSINESSNAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber)),
     dbo.clariondate(getdate()),
     '',
     dbo.clariondate('12/31/' + cast([REALTAXYEAR] as varchar)),
@@ -22,5 +22,7 @@ begin
 
    set @newInvoiceId = @@identity
    exec dbo.logit @@procid, 'Created new invoice - @newInvoiceId', @newInvoiceId
+
+
 
 end
