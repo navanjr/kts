@@ -10,7 +10,7 @@ create proc dbo.apiReceipts(
 begin
  set nocount on
 
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, @override = 'TRUE'
 
  declare
   @resource varchar(50) = 'receipts',
@@ -32,7 +32,7 @@ begin
   @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
  
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
@@ -201,11 +201,11 @@ declare @it table (receiptId int)
   begin
    set @theDate = getDate()
    update object set k7 = @theDate where id in (select receiptId from @it)
-   exec dbo.logit @@procid, 'Success...', @dump
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
   end
   else
   begin
-   exec dbo.logit @@procid, 'Failure...', @dump
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
   end
 
   return

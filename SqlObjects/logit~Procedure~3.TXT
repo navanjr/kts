@@ -9,7 +9,8 @@ create procedure dbo.logit(
  @labeld varchar(max) = '',
  @valued varchar(max) = '',
  @control varchar(100) = null,
- @level int = 1
+ @level int = 1,
+ @override varchar(5) = 'FALSE'
 ) as
 begin
 
@@ -60,9 +61,10 @@ begin
  declare @loggingStatusArray table( id int, data varchar(50) )
  insert into @loggingStatusArray select * from dbo.split((select b15 from object where typ = 0 and link1 = -1), '|')
 
--- we bail if logging is not turned on
- if not (select data from @loggingStatusArray where id = 1) = 'logging on'
-  return
+-- we bail if logging is not turned on and we are not told to override
+ if @override != 'TRUE'
+  if not (select data from @loggingStatusArray where id = 1) = 'logging on'
+   return
 
 -- we bail if level is too low
  if @level < (select cast(data as int) from @loggingStatusArray where id = 2)

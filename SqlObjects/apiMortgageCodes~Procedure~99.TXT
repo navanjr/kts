@@ -29,7 +29,7 @@ begin
   @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  exec dbo.keyAcVars 'acapiservice', @method='GET', @dump = @apiService output
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
 
 -- if not @apiService = 'ON' 
 --  return
@@ -105,14 +105,14 @@ begin
   select @tally = count(*) from @wt
   if isnull(@tally,0) = 0
   begin
-   exec dbo.logit @@procid, 'all records updated... nothing to do. :)'
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
    return
   end
  
   if @batchSize != @tally
   begin
    set @batchSize = @tally
-   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize, @override = 'TRUE'
   end
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
@@ -166,11 +166,11 @@ begin
   begin
    set @theDate = getDate()
    update object  set k7 = @theDate where id in (select mortgage_code_link from @wt)
-   exec dbo.logit @@procid, 'Success...', @dump
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
   end
   else
   begin
-   exec dbo.logit @@procid, 'Failure...', @dump
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
   end
 
   return
