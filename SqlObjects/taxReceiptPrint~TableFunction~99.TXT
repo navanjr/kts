@@ -88,15 +88,15 @@ begin
                          from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
 
 	update r set 
-				r.schoolDistrict = a.SCHOOLDISTRICTMAIN,
-				r.legal = cast(a.LEGALDESCRIPTION as varchar(max))+CHAR(13)+CHAR(10)+A.SCHOOLDISTRICTMAIN,
-				r.acres = a.ACRES,			
+				r.schoolDistrict = dbo.taxCorrectionsSF(a.SCHOOLDISTRICTMAIN,a.id,'042'),
+				r.legal = cast(dbo.taxCorrectionsSF(a.LEGALDESCRIPTION,a.id,'102') as varchar(max))+CHAR(13)+CHAR(10)+dbo.taxCorrectionsSF(a.SCHOOLDISTRICTMAIN,a.id,'042'),
+				r.acres = dbo.taxCorrectionsSF(a.acres,a.id,'036'),			
 				r.blk = a.TOWNSHIPBLOCK,
 				r.sec = a. SECTIONNUMBER,
 				r.twp = '',
 				r.rng = a.RANGELOT,
                                 r.pertyp=a.pertyp,
-                                r.ownername=a.ownername
+                                r.ownername=dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber))
 				
 			from @rt r, AdTax a where r.taxRollid = a.ID
 				
