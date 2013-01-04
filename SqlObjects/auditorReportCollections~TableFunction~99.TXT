@@ -1,4 +1,4 @@
-create function dbo.auditorReportCollections(@theDate varchar(15),@days int,@ordSeed varchar(10)) 
+create function dbo.auditorReportCollections(@d1 varchar(15),@d2 varchar(15),@ordSeed varchar(10)) 
 	returns @rt table(
 			auditorReportGroup varchar(50),
 			rowstring varchar(250),
@@ -35,7 +35,7 @@ insert @wtdetail
 		amount,
 		reportOrder
 	from gldetailreports g, @wttypes w
-  where sourceDate between cast(@theDate as varchar) and cast(@theDate + @days as varchar)
+  where sourceDate between @d1 and @d2
 	and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 	and accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%')
 	and g.sourcea18 = w.sourceType
@@ -75,7 +75,7 @@ insert @rt
 insert @rt 
 	select '','','','lineFeed',@ordSeed + '0000a'
 insert @rt (rowstring,ord,rowType)
-	select '  '+max(auditorreportgroup),@ordSeed + '0000aa','sHeader'	from @wt
+	select ' '+max(auditorreportgroup),@ordSeed + '0000aa','sHeader'	from @wt
 insert @rt 
 	select replicate('=',22),' ' + replicate('=',79),replicate('=',16),'line',@ordSeed + '0000ab'
 

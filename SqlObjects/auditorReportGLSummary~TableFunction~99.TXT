@@ -1,5 +1,5 @@
 create function dbo.auditorReportGLSummary(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10))
-	returns @rt table(rowstring varchar(250),amount varchar(50),rowType char(10),ord varchar(250))
+	returns @rt table(rowstring varchar(250),sourceAmt varchar(50),rowType char(10),ord varchar(250))
 as
 begin
 
@@ -61,7 +61,7 @@ insert @rt
 insert @rt
 	select 
            dbo.padRight('      Ending Fund Balance ', ' ', 60),
-            dbo.padLeft(dbo.formatCurr(SUM(cast(amount as money))),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(cast(sourceAmt as money))),' ',16),
             'gFooter',
             @ordSeed + 'd' 
 	from @rt
@@ -73,7 +73,7 @@ insert @rt
 insert @rt 
 	select '','','lineFeed',@ordSeed + '0000a'
 insert @rt (rowstring,ord,rowType)
-	select '  '+'General Ledger',@ordSeed + '0000aa','sHeader'	
+	select ' '+'General Ledger',@ordSeed + '0000aa','sHeader'	
 insert @rt 
 	select ' ' + replicate('=',79),replicate('=',16),'line',@ordSeed + '0000ab'
 
