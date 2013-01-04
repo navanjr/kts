@@ -212,6 +212,21 @@ begin
    end
   end
 
+-- remove penalty invoices and their GL, but only if they are linked to this receipt
+   while exists(select * from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'P' and processFlag = 0)
+   begin 
+    select top 1 @token = id, @tokenSlink = slink, @tokenInt = dbo.slinkId(slink)
+     from @slinks where dbo.slinkType(slink) = 't' and parentInvoiceId > 0 and invoiceType = 'P' and processFlag = 0
+    if not isnull((select fpStatus from dbo.glStatus(@tokenSlink)),'') = 'locked'
+    begin
+     exec invoiceCRUD 3, @invoiceId = @tokenInt, @postCheckOverride = 0
+    end
+    update @slinks set processFlag = 1 where id = @token
+   end
+
+-- remove paid records
+   delete from paid where slink = 'o'+cast(@receiptId as varchar)
+
 --remove receiptLinks and their GL
   while exists(select * from @slinks where dbo.slinkType(slink) = 'l' and processFlag = 0)
   begin 
