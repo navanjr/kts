@@ -462,13 +462,20 @@ end
   select slink,accountId,amount,null,'suspense',slink2,'' from @glSuspense
 
 
+
  declare
   @balance money,
-  @tally int
+  @tally int,
+  @log varchar(max)
  select @balance = sum(amount), @tally = count(*) from @glStage
  if @balance != 0
- exec dbo.logit @@procid, 'oops we have a problem... @glStage.@balance', @balance, '@tally', @tally
+ begin
+  select @log = 'Count:' + cast(count(*) as varchar) + ';Balance:' + cast(sum(amount) as varchar) + ';' from @glStage
+  exec dbo.logit @@procId, '@glStage table is out of balance', @log
 
+  insert @glStage
+  select @receiptSlink, 0, @balance * -1,0, 'Temporarly Suspend Balance', '', ''
+ end
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
@@ -479,7 +486,7 @@ end
  end
 
 -- remove any existing stage records
- delete glDetailStage where slink in (select slink from @glStage)
+ delete glDetailStage where slink in (select slink from @glStage union select slink from dbo.receiptSLinks(@receiptId) where left(slink,1)<>'t')
 
 -- insert
  insert gldetailstage (slink,accountId,amount,contraId,slink2,sourceCode) select slink, accountId, round(amount,2), contraId, slink2, sourceCode from @glStage where amount != 0
