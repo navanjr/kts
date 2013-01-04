@@ -1,4 +1,6 @@
-create function dbo.receivablesBRW() returns @rt table(
+create function dbo.receivablesBRW(
+ @theDate int = 99999
+) returns @rt table(
  id int,
  ord varchar(50),
  display varchar(max),
@@ -14,6 +16,12 @@ create function dbo.receivablesBRW() returns @rt table(
 ) as
 begin
 
+ if isnull(@theDate,0) = 0
+  set @theDate = 99999
+
+ declare 
+  @floorToken varchar(50)
+
  declare @wt table(
   id int,
   name varchar(50),
@@ -22,6 +30,7 @@ begin
   due money,
   fees money,
   taxyear varchar(4),
+  postDate int,
   typ varchar(5),
   paidRatio money
 )
@@ -35,17 +44,19 @@ begin
   invoiceDue,
   subInvoiceDue,
   taxyear,
+  coalesce(nullif(interestDate,''),postDate),
   typ,
   abs(round(invoiceDue / invoiceAmount, 1) - 1)
  from invoices 
  where invoiceDue != 0
   and invoiceId = 0
+  and coalesce(nullif(interestDate,''),postDate) <= @theDate
 
  insert @rt
  select
   0,
   cast(9999 - cast(taxyear as int) as varchar) + 'c|' + right('aaaa' + typ,4) + '|' + cast(paidRatio as varchar),
-  '      Paid Ratio: ' + cast(paidRatio as varchar),
+  '      Type:' + typ + '  P/R:' + convert(varchar, cast(paidRatio * 100 as int)) + '%' ,
   '',
   COUNT(*) as count,
   sum(amount) as amount,
@@ -70,15 +81,16 @@ begin
  select
   0,
   dbo.splitF(ord,'|',1) + '|' + dbo.splitF(ord,'|',2),
-  '   Invoice Type: ' + max(typ),
+  '   Totals for Type: ' + max(typ),
   sum(count),
   sum(invoiceDue),
   sum(feesDue),
   2
  from @rt
- where rowType = 1
+ where rowType < 2
  group by
   dbo.splitF(ord,'|',1) + '|' + dbo.splitF(ord,'|',2)
+ having count(*) > 1
 
 -- Taxyear
  insert @rt (id, ord, display, count, invoiceDue, feesDue, rowType)
@@ -91,9 +103,11 @@ begin
   sum(feesDue),
   3
  from @rt
- where rowType = 1
+ where rowType < 2
  group by
   taxyear
+
+ select @floorToken = max(taxyear) from @wt
 
  insert @rt (id, ord, display, rowType)
  select
@@ -102,9 +116,24 @@ begin
   '',
   4
  from @rt
- where rowType = 1
+ where rowType < 2
+--  and taxyear < @floorToken
  group by
   taxyear
+
+-- insert grand totals
+ insert @rt (id, ord, display, count, invoiceDue, feesDue, rowType)
+ select
+  0,
+  cast(1000 as varchar) + 'b',
+  '',
+  sum(count),
+  sum(invoiceDue),
+  sum(feesDue),
+  5
+ from @rt
+ where rowType < 2
+
 
  return 
 end
