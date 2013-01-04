@@ -10,7 +10,7 @@
  gcDepId=0,
  gcPrintDetail='',
  dbfopen('c:\kps\taxrece.dbf',0),
- sqlloop2('select taxyear,itemnumber,cast(paid as varchar(30)),cast(penalty as varchar(30)),cast(fee as varchar(30)),RecId, recNum, recdate1, postdate1, school, rate, recFrom, ownername, invoiceType, pertyp from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''TAX'' ','exportreceipt='),
+ sqlloop2('select taxyear,itemnumber,cast(paid as varchar(30)),cast(penalty as varchar(30)),cast(fee as varchar(30)),RecId, recNum, recdate1, postdate1, school, rate, replace(recFrom,''"'',''''), ownername, invoiceType, pertyp from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''TAX'' ','exportreceipt='),
  dbfclose,
  m('Receipts Exported')
 ;
@@ -105,7 +105,7 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  @acc111=gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcTheDays=gcEndDate-gcBeginDate,
- sqlexport('select postDate1,recnum,recFrom,deputy from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted''','MISCHEAD.csv',4),
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted''','MISCHEAD.csv',4),
  sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
  source,
  case when right(fund,4)=''_ACR'' then ''TBA'' else fund end,
@@ -123,7 +123,7 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  @acc112=gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcTheDays=gcEndDate-gcBeginDate,
- sqlexport('select postDate1,recnum,recFrom,deputy,mortgagedate1,maturitydate1,term,mortgageamount,taxrate,taxamount,feeamount,0.00 from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted''','MORTHEAD.csv',4),
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy,mortgagedate1,maturitydate1,term,mortgageamount,taxrate,taxamount,feeamount,0.00 from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted''','MORTHEAD.csv',4),
  sqlexport('select r.postDate1,r.recnum,key1,key2 from object md, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where md.typ=4507 and md.link1 = r.recId  ','MORTDET.csv',4),
  sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where p.slink=r.slink','MORTPAID.csv',4),
  filecopy('MORTHEAD.csv','c:\kps\MORTHEAD.csv'),
@@ -146,7 +146,7 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  @acc114=gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcTheDays=gcEndDate-gcBeginDate,
- sqlexport('select postDate1,recnum,recFrom,deputy,parcel,vin,title from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted''','TRUSHEAD.csv',4),
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy,parcel,vin,title from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted''','TRUSHEAD.csv',4),
  sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
  total
   from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted'') r where rd.reclink=r.slink','TRUSDET.csv',4),
