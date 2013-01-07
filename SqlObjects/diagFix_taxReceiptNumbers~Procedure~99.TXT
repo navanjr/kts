@@ -1,0 +1,36 @@
+create proc dbo.diagFix_taxReceiptNumbers(
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+  select 
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(*),
+   @message = 'missing or invalid tax receipt number'
+  from receiptlink, object
+  where receiptId = object.id
+   and object.Key3 = 'TAX'
+   and object.a17 = 'Posted'
+   and receiptNumber < '  0'
+ 
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select receiptLink.*
+  from receiptlink, object
+  where receiptId = object.id
+   and object.Key3 = 'TAX'
+   and object.a17 = 'Posted'
+   and receiptNumber < '  0'
+
+ end
+
+end
