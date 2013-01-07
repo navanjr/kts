@@ -43,6 +43,24 @@ begin
  end
 
 
+-- posted receipts with wrong status
+ set @methodUnit = 'receiptWrongStatus'
+ if @method in ('all', @methodUnit)
+ begin
+
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'posted receipts with wrong status'
+  from object where typ = 4502 and a17 != 'Posted' and 'o' + cast(id as varchar) in (select slink from gldetail)
+
+  insert @results
+   select @methodUnit, @code, @message, @tally  
+
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+ end
+
+
 -- Next unit test here
 
 
