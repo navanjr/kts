@@ -18,6 +18,25 @@ begin
   @code int = 0,
   @message varchar(max) = '',
   @tally int = 0
+
+-- Debits equal Credits by slink
+ set @methodUnit = 'slinkBalance'
+ if @method in ('all', @methodUnit)
+ begin
+
+  select 
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'slinks out of balance'
+  from gldetail
+  group by slink
+  having SUM(amount) !=0
+
+  insert @results
+   select @methodUnit, @code, @message, @tally, 'none'  
+
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+ end
  
 -- receiptLinks
  set @methodUnit = 'receiptLinks'
