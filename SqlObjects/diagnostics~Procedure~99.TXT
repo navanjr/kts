@@ -9,7 +9,8 @@ begin
   method varchar(50),
   code int,
   message varchar(max),
-  tally int
+  tally int,
+  fixProc varchar(100)
  )
 
  declare 
@@ -32,12 +33,12 @@ begin
 
   -- set your result code and message
   select 
-   @code = 1,
+   @code = 0,
    @message = 'TEST message'
 
   -- insert into results
   insert @results
-   select @methodUnit, @code, @message, @tally  
+   select @methodUnit, @code, @message, @tally ,'exec dbo.diagFixProcNameHere' 
  
   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
  end
@@ -55,7 +56,7 @@ begin
   from object where typ = 4502 and a17 != 'Posted' and 'o' + cast(id as varchar) in (select slink from gldetail)
 
   insert @results
-   select @methodUnit, @code, @message, @tally  
+   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_receiptWrongStatus'  
 
   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
  end
@@ -79,7 +80,7 @@ begin
 
  
   if @verbose = 'TRUE'
-   select * from @results order by id
+   select method, tally, message, fixProc from @results where code = 1 order by id
   return
 
 end
