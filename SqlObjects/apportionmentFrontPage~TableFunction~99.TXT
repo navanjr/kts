@@ -1,30 +1,30 @@
 create function dbo.apportionmentFrontPage(@beginDate int,@endDate int, @includeUnapportioned varchar(10)) returns @rt table(id int identity(1,1),
-	[sort] [varchar](60) NOT NULL default '',
-	[SECA] [varchar](60) NOT NULL default '',
-	[SECADesc] [varchar](50) NOT NULL default '',
-	[sourceTotal] money NOT NULL default 0,
-	[amount1] money NOT NULL default 0,
-	[amount2] money NOT NULL default 0,
-	[amount3] money NOT NULL default 0,
-	[amount4] money NOT NULL default 0,
-	[amount5] money NOT NULL default 0,
-	[amount6] money NOT NULL default 0,
-	[amount7] money NOT NULL default 0,
-	[amount8] money NOT NULL default 0,
-	[amount9] money NOT NULL default 0,
-	[amount10] money NOT NULL default 0,
-	[otheramount] money NOT NULL default 0,
-	[heading1] varchar(50) NOT NULL default '',
-	[heading2] varchar(50) NOT NULL default '',
-	[heading3] varchar(50) NOT NULL default '',
-	[heading4] varchar(50)  NOT NULL default '',
-	[heading5] varchar(50) NOT NULL default '',
-	[heading6] varchar(50) NOT NULL default '',
-	[heading7] varchar(50) NOT NULL default '',
-	[heading8] varchar(50) NOT NULL default '',
-	[heading9] varchar(50) NOT NULL default '',
-	[heading10] varchar(50) NOT NULL default '',
-	[otherheading] varchar(50) NOT NULL default ''
+ [sort] [varchar](60) NOT NULL default '',
+ [SECA] [varchar](60) NOT NULL default '',
+ [SECADesc] [varchar](50) NOT NULL default '',
+ [sourceTotal] money NOT NULL default 0,
+ [amount1] money NOT NULL default 0,
+ [amount2] money NOT NULL default 0,
+ [amount3] money NOT NULL default 0,
+ [amount4] money NOT NULL default 0,
+ [amount5] money NOT NULL default 0,
+ [amount6] money NOT NULL default 0,
+ [amount7] money NOT NULL default 0,
+ [amount8] money NOT NULL default 0,
+ [amount9] money NOT NULL default 0,
+ [amount10] money NOT NULL default 0,
+ [otheramount] money NOT NULL default 0,
+ [heading1] varchar(50) NOT NULL default '',
+ [heading2] varchar(50) NOT NULL default '',
+ [heading3] varchar(50) NOT NULL default '',
+ [heading4] varchar(50)  NOT NULL default '',
+ [heading5] varchar(50) NOT NULL default '',
+ [heading6] varchar(50) NOT NULL default '',
+ [heading7] varchar(50) NOT NULL default '',
+ [heading8] varchar(50) NOT NULL default '',
+ [heading9] varchar(50) NOT NULL default '',
+ [heading10] varchar(50) NOT NULL default '',
+ [otherheading] varchar(50) NOT NULL default ''
 )
 
 as
@@ -32,40 +32,40 @@ begin
 
 declare @det table(
     id int identity(1,1),
-	[accountType] [varchar](50) NOT NULL default '',
-	[accountId] [int] NOT NULL default 0,
-	[accountCode] [varchar](60) NOT NULL default '',
-	[accountDesc] [varchar](50) NOT NULL default '',
-	[comment] [varchar](50) NOT NULL default '',
-	[comment2] [varchar](50) NOT NULL default '',
-	[sourceCode] [varchar](60) NOT NULL default '',
-	[amount] [money] NOT NULL default 0,
-	[journalType] [varchar](50) NOT NULL default '',
-	[sourceDesc] [varchar](50) NOT NULL default '',
-	[sourceSECA] [varchar](50) NOT NULL default '',
-	[journalDesc] [varchar](50) NOT NULL default '',
-	[year] varchar(10),
-	[column] varchar(50),
-	[reportOrder] varchar(50)
+ [accountType] [varchar](50) NOT NULL default '',
+ [accountId] [int] NOT NULL default 0,
+ [accountCode] [varchar](60) NOT NULL default '',
+ [accountDesc] [varchar](50) NOT NULL default '',
+ [comment] [varchar](50) NOT NULL default '',
+ [comment2] [varchar](50) NOT NULL default '',
+ [sourceCode] [varchar](60) NOT NULL default '',
+ [amount] [money] NOT NULL default 0,
+ [journalType] [varchar](50) NOT NULL default '',
+ [sourceDesc] [varchar](50) NOT NULL default '',
+ [sourceSECA] [varchar](50) NOT NULL default '',
+ [journalDesc] [varchar](50) NOT NULL default '',
+ [year] varchar(10),
+ [column] varchar(50),
+ [reportOrder] varchar(50)
 )
 
 insert @det
 select isnull(accountType,''),
-	isnull(accountId,0),
-	isnull(accountCode,''),
-	isnull(accountDesc,''),
-	isnull(comment,''),
-	isnull(comment2,''),
-	isnull(sourceCode,''),
-	isnull(amount,0),
-	isnull(journalType,''),
-	isnull(sourceDesc,''),
-	isnull(sourceSECA,''),
-	isnull(journalDesc,''),
-	right(isnull(sourceCode,''),4),
-	'',
-	''
-	from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+ isnull(accountId,0),
+ isnull(accountCode,''),
+ isnull(accountDesc,''),
+ isnull(comment,''),
+ isnull(comment2,''),
+ isnull(sourceCode,''),
+ isnull(amount,0),
+ isnull(journalType,''),
+ isnull(sourceDesc,''),
+ isnull(sourceSECA,''),
+ isnull(journalDesc,''),
+ right(isnull(sourceCode,''),4),
+ '',
+ ''
+ from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned)
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,5) = 'APPOR'
@@ -98,40 +98,40 @@ insert @adSource
 insert @adSource
  select distinct key2,'FEE' from object where typ=4504 and a1='TAX'
 
-update @det set sourceSECA='9001B', SourceDesc='CUR DEL PAYMENT INTEREST' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Current')  
+update @det set sourceSECA='9001B', SourceDesc='CUR DEL PAYMENT INTEREST'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Current') 
   and sourceCode in (select sourceCode from @adSource where category='PENALTY')
 
-update @det set sourceSECA='9003B', SourceDesc='PRIOR DEL PAYMENT INTEREST' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Prior')  
+update @det set sourceSECA='9003B', SourceDesc='PRIOR DEL PAYMENT INTEREST'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Prior') 
   and sourceCode in (select sourceCode from @adSource where category='PENALTY')
 
-update @det set sourceSECA='9005B', SourceDesc='BACK DEL PAYMENT INTEREST' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Back')  
+update @det set sourceSECA='9005B', SourceDesc='BACK DEL PAYMENT INTEREST'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Back') 
   and sourceCode in (select sourceCode from @adSource where category='PENALTY')
 
-update @det set sourceSECA='9001C', SourceDesc='CUR TAX COST FEES' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Current')  
+update @det set sourceSECA='9001C', SourceDesc='CUR TAX COST FEES'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Current') 
   and sourceCode in (select sourceCode from @adSource where category='FEE')
 
-update @det set sourceSECA='9003C', SourceDesc='PRIOR TAX COST FEES' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Prior')  
+update @det set sourceSECA='9003C', SourceDesc='PRIOR TAX COST FEES'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Prior') 
   and sourceCode in (select sourceCode from @adSource where category='FEE')
 
-update @det set sourceSECA='9005C', SourceDesc='BACK TAX COST FEES' 
- where left(journalDesc,4) in (select [year] from @years where yearCode='Back')  
+update @det set sourceSECA='9005C', SourceDesc='BACK TAX COST FEES'
+ where left(journalDesc,4) in (select [year] from @years where yearCode='Back') 
   and sourceCode in (select sourceCode from @adSource where category='FEE')
 
 update @det set sourceSECA=sourceCode where sourceSECA<' 0'
 
 declare @det2 table(id int identity(1,1),
-	[SECA] [varchar](60) NULL,
-	[sourceDesc] varchar(50) NULL,
-	[fundCode] [varchar](60) NULL,
-	[amount] [money] NOT NULL default 0,
-	[Column] varchar(50) NOT NULL default '',
-	reportOrder varchar(50) NOT NULL default '',
-	sort varchar(100)
+ [SECA] [varchar](60) NULL,
+ [sourceDesc] varchar(50) NULL,
+ [fundCode] [varchar](60) NULL,
+ [amount] [money] NOT NULL default 0,
+ [Column] varchar(50) NOT NULL default '',
+ reportOrder varchar(50) NOT NULL default '',
+ sort varchar(100)
     )
 
 insert @det2
@@ -162,6 +162,10 @@ update d set reportOrder = c.reportOrder from @det2 d,
 (select [column],min(reportOrder) as reportOrder from @det2 group by [column]) c
 where d.[column]=c.[column]
 
+DECLARE @COLUMNTOTALS TABLE(SECA VARCHAR(60),[COLUMN] VARCHAR(60),AMOUNT MONEY)
+INSERT @COLUMNTOTALS
+ SELECT SECA,[COLUMN],SUM(AMOUNT) FROM @DET2 GROUP BY SECA,[COLUMN]
+
 declare @headings table(id int identity(1,1),heading varchar(50),reportOrder varchar(50),processFlag int)
 insert @headings
 select distinct [column],reportOrder,0 from @det2 order by reportOrder
@@ -169,68 +173,68 @@ select distinct [column],reportOrder,0 from @det2 order by reportOrder
 insert @rt (sort,SECA,SECADesc,sourceTotal)
  select 'aaa'+SECA+'bbb', SECA, sourceDesc, sum(amount) as amount from @det2 group by SECA, sourceDesc
 
-update r set amount1=b.amount, heading1 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount1=b.amount, heading1 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=1
 
-update r set amount2=b.amount, heading2 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount2=b.amount, heading2 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=2
 
-update r set amount3=b.amount, heading3 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount3=b.amount, heading3 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=3
 
-update r set amount4=b.amount, heading4 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount4=b.amount, heading4 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=4
 
-update r set amount5=b.amount, heading5 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount5=b.amount, heading5 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=5
 
-update r set amount6=b.amount, heading6 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount6=b.amount, heading6 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=6
 
-update r set amount7=b.amount, heading7 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount7=b.amount, heading7 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=7
 
-update r set amount8=b.amount, heading8 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount8=b.amount, heading8 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=8
 
-update r set amount9=b.amount, heading9 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount9=b.amount, heading9 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=9
 
-update r set amount10=b.amount, heading10 = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set amount10=b.amount, heading10 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=10
 
-update r set otheramount=b.amount, otherheading = c.heading from @rt r, @det2 b, @headings c
-   where r.SECA=b.SECA 
+update r set otheramount=b.amount, otherheading = c.heading from @rt r, @COLUMNTOTALS b, @headings c
+   where r.SECA=b.SECA
      and b.[column]=c.heading
      and c.id=11
 
 insert @rt (sort,SECA,otheramount,otherheading)
  select 'aaa'+SECA+'bbb',case when SECA='SPECIAL' then 'SPECIAL' else '' end, amount, c.heading
-  from @det2 b, @headings c
+  from @COLUMNTOTALS b, @headings c
   where  b.[column]=c.heading
    and c.id > 11
  
-update r set heading1 = isnull((select max(heading1) from @rt r ),''), 
+update r set heading1 = isnull((select max(heading1) from @rt r ),''),
              heading2 = isnull((select max(heading2) from @rt r ),''),
              heading3 = isnull((select max(heading3) from @rt r ),''),
              heading4 = isnull((select max(heading4) from @rt r ),''),
@@ -240,26 +244,26 @@ update r set heading1 = isnull((select max(heading1) from @rt r ),''),
              heading8 = isnull((select max(heading8) from @rt r ),''),
              heading9 = isnull((select max(heading9) from @rt r ),''),
              heading10 = isnull((select max(heading10) from @rt r ),'')
-from @rt r 
+from @rt r
 
 insert @rt (sort,sourceTotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
-select 'ZZGRAND', isnull(sum(sourceTotal),0), isnull(sum(amount1),0), isnull(sum(amount2),0), isnull(sum(amount3),0), isnull(sum(amount4),0), isnull(sum(amount5),0), isnull(sum(amount6),0), isnull(sum(amount7),0), isnull(sum(amount8),0), isnull(sum(amount9),0), isnull(sum(amount10),0), isnull(sum(otheramount),0) 
- from @rt 
+select 'ZZGRAND', isnull(sum(sourceTotal),0), isnull(sum(amount1),0), isnull(sum(amount2),0), isnull(sum(amount3),0), isnull(sum(amount4),0), isnull(sum(amount5),0), isnull(sum(amount6),0), isnull(sum(amount7),0), isnull(sum(amount8),0), isnull(sum(amount9),0), isnull(sum(amount10),0), isnull(sum(otheramount),0)
+ from @rt
  where SECA <> 'SPECIAL'
 
 
 insert @rt (sort,seca,sourceTotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
-select 'ZZSPECIALbbb','Special Apportionment & Other', isnull(sum(sourceTotal),0)*-1, isnull(sum(amount1),0)*-1, isnull(sum(amount2),0)*-1, isnull(sum(amount3),0)*-1, isnull(sum(amount4),0)*-1, isnull(sum(amount5),0)*-1, isnull(sum(amount6),0)*-1, isnull(sum(amount7),0)*-1, isnull(sum(amount8),0)*-1, isnull(sum(amount9),0)*-1, isnull(sum(amount10),0)*-1, isnull(sum(otheramount),0)*-1 
- from @rt 
+select 'ZZSPECIALbbb','Special Apportionment & Other', isnull(sum(sourceTotal),0)*-1, isnull(sum(amount1),0)*-1, isnull(sum(amount2),0)*-1, isnull(sum(amount3),0)*-1, isnull(sum(amount4),0)*-1, isnull(sum(amount5),0)*-1, isnull(sum(amount6),0)*-1, isnull(sum(amount7),0)*-1, isnull(sum(amount8),0)*-1, isnull(sum(amount9),0)*-1, isnull(sum(amount10),0)*-1, isnull(sum(otheramount),0)*-1
+ from @rt
  where SECA = 'SPECIAL'
 
 insert @rt (sort,sourceTotal,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,otheramount)
-select 'ZZZGRAND', isnull(sum(sourceTotal),0), isnull(sum(amount1),0), isnull(sum(amount2),0), isnull(sum(amount3),0), isnull(sum(amount4),0), isnull(sum(amount5),0), isnull(sum(amount6),0), isnull(sum(amount7),0), isnull(sum(amount8),0), isnull(sum(amount9),0), isnull(sum(amount10),0), isnull(sum(otheramount),0) 
- from @rt 
+select 'ZZZGRAND', isnull(sum(sourceTotal),0), isnull(sum(amount1),0), isnull(sum(amount2),0), isnull(sum(amount3),0), isnull(sum(amount4),0), isnull(sum(amount5),0), isnull(sum(amount6),0), isnull(sum(amount7),0), isnull(sum(amount8),0), isnull(sum(amount9),0), isnull(sum(amount10),0), isnull(sum(otheramount),0)
+ from @rt
  where sort in ('ZZGRAND','ZZSPECIALbbb')
 
-insert @rt (sort,SECADesc,amount1, amount2) 
- select 'ZZZZbbb', otherheading, 
+insert @rt (sort,SECADesc,amount1, amount2)
+ select 'ZZZZbbb', otherheading,
  isnull(sum(otheramount),0),
  isnull((select sum(otheramount)*-1 from @rt where otherheading=r.otherheading and SECA='SPECIAL' ),0)
  from @rt r where SECA<>'SPECIAL' and otherheading>' 0' group by otherheading
@@ -267,7 +271,7 @@ insert @rt (sort,SECADesc,amount1, amount2)
 update @rt set amount3=isnull(amount1,0)+isnull(amount2,0) where sort='ZZZZbbb'
  
 insert @rt (sort,amount1,amount2,amount3)
- select 'ZZZZGRAND',isnull(sum(amount1),0),isnull(sum(amount2),0),isnull(sum(amount3),0) from @rt where sort='ZZZZbbb' 
+ select 'ZZZZGRAND',isnull(sum(amount1),0),isnull(sum(amount2),0),isnull(sum(amount3),0) from @rt where sort='ZZZZbbb'
 
 
 delete from @rt where SECA='SPECIAL'
