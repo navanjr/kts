@@ -19,30 +19,26 @@ begin
   @message varchar(max) = '',
   @tally int = 0
  
-
-
-
 -- receiptLinks
  set @methodUnit = 'receiptLinks'
  if @method in ('all', @methodUnit)
  begin
-  -- get your stats
-  
-  select 
-   @tally = 0 
 
-  -- set your result code and message
+  -- get your stats
   select 
-   @code = 0,
-   @message = 'TEST message'
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Tax receipts with out receiptLinks'
+  from Object
+  where typ = 4502 and key3 = 'TAX' and A17 = 'Posted'
+   and ID not in (select receiptId from receiptlink)
 
   -- insert into results
   insert @results
-   select @methodUnit, @code, @message, @tally ,'exec dbo.diagFixProcNameHere' 
+   select @methodUnit, @code, @message, @tally ,'none' 
  
   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
  end
-
 
 -- posted receipts with wrong status
  set @methodUnit = 'receiptWrongStatus'
@@ -61,18 +57,7 @@ begin
   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
  end
 
-
 -- Next unit test here
-
-
-
-
-
-
-
-
-
-
 
 
 
