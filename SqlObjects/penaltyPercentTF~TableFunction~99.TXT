@@ -39,8 +39,14 @@ begin
   if @typ in ('P','R','B','I')
   begin
    declare @totalDue money, @balanceDue money
-   select @totalDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE' and amount > 0.00
-   select @balanceDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
+  select 
+       @totalDue = sum(case when accountType = 'SOURCE' then amount * -1 else 0 end),
+       @balanceDue = sum(case when accountType = 'RECEIVABLE' then amount else 0 end)
+       from dbo.invoiceGLTotalTF(@invoiceId)
+         where status='Posted'   
+
+--   select @totalDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE' and amount > 0.00
+--   select @balanceDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
    
    if @balanceDue <= @totalDue/2
    begin
