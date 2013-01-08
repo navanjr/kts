@@ -73,35 +73,7 @@ begin
   exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
  end
 
-/*
- if @method = 'STATUS'
- begin
-  declare @taxyearToken varchar(4)
-  declare @taxyears table(year varchar(4))
-  declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
-  if not @taxyear = 'ALL' 
-   insert @taxyears select @taxYear
-  else
-   insert @taxyears select taxyear from invoices group by taxyear
 
-  insert @status select taxYear, count(id), sum(case when isnull(k7,0) < lasteditdate then 1 else 0 end), null
-   from  object where typ=4502 and key3='TAX'
-
-  while exists(select * from @taxyears)
-  begin
-   select top 1 @taxYearToken = year from @taxyears order by year
-   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
-   select @log = '@taxyear=' + taxyear + ';' 
-    + '@total=' + cast(total as varchar) + ';'
-    + '@stale=' + cast(stale as varchar) + ';'
-    + '@%stale=' + cast(percentStale as varchar) + '%;'
-   from @status where taxyear = @taxyearToken
-   exec dbo.logit @@procid, @log
-   delete @taxyears where year = @taxyearToken
-  end
-  return
- end
- */
 
  if @method = 'POST'
  begin
@@ -115,7 +87,19 @@ declare @it table (receiptId int)
 		from Object 
 		where typ = 4502 and Key3 = 'TAX' and k7 < dbo.date112(LastEditDate) and a17 = 'posted'
 		order by ID 
-		
+
+
+
+-- bail if your done... 
+  select @tally = count(*) from @it
+  if isnull(@tally,0) = 0
+  begin
+     exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
+     set @tally = 0
+     return
+  end
+
+
 		
   insert @wt
      select
