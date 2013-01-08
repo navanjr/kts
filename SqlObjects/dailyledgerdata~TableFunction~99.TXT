@@ -110,11 +110,11 @@ select @priorTaxYear = cast(cast(@currentTaxYear as int)-1 as varchar(4))
 update @wt2 set accountType='BACK TAX' where right(accountCode,9)='ADVALOREM' and left(accountCode,4) < @priorTaxYear
 
 insert @rt
- select *,'' from @wt2 where accountType in ('BANK','FUND','CASH','INVESTMENT')
+ select *,'' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
 
 insert @rt
 select accountType, accountType+case when accountType <> 'BACK TAX' then 'S' else '' end, sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType,'' from @wt2
- where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in ('BANK','FUND','CASH','INVESTMENT')
+ where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
  group by accountType
 
 update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
