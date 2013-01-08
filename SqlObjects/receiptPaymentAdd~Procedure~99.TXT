@@ -100,8 +100,17 @@ select
   else
    update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId,drawnon=@drawnon,location=@location where id=@paymentId
 
+
+-- add to the gl stage
+  if @receiptType = 'TAX'
+   exec dbo.receiptTaxStageGL @receiptId, @mode
+  else
+   exec dbo.receiptStageGL @receiptId
+
+  select @receiptBalanceDue = dbo.receiptBalanceDue(@receiptId)
+
 -- add or update CASH RETURNED
-  set @changeAmount = isnull(@receiptBalanceDue,0) - isnull(@amount,0)
+  set @changeAmount = isnull(@receiptBalanceDue,0)
   if @changeAmount < -.006
   begin
    exec dbo.logit @@procid, 'Hang on, we are making change...'
@@ -112,12 +121,13 @@ select
      select 'CASH', @slink, round(@changeAmount,2), 'CASH RETURNED'
   end
 
-
 -- add to the gl stage
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
    exec dbo.receiptStageGL @receiptId
+
+
 
 -- get the balance of the glStage to check your work
   if @receiptType = 'TAX'
