@@ -11,13 +11,14 @@ begin
   message varchar(max),
   tally int,
   fixProc varchar(100)
- )
+ ) 
 
  declare 
   @methodUnit varchar(50),
   @code int = 0,
   @message varchar(max) = '',
-  @tally int = 0
+  @tally int = 0,
+  @fixProc varchar(max) = ''
 
 -- Debits equal Credits by slink
  set @methodUnit = 'slinkBalance'
@@ -43,7 +44,17 @@ begin
  if @method in ('all', @methodUnit)
  begin
 
-  -- get your stats
+  exec dbo.diagFix_orphanedReceiptLinks
+    @code = @code output,
+    @tally = @tally output,
+    @message = @message output,
+    @fixProc = @fixProc output
+
+  insert @results
+   select @methodUnit, @code, @message, @tally, @fixProc  
+ 
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+
   select 
    @code = case when count(*) > 0 then 1 else 0 end,
    @tally = COUNT(*),  
@@ -57,6 +68,7 @@ begin
    select @methodUnit, @code, @message, @tally ,'none' 
  
   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+
  end
 
 -- posted receipts with wrong status

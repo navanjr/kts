@@ -1,0 +1,49 @@
+create proc dbo.diagFix_orphanedReceiptLinks(
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'orphaned receiptLinks',
+   @fixProc = 'exec dbo.diagFix_orphanedReceiptLinks @method = ''FIX'''
+  from receiptlink
+   where receiptId > 0 
+   and receiptId not in (select id from Object where Typ in (4502,4030,4003))
+   and invoiceId not in (select id from invoices)
+ 
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select
+   *
+  from receiptlink
+   where receiptId > 0 
+   and receiptId not in (select id from Object where Typ in (4502,4030,4003))
+   and invoiceId not in (select id from invoices)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  delete receiptlink
+   where receiptId > 0 
+   and receiptId not in (select id from Object where Typ in (4502,4030,4003))
+   and invoiceId not in (select id from invoices)
+  
+ end
+
+
+end
