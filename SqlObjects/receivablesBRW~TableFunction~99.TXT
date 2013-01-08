@@ -1,10 +1,14 @@
 create function dbo.receivablesBRW(
- @theDate int = 99999
+ @theDate int = 99999,
+ @mode varchar(10) = 'SUMMARY'
 ) returns @rt table(
  id int,
  ord varchar(50),
  display varchar(max),
  blob varchar(max),
+ name varchar(50),
+ parcel varchar(50),
+ item numeric(7,1),
  count int,
  invoiceAmount money,
  invoiceDue money,
@@ -26,6 +30,7 @@ begin
   id int,
   name varchar(50),
   parcel varchar(50),
+  item numeric(7,1),
   amount money,
   due money,
   fees money,
@@ -40,6 +45,7 @@ begin
   id,
   name,
   PARCEL,
+  item,
   invoiceAmount,
   invoiceDue,
   subInvoiceDue,
@@ -52,12 +58,16 @@ begin
   and invoiceId = 0
   and coalesce(nullif(interestDate,''),postDate) <= @theDate
 
+
+ if @mode = 'SUMMARY'
+ begin
+
  insert @rt
  select
   0,
   cast(9999 - cast(taxyear as int) as varchar) + 'c|' + right('aaaa' + typ,4) + '|' + cast(paidRatio as varchar),
   '      Type:' + typ + '  P/R:' + convert(varchar, cast(paidRatio * 100 as int)) + '%' ,
-  '',
+  '','','',null,
   COUNT(*) as count,
   sum(amount) as amount,
   sum(due) as due,
@@ -134,6 +144,15 @@ begin
  from @rt
  where rowType < 2
 
-
+ end
+ else
+ begin
+  insert @rt (
+   id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType
+  )
+  select
+   id, name, parcel, item, amount, due, fees, taxyear, typ, paidRatio, 1
+ from @wt
+ end
  return 
 end

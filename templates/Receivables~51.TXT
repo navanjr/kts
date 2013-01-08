@@ -10,7 +10,7 @@
  focus(106);
 
 @gcvars=
- gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.receivablesBRW('''&obj:key2&''') order by ord';
+ gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.receivablesBRW('''&obj:key2&''',''SUMMARY'') order by ord';
 @brwstuff=
  brw(150,1,gcbrwsql51,3,30,352,250,'150L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
  prop(150,'Color',16777215),
@@ -32,5 +32,26 @@
 lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 
-\t001Document; \l0024900,1;r002004;
+\t001Document; \l0024900,1;
 \t003Date; \w00450; \t004@d2; @acc004=refreshbrw=;
+
+\t110&List;
+@acc110=
+ lcbrwsql51='select id, name, parcel, item, invoiceDue, feesDue, paidRatio from dbo.receivablesBRW('''&obj:key2&''',''DETAIL'') order by name, item',
+ lctally=0,lct1=0,lct2=0,
+ tr(
+  printed,
+  page,
+  prn('Receivables List',t1),
+  prn(obj:key1,t2),
+  prn(format(obj:key2,@d2),t3),
+  bnd('HU','Name',2500,'Parcel',1500,'Item #',-500,'Due',-600,'Fees',-600),
+  det(lcbrwsql51),
+   bnd('D',obj5:a2,2500,obj5:a3,1500,format(obj5:a4,@n10.1b),-500,format(obj5:a5,@n14.2b),-600,format(obj5:a6,@n14.2b),-600),
+   lctally=lctally+1,
+   lct1=lct1+obj5:a5,
+   lct2=lct2+obj5:a6,
+  edt,
+  nl,
+  bnd('HO',,2500,'Count of Items: '&lctally,1500,,-500,format(lct1,@n14.2b),-600,format(lct2,@n14.2b),-600),
+ );
