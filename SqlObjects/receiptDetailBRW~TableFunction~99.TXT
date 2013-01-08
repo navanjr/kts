@@ -48,6 +48,18 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
 
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(max(c.id) as varchar) as int)*-1,
+   max('   '+b.description),
+   max('   '+lower(b.subDescription)),
+   sum(b.amount)
+   from receiptLink a, receiptDetail b, invoices c
+   where 't'+CAST(a.invoiceId as varchar) = b.slink
+    and a.invoiceId = c.ID
+    and receiptId = @receiptId
+   and c.invoiceId > 0
+  group by c.invoiceId, c.typ
+
   if @showFunds = 1
   begin
 -- get subInvoice and Invoices exclude tax invoice
