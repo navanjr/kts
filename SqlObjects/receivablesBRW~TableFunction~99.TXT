@@ -1,6 +1,7 @@
 create function dbo.receivablesBRW(
+ @mode varchar(10) = 'SUMMARY',
  @theDate int = 99999,
- @mode varchar(10) = 'SUMMARY'
+ @taxYear varchar(5) = ''
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -25,6 +26,14 @@ begin
 
  declare 
   @floorToken varchar(50)
+
+ declare @years table(
+  taxYear varchar(5)
+ )
+ if @taxyear > '  0'
+  insert @years select @taxyear
+ else
+  insert @years select taxyear from invoices group by taxyear
 
  declare @wt table(
   id int,
@@ -57,6 +66,7 @@ begin
  where invoiceDue != 0
   and invoiceId = 0
   and coalesce(nullif(interestDate,''),postDate) <= @theDate
+  and taxyear in (select taxyear from @years)
 
 
  if @mode = 'SUMMARY'
