@@ -107,10 +107,12 @@ select
   else
    exec dbo.receiptStageGL @receiptId
 
+  declare @overpayment money
+  select @overpayment = sum(amount) from gldetailstage where slink=@slink and accountId=0
   select @receiptBalanceDue = dbo.receiptBalanceDue(@receiptId)
 
 -- add or update CASH RETURNED
-  set @changeAmount = isnull(@receiptBalanceDue,0)
+  set @changeAmount = case when isnull(@receiptBalanceDue,0) < isnull(@overpayment,0) then isnull(@receiptBalanceDue,0) else isnull(@overpayment,0) end
   if @changeAmount < -.006
   begin
    exec dbo.logit @@procid, 'Hang on, we are making change...'
