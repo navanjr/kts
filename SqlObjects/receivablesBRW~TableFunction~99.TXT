@@ -1,7 +1,8 @@
 create function dbo.receivablesBRW(
  @mode varchar(10) = 'SUMMARY',
  @theDate int = 99999,
- @taxYear varchar(5) = ''
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -68,6 +69,8 @@ begin
   and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
 
+ if @paidRatio > 0 
+  delete @wt where paidRatio < @paidRatio
 
  if @mode = 'SUMMARY'
  begin
