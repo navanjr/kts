@@ -7,12 +7,13 @@
 @loadwindow=
  brwstuff=;
 
+
 @afterloadwindow=
  d1select('select count(distinct accountCode) from dbo.posAccounts() where accountId = 0'),
  lcGenerate=obj7:d1,
  if(lcGenerate+0>0,generate=),
  lcName=readstring(kp('select dbo.whoAmI()'),'@posName='),
- prop(0,'Text','Let''s get started, '&lcName);
+ prop(0,'Text','Dashboard, '&lcName);
 
 @brw1=
  lbrwclick150=;
@@ -26,44 +27,74 @@
  lcWhoAmI=kp('select blob from dbo.posBrw() where id = '&lcId),
  gcReceiptType=readstring(lcWhoAmI,'@receiptType='),
  lcIni=readstring(lcWhoAmI,'@ini='),
+ gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
  if(lcIni>'  0',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
 
 @rightClickLinkOptionsDate=
- m('Choose from the following options...','Right Click Options...','question.ico','&Print|&Change Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
- if(gcretval=1,printBalanceReport=),
- if(gcretval=2,changeDate=),
- if(gcretval=3,depositdatemanual=); 
+ gcReceiptType='',
+ m('Choose from the following options...','Right Click Options...','question.ico','&Browse Receipts|My B&alance Report|My &Receipt List|Balance Report|Receipt List|Change &Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
+ if(gcretval=1,browseReceipts=),
+ if(gcretval=2,printMyBalanceReport=),
+ if(gcretval=3,printMyReceiptList=),
+ if(gcretval=4,printBalanceReport=),
+ if(gcretval=5,printReceiptList=),
+ if(gcretval=6,changeDate=),
+ if(gcretval=7,depositdatemanual=); 
 
 @rightClickLinkOptionsRecType=
- gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
- m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','&Change Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
- if(gcretval=1,changeDate=),
- if(gcretval=2,depositdatemanual=); 
+ m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','&Browse Receipts|My B&alance Report|My &Receipt List|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ if(gcretval=1,browseReceipts=),
+ if(gcretval=2,printBalanceReport=),
+ if(gcretval=3,printReceiptList=),
+ if(gcretval=4,changeDate=),
+ if(gcretval=5,depositdatemanual=); 
 
-@changeDate=
-  sql('exec dbo.advanceDate '''&gcReceiptType&''','&gcNextBusinessDay&'');
+@browseReceipts=
+ writecurdata('@BrowFil4502=',3),
+ browse(1,4502,'typ=4502 and key3='''&gcReceiptType&'''');
 
-@depositdatemanual=
-  iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''&gcReceiptType&'''')''));\t001Deposit Date; \w00250; \t002@d2;'),
-  if(obj7:key1+0>2,sql('exec dbo.advanceDate '''&gcReceiptType&''','&obj7:key1&''));
+@printReceiptList=
+ setvars=,
+ gcStation='',
+ gcDeputy='',
+ trreport('receiptList',5019,'printReceiptList=');
 
+@printBalanceReport==
+ setvars=,
+ gcStation='',
+ gcDeputy='',
+ trreport('balanceReport',5018,'printDepositBalanceNew=');
 
-@printBalanceReport=
- gcReceiptType='',
+@printMyReceiptList=
+ setvars=,
+ trreport('receiptList',5019,'printReceiptList=');
+
+@printMyBalanceReport=
+ setvars=,
+ trreport('balanceReport',5018,'printDepositBalanceNew=');
+
+@setvars=
  gcBeginDate=readstring(lcWhoAmI,'@Date='),
  gcEndDate=readstring(lcWhoAmI,'@Date='),
  gcDeputy=cur:Fullname,
  gcStation=readstring(lcWhoAmI,'@station='),
  if(readstring(lcWhoAmI,'@suspenseMethod=')='U',gcStation='',gcDeputy=''),
- gcPrintDetail='Y',
- trreport('balanceReport','5018','printDepositBalanceNew=');
+ gcPrintDetail='Y';
 
-\t110O&fficial Deposit; @acc110=new(4522);
-\t111&Vouchers; @acc111=do(4770,menuprocess=);
+@changeDate=
+ sql('exec dbo.advanceDate '''&gcReceiptType&''','&gcNextBusinessDay&'');
+
+@depositdatemanual=
+ iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''&gcReceiptType&'''')''));\t001Deposit Date; \w00250; \t002@d2;'),
+ if(obj7:key1+0>2,sql('exec dbo.advanceDate '''&gcReceiptType&''','&obj7:key1&''));
+
+\t109O&fficial Deposit; @acc109=new(4522);
+\t110&Vouchers; @acc110=gcVoucher=1,do(4770,menuprocess=);
+\t111&Warrants; @acc111=gcVoucher=0,do(4770,menuprocess=);
 \t113&Miscellaneous; @acc113=newRecLog=,do(4502,'newMisc=');
 \t114Mort&gage; @acc114=newRecLog=,do(4502,'newMort=');
 \t115&Trust; @acc115=newRecLog=,do(4502,'newTrust=');
-\t116Ta&x; @acc116=newRecLog=,do(4502,'goTax=');
+\t116Ta&x Inquiry; @acc116=newRecLog=,do(4502,'goTax=');
 \t117&Individual Redeem; @acc117=newRecLog=,do(4502,'newIndiv=');
 \t118&Browse Receipts; @acc118=browse(1,4502);
 
