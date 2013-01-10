@@ -147,8 +147,7 @@ IF /I "%qanswer%"=="D" call :SetLoggingD
 GOTO:EOF
 
 :SetLoggingE
-SET /P qanswer=Enter Logging path and filename:
-sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control='start|1|%qanswer%'"
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control='start|1|'"
 GOTO:EOF
 
 :SetLoggingD
