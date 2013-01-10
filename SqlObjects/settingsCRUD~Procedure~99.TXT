@@ -1,0 +1,27 @@
+create proc dbo.settingsCRUD(
+ @settingName varchar(50),
+ @settingValue varchar(150) = null,
+ @method varchar(10) = 'GET',
+ @verbose varchar(5) = 'FALSE',
+ @valueOut varchar(150) = null output
+) as
+begin
+ set nocount on
+  
+ if @method = 'POST'
+ begin
+  if exists(select * from settings where settingName = @settingName)
+   update settings set settingValue = @settingValue where settingName = @settingName
+  else
+   insert settings (settingName, settingValue) select @settingName, @settingValue
+ end
+
+ if @method = 'GET'
+ begin
+  select @valueOut = settingValue from dbo.settings where settingName = @settingName
+  if @verbose = 'TRUE'
+   select @valueOut as settingValue
+  return
+ end
+
+end
