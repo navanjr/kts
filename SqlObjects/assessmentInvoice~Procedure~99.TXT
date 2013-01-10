@@ -1,14 +1,23 @@
-CREATE procedure [dbo].[assessmentInvoice](@assessmentId int)
+CREATE procedure [dbo].[assessmentInvoice](
+ @assessmentId int
+)
 as
-
 begin
 
  declare 
   @slink varchar(15),
-  @invoiceId int 
+  @invoiceId int,
+  @code int,
+  @message varchar(150) 
 
+-- we need to preform the check first
+ exec dbo.taxrollCheckProc @assessmentId, 'S', 0, @code = @code output, @message = @message output
+ if @code = 1
+ begin
+  select '@code=1;@message='+@message+';'
+  return
+ end
 
---  begin transaction
 
   exec dbo.assessReferenceCRUD @assessmentId, @newId = @invoiceId output
   
