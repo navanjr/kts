@@ -23,7 +23,7 @@ begin
   from object 
   where id = @depositId
 
- -- TODO: figure out how to link or unlink
+-- TODO: figure out how to link or unlink
   
  if @mode = 'link'
  begin
@@ -41,19 +41,35 @@ begin
    insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType = @receiptType
  end
 
- -- process em
+-- process em
  if @debugMode = 'TRUE'
  begin
   select * from @token
   return
  end
 
+ if @mode = 'link'
+ begin
+  update paid set depositId = @depositId
+  where isnull(depositId,0) = 0
+   and id in (select paymentId from @token)
+ end
+
+ if @mode = 'unlink'
+ begin
+  update paid set depositId = 0
+  where isnull(depositId,0) = @depositId
+   and id in (select paymentId from @token)
+ end
+
+/*
  while exists(select * from @token)
  begin
   select top 1 @idToken = paymentId from @token order by paymentId
   exec dbo.depositLinkPayment @depositId, @idToken, 1, @skipSQLTransaction = 'TRUE'
   delete @token where paymentId = @idToken
  end
+*/
 
  return
 end
