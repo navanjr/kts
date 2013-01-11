@@ -156,3 +156,15 @@ where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate&
  filecopy('TRUSPAID.csv','c:\kps\TRUSPAID.csv'),
  m('TRUST Receipts Exported')
 ;
+
+\t115Apportionment Exp;
+ @acc115=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select accountCode,accountDesc,sum(amount*-1) 
+from dbo.rpMonthEndDetail('&gcBeginDate&','&gcEndDate&',''FALSE'') 
+where journalType=''APPORTIONMENT'' and accountType in (select accountType from dbo.glBankFundTypes(''FUND''))
+group by accountCode,accountDesc','apportn.csv',4),
+ filecopy('apportn.csv','c:\kps\apportn.csv'),
+ m('APPORTIONMENT Exported')
+;
