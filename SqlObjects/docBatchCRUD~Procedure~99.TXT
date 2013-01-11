@@ -1,0 +1,56 @@
+create proc dbo.docBatchCRUD(
+ @documentName varchar(50),
+ @batchSize int,
+ @method varchar(10) = 'CREATE',
+ @documentDate int = null,
+ @invoiceDate int = null,
+ @taxyear varchar(4) = null,
+ @paidRatio money = null,
+ @verbose varchar(5) = 'TRUE',
+ @initials varchar(5) = null
+) as 
+begin
+
+ declare
+  @log varchar(max),
+  @tally int,
+  @processCode varchar(50)
+
+ select @tally = count(*) from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
+
+ exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
+
+ if @method = 'CREATE'
+ begin
+
+  if not @tally > 0 
+  begin
+   select @log = '@code=1;@message=There are no records to work with.;'
+   exec dbo.logit @@procId, @log
+   if @verbose = 'TRUE'
+     select @log
+   return
+  end
+
+  if not @batchSize > 0
+   return
+
+  select
+   @documentDate = coalesce(@documentDate, dbo.clariondate(getdate())),
+   @initials = coalesce(@initials, dbo.readstring('@ini=',dbo.whoami()))
+
+  if exists(select * from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName)
+   select @processCode = @initials + '.' + right('000' +cast(cast(max(dbo.splitF(processCode,'.',2)) as int) + 1 as varchar),3)
+   from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName
+  else
+   set @processCode = @initials + '.001'
+
+  insert dbo.documentProcessing
+   select top (@batchSize) id, @documentName, @documentDate, @processCode
+   from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
+   where id not in (select invoiceId from documentProcessing where documentName = @documentName)
+
+  return
+ end 
+
+end
