@@ -38,7 +38,7 @@ begin
   @receiptBalanceDue money,
   @changeAmount money
 
- delete from paid where paycode='CASH' and slink=@slink and checkno='CASH RETURNED'
+ delete from paid where paycode='CASH' and slink=@slink and checkno='CASH RETURNED' and @checkNumber<>'CASH RETURNED'
 
  select
   @code = code,
@@ -107,6 +107,8 @@ select
   else
    exec dbo.receiptStageGL @receiptId
 
+ if @checkNumber<>'CASH RETURNED'
+ begin
   declare @overpayment money
   select @overpayment = sum(amount) from gldetailstage where slink=@slink and accountId=0
   select @receiptBalanceDue = round(dbo.receiptBalanceDue(@receiptId)+.001,2)
@@ -128,6 +130,7 @@ select
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
    exec dbo.receiptStageGL @receiptId
+  end
 
 
 

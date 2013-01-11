@@ -248,7 +248,7 @@ begin
 
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
-  select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, payord, linkId
+  select top 1 @idToken = id, @dueToken = round(due * methodRate,2) from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, payord, linkId
 
   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
 
@@ -272,7 +272,7 @@ begin
  end
 
 
-  select @applyTotal = sum(due*methodRate) from @wt where processFlag = 0
+  select @applyTotal = sum(round(due*methodRate,2)) from @wt where processFlag = 0
    exec dbo.logit @@procid, '@applyTotal = ', @applyTotal, @level = 2 
 
   if @paidTotal > @applyTotal and @paidTotal > 0.00
