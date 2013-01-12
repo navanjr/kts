@@ -19,7 +19,23 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
  refreshbrw=;
 
- m(lcCount);
+@lbrwclick151=brw2=;
+@brw2=
+ lcid=kpbrwid(2)*-1,
+ break(lcid<1),
+ m('Choose one of the following options...','Batch Print Right Click Menu...','question.ico','&Print Batch|&Open Batch|&Remove Batch|&Cancel'),
+ if(gcretval=2,openBatch=),
+ if(gcretval=3,removeBatch=);
+
+@openBatch=
+ lcId=kp('select top 1 id from object where typ=4025'),if(lcId+0>0,change(lcId),new(4025));
+
+@removeBatch=
+ m('This action will remove this print batch and all details regarding this batches activity.||Are you sure you wish to remove this Batch?','Remove Print Batch...','question.ico',6,4),
+ break(gcretval<>2);
+ d1select('exec dbo.docBatchCRUD '),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
+ refreshbrw=;
 
 @gcvars=
  lcDoc=obj:key1,
@@ -29,10 +45,10 @@
  lcDocDate=choose(obj:a17>'  0',obj:a17,'0'),
  lcDocDays=choose(obj:c1>'  0',obj:c1,'0'),
  gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.receivablesBRW(''SUMMARY'','&lcInvDate&','''&lcTaxYear&''','&lcPaidRatio&') order by ord',
- gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.receivablesDocumentProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','&lcInvDate&','''&lcTaxYear&''','&lcPaidRatio&') order by ord';
+ gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','&lcInvDate&','''&lcTaxYear&''','&lcPaidRatio&') order by ord';
 @brwstuff=
  brw(150,1,gcbrwsql51,3,54,352,250,'150L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
- brw(151,2,gcbrwsql51b,360,16,250,288,'130L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(151,2,gcbrwsql51b,360,16,250,288,'120L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
  prop(150,'Color',16777215),
  prop(151,'Color',16777215),
  rop(150,7cfah,13499135),
@@ -40,8 +56,8 @@
  prop(151,7c10h,'Courier New'),
  rop(150,7c11h,12),
  rop(150,'BevelOuter',10),
- prop(150,'SelectedFillColor',13499135),
- prop(151,'SelectedFillColor',13499135),
+ prop(150,'SelectedFillColor',16777215),
+ prop(151,'SelectedFillColor',16777215),
  prop(150,'SelectedColor',0),
  prop(151,'SelectedColor',0),
  rop(150,'linewidth',10),

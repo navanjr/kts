@@ -1,0 +1,70 @@
+create function dbo.docProcessingBRW(
+ @documentName varchar(50),
+ @date int,
+ @days int,
+ @theDate int = 0,
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00
+) returns @rt table(
+ id int default 0,
+ ord varchar(50) default '',
+ display varchar(max) default '',
+ count1 varchar(50) default '',
+ count2 varchar(50) default '',
+ blob varchar(max) default '',
+ rowType int default 0 
+) as
+begin
+ 
+ declare 
+  @tally1 int,
+  @tally2 int
+
+ declare @batches table(
+  id int,
+  processCode varchar(50),
+  count1 int,
+  count2 int
+ )
+
+ if @documentName < '  0'
+  return
+
+-- printed total
+-- insert @rt select 0, 'ba', 'Printed Tally', dbo.receivableDocumentCount(@documentName,@date,@days), '', 5
+ insert @rt (ord) select 'bz'
+
+ insert @rt (ord, display, count1, count2, rowType) select 'ca', 'Print Batch Tally', 'to Print', 'Printed', 5
+
+-- document processing 
+ insert @batches 
+ select min(id), processCode, count(*), 0
+ from documentProcessing
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by processCode 
+
+-- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
+
+-- completed batches
+ insert @batches
+ select 0, stamp, 0, count(*)
+ from taxrollDetail
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by stamp
+
+ insert @rt (id, ord, display, count1, count2)
+ select max(id), 'd'+processCode, '   ' + processCode, sum(count1), sum(count2)
+ from @batches
+ group by processCode
+
+-- Document Tally
+ select @tally1 = count(*) from dbo.receivablesBRW('DETAIL', @theDate, @taxyear, @paidRatio)
+ select @tally2 = sum(count2) from @batches
+ insert @rt (ord, display, count1, count2, rowType) select 'aa', 'Document Tally', 'Matches', 'Printed', 5
+ insert @rt (ord, count1, count2) select 'ab', @tally1, @tally2
+
+ return
+
+end

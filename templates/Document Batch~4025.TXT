@@ -1,0 +1,62 @@
+@nolock;
+@noupdate;
+
+\t109&Mark Printed;
+@acc109=
+ m('Choose one of the following options...','Mark Tax Statement...','Question.ico','Mark ONLY the selected statement|Mark all un-marked statements through selected statement|&Cancel'),
+ if(gcretval=1,markOne=),
+ if(gcretval=2,markAll=);
+
+@markOne=
+ d1select('exec dbo.taxStatementStatus '&kpbrwid(1)*-1&',''markOne'''),
+ refreshTheBrw=;
+
+@markAll=
+ d1select('exec dbo.taxStatementStatus '&kpbrwid(1)*-1&',''markAll'''),
+ refreshTheBrw=;
+
+\t110&Print;
+@acc110=
+ m('Are you sure you wish to print/reprint this Tax Statement?','Print/Reprint Tax Statement...','Question.ico',6,2),
+ break(gcretval<>2),
+ gcInvoiceId=kpbrwid(1)*-1,
+ do(4000,printItCore=),
+ refreshTheBrw=;
+
+\t113Reset Failed;
+@acc113=
+ d1select('exec dbo.taxStatementStatus '&kpbrwid(1)*-1&',''ResetFailed'''),
+ refreshTheBrw=;
+
+\t114Reset Printed;
+@acc114=
+ lcbatchitemid=kpbrwid(1)*-1,
+ d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedStage'''),
+ m('Are you sure you wish to reset the printed flag for all tax statements greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Tax Statments...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.taxStatementStatus '&lcbatchitemid&',''ResetPrintedCommit'''),
+ refreshTheBrw=;
+
+@loadwindow=
+ gcPBStuffer=kp('select pbStuffer from dbo.site'),
+ create(550,12,575,48,'&Show Printed',78),
+ set(78,0),
+ setVars=,
+ brwStuff=;
+
+@setVars=
+ gcbrwFormat4025='130L(2)~Name~#2#|M'&choose(gcPBStuffer<>1,'40R(2)~Item~#5#|M','80R(2)~POrder~#12#|M')&'100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|MM65L(2)~Printed~#10#|M',
+ gcsql4025='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort,printOrder from dbo.docBatchBRW('''&gcProcessCode&''','''&gcDocName&''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by '&choose(gcPBStuffer<>1,' name+cast(item as varchar)',' printOrder');
+
+@brwStuff=
+ brw(160,1,gcsql4025,3,15,560,220,gcbrwFormat4025,7,1);
+
+@acc550=refreshTheBrw=;
+
+@brw1=
+ sql('update invoices set printed='''' where id = '&(kpbrwid()*-1)),
+ refreshTheBrw=;
+
+@refreshTheBrw=
+ setVars=,
+ brwreload(1,gcsql4025);

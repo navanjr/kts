@@ -1,0 +1,46 @@
+create function dbo.docBatchBRW(
+ @processCode varchar(50),
+ @documentName varchar(50)
+) returns @rt table(
+  invoiceId int,
+  name nvarchar(60),
+  printOrder varchar(50),
+  parcel nvarchar(34),
+  taxYear numeric(5,0),
+  item numeric(22,1),
+  taxType nvarchar(1),
+  amount money,
+  due money,
+  slink varchar(15),
+  selectedFlag char(4),
+  methodRate money,
+  ord varchar(80),
+  fees money,
+  penalty money,
+  toPay money,
+  treamort varchar(5),
+  taxrollId int,
+  queue varchar(50),
+  printed varchar(50)
+) as
+begin
+
+-- document processing 
+ insert @rt (id)
+ select id
+ from documentProcessing
+ where documentName = @documentName
+ group by processCode 
+
+-- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
+
+-- completed batches
+ insert @batches
+ select 0, stamp, 0, count(*)
+ from taxrollDetail
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by stamp
+
+ return
+end
