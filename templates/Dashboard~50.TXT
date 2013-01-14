@@ -16,34 +16,41 @@
  prop(0,'Text','Dashboard, '&lcName);
 
 @brw1=
- lbrwclick150=;
+ lcId=kpbrwid(1),
+ clickPrep=,
+ if(gcReceiptType<>'ALL',browseReceipts=),
+ break(gcReceiptType<>'ALL'),
+ gcReceiptType='',
+ printMyBalanceReport=;
 
 @lbrwclick150=
  lcId=kpbrwid(1),
  rightClickLinkOptions=,
  refreshbrw=;
 
-@rightClickLinkOptions=
+@clickPrep=
  lcWhoAmI=kp('select blob from dbo.posBrw() where id = '&lcId),
  gcReceiptType=readstring(lcWhoAmI,'@receiptType='),
  lcIni=readstring(lcWhoAmI,'@ini='),
- gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')'),
+ gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
+
+@rightClickLinkOptions=
+ clickPrep=,
  if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
 
 @rightClickLinkOptionsDate=
  gcReceiptType='',
- m('Choose from the following options...','Right Click Options...','question.ico','&Browse Receipts|My B&alance Report|Change &Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
- if(gcretval=1,browseReceiptsAll=),
- if(gcretval=2,printMyBalanceReport=),
+ m('Choose from the following options...','Right Click Options...','question.ico','My &Balance Report|B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
+ if(gcretval=1,printMyBalanceReport=),
+ if(gcretval=2,browseReceiptsAll=),
  if(gcretval=3,changeDate=),
  if(gcretval=4,depositdatemanual=); 
 
 @rightClickLinkOptionsRecType=
- m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','&Browse Receipts|My B&alance Report|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
  if(gcretval=1,browseReceipts=),
- if(gcretval=2,printMyBalanceReport=),
- if(gcretval=3,changeDate=),
- if(gcretval=4,depositdatemanual=); 
+ if(gcretval=2,changeDate=),
+ if(gcretval=3,depositdatemanual=); 
 
  if(gcretval=3,printMyReceiptList=),
 
