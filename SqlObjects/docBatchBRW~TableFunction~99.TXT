@@ -1,46 +1,63 @@
 create function dbo.docBatchBRW(
- @processCode varchar(50),
+ @batchBRWId int, -- this parameters first character is either a 9(documentProcessing) or 8(comments)
  @documentName varchar(50)
 ) returns @rt table(
-  invoiceId int,
-  name nvarchar(60),
-  printOrder varchar(50),
-  parcel nvarchar(34),
-  taxYear numeric(5,0),
-  item numeric(22,1),
-  taxType nvarchar(1),
-  amount money,
-  due money,
-  slink varchar(15),
-  selectedFlag char(4),
-  methodRate money,
-  ord varchar(80),
-  fees money,
-  penalty money,
-  toPay money,
-  treamort varchar(5),
-  taxrollId int,
-  queue varchar(50),
-  printed varchar(50)
+ invoiceId int,
+ name nvarchar(60),
+ printOrder varchar(50),
+ parcel nvarchar(34),
+ taxYear numeric(5,0),
+ item numeric(22,1),
+ taxType nvarchar(1),
+ amount money,
+ due money,
+ slink varchar(15),
+ selectedFlag char(4),
+ methodRate money,
+ ord varchar(80),
+ fees money,
+ penalty money,
+ toPay money,
+ treamort varchar(5),
+ taxrollId int,
+ queue varchar(50),
+ printed varchar(50)
 ) as
 begin
 
+ declare 
+  @processCode varchar(50),
+  @idSwitch int,
+  @batchId int
+
+ select
+  @idSwitch = left( cast(@batchBRWId as varchar), 1),
+  @batchId = substring( cast(@batchBRWId as varchar), 2, 20)
+
+ if @idSwitch = 9
+  select @processCode = processCode from documentProcessing where id = @batchId
+
+ if @idSwitch = 8
+  select @processCode = stamp from taxrollDetail where id = @batchId
+
 -- document processing 
- insert @rt (id)
- select id
- from documentProcessing
- where documentName = @documentName
- group by processCode 
+ insert @rt (invoiceId, name)
+ select i.id, i.name
+ from documentProcessing d, invoices i
+ where
+  d.invoiceId = i.id
+  and documentName = @documentName
+  and processCode = @processCode
 
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
- insert @batches
- select 0, stamp, 0, count(*)
- from taxrollDetail
- where documentName = @documentName
-  and documentDate between @date and @date + @days
- group by stamp
+-- insert @batches
+-- select 0, stamp, 0, count(*)
+-- from taxrollDetail
+-- where documentName = @documentName
+--  and documentDate between @date and @date + @days
+-- group by stamp
 
  return
 end
