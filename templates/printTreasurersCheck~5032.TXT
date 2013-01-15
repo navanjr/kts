@@ -96,8 +96,8 @@
 
 @printsumGr=
  do(452,getSiteInfo=),
-lcsqlno='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,warrantLinkId,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' and warrantLinkId=0 ',
-lcsqlyes='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,warrantLinkId,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' and warrantLinkId+0>0 ',
+lcsqlno='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,case when warrantLinkId=0 then ''a'' else ''b'' end,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' order by case when warrantLinkId = 0 then ''a'' else ''b'' end,debitAccountCode-- and warrantLinkId=0 ',
+lcsqlyes='-- select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,warrantLinkId,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' and warrantLinkId+0>0 ',
 
  tr(
    lcLm=450,
@@ -116,7 +116,6 @@ lcsqlyes='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amou
     nl,
     nl,
  
-bnd('H9','UNCLEARED WARRANTS (by Fund)',1000),
 nl,
 bnd('HU',
 'Warr No.',600,
@@ -130,11 +129,11 @@ bnd('HU',
 'Fiscal Year',700),
 nl,
 
-grp(1,obj5:a7,do(
-nl,nl,
+grp(1,obj5:a17,do(
+nl,nl,bnd('H9',choose(obj5:a17='a','UNCLEARED WARRANTS (by Fund) ','alsdfkjasdfkj'),5000),
 )),
 det(lcsqlno),
-bnd('D',
+bnd('D',,200,
 obj5:a4,600,
 format(obj5:a5,@d1),600,
 obj5:a2,500,
@@ -143,8 +142,11 @@ format(obj5:a6,@n$-14.2),700R,
 format(obj5:a8,@s18),1200,
 format(obj5:a20,@s22),1400,
 obj5:a14,500,
-obj5:a19,700),
+obj5:a19,700,obj5:a17,100),
 edt,
+);
+
+
 
 nl,
 nl,
