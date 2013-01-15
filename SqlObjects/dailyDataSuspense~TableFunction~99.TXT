@@ -37,11 +37,14 @@ begin
   a.accountCode,
   SUM(gl.amount)
  from
-  dbo.gldetail gl,
-  dbo.glaccounts a
+  dbo.gldetail gl
+ join dbo.glaccounts a on gl.accountId = a.accountId
+ left outer join object o on dbo.slinkId(gl.slink) = o.id
+ left outer join paid p on dbo.slinkId(gl.slink2) = p.id
  where
-  gl.accountId = a.accountId
-  and a.accountType = 'SUSPENSE'
+  a.accountType = 'SUSPENSE'
+  and isnull(p.depositId,0) = 0 -- this where clause will remove the receipts from your pos when they are linked to a deposit
+  and isnull(o.typ,0) != 4513  
  group by a.accountId, a.accountCode
  having SUM(gl.amount) != 0 
 
@@ -79,7 +82,7 @@ begin
  from @wt
 
  insert @rt (id,ord,rowstring) select 0, @ordSeed, ''
- insert @rt (id,ord,rowstring,rowstring1) select 0, @ordSeed + 'A','  Suspense Accounts','  Suspense Accounts'
+ insert @rt (id,ord,rowstring,rowstring1) select 0, @ordSeed + 'A','  Suspense Accounts   (Un-deposited)','  Suspense Accounts   (Un-deposited)'
  insert @rt (id,ord,rowstring,rowstring1,sourceNo,recordCnt,sourceAmt) select 0, @ordSeed + 'B',' ' + replicate('-',69),' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
 
  return
