@@ -1,0 +1,86 @@
+CREATE function dbo.dailyDataSuspense(
+ @theDate int,
+ @days int,
+ @ordSeed varchar(50),
+ @filterFlag varchar(10)
+) returns @rt table (
+ id int,
+ ord varchar(250),
+ rowstring varchar(250),
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50),
+ rowType char(10),
+ brwBGColor int,
+ minControlNumber varchar(50),
+ maxControlNumber varchar(50),
+ minTicketNumber varchar(50),
+ maxTicketNumber varchar(50),
+ dptno varchar(50)
+)
+begin
+
+ declare @wt table(
+  accountId int,
+  accountCode varchar(50),
+  amount money,
+  paycode varchar(50),
+  receiptType varchar(50),
+  suspenseCode varchar(50)
+ )
+
+ insert @wt (accountId, accountCode, amount)
+ select
+  a.accountId,
+  a.accountCode,
+  SUM(gl.amount)
+ from
+  dbo.gldetail gl,
+  dbo.glaccounts a
+ where
+  gl.accountId = a.accountId
+  and a.accountType = 'SUSPENSE'
+ group by a.accountId, a.accountCode
+ having SUM(gl.amount) != 0 
+
+ update @wt set
+  paycode = dbo.splitF(accountCode,'.',3),
+  suspenseCode = dbo.splitF(accountCode,'.',1),
+  receiptType = dbo.splitF(accountCode,'.',2)
+ where CHARINDEX('.',accountCode) > 0
+
+ update @wt set
+  paycode = accountCode,
+  suspenseCode = 'unknown',
+  receiptType = accountCode
+ where CHARINDEX('.',accountCode) = 0
+
+--Suspense Accounts
+ insert @rt (id, ord, rowstring, rowstring1, sourceAmt)
+ select
+  0,
+  'CC' + suspenseCode + receiptType,
+  '      ' + dbo.padRight(receiptType,' ',35)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
+  '      ' + dbo.padRight(receiptType,' ',35),
+  dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from @wt group by suspenseCode, receiptType
+
+ insert @rt (id,ord,rowstring)
+ select 0, @ordSeed + 'C' + suspenseCode, '   ' + dbo.padRight(suspenseCode,' ',48)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from @wt group by suspenseCode
+
+ insert @rt (id,ord,rowstring)				
+ select 0, @ordSeed + 'C' + 'ZZ', dbo.padRight(replicate(' ',20) + 'Total',' ',51)
+  + dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
+ from @wt
+
+ insert @rt (id,ord,rowstring) select 0, @ordSeed, ''
+ insert @rt (id,ord,rowstring,rowstring1) select 0, @ordSeed + 'A','  Suspense Accounts','  Suspense Accounts'
+ insert @rt (id,ord,rowstring,rowstring1,sourceNo,recordCnt,sourceAmt) select 0, @ordSeed + 'B',' ' + replicate('-',69),' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+
+ return
+end
