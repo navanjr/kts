@@ -1,13 +1,14 @@
 create proc dbo.docBatchCRUD(
- @documentName varchar(50),
- @batchSize int,
+ @documentName varchar(50) = null,
+ @batchSize int = null,
  @method varchar(10) = 'CREATE',
  @documentDate int = null,
  @invoiceDate int = null,
  @taxyear varchar(4) = null,
  @paidRatio money = null,
  @verbose varchar(5) = 'TRUE',
- @initials varchar(5) = null
+ @initials varchar(5) = null,
+ @brwId int = null
 ) as 
 begin
 
@@ -19,6 +20,12 @@ begin
  select @tally = count(*) from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
 
  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
+
+
+ if @method = 'REMOVE'
+ begin
+  return
+ end
 
  if @method = 'CREATE'
  begin

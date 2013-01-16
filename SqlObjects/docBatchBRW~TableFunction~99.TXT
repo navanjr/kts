@@ -41,23 +41,26 @@ begin
   select @processCode = stamp from taxrollDetail where id = @batchId
 
 -- document processing 
- insert @rt (invoiceId, name)
- select i.id, i.name
- from documentProcessing d, invoices i
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), ''
+ from documentProcessing d
+ join invoices i on d.invoiceId = i.id
+ left outer join adtax a on i.taxrollId = a.id
  where
-  d.invoiceId = i.id
-  and documentName = @documentName
+  documentName = @documentName
   and processCode = @processCode
 
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
--- insert @batches
--- select 0, stamp, 0, count(*)
--- from taxrollDetail
--- where documentName = @documentName
---  and documentDate between @date and @date + @days
--- group by stamp
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), dbo.date1(d.documentDate)
+ from taxrollDetail d
+ join invoices i on d.invoiceLinkId = i.id
+ left outer join adtax a on i.taxrollId = a.id
+ where
+  d.documentName = @documentName
+  and d.stamp = @processCode
 
  return
 end
