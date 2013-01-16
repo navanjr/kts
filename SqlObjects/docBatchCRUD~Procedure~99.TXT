@@ -8,27 +8,34 @@ create proc dbo.docBatchCRUD(
  @paidRatio money = null,
  @verbose varchar(5) = 'TRUE',
  @initials varchar(5) = null,
- @brwId int = null
+ @brwId int = null,
+ @processCode varchar(50) = null
 ) as 
 begin
 
  declare
   @log varchar(max),
   @tally int,
-  @processCode varchar(50)
-
- select @tally = count(*) from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
-
- exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
-
+  @idSwitch int,
+  @batchId int
 
  if @method = 'REMOVE'
  begin
+
+  select
+   @idSwitch = left( cast(@brwId as varchar), 1),
+   @batchId = substring( cast(@brwId as varchar), 2, 20)
+
+
+--  delete documentProcessing where 
   return
  end
 
  if @method = 'CREATE'
  begin
+
+  select @tally = count(*) from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
 
   if not @tally > 0 
   begin
