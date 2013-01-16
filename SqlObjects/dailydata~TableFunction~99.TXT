@@ -57,27 +57,6 @@ begin
  insert @rt 
  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataSuspense(@theDate, @days, 'C',@filterString) order by ord
 
-/*
---Suspense Accounts
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt)
- select
-  cast('8'+cast(a.accountId as varchar) as int) * -1, 
-  'CC',
-  '   ' + dbo.padRight(a.accountDesc,' ',48)
-  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16),
-  '',
-  '   ' + dbo.padRight(a.accountDesc,' ',48),
-  dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
- from glDetail a, dbo.glAccounts acct
- where a.accountId = acct.accountId and acct.accountType = 'SUSPENSE' -- a.accountId in (select accountId from paycodes)
- group by a.accountId,a.accountDesc
- having sum(a.amount) != 0
-
- insert @rt (id,ord,rowstring,glBalanceString) select 0,'C ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'CA','  Suspense Accounts','','  Suspense Accounts'
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'CB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
-
-*/
 --Pending Deposits
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt)
  select 
@@ -100,7 +79,7 @@ begin
      from dbo.depositPaidUnPosted()
 
  insert @rt (id,ord,rowstring,glBalanceString) select 0,'D ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'DA','  Pending Deposits','','  Pending Deposits'
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,'DA','  Un-Posted Deposits','','  Un-Posted Deposits', 1
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'DB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
 
  return
