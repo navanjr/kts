@@ -132,7 +132,9 @@
  if(gcretval=2,linkPaymentsByDate=);
 
 @linkAllPaymentsForType=
+ kpmo('Please wait... linking/unlinking payments...','Working...'),
  d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''',@mode='''&lclinkDirection&''''),
+ kpmc(),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
  if(obj:a17<>'Posted',sql('exec dbo.depositStagePayments '&obj:id)),
  refreshbrw=;
@@ -140,14 +142,18 @@
 @linkPaymentsByDate=
  iw('\t000Link '&lcReceiptType&' by Date...;\t001Enter Date;\t002@d2;\w00255;'),
  break(gcretval<>'OK'),
+ kpmo('Please wait... linking/unlinking payments...','Working...'),
  d1select('exec dbo.depositLinkManyPayments '&obj:id&', '''&lcReceiptType&''', '&obj7:key1&',@mode='''&lclinkDirection&''''),
+ kpmc(),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Link '&lcReceiptType&' Payments...')),
  if(obj:a17<>'Posted',sql('exec dbo.depositStagePayments '&obj:id)),
  refreshbrw=;
 
 @linkPayment=
  update,
+ kpmo('Please wait... linking/unlinking payments...','Working...'),
  d1select('exec dbo.depositLinkPayment '&obj:id&','&lcId),
+ kpmc(),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
  refreshbrw=;
 
@@ -160,7 +166,9 @@
 
 @linkAllTypes=
  update,
+ kpmo('Please wait... linking/unlinking payments...','Working...'),
  d1select('exec dbo.depositLinkAllPayments '&obj:id),
+ kpmc(),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
  gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
 
@@ -177,7 +185,9 @@
 @refreshbrw=
  setBRWvars=,
  gcTable4513=choose(obj:a17='Posted','gldetail','glDetailStage'),
+ kpmo('Please wait as we query the payments...','Refreshing...'),
  brwreload(1,gcbrw1sql),
+ kpmc(),
  calcfld(74);
 
 @postAndPrint=
