@@ -1,9 +1,9 @@
+
 @bb4=&Print; 
 @bbproc4=
- gcBeginDate=77405,
- gcEndDate=77419,
- printsumGr=;
-
+ gcBeginDate=74000,
+ gcEndDate=99999,
+ printAllWarrants=;
 
 
 @print=
@@ -94,7 +94,38 @@
  );
 
 
-@printWarrantStatus=
+@printOpenWarrants=
+ do(452,getSiteInfo=),
+ lcsql='select treasurersNumber,dateRegistered,clerksNumber,clerksDate,payee,amount,debitAccountDesc,status,paymentType,warrantLinkId,fiscalYear,payee,debitAccountCode from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&'  and paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+
+ tr(
+   lcLm=450,
+    lcTm=250,
+    lcRecCnt=0,
+    lcCnt=0,
+    lcy=lcTm,
+    prn(printed,lcLm,lcTm),
+    prn(page,lcLm+7000,lcTm+125),
+    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
+    bnd('D9','Outstanding Warrants by Fund',8000C),
+    nl,
+    prn(,,,lcHeaderFontSize,regular),
+    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
+    bnd('D9',gcCity&', '&gcFState,8000C),
+    nl,
+    nl,
+    bnd('HU','Wrnt No.',600,'Wrnt Date',600,'Reg No.',500,'Reg Date',600,'Amount',700C,'Fund Desc',1200,'Pay To Whom',1400,'Status',500,'Fiscal Year',700),
+
+    grp(1,obj5:a7,do(nl,nl,)  ),
+
+ det(lcsql),
+ bnd('D',obj5:a3,600,format(obj5:a4,@d1),600,obj5:a1,500,format(obj5:a2,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a7,@s18),1200,format(obj5:a12,@s22),1400,obj5:a8,500,obj5:a11,700),
+ edt,
+
+);
+
+
+@printOpenVouchers=
 do(452,getSiteInfo=),
 lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,case when warrantLinkId=0 then ''a'' else ''b'' end,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' order by case when warrantLinkId = 0 then ''a'' else ''b'' end,debitAccountCode',
 
@@ -126,3 +157,35 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 
 );
 
+
+@printAllWarrants=
+do(452,getSiteInfo=),
+lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,case when warrantLinkId=0 then ''a'' else ''b'' end,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' order by case when warrantLinkId = 0 then ''a'' else ''b'' end,debitAccountCode',
+
+ tr(
+   lcLm=450,
+    lcTm=250,
+    lcRecCnt=0,
+    lcCnt=0,
+    lcy=lcTm,
+    prn(printed,lcLm,lcTm),
+    prn(page,lcLm+7000,lcTm+125),
+    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
+    bnd('D9','Warrant Status Report',8000C),
+    nl,
+    prn(,,,lcHeaderFontSize,regular),
+    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
+    bnd('D9',gcCity&', '&gcFState,8000C),
+    nl,
+    nl,
+    bnd('HU','Wrnt No.',600,'Wrnt Date',600,'Reg No.',500,'Reg Date',600,'Amount',700C,'Fund Desc',1200,'Pay To Whom',1400,'Status',500,'Fiscal Year',700),
+    grp(1,obj5:a17,do(
+    nl,
+    bnd('H9',choose(obj5:a17='a','OUTSTANDING WARRANTS (by Fund) ','CLEARED WARRANTS (by Fund)'),5000),
+    nl,
+    )  ),
+ det(lcsql),
+ bnd('D',obj5:a4,600,format(obj5:a5,@d1),600,obj5:a2,500,format(obj5:a3,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a8,@s18),1200,format(obj5:a20,@s22),1400,obj5:a14,500,obj5:a19,700),
+ edt,
+
+);

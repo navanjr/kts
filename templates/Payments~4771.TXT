@@ -1,7 +1,7 @@
 @gfbnr=1;
 @dk1;
 @format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M100L(2)~ImportStamp~#28#|M;
-@filtername=All,Vouchers,Warrants,Treasurers Checks,Posted,Un-Posted,OutStanding Warrants,Un-Cleared Vouchers;
+@filtername=All,Official Vouchers,Warrants,Treasurers Checks,Posted,Un-Posted,Outstanding Warrants,Un-Cleared Vouchers;
 @filter='1=1','a18 in (''Official Voucher'',''Cancel Voucher'')','a18=''Warrant''','a18=''Treasurers Check''','a17=''Posted''','a17<>''Posted''','link1=0 and a18=''Warrant'' and a17 = ''Posted''','a18 in (''Official Voucher'',''Cancel Voucher'') and ''o''+cast(id as varchar) in (select slink from gldetail where LEFT(slink,1) = ''o'' and isnull(bsId,0) = 0)';
 @seriesField=a18;
 
@@ -19,8 +19,11 @@
  d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
 
+
 @bb4=&Print;  
 @bbproc4=
+ if(filter=7),printWarrants=;
+ if(filter=8),printVouchers=;
  if(obj:a18<>'Treasurers Check',print=,printTreasurersCheck=);
 
 @printTreasurersCheck=
@@ -29,6 +32,18 @@
  gcBeginDate=obj7:key1,
  gcEndDate=obj7:key2,
  trreport('Warrants Paid',5032,'printsum=');
+
+
+@printWarrants=
+ gcBeginDate=00000,
+ gcEndDate=99999,
+ trreport('Outstanding Warrants',5032,'printOpenWarrants=');
+
+@printVouchers=
+ trreport('Uncleared Vouchers',5032,'printOpenVouchers=');
+
+
+
 
 @browsedelete=
  break(obj:a17<>'Posted'),
