@@ -1,6 +1,5 @@
 create function dbo.docBatchBRW(
- @batchBRWId int, -- this parameters first character is either a 9(documentProcessing) or 8(comments)
- @documentName varchar(50)
+ @batchBRWId int -- this parameters first character is either a 9(documentProcessing) or 8(comments)
 ) returns @rt table(
  invoiceId int,
  name nvarchar(60),
@@ -26,15 +25,19 @@ create function dbo.docBatchBRW(
 begin
 
  declare 
+  @documentName varchar(50),
   @processCode varchar(50),
   @idSwitch int,
   @batchId int
  
- select @processCode = processCode from dbo.docBRWDecoder(@batchBRWId)
+ select 
+  @documentName = documentName,
+  @processCode = processCode
+ from dbo.docBRWDecoder(@batchBRWId)
 
 -- document processing 
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), ''
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId
  from documentProcessing d
  join invoices i on d.invoiceId = i.id
  left outer join adtax a on i.taxrollId = a.id
@@ -45,8 +48,8 @@ begin
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId
  from taxrollDetail d
  join invoices i on d.invoiceLinkId = i.id
  left outer join adtax a on i.taxrollId = a.id

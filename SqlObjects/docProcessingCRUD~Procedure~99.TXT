@@ -1,0 +1,140 @@
+create proc dbo.docProcessingCRUD(
+ @batchBRWId int,
+ @invoiceId int,
+ @status varchar(50),
+ @lcContinue varchar(50) = '' output,
+ @theDateTime datetime = null
+) as
+begin
+
+ set nocount on
+
+ declare
+  @InvoiceStatus varchar(50),
+  @name varchar(50),
+  @item varchar(50),
+  @printOrder varchar(50),
+  @tally int,
+  @log varchar(max),
+  @taxrollId int,
+  @documentName varchar(50),
+  @processCode varchar(50)
+
+ select
+  @name = name,
+  @item = cast(item as varchar), 
+  @printOrder = printOrder,
+  @invoiceStatus = printed,
+  @taxrollId = taxrollId,
+  @printOrder = printOrder
+ from dbo.docBatchBRW(@batchBRWId) where invoiceId = @invoiceId
+
+ select 
+  @documentName = documentName,
+  @processCode = processCode
+ from dbo.docBRWDecoder(@batchBRWId)
+
+ select @theDateTime = coalesce(@theDateTime,getdate())
+
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@documentName', @documentName, '@processCode', @processCode
+
+ if @status in ( 'markOne', 'markAll' )
+ begin
+
+  if @status = 'markOne'
+  begin
+   insert taxrollDetail (invoiceLinkId, dtype, documentName, documentDateTime, Stamp, Comments, adtaxId, printOrder)
+   select @invoiceId, 'print', @documentName, @theDateTime, @processCode, 'Printed ' + @documentName + ' - ' + @processCode, @taxrollId, @printOrder
+   delete documentProcessing where documentName = @documentName and processCode = @processCode and invoiceID = @invoiceId
+  end
+/*  else
+  begin
+   update invoices set printed = getDate()
+   where queue = @queue and printed < '  0'
+    and printOrder <= printOrder
+    and taxyear = @taxyear
+  end */
+  return
+ end
+
+ if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
+ begin
+  select @tally = count(*) from dbo.docBatchBRW(@batchBRWId) where printOrder >= @printOrder
+  select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
+  exec dbo.logit @@procid, @log
+  if @status = 'resetPrintedStage'
+  begin
+   select @log 
+  end
+  if @status = 'resetPrintedCommit'
+  begin
+   -- we need to remove the taxrollDetail and put back the document proccessing record
+   declare @wt table(invoiceId int, printOrder varchar(50))
+   insert @wt select invoicelinkId, printOrder from taxrollDetail where documentName = @documentName and stamp = @processCode and printOrder >= @printOrder
+   update taxrollDetail set invoiceLinkId = invoiceLinkId * -1 where invoicelinkId in (select invoiceId from @wt)
+   insert documentProcessing select invoiceId, @documentName,  dbo.clariondate(getdate()), @processCode, printOrder from @wt
+  end
+  return
+ end
+
+ if @status = 'resetFailed'
+ begin
+--  update invoices set printed = '' where taxyear = @taxYear and queue = @queue and printed = 'Failed' 
+  exec dbo.logit @@procid, 'reset Complete'
+  return
+ end
+/*
+ if isnull(@invoiceStatus,'') = 'Failed'
+ begin
+  set @lcContinue = 'False'
+  select @lcContinue
+  exec dbo.logit @@procid, '@invoiceStatus', @invoiceStatus, '@lcContinue', @lcContinue
+  return  
+ end
+
+-- Pre check
+ if @status = 'initialize'
+ begin
+
+  if exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+   set @lcContinue = 'False'
+  else
+   set @lcContinue = 'True'
+
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return
+ end
+
+ if @status = 'Failed'
+ begin
+
+  if not exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+   update invoices set printed = 'Failed' where id = @invoiceId
+
+  set @lcContinue = 'False'
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return
+
+ end
+
+ if @status = 'Success'
+ begin
+  if exists(select * from invoices where taxyear = @taxYear and queue = @queue and printed = 'Failed')
+  begin
+   set @lcContinue = 'False'
+  end
+  else
+  begin
+   update invoices set printed = getdate() where id = @invoiceId
+   set @lcContinue = 'True'
+  end
+
+  select @lcContinue
+  exec dbo.logit @@procid, '@lcContinue', @lcContinue
+  return  
+ end
+*/
+
+end

@@ -11,13 +11,16 @@
 
 \t114Create Print &Batch;
 @acc114=
- iw(',.t000Create Batch...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
+ iw(',.t000Create Batch..., ,.t001Process Count.,,.t002@n4.0.,,.w00230., ,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
  break(gcretval<>'OK'),
  lcCount=obj7:key1,
  gcvars=,
  d1select('exec dbo.docBatchCRUD @documentName='''&lcDoc&''',@batchSize='&lcCount&',@invoiceDate='&lcInvDate&',@taxyear='''&lcTaxYear&''',@paidRatio='&lcPaidRatio),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
  refreshbrw=;
+
+\t120&Manage Docs;
+@acc120=browse(1,4900);
 
 @brw2=
  lcid=kpbrwid(2)*-1,
@@ -31,7 +34,7 @@
  if(gcretval=3,removeBatch=);
 
 @openBatch=
- gcDocName=obj:key1,
+ gcDocName=obj:a17,
  gcBatchId=lcid,
  lcId=kp('select top 1 id from object where typ=4025'),if(lcId+0>0,change(lcId),new(4025));
 
@@ -43,17 +46,17 @@
  refreshbrw=;
 
 @gcvars=
- lcDoc=obj:key1,
+ lcDoc=obj:a17,
  lcInvDate=choose(obj:key2+0>0,obj:key2,'0'),
  lcTaxYear=obj:key3,
  lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),
- lcDocDate=choose(obj:a17>'  0',obj:a17,'0'),
- lcDocDays=choose(obj:c1>'  0',obj:c1,'0'),
+ lcDocDate=choose(obj:a18>'  0',obj:a18,'0'),
+ lcDocDays=choose(obj:c2>'  0',obj:c2,'0'),
  gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.receivablesBRW(''SUMMARY'','&lcInvDate&','''&lcTaxYear&''','&lcPaidRatio&') order by ord',
  gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','&lcInvDate&','''&lcTaxYear&''','&lcPaidRatio&') order by ord';
 @brwstuff=
- brw(150,1,gcbrwsql51,3,54,352,250,'150L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
- brw(151,2,gcbrwsql51b,360,16,250,288,'120L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(150,1,gcbrwsql51,3,54,352,262,'150L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(151,2,gcbrwsql51b,360,28,250,288,'120L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
  prop(150,'Color',16777215),
  prop(151,'Color',16777215),
  rop(150,7cfah,13499135),
@@ -79,15 +82,16 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 @lbrw2color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 
-\t001Document; \l0024900,1; @acc002=refreshbrw=;
+\t001Document; \h001002;r
 \t003Invoice Date; \w00450; \t004@d2; @acc004=refreshbrw=;
 \t005Tax Year; \w00650; @acc006=refreshbrw=;
-\t007Paid Ratio; \w00850; \t008@n4.2; @acc008=refreshbrw=;
+\t007Paid Ratio >=; \w00850; \t008@n4.2; @acc008=refreshbrw=;
 
-\t039Document Date; \w04050; \t040@d2; @acc008=refreshbrw=; \f040=c;
-\x039040+200;r
-\t077Days; \w07830; \t078@n3.0; \x077305;  \x078325; @acc078=refreshbrw=; \f078=0;
-\x077078+200;r
+\t039Document; \l0404900,1; @acc040=set(2,obj:a17),refreshbrw=;
+\t041Document Date; \w04250; \t042@d2; @acc042=refreshbrw=; \f042=c;
+\x039042+200;r
+\t079(+) Days; \w08030; \t080@n3.0; \x079305;  \x080335; @acc080=refreshbrw=; \f080=0;
+\x079080+200;r
 \t110Receivables &List;
 @acc110=
  lcbrwsql51='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.receivablesBRW(''DETAIL'','''&obj:key2&''','''&obj:key3&''','&choose(obj:a1>'  0',obj:a1,'0')&') order by name, item',
@@ -96,7 +100,7 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
   printed,
   page,
   prn('Receivables List',t1),
-  prn(obj:key1,t2),
+  prn(obj:a17,t2),
   prn(format(obj:key2,@d2b),t3),
   if(obj:key3>'  0'),prn('Tax Year: '&obj:key3,t4),
   if(obj:a1>'  0'),prn('Paid Ratio: '&obj:a1,t5),
