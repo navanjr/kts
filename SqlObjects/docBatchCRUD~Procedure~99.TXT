@@ -15,19 +15,24 @@ begin
 
  declare
   @log varchar(max),
-  @tally int,
-  @idSwitch int,
-  @batchId int
+  @tally int
 
  if @method = 'REMOVE'
  begin
 
-  select
-   @idSwitch = left( cast(@brwId as varchar), 1),
-   @batchId = substring( cast(@brwId as varchar), 2, 20)
+  select 
+   @documentName = coalesce(@documentName, documentName),
+   @processCode = coalesce(@processCode, processCode)
+  from dbo.docBRWDecoder(@brwId)
 
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@documentName', @documentName, '@processCode', @processCode
 
---  delete documentProcessing where 
+  if isnull(@processCode,'') < '  0' or isnull(@documentName,'') < '  0'
+   return
+
+  delete documentProcessing where documentName = @documentName and processCode = @processCode
+  update taxRollDetail set invoiceLinkId = invoiceLinkId * -1 where invoiceLinkId > 0 and documentName = @documentName and stamp = @processCode
+
   return
  end
 

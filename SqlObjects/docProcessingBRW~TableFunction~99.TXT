@@ -18,7 +18,9 @@ begin
  
  declare 
   @tally1 int,
-  @tally2 int
+  @tally2 int,
+  @beginDateDT datetime = dbo.date1(@date) + ' 12:00:01 am',
+  @endDateDT datetime = dbo.date1(@date + @days ) + ' 11:59:59 pm'
 
  declare @batches table(
   id int,
@@ -51,7 +53,8 @@ begin
  select cast('8' + cast(min(id) as varchar) as int), stamp, 0, count(*)
  from taxrollDetail
  where documentName = @documentName
-  and documentDate between @date and @date + @days
+  and documentDatetime between @beginDateDT and @endDateDT
+  and invoiceLinkId > 0
  group by stamp
 
  insert @rt (id, ord, display, count1, count2)
