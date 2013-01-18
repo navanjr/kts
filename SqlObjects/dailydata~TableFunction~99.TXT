@@ -26,34 +26,39 @@ begin
  -- get the raw data from glDetail, this yields receipts, vouchers, deposits
 
 -- Collections
- if substring(@filterString,1,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
 
 -- Deposits & Disbursments
- if substring(@filterString,3,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataDeposits(@theDate, @days, 'G', @filterString)
 
 -- Vouchers
- if substring(@filterString,5,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Official Voucher','Official',@theDate, @days, 'H', @filterString)
 
 -- Journal
- if substring(@filterString,4,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataJournal(@theDate, @days, 'I', @filterString)
 
 -- Warrants
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Treasurers Check|Paid Warrant','Fund',@theDate, @days, 'J', @filterString)
     
 -- Miscellaneous
+if substring(@filterString,2,1) = '1'
  insert @rt 
  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Miscellaneous|Miscellaneou','Fund',@theDate, @days, 'K', @filterString) order by ord
 
 -- Suspense
+if substring(@filterString,1,1) = '1'
+begin
+
  insert @rt 
  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataSuspense(@theDate, @days, 'C',@filterString) order by ord
 
@@ -81,6 +86,8 @@ begin
  insert @rt (id,ord,rowstring,glBalanceString) select 0,'D ','',''
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,'DA','  Un-Posted Deposits','','  Un-Posted Deposits', 1
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'DB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+
+end
 
  return
 
