@@ -2,16 +2,14 @@ create function dbo.docBRWDecoder(
  @brwId int
 ) returns @rt table(
  documentName varchar(50),
- processCode varchar(50)
+ processCode varchar(50),
+ reportName varchar(50)
 ) as
 begin
 
  declare
-  @retval varchar(max),
   @idSwitch int,
-  @batchId int,
-  @processCode varchar(50),
-  @documentName varchar(50)
+  @batchId int
  
  select
   @idSwitch = left( cast(@brwId as varchar), 1),
@@ -21,16 +19,24 @@ begin
    insert @rt
    select
     documentName,
-    processCode
+    processCode,
+    null
    from documentProcessing where id = @batchId 
 
   if @idSwitch = 8
    insert @rt
    select
     documentName,
-    stamp
+    stamp,
+    null
    from taxrollDetail where id = @batchId
- 
+  
+  update a set
+   a.reportName = o.key3
+  from @rt a, object o  
+  where o.typ = 4900
+   and a.documentName = o.key1
+
  return
 
 end

@@ -5,8 +5,7 @@
 @acc109=
  m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
  if(gcretval=1,markOne=),
- if(gcretval=2,markAll=),
- if(gcretval=3,m('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''markOne'''));
+ if(gcretval=2,markAll=);
 
 @markOne=
  d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''markOne'''),
@@ -16,13 +15,36 @@
  d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''markAll'''),
  refreshTheBrw=;
 
-\t110&Print;
+\t110P&rint Selected;
 @acc110=
  m('Are you sure you wish to print/reprint?','Print/Reprint...','Question.ico',6,2),
  break(gcretval<>2),
  gcInvoiceId=kpbrwid(1)*-1,
- do(4000,printItCore=),
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ break(lcReportName<'  0'),
+ trreport(lcReportName),
+ markOne=;
+
+\t111Print Batch;
+@acc111=
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ iw(',.t000Print Loop..., ,.t001Print Count., ,.f002='&lcUnPrinted&'., ,.w00230., ,.t003'&lcReportName&'., ,.h004.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ do(452,getSiteInfo=),
+ lcTally=kp('select count(*) from dbo.docBatchBRW('&gcBatchId&',null,null) where printed = '''''),
+ sqlloop('select top '&lcCount&' invoiceId from dbo.docBatchBRW('&gcBatchId&',null,null) where printed = '''' order by printOrder',printIt1=),
+ kpmc(),
  refreshTheBrw=;
+
+@printIt1=
+ lcCnt=lcCnt+1,
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcTally),
+ gcInvoiceId=obj5:a1,
+ trreport(lcReportName),
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&gcInvoiceId&',''markOne''');
 
 \t113Reset Failed;
 @acc113=
@@ -47,7 +69,7 @@
 
 @setVars=
  gcbrwFormat4025='130L(2)~Name~#2#|M'&choose(gcPBStuffer<>1,'40R(2)~Item~#5#|M','80R(2)~POrder~#12#|M')&'100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|MM65L(2)~Printed~#10#|M',
- gcsql4025='select invoiceId * -1,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort,printOrder from dbo.docBatchBRW('&gcBatchId&')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by '&choose(gcPBStuffer<>1,' name+cast(item as varchar)',' printOrder');
+ gcsql4025='select invoiceId * -1,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort,printOrder from dbo.docBatchBRW('&gcBatchId&',null,null)'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by printOrder';
 
 @brwStuff=
  brw(160,1,gcsql4025,3,15,560,220,gcbrwFormat4025,7,1);
