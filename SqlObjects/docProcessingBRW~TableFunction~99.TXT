@@ -2,7 +2,7 @@ create function dbo.docProcessingBRW(
  @documentName varchar(50),
  @date int,
  @days int,
- @theDate int = 0,
+ @invTypeString varchar(50),
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00
 ) returns @rt table(
@@ -32,6 +32,9 @@ begin
  if @documentName < '  0'
   return
 
+ if @taxYear = 'ALL'
+  set @taxYear = ''
+
 -- printed total
 -- insert @rt select 0, 'ba', 'Printed Tally', dbo.receivableDocumentCount(@documentName,@date,@days), '', 5
  insert @rt (ord) select 'bz'
@@ -56,12 +59,12 @@ begin
  group by stamp
 
  insert @rt (id, ord, display, count1, count2)
- select max(id), 'd'+processCode, '   ' + processCode, sum(count1), sum(count2)
+ select max(id), 'd'+processCode, ' ' + processCode, sum(count1), sum(count2)
  from @batches
  group by processCode
 
 -- Document Tally
- select @tally1 = count(*) from dbo.receivablesBRW('DETAIL', @theDate, @taxyear, @paidRatio)
+ select @tally1 = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio)
  select @tally2 = sum(count2) from @batches
  insert @rt (ord, display, count1, count2, rowType) select 'aa', 'Document Tally', 'Matches', 'Printed', 5
  insert @rt (ord, count1, count2) select 'ab', @tally1, @tally2

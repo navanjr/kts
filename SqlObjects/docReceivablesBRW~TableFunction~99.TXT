@@ -1,6 +1,6 @@
-create function dbo.receivablesBRW(
+create function dbo.docReceivablesBRW(
  @mode varchar(10) = 'SUMMARY',
- @theDate int = 99999,
+ @invTypeString varchar(50),
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00
 ) returns @rt table(
@@ -17,13 +17,23 @@ create function dbo.receivablesBRW(
  feesDue money,
  taxyear varchar(4),
  typ varchar(5),
+-- pertyp varchar(5),
  paidRatio money,
  rowType int
 ) as
 begin
 
- if isnull(@theDate,0) = 0
-  set @theDate = 99999
+ declare
+  @theDate int = 99999
+
+ declare @invoiceTypes table(typ varchar(1))
+ if @invTypeString in ('ALL','')
+  insert @invoiceTypes select typ from invoices group by typ
+ else
+  insert @invoiceTypes select data from dbo.split(@invTypeString, null)
+
+ if @taxYear = 'ALL'
+  set @taxYear = ''
 
  declare 
   @floorToken varchar(50)
@@ -47,12 +57,13 @@ begin
   taxyear varchar(4),
   postDate int,
   typ varchar(5),
+  pertyp varchar(5),
   paidRatio money
 )
 
  insert @wt
  select
-  id,
+  i.id,
   name,
   PARCEL,
   item,
@@ -62,12 +73,15 @@ begin
   taxyear,
   coalesce(nullif(interestDate,''),postDate),
   typ,
+  pertyp,
   case when abs(round(invoiceDue / invoiceAmount, 1) - 1) = 1 then .99 else abs(round(invoiceDue / invoiceAmount, 1) - 1) end
- from invoices 
+ from invoices i
+ left outer join adtax on taxrollId = adtax.id
  where invoiceDue != 0
   and invoiceId = 0
-  and coalesce(nullif(interestDate,''),postDate) <= @theDate
+--  and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
+  and typ in (select typ from @invoiceTypes)
 
  if @paidRatio > 0 
   delete @wt where paidRatio < @paidRatio
@@ -79,19 +93,19 @@ begin
  select
   0,
   cast(9999 - cast(taxyear as int) as varchar) + 'c|' + right('aaaa' + typ,4) + '|' + cast(paidRatio as varchar),
-  '      Type:' + typ + '  P/R:' + convert(varchar, cast(paidRatio * 100 as int)) + '%' ,
+  '  Type:' + typ + case when pertyp > '  0' then '.' + pertyp else '' end + '  P/R:' + convert(varchar, cast(paidRatio * 100 as int)) + '%' ,
   '','','',null,
   COUNT(*) as count,
   sum(amount) as amount,
   sum(due) as due,
   sum(fees) as fees,
   taxyear,
-  typ,
+  typ + case when pertyp > '  0' then '.' + pertyp else '' end,
   paidRatio,
   1
  from @wt
  group by 
-  taxyear, typ,
+  taxyear, typ, perTyp,
   paidRatio
  order by 
   taxyear desc,
@@ -104,7 +118,7 @@ begin
  select
   0,
   dbo.splitF(ord,'|',1) + '|' + dbo.splitF(ord,'|',2),
-  '   Totals for Type: ' + max(typ),
+  ' Totals for Type: ' + max(typ),
   sum(count),
   sum(invoiceDue),
   sum(feesDue),
