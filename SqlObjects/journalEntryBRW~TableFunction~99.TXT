@@ -5,7 +5,9 @@ create function dbo.journalEntryBRW(@id int, @showGL int) returns @rt table(
  accountDesc varchar(50),
  amount money,
  comment varchar(100),
- importFlag int
+ importFlag int,
+ rowType int,
+ accountType varchar(60)
 )
 begin
  declare 
@@ -14,11 +16,11 @@ begin
 
  if exists(select * from glDetailStage where slink = @slink)
   insert @rt
-  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0 
+  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0, case when accountType = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<1 then 1 else 0 end, accountType 
   from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
  else
   insert @rt
-  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0
+  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0, 0, ''
   from glDetail where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
 
 -- import features
@@ -33,7 +35,8 @@ begin
 		accountCode varchar(50),
 		accountDesc varchar(50),
 		amount varchar(50),
-		comments varchar(250))
+		comments varchar(250),
+                rowType int)
 		
 	insert @wt (rowData, accountDesc)
 	select replace(data,'"',''), 'Unknown Account' from dbo.split( @importData, char(10)) 
@@ -50,13 +53,13 @@ begin
 		begin
 		   insert @rt (ord, id, accountDesc) select 'b_0', 0, '' 
 		   insert @rt (ord, id, accountDesc) select 'bb_0', 0, ' These Items can be Imported... '
-		   insert @rt select 'bb_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 1 from @wt where isnumeric(amount) = 1 and accountDesc <> 'Unknown Account'
+		   insert @rt select 'bb_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 1, 0, '' from @wt where isnumeric(amount) = 1 and accountDesc <> 'Unknown Account'
 		end
 	if exists(select * from @wt where isnumeric(amount) = 1 and accountDesc = 'Unknown Account')
 		begin
 		   insert @rt (ord, id, accountDesc) select 'c_0', 0, '' 
 		   insert @rt (ord, id, accountDesc) select 'cc_0', 0, ' These Items CAN''T be Imported... '
-		   insert @rt select 'cc_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 0 from @wt where isnumeric(amount) = 1 and accountDesc = 'Unknown Account'
+		   insert @rt select 'cc_' + cast(id as varchar), 0 as id, accountId, accountDesc, amount, comments, 0, 0, '' from @wt where isnumeric(amount) = 1 and accountDesc = 'Unknown Account'
 		end
   end
 

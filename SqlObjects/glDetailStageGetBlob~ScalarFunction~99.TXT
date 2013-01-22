@@ -1,15 +1,25 @@
 create function glDetailStageGetBlob(@id int) returns varchar(500) as
 begin
 
- declare @retval varchar(500)
+ declare @retval varchar(500), @contraAcountCode varchar(60), @contraId int, @accountId int, @accountType varchar(60)
 
  select
   @retval = '@accountCode=' + rtrim(accountCode) + ';'
   + '@accountDesc=' + rtrim(accountDesc) + ';'
   + '@amount=' + cast(amount as varchar(50)) + ';'
   + '@accountId=' + cast(accountId as varchar(50)) + ';'
+  + '@contraId=' + cast(isnull(contraId,0) as varchar(50)) + ';'
+  + '@sourceCode=' + rtrim(isnull(sourceCode,'')) + ';'
+  + '@accountType=' + rtrim(isnull(accountType,'')) + ';'
  from gldetailstage where id = @id
 
+ select @contraId = contraId from gldetailstage where id = @id
+  
+ if isnull(@contraId,0) > 0
+  begin
+   select @contraAcountCode = accountCode from glaccounts where accountId=@contraId
+   select @retval=@retval+'@contraAccountCode=' + rtrim(@contraAcountCode) + ';'
+  end
  return @retval
 
 end

@@ -7,12 +7,6 @@
 
 TO DO: make sure that if a collection account is listed here that the appropriate action is taken for the accrued receivable accounts
 
-@lbrwclick=
- m('Choose','Journal Entry Options...','question.ico','&One Item|&All Items|&Cancel'),
- if(gcretval=1,sql('exec dbo.journalEntryReverse '&obj:id&', '&kpbrwid(1)*-1)),
- if(gcretval=2,sql('exec dbo.journalEntryReverse '&obj:id&', @mode=''ALL''')),
- refreshbrw=;
-
 @bb6=&Print; @bbproc6=acc109=;
 
 @browseinsert=
@@ -74,6 +68,10 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 
 \t047Interest To; \h047048obj:a18<>'Appotion Protest';r \u048; \w04813; @choose048:ARS; \?048'[A]pportion, [R]efund, or [S]plit'; \m048[A]pportion, [R]efund, or [S]plit;
   @048=if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=);
+\t049ContraAccount; \h049050;r
+\t051ContraId; \h051052;r
+\t053SourceCode; \h053054;r
+
 
 \t073ABSValue; \h073074;r \s074+'select absAmount from glSummary('&obj:id&',''o'')';
 
@@ -102,12 +100,14 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
- gcsql='select id,accountDesc,comment,amount from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') order by ord',
+ gcsql='select id,accountDesc,comment,amount,rowType from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') order by ord',
  brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2b@#4#|M',7,1),
  break(obj:a18<>'Appotion Protest'),
  gcsql='select id,a2,a3,a4,key3 from object where typ=4775 and link1='&obj:id,
  brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2b@#5#|M',7,1), ;
 @lbrw1forecolor=obj7:c10<0,255;
+
+@lbrw1color=obj7:c10='1',255;
 
 @brw1=
  break(obj:a17='Posted'),
@@ -123,6 +123,35 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  break(obj:a17='Posted' or kpbrwid(2)+0<1),
  change(kpbrwid(2),,1),
  stageprotest=;
+
+@lbrwclick=
+ m('Choose','Journal Entry Options...','question.ico','&One Item|&All Items|A&pportionment|&Cancel'),
+ if(gcretval=1,sql('exec dbo.journalEntryReverse '&obj:id&', '&kpbrwid(1)*-1)),
+ if(gcretval=2,sql('exec dbo.journalEntryReverse '&obj:id&', @mode=''ALL''')),
+ if(gcretval=3,setcontra=),
+ refreshbrw=;
+
+@setcontra=
+break(obj:a17='Posted'),
+gcid=kpbrwid(1)*-1,
+gcblob=kp('select dbo.glDetailStageGetBlob('&gcid&')'),
+gccontraId=readstring(gcblob,'@contraId='),
+gccontraAccountCode=readstring(gcblob,'@contraAccountCode='),
+gcsourcecode=readstring(gcblob,'@sourceCode='),
+gcaccountType=readstring(gcblob,'@accountType='),
+gcaccountCode=readstring(gcblob,'@accountCode='),
+gcaccountDesc=readstring(gcblob,'@accountDesc='),
+gcamount=readstring(gcblob,'@amount='),
+gcaccountId=readstring(gcblob,'@accountId='),
+break(gcaccountType<>'ACCRUED RECEIVABLE'),
+iw('@afterloadwindow=set(-03,'&gccontraId&');
+\t000Input Collection and Source Account Information; 
+\t001Collection Acct; \f002'&gccontraAccountCode&'; \l0024701,1; @lf002=''typ=4701 and a4 >'''' 0'''' and a1 in (''''FUND'''')'',2;
+\t003Source Acct; \f004'&gcsourcecode&'; \l0044701; @lf004=''typ=4701 and a1 in (''''SOURCE'''')'',2;'),
+ d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&gcaccountId&','&gcamount+0&','&gcid&', @contraId='&obj7:link1&', @sourceCode='''&obj7:key2&''', @comment='''&clip(obj7:key1)&'; '&clip(obj7:key2)&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
+ focus(008),
+;
 
 @refreshbrw=
  gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
@@ -150,6 +179,8 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  refreshbrw=,
  blankEm=;
 
+
+
 @removeRow=
  break(kpbrwid(1)=0),
  sql('delete glDetailStage where id = '&kpbrwid(1)*-1),
@@ -157,6 +188,9 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 
 @postGL=
  break(obj:a17='Posted'),
+ lccheck=kp('select count(*) from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') where rowType=1'),
+ if(lccheck+0>0,m('You have one or more accrued receivable item that is not linked to a collection account.')),
+ break(lccheck+0>0),
  m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
  break(gcretval<>2),
  update,

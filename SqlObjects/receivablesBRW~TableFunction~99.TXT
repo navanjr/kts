@@ -1,0 +1,171 @@
+create function dbo.receivablesBRW(
+ @mode varchar(10) = 'SUMMARY',
+ @theDate int = 99999,
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00
+) returns @rt table(
+ id int,
+ ord varchar(50),
+ display varchar(max),
+ blob varchar(max),
+ name varchar(50),
+ parcel varchar(50),
+ item numeric(7,1),
+ count int,
+ invoiceAmount money,
+ invoiceDue money,
+ feesDue money,
+ taxyear varchar(4),
+ typ varchar(5),
+ paidRatio money,
+ rowType int
+) as
+begin
+
+ if isnull(@theDate,0) = 0
+  set @theDate = 99999
+
+ declare 
+  @floorToken varchar(50)
+
+ declare @years table(
+  taxYear varchar(5)
+ )
+ if @taxyear > '  0'
+  insert @years select @taxyear
+ else
+  insert @years select taxyear from invoices group by taxyear
+
+ declare @wt table(
+  id int,
+  name varchar(50),
+  parcel varchar(50),
+  item numeric(7,1),
+  amount money,
+  due money,
+  fees money,
+  taxyear varchar(4),
+  postDate int,
+  typ varchar(5),
+  paidRatio money
+)
+
+ insert @wt
+ select
+  id,
+  name,
+  PARCEL,
+  item,
+  invoiceAmount,
+  invoiceDue,
+  subInvoiceDue,
+  taxyear,
+  coalesce(nullif(interestDate,''),postDate),
+  typ,
+  case when abs(round(invoiceDue / invoiceAmount, 1) - 1) = 1 then .99 else abs(round(invoiceDue / invoiceAmount, 1) - 1) end
+ from invoices 
+ where invoiceDue != 0
+  and invoiceId = 0
+  and coalesce(nullif(interestDate,''),postDate) <= @theDate
+  and taxyear in (select taxyear from @years)
+
+ if @paidRatio > 0 
+  delete @wt where paidRatio < @paidRatio
+
+ if @mode = 'SUMMARY'
+ begin
+
+ insert @rt
+ select
+  0,
+  cast(9999 - cast(taxyear as int) as varchar) + 'c|' + right('aaaa' + typ,4) + '|' + cast(paidRatio as varchar),
+  '      Type:' + typ + '  P/R:' + convert(varchar, cast(paidRatio * 100 as int)) + '%' ,
+  '','','',null,
+  COUNT(*) as count,
+  sum(amount) as amount,
+  sum(due) as due,
+  sum(fees) as fees,
+  taxyear,
+  typ,
+  paidRatio,
+  1
+ from @wt
+ group by 
+  taxyear, typ,
+  paidRatio
+ order by 
+  taxyear desc,
+  typ,
+  paidRatio
+
+-- insert group headers
+-- Typ
+ insert @rt (id, ord, display, count, invoiceDue, feesDue, rowType)
+ select
+  0,
+  dbo.splitF(ord,'|',1) + '|' + dbo.splitF(ord,'|',2),
+  '   Totals for Type: ' + max(typ),
+  sum(count),
+  sum(invoiceDue),
+  sum(feesDue),
+  2
+ from @rt
+ where rowType < 2
+ group by
+  dbo.splitF(ord,'|',1) + '|' + dbo.splitF(ord,'|',2)
+ having count(*) > 1
+
+-- Taxyear
+ insert @rt (id, ord, display, count, invoiceDue, feesDue, rowType)
+ select
+  0,
+  cast(9999 - cast(taxyear as int) as varchar) + 'b',
+  'Taxyear: ' + taxyear,
+  sum(count),
+  sum(invoiceDue),
+  sum(feesDue),
+  3
+ from @rt
+ where rowType < 2
+ group by
+  taxyear
+
+ select @floorToken = max(taxyear) from @wt
+
+ insert @rt (id, ord, display, rowType)
+ select
+  0,
+  cast(9999 - cast(taxyear as int) as varchar) + 'a',
+  '',
+  4
+ from @rt
+ where rowType < 2
+--  and taxyear < @floorToken
+ group by
+  taxyear
+
+-- insert grand totals
+ insert @rt (id, ord, display, count, invoiceDue, feesDue, rowType)
+ select
+  0,
+  cast(1000 as varchar) + 'b',
+  '',
+  sum(count),
+  sum(invoiceDue),
+  sum(feesDue),
+  5
+ from @rt
+ where rowType < 2
+
+ end
+ else
+ begin
+  insert @rt (
+   id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType
+  )
+  select
+   id, name, parcel, item, amount, due, fees, taxyear, typ, paidRatio, 1
+ from @wt
+ end
+ return 
+end
