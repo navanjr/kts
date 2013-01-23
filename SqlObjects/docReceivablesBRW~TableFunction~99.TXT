@@ -3,7 +3,8 @@ create function dbo.docReceivablesBRW(
  @invTypeString varchar(50),
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
- @taxRulesFlag int = 0
+ @taxRulesFlag int = 0,
+ @paidRatioGreaterThanFlag int = 0
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -89,9 +90,13 @@ begin
 
 -- if @taxRulesFlag = 1
 
-
- if @paidRatio > 0 
-  delete @wt where paidRatio < @paidRatio
+ if @paidRatio is not null
+ begin
+  if @paidRatioGreaterThanFlag = 1
+    delete @wt where paidRatio < @paidRatio
+  else
+    delete @wt where paidRatio != @paidRatio
+ end
 
  if @mode = 'SUMMARY'
  begin
