@@ -2,7 +2,8 @@ create function dbo.docReceivablesBRW(
  @mode varchar(10) = 'SUMMARY',
  @invTypeString varchar(50),
  @taxYear varchar(5) = '',
- @paidRatio money = 0.00
+ @paidRatio money = 0.00,
+ @taxRulesFlag int = 0
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -54,6 +55,7 @@ begin
   amount money,
   due money,
   fees money,
+  otherAmount money,
   taxyear varchar(4),
   postDate int,
   typ varchar(5),
@@ -70,6 +72,7 @@ begin
   invoiceAmount,
   invoiceDue,
   subInvoiceDue,
+  0, --otherInvoice
   taxyear,
   coalesce(nullif(interestDate,''),postDate),
   typ,
@@ -82,6 +85,10 @@ begin
 --  and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
+  and case when @taxRulesFlag = 1 then statementId else 0 end = 0
+
+-- if @taxRulesFlag = 1
+
 
  if @paidRatio > 0 
   delete @wt where paidRatio < @paidRatio

@@ -1,0 +1,58 @@
+create proc dbo.docTaxStatementConfig(
+ @taxyear varchar(5),
+ @method varchar(10)
+) as
+begin
+-- use this procedure to configure invoices for printing statements
+
+ declare
+  @tally int
+
+ if @method = 'GRADY'
+ begin
+
+  alter table invoices disable trigger invoicesModifiedTR
+  update invoices set statementId = 0 where taxyear = @taxyear
+  
+  select @tally = count(*) from invoices where statementId = 0 and taxyear = @taxyear
+  exec dbo.logit @@procId, 'Invoice Count', @tally
+
+-- assign a statementId for any typ = O and matching item numbers
+  update a set
+   a.statementId = isnull((select top 1 b.id from invoices b where b.taxyear = @taxyear and b.item = a.item and a.item > 0 and b.typ != 'O'),0)
+  from invoices a
+  where a.taxyear = @taxyear and a.typ = 'O' and a.statementId = 0
+
+  exec dbo.logit @@procId, 'matching item number - @@rowCount', @@rowCount
+
+  select @tally = count(*) from invoices where statementId = 0 and taxyear = @taxyear
+  exec dbo.logit @@procId, 'matching item number - Invoice Count', @tally
+  
+-- assign a statementId for any typ = O and matching Parcel
+  update a set
+   a.statementId = isnull((select top 1 b.id from invoices b where b.taxyear = @taxyear and b.parcel = a.parcel and a.parcel > '  0' and b.typ != 'O'),0)
+  from invoices a
+  where a.taxyear = @taxyear and a.typ = 'O' and a.statementId = 0
+
+  exec dbo.logit @@procId, 'matching item number - @@rowCount', @@rowCount
+
+  select @tally = count(*) from invoices where statementId = 0 and taxyear = @taxyear
+  exec dbo.logit @@procId, 'matching Parcel - Invoice Count', @tally
+
+-- assign a statementId for any typ = O and matching name
+  update a set
+   a.statementId = isnull((select top 1 b.id from invoices b where b.taxyear = @taxyear and b.name = a.name and a.name > '  0' and b.typ != 'O'),0)
+  from invoices a
+  where a.taxyear = @taxyear and a.typ = 'O' and a.statementId = 0
+
+  exec dbo.logit @@procId, 'matching item number - @@rowCount', @@rowCount
+
+  select @tally = count(*) from invoices where statementId = 0 and taxyear = @taxyear
+  exec dbo.logit @@procId, 'matching name - Invoice Count', @tally
+
+  alter table invoices enable trigger invoicesModifiedTR
+
+ end
+ 
+ return
+end
