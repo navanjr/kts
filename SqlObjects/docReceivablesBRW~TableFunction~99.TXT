@@ -4,8 +4,7 @@ create function dbo.docReceivablesBRW(
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
  @taxRulesFlag int = 0,
- @paidRatioGreaterThanFlag int = 0,
- @debugMode varchar(5) = 'FALSE'
+ @paidRatioGreaterThanFlag int = 0
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -94,28 +93,28 @@ begin
 --  and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
-  and case when @taxRulesFlag = 1 then statementId else 0 end = 0
+--  and case when @taxRulesFlag = 1 then statementId else 0 end = 0
 
--- if @taxRulesFlag = 1
--- begin
+
+ if @taxRulesFlag = 1
+ begin
 -- remove the taxRule child invoices
---  declare @saveIds table(id int, statementId int, paidRatio money)
---  insert @saveIds select id, statementId, paidRatio from @wt where statementId > 0
---  delete @wt where statementId > 0
--- end
+  declare @saveIds table(id int, maxPaidRatio money, minPaidRatio money)
+  insert @saveIds select statementId, max(paidRatio), min(paidRatio) from @wt where statementId > 0 group by statementId
+  delete @wt where statementId > 0
+ end
+
+ update a set a.paidRatio = b.maxPaidRatio
+ from @wt a, @saveIds b where a.id = b.id and b.maxPaidRatio > a.paidRatio
 
  if @paidRatio is not null
  begin
   if @paidRatioGreaterThanFlag = 1
   begin
---    delete @saveIds where paidRatio < @paidRatio
---    update a set a.statementId = b.statementId from @wt a, @saveIds b where a.id = b.statementId
     delete @wt where paidRatio < @paidRatio --and statementId = 0
   end
   else
   begin
---    delete @saveIds where paidRatio != @paidRatio
---    update a set a.statementId = b.statementId from @wt a, @saveIds b where a.id = b.statementId
     delete @wt where paidRatio != @paidRatio-- and statementId = 0
   end
  end
