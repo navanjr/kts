@@ -1,14 +1,39 @@
 @commentboxe1;
+@save;
 @dk1;
 @loadwindow=
- create(550,12,65,16,'&Form Letter',4);
+ create(550,12,65,16,'&Form Letter',4),
+ create(33,9,415,3,'&Add Fee',4),
+ create(35,9,415,18,'&Remove Fee',4),
+ brwstuff=;
 @acc550=tsc;
+
+@brwstuff=gcbrw1sql='select id,key2,key3,a1,a2 from object where typ=4902 and link1='&obj:id&' order by key2',
+ brw(150,1,gcbrw1sql,190,3,220,58,
+'70L(2)~Fee~#2#M|
+50L(2)~Source~#3#M|
+50L(2)~Fund~#4#M|
+50R(2)~Amount~@n19.2b@#5#M
+',7,1);
+;
 
 \t001Title;
 \t003FormLetterFlag; \h003004;r
 \t005Report Control; \l006452;
 \t101Text; \w102500; \z102500; \h101102obj:key2+0<>1;r
 
+\t033Add Fee; \h034;
+@acc033=neww(4902,,-03=obj:id,002=obj:key1),
+ brwreload(1);
+
+\t035Remove Fee; \h036;
+@acc035=gcid=kpbrwid(1),
+ break(gcid+0<1),
+ gcfee=kp('select key2 from object where typ=4902 and id='&gcid+0),
+ m('Are you sure that you want to remove the '&gcfee&' fee?','Are you sure?',,6),
+ break(gcretval+0<>2),
+ sql('update object set typ=-4902 where typ=4902 and id='&gcid+0),
+ brwreload(1);
 
 @bb1=Print; 
 
