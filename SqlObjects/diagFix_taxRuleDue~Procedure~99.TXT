@@ -1,0 +1,81 @@
+create proc dbo.diagFix_taxRuleDue(
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as
+begin
+
+ declare @wt table(
+  id int,
+  statementId int,
+  invoiceDue money, 
+  taxRuleDue money
+ )
+ declare @wt2 table(
+  id int, 
+  amount money
+ )
+
+ insert @wt 
+ select
+  a.id, a.statementId, a.invoiceDue, b.taxRuleDue
+ from invoices a
+ join invoices b on a.statementId = b.id
+ where a.statementId > 0
+  and  a.invoiceDue != b.taxRuleDue
+
+ insert @wt2 select statementId, sum(invoiceDue) from @wt group by statementId having sum(invoiceDue) = max(taxRuleDue)
+
+ delete @wt where statementid in (select id from @wt2)
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'taxRuleDue is not accurate',
+   @fixProc = 'exec dbo.diagFix_taxRuleDue @method = ''FIX'''
+  from @wt
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   a.name, a.parcel, a.typ, a.id as invoiceId, a.statementId as statementId, a.invoiceDue, b.taxRuleDue
+  from @wt b
+  join invoices a on b.statementId = a.id
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  declare @fixTable table(id int)
+  declare @tokenId int
+
+  insert @fixTable
+  select id
+  from @wt
+
+  select @tally = count(*) from @fixTable
+  while exists(select * from @fixTable)
+  begin
+   select top 1 @tokenId = id from @fixTable order by id
+   exec dbo.invoiceUpdate @tokenId, @tallyEcho = @tally
+   delete @fixTable where id = @tokenId
+   select @tally = @tally - 1
+  end
+
+  return  
+ end
+
+
+end
+
+

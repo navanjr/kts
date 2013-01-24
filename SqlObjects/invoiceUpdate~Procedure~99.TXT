@@ -1,7 +1,8 @@
 create procedure dbo.invoiceUpdate(
  @invoiceId int = null,
  @taxyear varchar(4) = null,
- @tallyEcho int = null
+ @tallyEcho int = null,
+ @recurseProtection varchar(5) = 'FALSE'
 ) as
 -- this proc is used by post routines to keep invoice sub totals accurate
 begin
@@ -27,7 +28,9 @@ begin
   declare 
    @amount money = 0,
    @due money = 0,
-   @feeDue money = 0
+   @feeDue money = 0,
+   @taxRuleDue money = 0,
+   @parentInvoiceId int = 0
 
   select 
    @amount = sum(case when accountType = 'SOURCE' then amount * -1 else 0 end),
@@ -36,13 +39,26 @@ begin
    from dbo.invoiceGLTotalTF(@invoiceId)
    where status='Posted'
 
-  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@amount', @amount, '@tally', @tallyEcho --, '@due', @due, '@feeDue', @feeDue
+  select @parentInvoiceId = statementId from invoices where id = @invoiceId
+
+-- get the linked invoice due if I am a parent
+  select
+   @taxRuleDue = sum(invoiceDue)
+  from invoices where statementId = @invoiceId
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@amount', @amount, '@tally', @tallyEcho, '@taxRuleDue', @taxRuleDue --, '@due', @due, '@feeDue', @feeDue
 
   update invoices set
    invoiceAmount = isnull(@amount,0),
    invoiceDue = isnull(@due,0),
-   subInvoiceDue = isnull(@feeDue,0)
+   subInvoiceDue = isnull(@feeDue,0),
+   taxRuleDue = isnull(@taxRuleDue,0)
   where id = @invoiceId
+
+-- if i am a child invoice update my parent
+ if isnull(@parentInvoiceId,0) > 0 and @recurseProtection = 'FALSE'
+  exec dbo.invoiceUpdate @parentInvoiceId, @recurseProtection = 'TRUE'
+
  end
  else 
  begin

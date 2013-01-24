@@ -142,7 +142,6 @@ begin
 
  end
 
-
 -- GLDetail dbo.diagFix_orphanedGLDetail
  set @methodUnit = 'orphanedGLDetail'
  if @method in ('all', @methodUnit)
@@ -160,6 +159,22 @@ begin
 
  end
 
+-- taxRuleDue dbo.diagFix_taxRuleDue
+ set @methodUnit = 'taxRuleDue'
+ if @method in ('all', @methodUnit)
+ begin
+ 
+  exec dbo.diagFix_taxRuleDue
+    @code = @code output,
+    @tally = @tally output,
+    @message = @message output
+
+  insert @results
+   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
+
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+
+ end
 
 
 

@@ -3,13 +3,15 @@ create proc dbo.docBatchCRUD(
  @batchSize int = null,
  @method varchar(10) = 'CREATE',
  @documentDate int = null,
- @invoiceDate int = null,
+ @invTypeString varchar(50) = '',
  @taxyear varchar(4) = null,
  @paidRatio money = null,
  @verbose varchar(5) = 'TRUE',
  @initials varchar(5) = null,
  @brwId int = null,
- @processCode varchar(50) = null
+ @processCode varchar(50) = null,
+ @taxRulesFlag int = 0,
+ @paidRatioGreaterThanFlag int = 0
 ) as 
 begin
 
@@ -39,7 +41,7 @@ begin
  if @method = 'CREATE'
  begin
 
-  select @tally = count(*) from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
+  select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @taxRulesFlag, @paidRatioGreaterThanFlag)
   exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
 
   if not @tally > 0 
@@ -66,9 +68,11 @@ begin
 
   insert dbo.documentProcessing
    select top (@batchSize) id, @documentName, @documentDate, @processCode, name + cast(item as varchar)
-   from dbo.receivablesBRW('DETAIL', @invoiceDate, @taxyear, @paidRatio)
+   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @taxRulesFlag, @paidRatioGreaterThanFlag)
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
     order by name, item
+
+  exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
 
   return
  end 

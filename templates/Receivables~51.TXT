@@ -26,7 +26,7 @@
  break(gcretval<>'OK'),
  lcCount=obj7:key1,
  gcvars=,
- d1select('exec dbo.docBatchCRUD @documentName='''&lcDoc&''',@batchSize='&lcCount&',@invoiceDate='&lcInvDate&',@taxyear='''&lcTaxYear&''',@paidRatio='&lcPaidRatio),
+ d1select('exec dbo.docBatchCRUD @documentName='''&lcDoc&''',@batchSize='&lcCount&',@invTypeString='''&lcInvType&''',@taxyear='''&lcTaxYear&''',@paidRatio='&lcPaidRatio&',@taxRulesFlag='&lcTaxRules&',@paidRatioGreaterThanFlag='&lcPRGTFlag),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
  refreshbrw=;
 
@@ -70,8 +70,10 @@
  gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','&lcTaxRules&','&lcPRGTFlag&') order by ord',
  gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','&lcTaxRules&','&lcPRGTFlag&') order by ord';
 @brwstuff=
+ kpmo('Loading Data...','Please Wait...'),
  brw(150,1,gcbrwsql51,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
  brw(151,2,gcbrwsql51b,335,54,220,262,'100L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ kpmc(),
  prop(150,'Color',16777215),
  prop(151,'Color',16777215),
  rop(150,7cfah,13499135),
@@ -87,10 +89,12 @@
  rop(150,'LineHeight',18);
 
 @refreshbrw=
+ kpmo('Loading Data...','Please Wait...'),
  gcvars=,
  brwreload(1,gcbrwsql51),
  brwreload(2,gcbrwsql51b),
- calcfld(042);
+ calcfld(042),
+ kpmc();
 @gfwindow=refreshbrw=;
 
 lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768

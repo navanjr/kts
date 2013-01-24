@@ -4,7 +4,8 @@ create function dbo.docReceivablesBRW(
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
  @taxRulesFlag int = 0,
- @paidRatioGreaterThanFlag int = 0
+ @paidRatioGreaterThanFlag int = 0,
+ @debugMode varchar(5) = 'FALSE'
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -17,6 +18,7 @@ create function dbo.docReceivablesBRW(
  invoiceAmount money,
  invoiceDue money,
  feesDue money,
+ otherAmount money,
  taxyear varchar(4),
  typ varchar(5),
 -- pertyp varchar(5),
@@ -61,7 +63,8 @@ begin
   postDate int,
   typ varchar(5),
   pertyp varchar(5),
-  paidRatio money
+  paidRatio money,
+  statementId int
 )
 
  insert @wt
@@ -73,15 +76,20 @@ begin
   invoiceAmount,
   invoiceDue,
   subInvoiceDue,
-  0, --otherInvoice
+  taxRuleDue,
   taxyear,
   coalesce(nullif(interestDate,''),postDate),
   typ,
   pertyp,
-  case when abs(round(invoiceDue / invoiceAmount, 1) - 1) = 1 then .99 else abs(round(invoiceDue / invoiceAmount, 1) - 1) end
+  case when invoiceAmount != 0 then
+   case when abs(round(invoiceDue / invoiceAmount, 1) - 1) = 1 then .99 else abs(round(invoiceDue / invoiceAmount, 1) - 1) end
+  else
+   0
+  end,
+  i.statementId
  from invoices i
  left outer join adtax on taxrollId = adtax.id
- where invoiceDue != 0
+ where (invoiceDue + taxRuleDue) != 0
   and invoiceId = 0
 --  and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
@@ -89,13 +97,27 @@ begin
   and case when @taxRulesFlag = 1 then statementId else 0 end = 0
 
 -- if @taxRulesFlag = 1
+-- begin
+-- remove the taxRule child invoices
+--  declare @saveIds table(id int, statementId int, paidRatio money)
+--  insert @saveIds select id, statementId, paidRatio from @wt where statementId > 0
+--  delete @wt where statementId > 0
+-- end
 
  if @paidRatio is not null
  begin
   if @paidRatioGreaterThanFlag = 1
-    delete @wt where paidRatio < @paidRatio
+  begin
+--    delete @saveIds where paidRatio < @paidRatio
+--    update a set a.statementId = b.statementId from @wt a, @saveIds b where a.id = b.statementId
+    delete @wt where paidRatio < @paidRatio --and statementId = 0
+  end
   else
-    delete @wt where paidRatio != @paidRatio
+  begin
+--    delete @saveIds where paidRatio != @paidRatio
+--    update a set a.statementId = b.statementId from @wt a, @saveIds b where a.id = b.statementId
+    delete @wt where paidRatio != @paidRatio-- and statementId = 0
+  end
  end
 
  if @mode = 'SUMMARY'
@@ -111,6 +133,7 @@ begin
   sum(amount) as amount,
   sum(due) as due,
   sum(fees) as fees,
+  sum(otherAmount),
   taxyear,
   typ + case when pertyp > '  0' then '.' + pertyp else '' end,
   paidRatio,

@@ -19,6 +19,7 @@ create function dbo.docBatchBRW(
  fees money,
  penalty money,
  toPay money,
+ otherAmount money,
  treamort varchar(5),
  taxrollId int,
  queue varchar(50),
@@ -39,8 +40,8 @@ begin
   from dbo.docBRWDecoder(@batchBRWId)
 
 -- document processing 
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate, i.taxRuleDue --(select sum(invoiceDue) from invoices where statementId = i.id)
  from documentProcessing d
  join invoices i on d.invoiceId = i.id
  left outer join adtax a on i.taxrollId = a.id
@@ -51,8 +52,8 @@ begin
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime)
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime), i.taxRuleDue
  from taxrollDetail d
  join invoices i on d.invoiceLinkId = i.id
  left outer join adtax a on i.taxrollId = a.id
