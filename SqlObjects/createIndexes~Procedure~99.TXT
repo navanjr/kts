@@ -3,6 +3,17 @@ create procedure dbo.createIndexes as
 begin
  exec dbo.logit @@procid, 'Running...'
 
+------taxrollDetail
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[taxRollDetail]') AND name = N'itemNumber, taxyear, dtype')
+  CREATE NONCLUSTERED INDEX [itemNumber, taxyear, dtype] ON [dbo].[taxRollDetail] ([itemNumber],[taxYear],[dtype])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[taxRollDetail]') AND name = N'id')
+  CREATE NONCLUSTERED INDEX [id]  ON [dbo].[taxRollDetail] ([id])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[taxRollDetail]') AND name = N'taxYear, dtype include id, parcelNumber, name, itemNumber, enable')
+  CREATE NONCLUSTERED INDEX [taxYear, dtype include id, parcelNumber, name, itemNumber, enable]
+     ON [dbo].[taxRollDetail] ([taxYear],[dtype])
+    INCLUDE ([id],[parcelNumber],[name],[itemNumber],[enabled])
 
 ------Paid
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'id')

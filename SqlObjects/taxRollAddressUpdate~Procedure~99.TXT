@@ -1,6 +1,17 @@
-create procedure [dbo].[taxRollAddressUpdate] @Id int
+create procedure [dbo].[taxRollAddressUpdate]( @Id int, @typ varchar(10) = 'A', @taxrollDetailId int = 0)
         as begin
 
+
+declare @name varchar(50),
+        @parcel varchar(50),
+        @item varchar(50),
+        @taxyear varchar(5),
+        @dType varchar(10)
+        
+
+
+if @taxrollDetailId = 0 
+ begin
 insert into
         taxRollDetail(
             [adTaxId],
@@ -37,27 +48,82 @@ select
         a7,
         a8,
         '',
-        'A',
+        case when a17 = '1' then 'A' else 'AA' end,
         ''
 
- from object where id=@Id
+   from object where id=@Id
 
 
 ---update the name on invoices
 
-declare @name varchar(50),
-        @item varchar(50),
-        @taxyear varchar(5)
 
 select @name = left(key2,30),
        @item = key3,
-       @taxyear = a1
+       @taxyear = a1,
+       @dType = case when a17 = '1' then 'A' else 'AA' end
 
     from object where id=@id
 
+end
 
-update invoices set name = @name where item = CAST(@item AS VARCHAR) and taxyear = CAST(@taxyear AS VARCHAR)
+if @taxrollDetailId > 0
+begin 
+
+select @parcel = key1,
+       @name = left(key2,30),
+       @item = key3,
+       @taxyear = a1
+       
+    from object where id=@id
 
 
+insert into
+        taxRollDetail(
+            [adTaxId],
+            [parcelNumber],
+            [name],
+            [businessname],
+            [itemNumber],
+            [taxYear],
+            [ADDRESS1],
+            [ADDRESS2],
+            [ADDRESS3],
+            [CITY],
+            [STATE],
+            [ZIP1],
+            [ZIP2],
+            [ZIP3],
+            [dType],
+            [Comments]
+                )
+select
+        0,
+        @parcel,
+        @name,
+        '',
+        @item,
+        @taxyear,
+        [ADDRESS1],
+        [ADDRESS2],
+        [ADDRESS3],
+        [CITY],
+        [STATE],
+        [ZIP1],
+        [ZIP2],
+        [ZIP3],
+        @typ,
+        '' 
+   from taxrollDetail where id=@taxrollDetailId
+
+set @dType = @typ
+
+---update the name on invoices
+
+if @dType = 'A'
+  update invoices set 
+       name = @name 
+       where item = CAST(@item AS VARCHAR) 
+             and taxyear = CAST(@taxyear AS VARCHAR)
+end
 
 end

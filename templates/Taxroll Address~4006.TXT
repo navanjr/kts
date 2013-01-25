@@ -1,10 +1,13 @@
-@dk1;@nolock;@dup;
+@dk1;
+@nolock;
+@dup;
 
 @menuprocess=
  lcId=kp('select id from object where typ=4006 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''''),
  if(lcId+0>0,change(lcId,,1),neww(4006));
 
 @loadwindow=
+ brwStuff=,
  sql('dbo.taxRollAddressCheck '&gcInvoiceId),
  gcAddBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
  set(002,readstring(gcAddBlob,'@PARCEL='),1),
@@ -18,9 +21,89 @@
  set(018,readstring(gcAddBlob,'@state='),1),
  set(020,readstring(gcAddBlob,'@zip1='),1),
  set(022,readstring(gcAddBlob,'@zip2='),1),
- set(046,readstring(gcAddBlob,'@Stamp='),1);
+ set(046,readstring(gcAddBlob,'@Stamp='),1),
+ set(040,1,1);
+
+@brwStuff=
+ create(150,12,185,3,'Default',40),
+ create(151,2,320,303,'',42),
+ gcsql='select id,rowString,enabled,colorFlag from dbo.taxrollAddressBRW('&gcInvoiceId&') order by ord',
+ brw(360,1,gcsql,3,112,400,200,'375L(2)~~#2#|M25C(0)~~#3#|M',,,),
+ prop(360,'SelectedColor',0),
+ prop(360,7c10h,'Courier');
+
+@lbrwclick360=
+  lcId=kpbrwid(1),
+  break(lcId=0),
+  m('Choose from the following options...','Right Click Options...','question.ico','Add and Edit|&Make Default|Make &Alternate|&Enable|&Disable|&Cancel'),
+  if(gcretval=1,addEdit=),
+  if(gcretval=2,Default=),
+  if(gcretval=3,Alternate=),
+  if(gcretval=4,EnableIt=),
+  if(gcretval=5,DisableIt=); 
+
+@Alternate= 
+ lcId=abs(lcId),
+ set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
+ update,
+ sql('exec dbo.taxRollAddressUpdate '&obj:id&',''AA'','&lcId),
+ brwreload(1);
+
+@Default= 
+ lcId=abs(lcId),
+ set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
+ update,
+ sql('exec dbo.taxRollAddressUpdate '&obj:id&',''A'','&lcId),
+ brwreload(1);
+
+@DisableIt=
+  sql('update taxrollDetail set enabled = 1 where id = abs('&lcId&')'),
+  brwreload(1);
+
+@EnableIt=
+  sql('update taxrollDetail set enabled = 0  where id = abs('&lcId&')'),
+  brwreload(1);
+
+@brw1=
+ lbrwclick360=;
+
+@addEdit=
+ lcId=kpbrwid(1),
+ setVar=,
+ sqlloop(gcSqlLoop,setAdd=),
+ create(150,12,185,3,'Default',40);
+
+@setVar=
+ gcSqlLoop='select 
+	parcelNumber,
+	name,
+	itemNumber,
+	taxYear,
+	address1,
+	address2,
+	address3,
+	city,
+	state,
+	zip1,
+	zip2,
+	case when dtype=''A'' then 1 else 0 end,
+       Stamp 
+	from taxRollDetail where id = abs('&lcId&')';
+
+@setAdd=
+ set(004,obj5:a2),
+ set(010,obj5:a5),
+ set(012,obj5:a6),
+ set(014,obj5:a7),
+ set(016,obj5:a8),
+ set(018,obj5:a9),
+ set(020,obj5:a10),
+ set(022,obj5:a11),
+ set(040,obj5:a12),
+ set(046,'');
 
 
+@lbrw1color=obj7:c10=2,13428479;
 
 \t001Parcel;
 \t003Name; \t004@s30b;
@@ -35,15 +118,23 @@
 \t019Zip; 
 	\t020@s5; \w02027; \y019020-26;r \h019; \x020+119;
 +\t021Zip2; 
-	\t022@s4; \w02219; \y021022-39;r \h021; \x022+149;
+	\t022@s4; \w02220; \y021022-39;r \h021; \x022+148;
 
+\t039Default; \h039040;r
 
 \t045Time Stamp; \w04690; \x045-85; \x046-105; \f046=format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini; \d046;
 
-\t108&Update(F10); \v108121;
+\t108&Save(F10); \v108121;
  @acc108=
  set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
  update,
  sql('exec dbo.taxRollAddressUpdate '&obj:id),
  close('OK');
+
+t109&Add(F11); v108122;
+ @acc109=
+ set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
+ update,
+ sql('exec dbo.taxRollAddressUpdate '&obj:id),
+ brwreload(1);
 

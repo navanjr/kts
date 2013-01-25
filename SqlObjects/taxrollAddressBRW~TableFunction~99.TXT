@@ -1,0 +1,174 @@
+create function dbo.taxrollAddressBRW(@invoiceId int) returns @rt table(
+			id int,
+			rowString varchar(200),
+			name varchar(50),
+			parcel varchar(50),
+			item varchar(50),
+			taxYear varchar(50),
+                        dType varchar(10),
+                        enabled varchar(10),
+			ord varchar(250),
+			colorFlag int)
+	as 
+begin
+	
+declare @name varchar(50),
+		@parcel varchar(50),
+		@taxYear varchar(10),
+		@item varchar(50)
+
+select	@name = name,
+		@parcel = PARCEL,
+		@taxYear = taxYear,
+		@item = ITEM
+	from invoices where id = @invoiceId
+
+  
+--Default Address	
+insert @rt
+        select top 1
+		id*-1,
+		'   '+dbo.taxrollDetailAddressSF(id),
+		name,
+		parcelNumber,
+		itemNumber,
+		taxYear,
+                dType,
+                case when enabled = 0 then 'X' else '' end,
+		'1z',
+		1
+from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYear
+		order by id desc
+	
+          insert @rt (id,rowString,ord,colorFlag,enabled)
+			select	0,'Default Address:','1',2,'Enab' from @rt where ord = '1Z' group by name
+
+
+--Default Address History
+insert @rt
+        select 	id*-1,
+		'   '+dbo.taxrollDetailAddressSF(id),
+		name,
+		parcelNumber,
+		itemNumber,
+		taxYear,
+                dType,
+                case when enabled = 0 then 'X' else '' end,
+		'2z',
+		0
+from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYear and id not in (select abs(id) from @rt)
+		order by id desc
+	
+          insert @rt (id,rowString,ord,colorFlag)
+			select	0,'Default Address History:','2',2 from @rt where ord = '2Z' group by ord
+
+---alernate addresses	
+insert @rt
+		select 
+			id*-1,
+			'   '+dbo.taxrollDetailAddressSF(id),
+			name,
+			parcelNumber,
+			itemNumber,
+			taxYear,
+                        dType,
+                        case when enabled = 0 then 'X' else '' end, 
+			'3z',
+			3
+			from taxRollDetail where 
+                              dtype in ('aa') 
+                              and (parcelNumber = case when @parcel>'  0' then @parcel else 'zzz' end
+                              or name = @name 
+                              or itemNumber = @item)
+                              and taxYear = @taxYear
+                              and id not in (select abs(id) from @rt)
+			
+			insert @rt (id,rowString,ord,colorFlag)
+			select	0,'Alternate Addresses:','3',2 from @rt where ord = '3z' group by dType
+
+
+insert @rt (id,ord,colorFlag)
+ select 0,'3zz',3
+  union all
+  select 0,'3zz',3
+
+
+--Linked by Name
+if @name > '  0'
+	begin
+
+	insert @rt
+		select
+			id*-1,
+			'   '+dbo.taxrollDetailAddressSF(id),
+			name,
+			parcelNumber,
+			itemNumber,
+			taxYear,
+                        dType,
+                        '',
+			'4z',
+			4
+			from taxRollDetail where dtype in ('a','aa') and name = @name and id not in (select abs(id) from @rt) 
+                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
+				order by id desc
+				
+		insert @rt (id,rowString,ord,colorFlag)
+			select	0,'Available by Name:','4',2 from @rt where ord = '4z' group by name
+			
+	end
+--Linked by Parcel
+if @parcel>'  0'
+	begin
+	
+	insert @rt
+		select 
+			id*-1,
+			'   '+dbo.taxrollDetailAddressSF(id),
+			name,
+			parcelNumber,
+			itemNumber,
+			taxYear,
+                        dType,
+                        '', 
+			'5z',
+			5
+			from taxRollDetail where dtype in ('a','aa') and parcelNumber = @parcel and id not in (select abs(id) from @rt)
+                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
+			
+			insert @rt (id,rowString,ord,colorFlag)
+			select	0,'Available by Parcel','5',2 from @rt where ord = '5z' group by parcel
+		
+	end
+
+
+--Linked by item
+if @item>'  0'
+	begin
+	
+	insert @rt
+		select 
+			id*-1,
+			'   '+dbo.taxrollDetailAddressSF(id),
+			name,
+			parcelNumber,
+			itemNumber,
+			taxYear,
+                        dType,
+                        '', 
+			'6z',
+			6
+			from taxRollDetail where dtype in ('a','aa') and itemNumber = @item and id not in (select abs(id) from @rt)
+                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
+			
+			insert @rt (id,rowString,ord,colorFlag)
+			select	0,'Available by Item','6',2 from @rt where ord = '6z' group by parcel
+		
+	end
+		
+
+
+                                                                                                                                                                                                                  
+	return
+end
+	
