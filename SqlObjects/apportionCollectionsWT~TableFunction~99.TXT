@@ -74,6 +74,7 @@ declare @twt table(
         acrAccountCode varchar(60),
         acrAccountDesc varchar(60),
         stepDesc varchar(50))
+
  if isnull(@glDetailId,0) > 0
  begin
      insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
@@ -159,8 +160,19 @@ declare @twt table(
  '' as acrAccountCode,
  '' as acrAccountDesc,
  ''   
+from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
 
-from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@accountId 
+union all
+
+     select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ a.accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   
+from gldetail a where left(slink,1)='o' and dbo.slinkId(a.slink)=@accountId and a.amount>0 
+
     end
 
    if @accountType = 4502

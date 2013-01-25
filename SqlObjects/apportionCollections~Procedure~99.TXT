@@ -29,9 +29,14 @@ begin
     and b.slink in (select slink from dbo.receiptSLinks(@accountId))
     and ISNULL(b.bsId,0) = 0
 
+ if @accountType = 4512
+  select top 1 @accountDesc = a.accountDesc from dbo.glAccounts a, gldetail b where a.accountId = b.contraId and b.contraId > 0
+    and b.slink in (select slink from dbo.journalSLinks(@accountId))
+    and ISNULL(b.bsId,0) = 0
+
  
 -- create new JE
-  set @jeType = 'APPORTIONMENT'+case when (@accountType=4502 or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
+  set @jeType = 'APPORTIONMENT'+case when (@accountType in (4502,4512) or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
  exec dbo.journalEntryCRUD
   @mode = 0,
   @description = @accountDesc,

@@ -71,6 +71,25 @@ select isnull(accountType,''),
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT'
 
+if @includeUnapportioned='SPECIAL'
+begin
+insert @det
+select isnull(accountType,''),
+	isnull(accountId,0),
+	isnull(accountCode,''),
+	isnull(accountDesc,''),
+	isnull(comment,''),
+	isnull(comment2,''),
+	isnull(sourceCode,''),
+	isnull(amount,0),
+	isnull(journalType,''),
+	isnull(sourceDesc,''),
+	isnull(sourceSECA,''),
+	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+ where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
+  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+  and journalType = 'APPORTIONMENT SPECIAL'
+end
 update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 not like '%JOINT%' 
 
 update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
