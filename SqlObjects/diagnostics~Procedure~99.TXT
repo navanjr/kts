@@ -193,6 +193,22 @@ begin
 
  end
 
+-- bankrupt dbo.diagFix_documentProcessing
+ set @methodUnit = 'documentProcessing'
+ if @method in ('all', @methodUnit)
+ begin
+ 
+  exec dbo.diagFix_documentProcessing
+    @code = @code output,
+    @tally = @tally output,
+    @message = @message output
+
+  insert @results
+   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
+
+  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+
+ end
 
 
 -- Next unit test here

@@ -6,6 +6,7 @@
  create(550,12,65,16,'&Form Letter',4),
  create(33,9,415,3,'&Add Fee',4),
  create(35,9,415,18,'&Remove Fee',4),
+ create(5,9),
  brwstuff=;
 @acc550=tsc;
 
@@ -20,7 +21,13 @@
 
 \t001Title;
 \t003FormLetterFlag; \h003004;r
-\t005Report Control; \l006452;
+\t005Report Control; \l006452; 
+
+@acc005=
+ lcid=kp('select id from object where typ=452 and key1='''&obj:key3&''''),
+ break(lcid<1),
+ change(lcid);
+
 \t101Text; \w102500; \z102500; \h101102obj:key2+0<>1;r
 
 \t033Add Fee; \h034;
@@ -38,8 +45,11 @@
 
 @bb1=Print; 
 
-@bbproc1=
- d1select('exec dbo.docFormLetter '&obj:id&', '&gcInvoiceId),
+@bbproc1=formLetter=;
+
+@formLetter=
+ lcId=kp('select documentId from dbo.docBRWDecoder('&gcBatchId&')'),
+ d1select('exec dbo.docFormLetter '&lcId&', '&gcInvoiceId),
  tr(
   txt(obj7:d1,500,500,5500,2000,1),
  );

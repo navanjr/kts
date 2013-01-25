@@ -1,0 +1,57 @@
+create proc dbo.diagFix_documentProcessing(
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(a.id),  
+   @message = 'missing bankrupt items in taxRollDetail',
+   @fixProc = 'exec dbo.diagFix_bankrupt @method = ''FIX'''
+  from documentProcessing a
+  join taxrollDetail b on
+   a.invoiceId = b.invoiceLinkId
+   and a.documentName = b.documentName
+   and a.processCode = b.Stamp
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   a.*
+  from documentProcessing a
+  join taxrollDetail b on
+   a.invoiceId = b.invoiceLinkId
+   and a.documentName = b.documentName
+   and a.processCode = b.Stamp
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+   
+  delete documentProcessing where id in
+  (select 
+   a.id
+  from documentProcessing a
+  join taxrollDetail b on
+   a.invoiceId = b.invoiceLinkId
+   and a.documentName = b.documentName
+   and a.processCode = b.Stamp)
+  
+  return  
+ end
+
+
+end
