@@ -1,0 +1,86 @@
+create function dbo.officialAccountDetail(@begindate varchar(20),@enddate varchar(20),@accountCode varchar(60)) 
+returns @rt table(detailDate varchar(60),
+                  registerNumber varchar(60),
+                  officerNumber varchar(60),
+                  person varchar(60),
+                  purpose varchar(60),
+                  creditmemo money,
+                  deposits money,
+                  withdrawals money,
+                  balance money)
+as
+begin
+insert @rt
+select * from (
+select @begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,sum(amount*-1) as balance from dbo.gldetailreports where accountcode=@accountCode and sourceDate<@begindate
+union all     
+select sourcedate,
+   sourcekey1,
+   sourcekey3,
+   case when sourcetype in (4502,4522) then sourcea1 when sourcetype in (4771) then sourcea2 end as person,
+   'Cancel' as purpose,
+   amount*-1 as creditmemo,
+   0 as deposits,
+   0 as withdrawals,
+   0 as balance 
+   from dbo.gldetailreports 
+   where accountcode=@accountCode 
+     and sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType = '4771'
+     and credit > ' 0'
+     
+union all
+
+select sourcedate,
+   sourcekey1,
+   sourcekey3,
+   case when sourcetype in (4502,4522) then sourcea1 when sourcetype in (4771) then sourcea2 end as person,
+   '' as purpose,
+   0 as creditmemo,
+   0 as deposits,
+   amount*-1 as withdrawals,
+   0 as balance  
+   from dbo.gldetailreports 
+   where accountcode=@accountCode 
+     and sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType = '4771'
+     and debit > ' 0'
+     
+union all
+
+select sourcedate,
+   sourcekey1,
+   '' as sourcekey3,
+   case when sourcetype in (4502,4522) then sourcea1 when sourcetype in (4771) then sourcea2 end as person,
+   '' as purpose,
+   0 as creditmemo,
+   amount*-1 as deposits,
+   0 as withdrawals,
+   0 as balance  
+   from dbo.gldetailreports 
+   where accountcode=@accountCode 
+     and sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType in ('4512','4502')
+     
+union all
+
+select sourcedate,
+   sourcekey1,
+   '' as sourcekey3,
+   case when sourcetype in (4502,4522) then sourcea1 when sourcetype in (4771) then sourcea2 end as person,
+   '' as purpose,
+   amount*-1 as creditmemo,
+   0 as deposits,
+   0 as withdrawals,
+   0 as balance  
+   from dbo.gldetailreports 
+   where accountcode=@accountCode 
+     and sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType not in ('4512','4502','4771')
+) a order by balance desc,sourcedate,deposits desc,sourcekey1,sourcekey3
+return
+end     
