@@ -1,0 +1,58 @@
+create proc dbo.docFormLetter(
+ @documentId int,
+ @invoiceId int
+) as
+begin
+ exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId
+
+ declare
+  @rawText varchar(max),
+  @sql nvarchar(max),
+  @tableToken varchar(50),
+  @fieldToken varchar(50),
+  @tag varchar(50),
+  @value varchar(100)
+ 
+ declare @fields table(
+  tableName varchar(50),
+  fieldName varchar(50),
+--  fieldType varchar(50),
+  tag varchar(50),
+  value varchar(100)
+ )
+
+ set @tableToken = 'invoices'
+
+ declare i cursor for select column_name from INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableToken
+ open i
+ fetch next from i into @fieldToken
+ while @@fetch_status = 0 
+ begin
+  set @sql = 'select ''' + @tableToken + ''',''' + @fieldToken + ''', ''<' + @fieldToken + '>'', ' + @fieldToken
+   + ' from '+@tableToken+' WHERE id = ' + cast(@invoiceId as varchar)
+  print(@fieldToken + ' | ' + @sql)
+  insert @fields exec(@sql)
+  fetch next from i into @fieldToken
+ end
+ close i
+ deallocate i
+
+ select @rawText = e1 from object where typ = 4900 and id = @documentId
+
+ declare f cursor for select tag, value from @fields
+ open f
+ fetch next from f into @tag, @value
+ while @@fetch_status = 0 
+ begin
+  set @rawText = replace(@rawText,@tag,@value)
+  fetch next from f into @tag, @value 
+ end
+ close f
+ deallocate f
+
+-- select * from @fields
+
+ select @rawText 
+
+ return
+end

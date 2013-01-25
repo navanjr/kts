@@ -1,0 +1,72 @@
+create proc dbo.diagFix_bankrupt(
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as
+begin
+
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(i.id),  
+   @message = 'missing bankrupt items in taxRollDetail',
+   @fixProc = 'exec dbo.diagFix_bankrupt @method = ''FIX'''
+  from invoices i
+   join adtax a on i.TAXROLLID = a.ID
+   left outer join taxRollDetail d on i.ID = d.invoiceLinkId
+  where a.bankrupt = 'Y'
+   and isnull(d.dtype,'') != 'BANKRUPT'
+
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   i.taxyear,
+   i.name, i.parcel,
+   a.bankrupt,
+   d.dtype 
+  from invoices i
+   join adtax a on i.TAXROLLID = a.ID
+   left outer join taxRollDetail d on i.ID = d.invoiceLinkId
+  where a.bankrupt = 'Y'
+   and isnull(d.dtype,'') != 'BANKRUPT'
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  declare @fixTable table(id int)
+  declare @tokenId int
+
+  insert taxRollDetail (invoiceLinkId, adTaxId, name, parcelNumber, itemNumber, comments, dtype)
+  select
+   i.id as invoiceLinkId,
+   a.id as adTaxId,
+   i.name,
+   i.parcel,
+   i.item,
+   'Bankruptcy',
+   'BANKRUPT' 
+  from invoices i
+   join adtax a on i.TAXROLLID = a.ID
+   left outer join taxRollDetail d on i.ID = d.invoiceLinkId
+  where a.bankrupt = 'Y'
+   and isnull(d.dtype,'') != 'BANKRUPT'
+
+  return  
+ end
+
+
+end
+
+
