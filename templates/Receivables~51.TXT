@@ -14,9 +14,10 @@
  prop(172,'FontSize',10),
  prop(172,'FontStyle',700),
  prop(172,'Font','Arial'),
- create(550,12,130,16,'Apply Tax Statement Rules',10),
+ create(550,12,125,16,'Apply Tax Statement Rules',10),
  create(551,12,3,42,'Paid Ratio Equals',12),
  create(552,12,74,42,'or Greater than',14),
+ create(553,12,100,29,'Include Previous',16),
  create(43,9),
  gcvars=,
  brwstuff=;
@@ -66,9 +67,11 @@
  lcDocDays=choose(obj:c2>'  0',obj:c2,'0'),
  lcTaxRules=choose(obj:a2>'  0',obj:a2,'0'),
  lcPRGTFlag=choose(obj:a4>'  0',obj:a4,'0'),
- lcbrwsql51='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','&lcTaxRules&','&lcPRGTFlag&') order by name, item',
- gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','&lcTaxRules&','&lcPRGTFlag&') order by ord',
- gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','&lcTaxRules&','&lcPRGTFlag&') order by ord';
+ lcIncludePrior=choose(obj:a5>'  0',obj:a5,'0'),
+ lcSwitches=lcTaxRules&lcPRGTFlag&lcIncludePrior,
+ lcbrwsql51='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by name, item',
+ gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by ord',
+ gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by ord';
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
  brw(150,1,gcbrwsql51,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
@@ -113,11 +116,12 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 
 \t001Step 1 - Filter Receivables; \w001150; \h001002;r
 \t003Invoice Type; \f004='ALL'; \w00450; \u004; @acc004=if(obj:key2<'  0',set(4,'ALL')),refreshbrw=;
-\t005Tax Year; \f006='ALL'; \w00650; @acc006=if(obj:key3<'  0',set(6,'ALL')),refreshbrw=;
+\t005Tax Year; \f006='ALL'; \w00625; @acc006=if(obj:key3<'  0',set(6,'ALL')),refreshbrw=;
 \t007Paid Ratio; \h007; \w00830; \x008138;\t008@n4.2; @acc008=refreshbrw=; \p0087c0ch,1;
 \t009TaxStatementRulesFlag; \h009010;r @acc550=refreshbrw=;
 \t011paidRatioFlag; \h011012;r @acc551=refreshbrw=;
 \t013orGreaterThanFlag; \h013014;r @acc552=refreshbrw=;
+\t015includePrevious; \h015016;r @acc553=refreshbrw=;
 
 \t039Document; \l0404900,1; @acc040=set(2,obj:a17),refreshbrw2=;
 \t041Document Date; \w04250; \t042@d2; @acc042=refreshbrw2=; \f042=c;

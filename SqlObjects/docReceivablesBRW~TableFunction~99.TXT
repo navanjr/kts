@@ -3,8 +3,7 @@ create function dbo.docReceivablesBRW(
  @invTypeString varchar(50),
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
- @taxRulesFlag int = 0,
- @paidRatioGreaterThanFlag int = 0
+ @switches varchar(10)
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -27,7 +26,10 @@ create function dbo.docReceivablesBRW(
 begin
 
  declare
-  @theDate int = 99999
+  @theDate int = 99999,
+  @taxRulesFlag int = dbo.splitF(@switches,null,1),
+  @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
+  @includePriorYears int = dbo.splitF(@switches,null,3)
 
  declare @invoiceTypes table(typ varchar(1))
  if @invTypeString in ('ALL','')
@@ -45,7 +47,10 @@ begin
   taxYear varchar(5)
  )
  if @taxyear > '  0'
-  insert @years select @taxyear
+  if @includePriorYears = 1
+   insert @years select taxyear from invoices where taxyear <= @taxyear group by taxyear
+  else
+   insert @years select @taxyear
  else
   insert @years select taxyear from invoices group by taxyear
 
