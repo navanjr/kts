@@ -8,7 +8,9 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @amount money,
  @smode int = 0,
  @origin varchar(50) = '',
- @originId int = 0
+ @originId int = 0,
+ @printed varchar(50) = '',
+ @queue varchar(50) = ''
 ) as
 begin
 
@@ -94,7 +96,7 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId)
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId, printed, queue)
     select 
      @subInvoiceType,
      @invoiceDate,
@@ -107,7 +109,9 @@ begin
      '' as [BUSINESSNAME],
      '' as [STATUS],
      @origin,
-     @originId
+     @originId,
+     @printed,
+     @queue
      from invoices where id=@mainInvoiceId
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
