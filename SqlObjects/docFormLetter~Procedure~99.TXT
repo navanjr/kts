@@ -1,6 +1,7 @@
 create proc dbo.docFormLetter(
  @documentId int,
- @invoiceId int
+ @invoiceId int,
+ @batchId int
 ) as
 begin
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId
@@ -26,6 +27,8 @@ begin
 insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
 insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
+insert @fields select null,null,'<documentDate>',dbo.dateFormal(documentDate) from dbo.docBRWDecoder(@batchId)
+
 
 declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
  insert @tables
@@ -34,7 +37,9 @@ declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varc
    select 'site','1 = 1'
      union 
    select 'Adtax','id = (select taxrollid from invoices where id = ' + cast(@invoiceId as varchar) + ' )'
- 
+    
+    
+
 
   while exists(select * from @tables)
 begin
@@ -74,7 +79,7 @@ end
  deallocate f
 
 
- --select * from @fields
+ select * from @fields
 
  select @rawText 
 
