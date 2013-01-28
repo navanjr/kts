@@ -25,32 +25,21 @@ begin
   @arAccountId = arAccountId
  from dbo.officialDepositCheck(@receiptId,null)
 
- if exists(select * from paid where slink = @slink)
+ if exists(select * from paid where slink = @slink or officialDepositId = @receiptId)
  begin
   declare @ap table(accountId int, amount money, prorate decimal(19,18), payAmount decimal(19,10))
   declare @paidTotal money
 
   -- credit AR
-  select @paidTotal = sum(amount)*-1 from paid where slink = @slink
+  select @paidTotal = sum(amount)*-1 from paid where slink = @slink or officialDepositId = @receiptId
   insert @accountsWorking select @arAccountId, @paidTotal
 
   -- debit suspense accounts
   insert @accountsWorking
   select b.link1, sum(a.amount)
   from paid a, object b 
-  where a.paycode = b.key1 and b.typ = 4505 and a.slink = @slink group by b.link1
+  where a.paycode = b.key1 and b.typ = 4505 and (a.slink = @slink or a.officialDepositId = @receiptId) group by b.link1
 
-/*
-  -- debit tresurers receipt fund and credit fund payables
-  insert @accountsWorking select @contraId, @paidTotal
-  insert @ap
-   select b.accountId,sum(a.amount)*-1, 0, 0
-   from receiptDetail a, dbo.glAccounts b
-   where a.slink = @slink and rtrim(a.fundCode)+'_AP' = b.accountCode group by b.accountId
-
-  update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
-  update @ap set payAmount = round(@paidTotal * prorate,2)
-*/
  end 
  
  insert @accountsWorking select accountId, payAmount from @ap
@@ -58,7 +47,7 @@ begin
  insert @accounts select accountId, sum(isnull(amount,0)) from @accountsWorking group by accountId having sum(isnull(amount,0)) != 0
 
  -- remove 
- delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
+ delete glDetailStage where slink = @slink 
 
  -- update
  update a set a.amount = b.amount

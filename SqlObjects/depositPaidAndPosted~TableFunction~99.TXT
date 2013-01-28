@@ -24,6 +24,15 @@ begin
    where isnull(depositId,0) = 0
     and slink is not null
     and id not in (select id from @unpostedPaid)
+    and officialDepositId = 0
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
+  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId 
+   from paid 
+   where isnull(depositId,0) = 0
+    and slink is not null
+    and id not in (select id from @unpostedPaid)
+    and officialDepositId > 0
 
 -- get paid records that are linked to a deposit that is not yet posted
  insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
@@ -32,6 +41,15 @@ begin
    where depositId in (select id from object where typ=4513 and a17 != 'Posted')
     and slink is not null
     and id not in (select id from @unpostedPaid)
+    and officialDepositId = 0
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
+  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId
+   from paid
+   where depositId in (select id from object where typ=4513 and a17 != 'Posted')
+    and slink is not null
+    and id not in (select id from @unpostedPaid)
+    and officialDepositId > 0
 
  update a set
   a.receiptType = b.key3,

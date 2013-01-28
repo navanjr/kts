@@ -20,15 +20,25 @@ begin
  
  select @contraId = link1 from object where id = @depositId
 
+ declare @slinks table(slink varchar(16))
+
+ insert @slinks
+  select slink from paid a where a.depositId = @depositId   
+
+ insert @slinks
+  select 
+   'o'+cast(officialDepositId as varchar(15)) from paid a where a.depositId = @depositId 
+
+
  -- get the credits
  insert @accounts
 
  select
   accountId,
   SUM(amount) * -1
- from gldetail where slink in (select slink from paid a where a.depositId = @depositId 
+ from gldetail where slink in (select slink from @slinks) 
    and accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
-  ) group by accountId
+ group by accountId
 
 /*
  select

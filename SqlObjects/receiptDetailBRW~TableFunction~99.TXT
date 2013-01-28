@@ -12,7 +12,13 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
 begin
 
  declare @styp char(1) = 'o'
- declare @slink varchar(15) = @styp + cast(@receiptId as varchar)
+ declare @slink varchar(15) = @styp + cast(@receiptId as varchar),
+         @receiptTyp int,
+         @receiptAccount varchar(60),
+         @trustAccount varchar(60)
+
+ select @receiptTyp=typ, @receiptAccount = a2 from object where id = @receiptId
+ select top 1 @trustAccount = key3 from object where typ=4503 and key1='TRUST'
 
  insert @rettable (ord,id,description,subdescription,amount)
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
@@ -89,6 +95,16 @@ begin
   insert @rettable (ord,id,description,subdescription,amount)
   select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount from dbo.paid where slink = @slink
  end
+ if exists(select * from dbo.paid where officialDepositId = @receiptId)
+ begin
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'bda',0,'','',0
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'bdb',0,'Payment(s) - via Trust Receipt','',0
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'bdc',cast('4'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount from dbo.paid where officialDepositId = @receiptId
+ end
+
 
  if @showGl = 1
  begin
@@ -117,13 +133,6 @@ begin
    from @stageScratch
    group by accountType, accountDesc, ord
 
-/*
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'cc'+b.accountType,0,'   '+a.accountDesc,lower(b.accountType),sum(a.amount)
-   from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId
-    and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
-   group by b.accountType, a.accountDesc
-*/
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)

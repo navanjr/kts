@@ -9,10 +9,12 @@
 @loadwindow=
  if(tier=3,procTier3=),
  create(165,9,3,80,'&Apply Payment'),
+ create(160,9,3,120,'Link &Trust'),prop(160,7c04h,56),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  reate(45,9),
  setMiscReceiptAcct=,
- brwstuff=;
+ brwstuff=,
+ gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST''');
 @select=008;
 
 @browsedelete=
@@ -90,7 +92,7 @@
  blankEm=,
  focus(020);
 
-\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&'''';
+\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&''' or officialDepositId = '&obj:id;
 \p0907cfah,13499135; \p0907c13h,700; \p0907c0ch,1; \d090;
  \y08981; \y09081; \x089250; \x090278;
 
@@ -129,12 +131,23 @@
  set(024,readstring(gcblob,'@checkNumber=')),
  focus(020);
 
+\h160obj:a2<>gcTrustAccount or a17='Posted';
+
+@acc160=update,
+ d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''LINK ALL'' '),
+ refreshDetail=,
+ calcrecord(); 
 
 @acc161=
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
- if(lcTyp=8,deletePayment=);
+ if(lcTyp=8,deletePayment=),
+ if(lcTyp=4,removeTrust=);
+
+@removeTrust=
+ d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''UNLINK ONE'', '&lcid+0&' '),
+ refreshDetail=;
 
 @deletePayment=
  m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),

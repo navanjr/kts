@@ -1,0 +1,24 @@
+create procedure dbo.officialDepositLinkTrust(@receiptId int, @mode varchar(50), @paidId int = 0) as 
+begin
+  
+ declare @slink varchar(16) = 'o'+cast(@receiptId as varchar(15))
+
+ if @mode = 'LINK ALL' 
+ begin 
+  update paid set officialDepositId = @receiptId where isnull(depositId,0)=0 and officialDepositId=0 and left(slink,1)='o' 
+    and dbo.slinkId(slink) in (select id from object where typ=4502 and key3='TRUST') 
+ end
+
+ if @mode = 'LINK ONE' 
+ begin 
+  update paid set officialDepositId = @receiptId where isnull(depositId,0)=0 and officialDepositId=0 and id = @paidId
+ end
+
+ if @mode = 'UNLINK ONE' 
+ begin 
+  update paid set officialDepositId = 0 where isnull(depositId,0)=0 and officialDepositId=@receiptId and id = @paidId
+ end
+
+ exec dbo.officialDepositStageGL @receiptId 
+
+end

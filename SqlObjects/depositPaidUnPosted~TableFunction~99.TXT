@@ -18,6 +18,14 @@ begin
  select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location 
  from paid 
  where isnull(depositId,0) = 0
+  and officialDepositId = 0
+  and slink is not null
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
+ select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, drawnon, location 
+ from paid 
+ where isnull(depositId,0) = 0
+  and officialDepositId > 0
   and slink is not null
 
  insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
@@ -25,6 +33,14 @@ begin
  from paid
  where depositId in (select id from object where typ=4513 and a17 != 'Posted')
   and slink is not null
+  and officialDepositId = 0
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
+ select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, drawnon, location
+ from paid
+ where depositId in (select id from object where typ=4513 and a17 != 'Posted')
+  and slink is not null
+  and officialDepositId > 0
 
  update a set a.receiptType = b.key3, a.depositDate = cast(b.key2 as int)
  from @rt a, object b
