@@ -112,19 +112,27 @@ begin
   delete @wt where statementId > 0
  end
 
- declare @dtypeIds table(id int)
+ declare @dtypeIds table(id int, switch int)
+ declare @deleteAllOthers int = 0
+ insert @dtypeIds select invoiceLinkId, switch from taxRollDetail join dbo.docDTypes(@dTypesBlob) on code = dtype 
 
- open dType
+/* open dType
  fetch next from dType into @dTypeCode
  while @@fetch_status = 0 
  begin
-  insert @dtypeIds select invoiceLinkId from taxRollDetail where dtype = @dTypeCode
 --  delete @wt where id in (select invoiceLinkId from taxRollDetail where dtype = @dTypeCode)
+  if @dTypeCode = 'All Others'
+   set @deleteAllOthers = 1
+  else 
+   insert @dtypeIds select invoiceLinkId from taxRollDetail where dtype = @dTypeCode
   fetch next from dType into @dTypeCode
  end
  close dType
  deallocate dType
- delete @wt where id in (select id from @dTypeIds)
+*/
+ delete @wt where id in (select id from @dTypeIds where switch = 0)
+ if (select switch from dbo.docDTypes(@dTypesBlob) where code = 'All Others') = 0
+  delete @wt where id not in (select id from @dTypeIds where switch != 0)
  
  update a set a.paidRatio = b.maxPaidRatio
  from @wt a, @saveIds b where a.id = b.id and b.maxPaidRatio > a.paidRatio
