@@ -15,7 +15,11 @@ begin
 declare @name varchar(50),
 		@parcel varchar(50),
 		@taxYear varchar(10),
-		@item varchar(50)
+		@item varchar(50),
+                @idToken int
+
+declare @wt table(id int)
+
 
 select	@name = name,
 		@parcel = PARCEL,
@@ -40,8 +44,8 @@ insert @rt
 from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYear
 		order by id desc
 	
-          insert @rt (id,rowString,ord,colorFlag,enabled)
-			select	0,'Default Address:','1',2,'Enab' from @rt where ord = '1Z' group by name
+          insert @rt (id,rowString,ord,colorFlag,enabled,taxYear,Item,Parcel)
+			select	0,'Default Address:','1',2,'Enab','Year','Item','Parcel' from @rt where ord = '1Z' group by name
 
 
 --Default Address History
@@ -97,47 +101,72 @@ insert @rt (id,ord,colorFlag)
 if @name > '  0'
 	begin
 
-	insert @rt
-		select
-			id*-1,
-			'   '+dbo.taxrollDetailAddressSF(id),
-			name,
-			parcelNumber,
-			itemNumber,
-			taxYear,
-                        dType,
-                        '',
-			'4z',
-			4
-			from taxRollDetail where dtype in ('a','aa') and name = @name and id not in (select abs(id) from @rt) 
-                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
-				order by id desc
-				
+	insert @wt 
+			select id from taxRollDetail where dtype in ('a','aa') and name = @name and id not in (select abs(id) from @rt) 
+   
+
+	 while exists(select * from @wt)
+		begin
+			select top 1
+					@idToken = id
+				from @wt order by id
+
+				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
+                                    begin
+					insert @rt select 
+								id*-1,
+								'   '+dbo.taxrollDetailAddressSF(id),
+								name,
+								parcelNumber,
+								itemNumber,
+								taxYear,
+								dType,
+								'',
+								'4z',
+								4 
+							from taxRollDetail where id = @idToken
+                                    end
+			  delete @wt where id = @idToken
+		end
+
 		insert @rt (id,rowString,ord,colorFlag)
 			select	0,'Available by Name:','4',2 from @rt where ord = '4z' group by name
 			
 	end
+
 --Linked by Parcel
 if @parcel>'  0'
 	begin
-	
-	insert @rt
-		select 
-			id*-1,
-			'   '+dbo.taxrollDetailAddressSF(id),
-			name,
-			parcelNumber,
-			itemNumber,
-			taxYear,
-                        dType,
-                        '', 
-			'5z',
-			5
-			from taxRollDetail where dtype in ('a','aa') and parcelNumber = @parcel and id not in (select abs(id) from @rt)
-                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
+
+	insert @wt 
+			select id from taxRollDetail where dtype in ('a','aa') and parcelNumber = @parcel and id not in (select abs(id) from @rt)
+   
+
+	 while exists(select * from @wt)
+		begin
+			select top 1
+					@idToken = id
+				from @wt order by id
+
+				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
+					insert @rt select 
+								id*-1,
+								'   '+dbo.taxrollDetailAddressSF(id),
+								name,
+								parcelNumber,
+								itemNumber,
+								taxYear,
+								dType,
+								'',
+								'5z',
+								5 
+							from taxRollDetail where id = @idToken
+
+			  delete @wt where id = @idToken
+		end	
 			
 			insert @rt (id,rowString,ord,colorFlag)
-			select	0,'Available by Parcel','5',2 from @rt where ord = '5z' group by parcel
+				select	0,'Available by Parcel','5',2 from @rt where ord = '5z' group by parcel
 		
 	end
 
@@ -146,23 +175,36 @@ if @parcel>'  0'
 if @item>'  0'
 	begin
 	
-	insert @rt
-		select 
-			id*-1,
-			'   '+dbo.taxrollDetailAddressSF(id),
-			name,
-			parcelNumber,
-			itemNumber,
-			taxYear,
-                        dType,
-                        '', 
-			'6z',
-			6
-			from taxRollDetail where dtype in ('a','aa') and itemNumber = @item and id not in (select abs(id) from @rt)
-                        and '   '+dbo.taxrollDetailAddressSF(abs(id)) not in (select isnull(rowString,'') from @rt)
+	insert @wt 
+			select id from taxRollDetail where dtype in ('a','aa') and itemNumber = @item and id not in (select abs(id) from @rt)
+   
+
+	 while exists(select * from @wt)
+		begin
+			select top 1
+					@idToken = id
+				from @wt order by id
+
+				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
+					insert @rt select 
+								id*-1,
+								'   '+dbo.taxrollDetailAddressSF(id),
+								name,
+								parcelNumber,
+								itemNumber,
+								taxYear,
+								dType,
+								'',
+								'6z',
+								6 
+							from taxRollDetail where id = @idToken
+
+			  delete @wt where id = @idToken
+		end	
+	
 			
 			insert @rt (id,rowString,ord,colorFlag)
-			select	0,'Available by Item','6',2 from @rt where ord = '6z' group by parcel
+				select	0,'Available by Item','6',2 from @rt where ord = '6z' group by item
 		
 	end
 		
