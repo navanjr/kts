@@ -8,20 +8,40 @@ begin
  declare
   @rawText varchar(max),
   @sql nvarchar(max),
-  @tableToken varchar(50),
   @fieldToken varchar(50),
   @tag varchar(50),
-  @value varchar(100)
+  @value varchar(max),
+  @tableId int,
+  @tableToken varchar(50),
+  @where varchar(200)
  
  declare @fields table(
   tableName varchar(50),
   fieldName varchar(50),
 --  fieldType varchar(50),
   tag varchar(50),
-  value varchar(100)
+  value varchar(max)
  )
 
- set @tableToken = 'invoices'
+insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
+insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
+
+declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
+ insert @tables
+   select 'invoices','id = ' + cast(@invoiceId as varchar)
+     union
+   select 'site','1 = 1'
+     union 
+   select 'Adtax','id = (select taxrollid from invoices where id = ' + cast(@invoiceId as varchar) + ' )'
+ 
+
+  while exists(select * from @tables)
+begin
+
+  select top 1 @tableId = id, @tableToken = tableToken,@where = wherefrom from @tables order by id desc
+
+
 
  declare i cursor for select column_name from INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableToken
  open i
@@ -29,13 +49,16 @@ begin
  while @@fetch_status = 0 
  begin
   set @sql = 'select ''' + @tableToken + ''',''' + @fieldToken + ''', ''<' + @fieldToken + '>'', ' + @fieldToken
-   + ' from '+@tableToken+' WHERE id = ' + cast(@invoiceId as varchar)
+   + ' from '+@tableToken+' WHERE ' + @where
   print(@fieldToken + ' | ' + @sql)
   insert @fields exec(@sql)
   fetch next from i into @fieldToken
  end
  close i
  deallocate i
+
+ delete from @tables where id = @tableId
+end
 
  select @rawText = e1 from object where typ = 4900 and id = @documentId
 
@@ -50,7 +73,8 @@ begin
  close f
  deallocate f
 
- select * from @fields
+
+ --select * from @fields
 
  select @rawText 
 
