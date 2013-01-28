@@ -34,7 +34,18 @@
 
 \t120&Manage Docs;
 @acc120=browse(1,4900);
-
+\t101Blob; \h101102;r
+@brw3=
+ lcid=kpbrwid(3),
+ break(lcid>0),
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ lcNewBlob=kp('select dbo.docDTypeToggle('&lcid*-1&','''&lcBlob&''')'),
+ set(102,lcNewBlob),
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ refreshbrw=;
+ gcvars=,
+ brwreload(3,gcbrwsql52);
+ 
 @brw2=
  lcid=kpbrwid(2)*-1,
  break(lcid<1),
@@ -70,27 +81,29 @@
  lcPRGTFlag=choose(obj:a4>'  0',obj:a4,'0'),
  lcIncludePrior=choose(obj:a5>'  0',obj:a5,'0'),
  lcSwitches=lcTaxRules&lcPRGTFlag&lcIncludePrior,
- lcbrwsql51='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by name, item',
- gcbrwsql51='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by ord',
- gcbrwsql51b='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''') order by ord';
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ lcbrwsql50='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by name, item',
+ gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
+ gcbrwsql51='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
+ gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')';
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
- brw(150,1,gcbrwsql51,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
- brw(151,2,gcbrwsql51b,335,54,220,262,'100L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(150,1,gcbrwsql50,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(151,2,gcbrwsql51,335,54,220,262,'100L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(152,3,gcbrwsql52,230,17,93,35,'15C(2)~~#3#M100L(2)~~#2#M',,1),
  kpmc(),
  prop(150,'Color',16777215),
  prop(151,'Color',16777215),
- rop(150,7cfah,13499135),
+ prop(152,'Color',16777215),
  prop(150,7c10h,'Courier New'),
  prop(151,7c10h,'Courier New'),
- rop(150,7c11h,12),
- rop(150,'BevelOuter',10),
+ prop(152,7c10h,'Courier New'),
  prop(150,'SelectedFillColor',16777215),
  prop(151,'SelectedFillColor',16777215),
+ prop(152,'SelectedFillColor',16777215),
  prop(150,'SelectedColor',0),
  prop(151,'SelectedColor',0),
- rop(150,'linewidth',10),
- rop(150,'LineHeight',18);
+ prop(152,'SelectedColor',0);
 
 @refreshbrw=
  refreshbrw1=,
@@ -99,13 +112,15 @@
 @refreshbrw1=
  gcvars=,
  kpmo('Loading Invoice Data...','Please Wait...'),
- brwreload(1,gcbrwsql51),
+ brwreload(1,gcbrwsql50),
+ brwreload(3,gcbrwsql52),
  kpmc();
 
 @refreshbrw2=
  gcvars=,
  kpmo('Loading Document Data...','Please Wait...'),
- brwreload(2,gcbrwsql51b),
+ brwreload(2,gcbrwsql51),
+ brwreload(3,gcbrwsql52),
  kpmc();
 
 @gfwindow=
@@ -130,7 +145,7 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 \x039044+150;r \y039044+13;r
 \t079(+) Days; \w08030; \t080@n3.0; \x079305;  \x080335; @acc080=refreshbrw2=; \f080=0;
 \x079080+150;r \y079080+13;r
-\t110Receivables &List; \x110165; \y11025;
+\t110Receivables &List; \x110175; \y110317;
 @acc110=
  gcvars=,
  lctally=0,lct1=0,lct2=0,
@@ -143,7 +158,7 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
   if(obj:key3>'  0'),prn('Tax Year: '&obj:key3,t4),
   if(obj:a1>'  0'),prn('Paid Ratio: '&obj:a1,t5),
   bnd('HU','Name',2500,'TaxYear',400,'Type',200C,'Parcel',1500,'Item #',-500,'Due',-600,'Fees',-600),
-  det(lcbrwsql51),
+  det(lcbrwsql50),
    bnd('D',obj5:a2,2500,obj5:a9,400,obj5:a8,200C,obj5:a3,1500,format(obj5:a4,@n10.1b),-500,format(obj5:a5,@n14.2b),-600,format(obj5:a6,@n14.2b),-600),
    lctally=lctally+1,
    lct1=lct1+obj5:a5,

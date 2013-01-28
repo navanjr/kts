@@ -3,7 +3,8 @@ create function dbo.docReceivablesBRW(
  @invTypeString varchar(50),
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
- @switches varchar(10)
+ @switches varchar(10),
+ @dtypesBlob varchar(max)
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -29,7 +30,8 @@ begin
   @theDate int = 99999,
   @taxRulesFlag int = dbo.splitF(@switches,null,1),
   @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
-  @includePriorYears int = dbo.splitF(@switches,null,3)
+  @includePriorYears int = dbo.splitF(@switches,null,3),
+  @dTypeCode varchar(50)
 
  declare @invoiceTypes table(typ varchar(1))
  if @invTypeString in ('ALL','')
@@ -53,6 +55,8 @@ begin
    insert @years select @taxyear
  else
   insert @years select taxyear from invoices group by taxyear
+
+ declare dType cursor for select code from dbo.docDTypes(@dTypesBlob) where switch = 0
 
  declare @wt table(
   id int,
@@ -100,7 +104,6 @@ begin
   and typ in (select typ from @invoiceTypes)
 --  and case when @taxRulesFlag = 1 then statementId else 0 end = 0
 
-
  if @taxRulesFlag = 1
  begin
 -- remove the taxRule child invoices
@@ -109,6 +112,20 @@ begin
   delete @wt where statementId > 0
  end
 
+ declare @dtypeIds table(id int)
+
+ open dType
+ fetch next from dType into @dTypeCode
+ while @@fetch_status = 0 
+ begin
+  insert @dtypeIds select invoiceLinkId from taxRollDetail where dtype = @dTypeCode
+--  delete @wt where id in (select invoiceLinkId from taxRollDetail where dtype = @dTypeCode)
+  fetch next from dType into @dTypeCode
+ end
+ close dType
+ deallocate dType
+ delete @wt where id in (select id from @dTypeIds)
+ 
  update a set a.paidRatio = b.maxPaidRatio
  from @wt a, @saveIds b where a.id = b.id and b.maxPaidRatio > a.paidRatio
 

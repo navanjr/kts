@@ -1,0 +1,23 @@
+create function dbo.docDTypes(
+ @blob varchar(max)
+) 
+returns @rt table(
+ id int identity(1,1),
+ code varchar(50),
+ switch int
+) as
+begin
+
+ declare @wt splitWT
+ insert @wt select id, data from dbo.split(@blob,'|')
+
+ insert @rt select 'All Others', 0
+ insert @rt select 'BANKRUPT', 0
+ insert @rt select 'PROBATE', 0
+
+ update a set a.switch = dbo.splitF(b.data, ':', 2)
+ from @rt a, @wt b
+ where a.id = dbo.splitF(b.data, ':', 1)
+
+ return
+end
