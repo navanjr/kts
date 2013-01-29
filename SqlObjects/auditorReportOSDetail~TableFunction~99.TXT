@@ -31,8 +31,8 @@ declare @wt table(
  auditReportGroup varchar(60),
  reportOrder varchar(60)
 )
-insert @wt
-select * from gldetailreports 
+insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder)
+select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0)<1
@@ -40,7 +40,7 @@ and sourceDate <= @endDate
 
 union all
 
-select * from gldetailreports 
+select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
@@ -48,7 +48,7 @@ and sourceDate <=@endDate
 
 union all
 
-select * from gldetailreports 
+select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
@@ -67,6 +67,14 @@ update @wt set auditReportGroup='OS Treasurers Checks' where auditReportGroup<' 
 update @wt set auditReportGroup='OS Payments' where auditReportGroup<' 0' and sourceType = '4771'
 
 update @wt set auditReportGroup='OS Deposits' where auditReportGroup<' 0' and sourceType = '4513'
+
+insert @wt (auditReportGroup, amount)
+        select key1, 
+               case when isnumeric(key2)=1 then cast(key2 as money) else 0 end 
+          from object where typ=4781 
+          and link1 in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
+
+
 
 insert @rt
 select auditReportGroup,sum(amount) from @wt group by auditReportGroup
