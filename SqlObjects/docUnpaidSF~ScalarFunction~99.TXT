@@ -40,30 +40,35 @@ update a set
     from @wt a
 
 declare @ret varchar(max)
-	select @ret = dbo.dateformal(@interestDate)	+ CHAR(13) + char(10)
+	select @ret = dbo.padCenter(dbo.dateformal(@interestDate),' ',42)	+ CHAR(13) + char(10)
+
+        select @ret = @ret + dbo.padleft('','_',42)	+ CHAR(13) + char(10) + CHAR(13) + char(10)
 	
    select @ret = @ret 
-				+ dbo.padRight(taxYear,' ',12) 
+				+ ' ' + dbo.padRight(taxYear,' ',25)
 				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',14) + CHAR(13) + CHAR(10) 
 				+ case when @taxYear = taxYear then CHAR(13) + CHAR(10) else '' end
    
-   from @wt order by taxYear
+                                from @wt order by taxYear
+
+        select @ret = @ret + dbo.padleft('','_',42)	+ CHAR(13) + char(10)
+	
 
   select @ret = @ret 
-				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
-				+ dbo.padRight('Total Taxes Cost & Fees',' ',25)
+				+ CHAR(13) + CHAR(10) 
+				+' ' + dbo.padRight('Total Taxes Cost & Fees',' ',25)
 				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
 				from @wt 
 
   select @ret = @ret 
-				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
-				+ dbo.padRight('Total Other Fees',' ',25)
+				+ CHAR(13) + CHAR(10) 
+				+ ' ' + dbo.padRight('Total Other Fees',' ',25)
 				+ dbo.padLeft(dbo.formatCurr(0),' ',14)
 				
 
   select @ret = @ret 
-				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
-				+ dbo.padRight('Total Due',' ',25)
+				+ CHAR(13) + CHAR(10) 
+				+ ' ' + dbo.padRight('Total Due',' ',25)
 				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
 				from @wt
 			
