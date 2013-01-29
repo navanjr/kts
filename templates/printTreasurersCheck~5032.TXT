@@ -3,7 +3,7 @@
 @bbproc4=
  gcBeginDate=00000,
  gcEndDate=99999,
- printOpenVouchers=;
+ printPaidWarrants=;
 
 
 @print=
@@ -15,13 +15,7 @@
  w.key3 as warNumber,
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
- (select accountDesc from glaccounts where accountCode=a.a8) as fund
- from object a, object w
- where
-  a.id = w.link1
-  and a.typ = 4771 and a.a18 = ''Treasurers Check'' 
- order by a.key3
- ',
+ (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' order by a.key3  ',
  lcCheckAmt=0,
  tr(
   prn(printed),
@@ -50,22 +44,13 @@
 
 @printsum=
  do(452,getSiteInfo=),
- lcsql='select fund, Date, sum(warAmount) as warAmount from (select
- a.key3 as TreasurersCheck,
+ lcsql='select fund, Date, sum(warAmount) as warAmount from (select a.key3 as TreasurersCheck,
  dbo.date1(a.a1) as Date, 
  cast(a.a3 as money) as amount,
  w.key3 as warNumber,
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
- (select accountDesc from glaccounts where accountCode=a.a8) as fund
- from object a, object w
- where
-  a.id = w.link1
-  and a.typ = 4771 and a.a18 = ''Treasurers Check'' 
-  and a.a1>='&gcBeginDate&'
-  and a.a1<='&gcEndDate&'
- ) data group by fund, Date order by fund, date
- ',
+ (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1>='&gcBeginDate&' and a.a1<='&gcEndDate&') data group by fund, Date order by fund, date ',
  lcCheckAmt=0,
  lcCheckTot=0,
  tr(
@@ -183,3 +168,68 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
  edt,
 
 );
+
+@printPaidWarrants=
+do(452,getSiteInfo=),
+lcsql='select 
+treasurersNumber,
+dateRegistered,
+clerksNumber,
+clerksDate,
+amount,
+debitAccountCode,
+debitAccountDesc,
+depositAccountCode,
+treasurersWarrant,
+fiscalYear,
+payee
+ from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and warrantLinkId+0>0 and paymentType=''Warrant'' order by debitAccountCode, clerksDate ',
+
+ tr(
+   lcLm=500,
+    lcTm=250,
+    lcRecCnt=0,
+    lcCnt=0,
+    lcy=lcTm,
+    prn(printed,lcLm,lcTm),
+    prn(page,lcLm+7000,lcTm+125),
+    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
+    bnd('D9','Purchased Warrants Report',8000C),
+    nl,
+    prn(,,,lcHeaderFontSize,regular),
+    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
+    bnd('D9',gcCity&', '&gcFState,8000C),
+    nl,
+    nl,
+    bnd('HU',
+'Wrnt No.',600,
+'Wrnt Date',600,
+'Reg No.',500,
+'Reg Date',600,
+'Payee',1500,
+'Amount',900C,
+'Treas Ck No.',700,
+'Deposit Accnt',800,
+'Fiscal Yr',700),
+
+    grp(1,obj5:a6,do(
+    nl,
+    bnd('H9','Account: '&obj5:a7,5000),
+    nl,
+    )  ),
+
+ det(lcsql),
+ bnd('D',
+obj5:a3,600,
+format(obj5:a4,@d1),600,
+obj5:a1,500,
+format(obj5:a2,@d1),600,
+format(obj5:a11,@s20),1500,
+format(obj5:a5,@n$-14.2),900R,
+obj5:a9,700C,
+obj5:a8,800,
+obj5:a10,700,
+ edt,
+
+);
+
