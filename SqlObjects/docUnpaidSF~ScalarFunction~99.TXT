@@ -1,0 +1,75 @@
+create function dbo.docUnpaidSF(@invoiceId int,@interestDate int) returns varchar(max)
+as
+begin
+
+declare @taxYear varchar(4),
+		@item varchar(50),
+		@parcel varchar(50)
+
+select	@taxYear = taxYear, 
+		@item = ITEM, 
+		@parcel = PARCEL 
+		from invoices where ID = @invoiceID
+		
+		
+declare @wt table(
+				invoiceId int,
+				taxYear varchar(4),
+				parcel varchar(50),
+				invoiceDue money,
+				fees money,
+				penalty money,
+				interestDate varchar(10),
+				invoiceType varchar(10))
+	
+insert @wt
+	select	id,
+			taxYear,
+			parcel,
+			invoiceDue,
+			0,
+			0,
+			interestDate,
+			TYP
+						
+			from invoices where taxYear >= @taxYear and (ITEM = @item or PARCEL = @parcel and @parcel >'  0')
+			
+update a set			
+	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
+	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDate))/100),2)
+    from @wt a
+
+declare @ret varchar(max)
+	select @ret = dbo.dateformal(@interestDate)	+ CHAR(13) + char(10)
+	
+   select @ret = @ret 
+				+ dbo.padRight(taxYear,' ',12) 
+				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',14) + CHAR(13) + CHAR(10) 
+				+ case when @taxYear = taxYear then CHAR(13) + CHAR(10) else '' end
+   
+   from @wt order by taxYear
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
+				+ dbo.padRight('Total Taxes Cost & Fees',' ',25)
+				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
+				from @wt 
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
+				+ dbo.padRight('Total Other Fees',' ',25)
+				+ dbo.padLeft(dbo.formatCurr(0),' ',14)
+				
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) + CHAR(13) + CHAR(10)
+				+ dbo.padRight('Total Due',' ',25)
+				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
+				from @wt
+			
+return @ret			
+--select * from @wt order by taxYear
+
+end
+
+				
