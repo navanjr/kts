@@ -10,12 +10,15 @@ create proc dbo.docBatchCRUD(
  @initials varchar(5) = null,
  @brwId int = null,
  @processCode varchar(50) = null,
- @taxRulesFlag int = 0,
- @paidRatioGreaterThanFlag int = 0
+ @switches varchar(10),
+ @dTypesBlob varchar(max)
 ) as 
 begin
 
  declare
+  @taxRulesFlag int = dbo.splitF(@switches,null,1),
+  @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
+  @includePriorYears int = dbo.splitF(@switches,null,3),
   @log varchar(max),
   @tally int
 
@@ -41,7 +44,7 @@ begin
  if @method = 'CREATE'
  begin
 
-  select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @taxRulesFlag, @paidRatioGreaterThanFlag)
+  select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
   exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
 
   if not @tally > 0 
@@ -68,7 +71,7 @@ begin
 
   insert dbo.documentProcessing
    select top (@batchSize) id, @documentName, @documentDate, @processCode, name + cast(item as varchar)
-   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @taxRulesFlag, @paidRatioGreaterThanFlag)
+   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
     order by name, item
 
