@@ -1,6 +1,17 @@
 @nolock;
 @noupdate;
 
+\t116Process Fees;
+@acc116=
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''StageAll'''),
+ lcTally=readstring(obj7:d1,'@tally='),
+ break(lcTally+0<1),
+ m('Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''all'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ refreshbrw=;
+
 \t109&Mark Printed;
 @acc109=
  m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
@@ -46,13 +57,13 @@
  trreport(lcReportName),
  d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&gcInvoiceId&',''markOne''');
 
-\t113Reset Failed; \h113;
-@acc113=
+\t112Reset Failed; \h112;
+@acc112=
  d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''ResetFailed'''),
  refreshTheBrw=;
 
-\t114Reset Printed;
-@acc114=
+\t113Reset Printed;
+@acc113=
  lcbatchitemid=kpbrwid(1)*-1,
  d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&lcbatchitemid&',''ResetPrintedStage'''),
  m('Are you sure you wish to reset the printed flag for all tax statements greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Tax Statments...','question.ico',6,4),
