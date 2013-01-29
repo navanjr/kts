@@ -71,6 +71,15 @@ begin
     + '@key3FieldLabel=Hidden Key3;'
     + '@a1FieldLabel=Hidden A1;'
 
+  when @paymentType = 'TRANSFER'
+   then
+    '@debitFieldLabel=To Bank Acct;'
+    + '@creditFieldLabel=From Bank Acct;'
+    + '@key1FieldLabel=Voucher #;'
+    + '@key2FieldLabel=Date Created;'
+    + '@key3FieldLabel=Hidden Key3;'
+    + '@a1FieldLabel=Hidden A1;'
+
    else
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
@@ -217,11 +226,11 @@ begin
    from object a where a.typ = 4771 and a.id = @id
   end
 
-  if @paymentType not in ('Miscellaneous')
+  if @paymentType not in ('Miscellaneous','Transfer')
    exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType<>'MISCELLANEOUS'
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer')
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -271,7 +280,7 @@ begin
 
  end
 
- if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher','MISCELLANEOUS')
+ if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher','MISCELLANEOUS','Transfer')
  begin
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
