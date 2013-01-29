@@ -37,8 +37,6 @@ begin
  end
  else 
  begin
-  if @typ in ('P','R','B','I')
-  begin
    declare @totalDue money, @balanceDue money
   select 
        @totalDue = sum(case when accountType = 'SOURCE' then amount * -1 else 0 end),
@@ -46,9 +44,6 @@ begin
        from dbo.invoiceGLTotalTF(@invoiceId)
          where status='Posted'   
 
-
---   select @totalDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE' and amount > 0.00
---   select @balanceDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
 
 
 -- we look to see if a half payment is made  
@@ -60,14 +55,7 @@ begin
    begin
     select @begindate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
    end
-  end 
-  else
-  begin
-   if @interestDate <= 0
-   begin
-    select @begindate = dbo.date1(postdate) from invoices where id = @invoiceId
-   end
-  end
+
  end
 
  if datepart(m,@paydate) = 12
