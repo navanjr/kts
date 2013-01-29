@@ -37,7 +37,7 @@ insert @wt (accountCode, accountDesc, deposits, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
-and sourceType in ('4502','4513','4522') 
+and (sourceType in ('4502','4513','4522') or (sourceType='4512' and sourcea18='Miscellaneous Deposit'))
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, tranout, accountType, ledgerGroup)
@@ -45,6 +45,7 @@ select accountCode, accountDesc,sum(cast(credit as money)) as amount, accountTyp
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 and sourceType not in ('4502','4513','4522','4771') 
+and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, tranin, accountType, ledgerGroup)
@@ -52,6 +53,7 @@ select accountCode, accountDesc,sum(cast(debit as money)) as amount, accountType
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 and sourceType not in ('4502','4513','4522','4771') 
+and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, appin, accountType, ledgerGroup)
@@ -77,6 +79,7 @@ where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType not in ('4502','4513','4522','4771') 
 and not (sourceType='4512' and left(sourcea18,13) = 'APPORTIONMENT')
+and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, tranout, accountType, ledgerGroup)
@@ -85,6 +88,7 @@ where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType not in ('4502','4513','4522','4771') 
 and not (sourceType='4512' and left(sourcea18,13) = 'APPORTIONMENT')
+and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, endbalance, accountType, ledgerGroup)
