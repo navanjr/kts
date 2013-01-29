@@ -25,7 +25,8 @@ create function dbo.docBatchBRW(
  queue varchar(50),
  printed varchar(50),
  origin int,
- documentDate int
+ documentDate int,
+ feesProcessed money
 ) as
 begin
 
@@ -52,8 +53,9 @@ begin
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime), i.taxRuleDue
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount, feesProcessed)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime), i.taxRuleDue,
+  (select SUM(x.invoiceAmount) from invoices x where x.invoiceId = i.ID and x.queue = @processCode and x.printed = @documentName)
  from taxrollDetail d
  join invoices i on d.invoiceLinkId = i.id
  left outer join adtax a on i.taxrollId = a.id
