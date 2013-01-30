@@ -15,25 +15,29 @@ select	        @taxYear = taxYear,
 		
 declare @wt table(
 				invoiceId int,
+                                taxrollId int,
 				taxYear varchar(4),
 				parcel varchar(50),
 				invoiceDue money,
 				fees money,
 				penalty money,
 				interestDate varchar(10),
-				invoiceType varchar(10))
+				invoiceType varchar(10),
+                                perTyp varchar(10))
 	
 insert @wt
-	select	id,
+	select	id,taxrollId,
 			taxYear,
 			parcel,
 			invoiceDue,
 			0,
 			0,
 			interestDate,
-			TYP
-						
-			from invoices where taxYear >= @taxYear and (ITEM = @item or PARCEL = @parcel and @parcel >'  0')
+			TYP,
+	                ''   					
+			from invoices where /*taxYear >= @taxYear and*/ (ITEM = @item or PARCEL = @parcel and @parcel >'  0')
+
+update w set w.perTyp = a.perTyp from adtax a, @wt w where w.taxrollId = a.id
 			
 update a set			
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
@@ -41,36 +45,38 @@ update a set
     from @wt a
 
 declare @ret varchar(max)
-	select @ret = dbo.padCenter(dbo.dateformal(@interestDateInt),' ',42)	+ CHAR(13) + char(10)
+	select @ret = dbo.padCenter(dbo.dateformal(@interestDateInt),' ',45)	+ CHAR(13) + char(10)
 
-        select @ret = @ret + dbo.padleft('','_',42)	+ CHAR(13) + char(10) + CHAR(13) + char(10)
+        select @ret = @ret + dbo.padleft('','_',45)	+ CHAR(13) + char(10) + CHAR(13) + char(10)
 	
    select @ret = @ret 
-				+ ' ' + dbo.padRight(taxYear,' ',25)
-				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',14) + CHAR(13) + CHAR(10) 
-				--+ case when @taxYear = taxYear then CHAR(13) + CHAR(10) else '' end
-   
+				+ ' ' + dbo.padRight(taxYear,' ',24)
+				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',14)
+				+ ' ' + case invoiceType when 'R' then 'ADV'
+						when 'O' then 'SPC'
+						else invoiceType + '.' +perTyp end    
+				+ CHAR(13) + CHAR(10) 
                                 from @wt order by taxYear
 
-        select @ret = @ret + dbo.padleft('','_',42)	+ CHAR(13) + char(10)
+        select @ret = @ret + dbo.padleft('','_',45)	+ CHAR(13) + char(10)
 	
 
   select @ret = @ret 
 				+ CHAR(13) + CHAR(10) 
-				+' ' + dbo.padRight('Total Taxes Cost & Fees',' ',25)
-				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
+				+' ' + dbo.padRight('Total Taxes Cost & Fees',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',14)
 				from @wt 
 
   select @ret = @ret 
 				+ CHAR(13) + CHAR(10) 
-				+ ' ' + dbo.padRight('Total Other Fees',' ',25)
-				+ dbo.padLeft(dbo.formatCurr(0),' ',14)
+				+ ' ' + dbo.padRight('Total Other Fees',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(0),' ',14)
 				
 
   select @ret = @ret 
 				+ CHAR(13) + CHAR(10) 
-				+ ' ' + dbo.padRight('Total Due',' ',25)
-				+ dbo.padLeft(dbo.formatCurr(sum(invoiceDue + fees + penalty)),' ',14)
+				+ ' ' + dbo.padRight('Total Due',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',14)
 				from @wt
 			
 return @ret			
