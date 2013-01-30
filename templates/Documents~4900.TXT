@@ -34,23 +34,57 @@
 \t033Add Fee; \h034;
 @acc033=neww(4902,,-03=obj:id,002=obj:key1),
  brwreload(1);
+
+@brw1=
+ bustItUp=,
+ break(lcMode+0<8),
+ if(lcMode+0=9,change(lcId)),
+ if(lcMode+0=8,editVariable=);
+ 
 @lbrwclick150=
- m('Choose from the following options...','Right Click Options...','question.ico','&Remove Fee|&Cancel'),
- if(gcretval=1,removeFee=);
+ bustItUp=,
+ break(lcMode+0<8),
+ m('Choose from the following options...','Right Click Options...','question.ico','&Remove Item|&Cancel'),
+ break(gcretval<>1),
+ if(lcMode+0=9,removeFee=),
+ if(lcMode+0=8,removeVariable=);
+
+@bustItUp=
+ break(kpbrwid(1)=0),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
 
 @acc035=
- iw(\t001Tag Name;\t003Value;),
+ lcName='',lcValue='',
+ editVariableCore=;
+
+@editVariableCore=
+ iw('\t001Tag Name;\f002='&lcName&';\t003Value;\f002='&lcValue&';'),
  break(gcretval<>'OK'),
  d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&obj7:key2&''''),
- refreshbrw=;
+ brwreload(1);
+
+@editVariable=
+ d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
+ lcName=readstring(obj7:d1,'@name='),lcValue=readstring(obj7:d1,'@value='),
+ editVariableCore=;
+
+ iw(\t001Tag Name;\t003Value;),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+
+@removeVariable=
+ m('Are you sure that you want to remove this variable?','Are you sure?',,6),
+ break(gcretval+0<>2),
+ sql('exec dbo.settingsCRUD @settingId = '&lcId+0&', @method = ''DELETE'''),
+ brwreload(1);
 
 @removeFee=
- gcid=kpbrwid(1),
- break(gcid+0<1),
- gcfee=kp('select key2 from object where typ=4902 and id='&gcid+0),
+ break(lcId+0<1),
+ gcfee=kp('select key2 from object where typ=4902 and id='&lcId+0),
  m('Are you sure that you want to remove the '&gcfee&' fee?','Are you sure?',,6),
  break(gcretval+0<>2),
- sql('update object set typ=-4902 where typ=4902 and id='&gcid+0),
+ sql('update object set typ=-4902 where typ=4902 and id='&lcId+0),
  brwreload(1);
 
 @bb1=Print; 

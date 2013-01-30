@@ -1,9 +1,10 @@
 create proc dbo.settingsCRUD(
- @settingName varchar(50),
+ @settingName varchar(50) = null,
  @settingValue varchar(150) = null,
+ @settingId int = null,
  @method varchar(10) = 'POST',
  @verbose varchar(5) = 'FALSE',
- @valueOut varchar(150) = null output
+ @valueOut varchar(max) = null output
 ) as
 begin
  set nocount on
@@ -18,10 +19,26 @@ begin
 
  if @method = 'GET'
  begin
-  select @valueOut = settingValue from dbo.settings where settingName = @settingName
-  if @verbose = 'TRUE'
-   select @valueOut as settingValue
-  return
+  if @settingId is null
+  begin
+   select @valueOut = settingValue from dbo.settings where settingName = @settingName
+   if @verbose = 'TRUE'
+    select @valueOut as settingValue
+   return
+  end
+  else
+  begin
+   select @valueOut ='@name=' + settingName + ';@value=' + settingValue + ';'  from dbo.settings where id = @settingId
+   if @verbose = 'TRUE'
+    select @valueOut as settingValue
+   return
+  end
  end
+
+ if @method = 'DELETE' and @settingId is not null
+ begin
+  delete settings where id = @settingId
+ end
+
 
 end
