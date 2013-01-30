@@ -1,14 +1,15 @@
-create function dbo.docUnpaidSF(@invoiceId int,@interestDate int) returns varchar(max)
+create function dbo.docUnpaidSF(@invoiceId int,@interestDate varchar(50)) returns varchar(max)
 as
 begin
 
-declare @taxYear varchar(4),
+declare         @taxYear varchar(4),
 		@item varchar(50),
-		@parcel varchar(50)
+		@parcel varchar(50),
+                @interestDateInt int = dbo.clariondate(@interestDate)
 
-select	@taxYear = taxYear, 
+select	        @taxYear = taxYear, 
 		@item = ITEM, 
-		@parcel = PARCEL 
+		@parcel = PARCEL
 		from invoices where ID = @invoiceID
 		
 		
@@ -36,11 +37,11 @@ insert @wt
 			
 update a set			
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
-	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDate))/100),2)
+	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
     from @wt a
 
 declare @ret varchar(max)
-	select @ret = dbo.padCenter(dbo.dateformal(@interestDate),' ',42)	+ CHAR(13) + char(10)
+	select @ret = dbo.padCenter(dbo.dateformal(@interestDateInt),' ',42)	+ CHAR(13) + char(10)
 
         select @ret = @ret + dbo.padleft('','_',42)	+ CHAR(13) + char(10) + CHAR(13) + char(10)
 	

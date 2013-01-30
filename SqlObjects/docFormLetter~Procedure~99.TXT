@@ -1,7 +1,8 @@
 create proc dbo.docFormLetter(
  @documentId int,
  @invoiceId int,
- @batchId int
+ @batchId int,
+ @rawFlag int = 1
 ) as
 begin
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId
@@ -14,7 +15,9 @@ begin
   @value varchar(max),
   @tableId int,
   @tableToken varchar(50),
-  @where varchar(200)
+  @where varchar(200),
+  @documentName varchar(50),
+  @interestDate varchar(20)
  
  declare @fields table(
   tableName varchar(50),
@@ -24,13 +27,18 @@ begin
   value varchar(max)
  )
 
+select @documentName = key1 from object where id = @documentId
+
+insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
 insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
-insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,77481)
+select @interestDate = value from @fields where tag = '<interestDate>'
+insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
-insert @fields select null,null,'<line>',dbo.padleft('','_',60) 
+insert @fields select null,null,'<line>',dbo.padleft('','_',60)
+
 
 
 declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
@@ -81,10 +89,12 @@ end
  close f
  deallocate f
 
-
- --select * from @fields
-
+if @rawFlag = 1
  select @rawText 
+  else
+ select * from @fields
+
+
 
  return
 end
