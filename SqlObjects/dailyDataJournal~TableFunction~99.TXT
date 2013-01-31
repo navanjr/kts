@@ -43,13 +43,13 @@ begin
  )
 
 -- get the bank accounts 
- insert @accounts select accountId,collectionDescription,reportOrder from dbo.glBankAccounts
+ insert @accounts select accountId,accountType,reportOrder from dbo.glAccounts
 
 -- insert all raw receipt data
  insert @wtRaw
  select
   b.accountId,
-  a.reportOrder,
+  a.collectionDescription,
   b.accountCode,
   b.accountDesc,
   c.key1,
@@ -58,7 +58,7 @@ begin
   c.typ
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
-  and c.typ in (4512) and c.a18 <> 'Miscellaneous Deposit'
+  and c.typ in (4512) and c.a18 <> 'Miscellaneous Deposit' and left(c.a18,9) <> 'apportion'
   and dbo.slinkType(b.slink) = 'o'
   and dbo.slinkId(b.slink) = c.id
   and case when isnumeric(c.key2)=1 then cast(c.key2 as int) else 0 end between @theDate and @theDate + @days
@@ -108,11 +108,11 @@ begin
  insert @rt select 0,@ordSeed+'00aa','  Transactions Effected by Journal Entry','','  Transactions Effected by Journal Entry','','','','sHeader',1
  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
--- insert subtotals
+/*-- insert subtotals
  insert @rt
  select
   0,
-  @ordSeed + reportOrder + cast(max(id) as varchar) + 'c',
+  @ordSeed + cast(max(id) as varchar) + 'c',
   ' ' + replicate('-',79),
   replicate('-',16),
   ' ' + replicate('-',79),
@@ -120,29 +120,31 @@ begin
   replicate('-',10),
   replicate('-',16),
   'line',0
- from @wt 
- group by reportOrder,description
+ from @wt w, glaccounts a
+  where w.id=a.accountId
+ group by a.accountType
 
  insert @rt
  select
   0,
-  @ordSeed + reportOrder + cast(max(id) as varchar) + 'd',
-  dbo.padRight('      Total ' + description, ' ', 60)
+  @ordSeed + cast(max(id) as varchar) + 'd',
+  dbo.padRight('      Total ' + a.accountType, ' ', 60)
   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
   + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
   '',
-  dbo.padRight('      Total ' + description, ' ', 60),
+  dbo.padRight('      Total ' + a.accountType, ' ', 60),
   '',
   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
   'gFooter',0
- from @wt 
- group by reportOrder,description
+ from @wt w, glaccounts a
+  where w.id=a.accountId
+ group by a.accountType 
 
  insert @rt
  select
   0,
-  @ordSeed + reportOrder + cast(max(id) as varchar) + 'e',
+  @ordSeed + cast(max(id) as varchar) + 'e',
   replicate(' ',80),
   '',
   '',
@@ -150,9 +152,11 @@ begin
   '',
   '',
   'lineFeed',0
- from @wt 
- group by reportOrder,description
+ from @wt w, glaccounts a
+  where w.id=a.accountId
+ group by a.accountType
 
+*/
 -- insert grand total
  if exists(select * from @wt)
  begin
