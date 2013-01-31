@@ -11,7 +11,10 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  debitAcct varchar(50),
  creditAcct varchar(50),
  postCheck int,
- expenseAcct varchar(50)
+ expenseAcct varchar(50),
+ registerNumber varchar(50),
+ fundCode varchar(60),
+ fundDesc varchar(50)
 )
 begin
 
@@ -40,7 +43,8 @@ begin
   @csv nvarchar(max),
   @debitAcct varchar(50),
   @creditAcct varchar(50),
-  @officalLink int
+  @officalLink int,
+  @lastNumber int
 
  select
   @officalLink = link2,
@@ -106,7 +110,10 @@ begin
    debitAcct,
    creditAcct,
    0,
-   expenseAcct
+   expenseAcct,
+   0,
+   '',
+   ''
   from @wt 
   group by
    fiscalYear,
@@ -122,7 +129,16 @@ begin
 
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
+ update r set postcheck = 2 from @rt r where postcheck = 0 and warrantNumber in (select WarNo from warrants where debitcode=r.debitAcct and fiscalYear=r.fiscalYear)
+
+ update r set fundCode = f.accountCode, fundDesc = f.accountDesc from @rt r, glaccounts a, glaccounts f where r.debitacct = a.accountCode and f.accountCode = a.targetAccountCode
   
+-- set the potential register numbers
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Warrant' order by key2 desc, key1 desc
+ declare @reg table(regSeed int identity(1,1), id int)
+ insert @reg select id from @rt where postCheck = 0 order by clerksFund,warrantNumber
+ update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+
 
  return 
 end

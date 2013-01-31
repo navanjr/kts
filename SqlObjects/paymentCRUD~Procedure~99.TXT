@@ -175,7 +175,7 @@ begin
   begin
    select
     @voucherDate = dbo.clarionDate(getDate()),
-   -- @debitAcct = key3,
+    @debitAcct = key3,
     @creditAcct = key2
    from object where typ = 4503 and key1 = 'TRUST'
 
@@ -230,7 +230,7 @@ begin
    exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer')
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher')
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -240,6 +240,19 @@ begin
     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
    return
   end
+
+-- bail if we don't have all the accounts we need for a Trust Voucher...
+  if (@debitAcct < '  0' or @creditAcct < '  0') and @paymentType in ('Trust Voucher')
+  begin
+   exec dbo.logit @@procid,
+    'Oops, Missing one of the following...  @debitAcct', @debitAcct,
+    '@creditAcct', @creditAcct,
+    '@officialBankCode', @officialBankCode,
+    '@officialDepositCode', @officialDepositCode
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+   return
+  end
+
 
   exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
