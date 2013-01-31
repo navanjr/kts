@@ -86,7 +86,7 @@
  gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
  gcbrwsql51='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
  gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')',
- lcReport='select rowstring,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord';
+ lcReport='select taxYear,invoiceType,taxDue,penalty,fees,certFees,Total,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''','''&lcOrderBy&''')';
 
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
@@ -174,18 +174,26 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 
 \t111Receivables &Detail; \x111255; \y111317;
 @acc111=
+ m('Print by:',,,'&Name|&Parcel|&Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,lcOrderBy='Name'),
+ if(gcretval=2,lcOrderBy='Parcel'),
  gcvars=,
  lctally=0,lct1=0,lct2=0,
  tr(
   printed,
   page,
   prn('Receivables Detail',t1),
-  prn(obj:a17,t2),
-  prn(format(obj:key2,@d2b),t3),
-  if(obj:key3>'  0'),prn('Tax Year: '&obj:key3,t4),
-  if(obj:a1>'  0'),prn('Paid Ratio: '&obj:a1,t5),
-  bnd('HU','Year',2500,'Tax Due',400,'Int Due',200C,'FeeDue',1500,'Cert',-500,'Total',-600),
+  prn('Invoice Type: '&obj:key2&' Tax Year: '&obj:key3&'  Paid Ratio: '&obj:a1&' Document: '&obj:a17,t2),
+  prn(,250,,,,'courier new'),
+  bnd('DU','Year',475,'Tax Due',-750,'Int Due',-750,'FeeDue',-750,'Cert',-750,'Total',-750),
+  nl,
   det(lcReport),
-   bnd('D',obj5:a1,5000,),
+   if(right(obj5:a8,1)='a'),bnd('D',obj5:a1,600,obj5:a3,2000,obj5:a4,2000),
+   if(right(obj5:a8,1)='b'),lin(250,pagey,4500,pagey),
+   if(right(obj5:a8,1)='c'),bnd('D',obj5:a1,275,obj5:a2,100,obj5:a3,-750,obj5:a4,-750,obj5:a5,-450,obj5:a6,-450,obj5:a7,-750),
+   if(right(obj5:a8,1)='d'),lin(800,pagey,4500,pagey),
+   if(right(obj5:a8,1)='e'),bnd('D',obj5:a1,275,obj5:a2,100,obj5:a3,-750,obj5:a4,-750,obj5:a5,-450,obj5:a6,-450,obj5:a7,-750),
+   if(right(obj5:a8,1)='f'),nl,
   edt,
  );

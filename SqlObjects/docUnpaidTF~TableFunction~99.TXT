@@ -5,6 +5,13 @@ create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20))
 				parentId int,
 				invoiceId int,
 				rowString varchar (2000),
+				taxYear varchar(10),
+				invoiceType varchar(5),
+				taxDue varchar(50),
+				penalty varchar(50),
+				fees varchar(50),
+				certFees varchar(50),
+				Total varchar(50),
 				ord varchar(1000))
 	as 
 	begin						
@@ -67,12 +74,16 @@ update a set
 	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
     from @wt a
    
-   insert @rt (parentId,rowString,ord)
+   insert @rt (parentId,rowString,taxYear,taxDue,penalty,ord)
      select	@invoiceId,
 			dbo.padRight('CERT: ',' ',14)
 			+ dbo.padRight(@name,' ',35)
 			+ dbo.padRight('PARCEL: '+@parcel,' ',40),
+			'CERT: ',
+			@name,
+			'PARCEL: '+@parcel,
 			@parcel+'00000a'
+
    insert @rt (rowString,ord)
      select	dbo.padRight('','-',77),
 			@parcel+'00000b' 
@@ -87,6 +98,13 @@ update a set
 			+ dbo.padLeft(dbo.formatcurr(fees),' ',10)
 			+ dbo.padLeft(dbo.formatcurr(0),' ',10)
 			+ dbo.padLeft(dbo.formatcurr(invoiceDue+penalty+fees),' ',14),
+			taxYear,
+			invoiceType,
+			dbo.formatcurr(invoiceDue),
+			dbo.formatcurr(penalty),
+			dbo.formatcurr(fees),
+			dbo.formatcurr(0),
+			dbo.formatcurr(invoiceDue+penalty+fees),
 			@parcel+''+taxyear+''+invoiceType+'c' 
 			from @wt order by taxYear
 insert @rt (rowString,ord)
@@ -94,7 +112,7 @@ insert @rt (rowString,ord)
 			+ dbo.padRight('','=',67),
 			@parcel+'9999zd' 
  
-   insert @rt (parentId,rowString,ord)
+   insert @rt (parentId,rowString,taxDue,penalty,fees,certFees,Total,ord)
     select	@invoiceId,
 			dbo.padRight('',' ',12)
 			+ dbo.padLeft(dbo.formatcurr(sum(invoiceDue)),' ',14)
@@ -102,6 +120,11 @@ insert @rt (rowString,ord)
 			+ dbo.padLeft(dbo.formatcurr(sum(fees)),' ',10)
 			+ dbo.padLeft(dbo.formatcurr(sum(0)),' ',10)
 			+ dbo.padLeft(dbo.formatcurr(sum(invoiceDue+penalty+fees)),' ',14),
+			dbo.formatcurr(sum(invoiceDue)),
+			dbo.formatcurr(sum(penalty)),
+			dbo.formatcurr(sum(fees)),
+			dbo.formatcurr(sum(0)),
+			dbo.formatcurr(sum(invoiceDue+penalty+fees)),
 			@parcel+'9999ze' 
 			from @wt 
 insert @rt (rowString,ord)

@@ -4,14 +4,22 @@ create function dbo.docReceivablesList(
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
  @switches varchar(10),
- @dtypesBlob varchar(max))
+ @dtypesBlob varchar(max),
+ @order varchar(50))
 
 
 
 returns @rt table (	parentId int,
-					invoiceId int,
-					rowstring varchar(2000),
-					ord varchar(1000))
+			invoiceId int,
+			rowstring varchar(2000),
+			taxYear varchar(10),
+			invoiceType varchar(5),
+			taxDue varchar(50),
+			penalty varchar(50),
+			fees varchar(50),
+			certFees varchar(50),
+			total Varchar(50),
+			ord varchar(1000))
 as
 begin
 
@@ -19,27 +27,35 @@ declare @interestDate varchar(20) = '20130215'
 
 declare @idToken int
 
-declare @wtCursor table(id int)
+declare @wtCursor table(id int,name varchar(50),parcel varchar(50))
 	insert @wtCursor
-		select id from dbo.docReceivablesBRW(@mode,@invTypeString,@taxYear,@paidRatio,@switches,@dtypesBlob) order by parcel
+		select id,name,parcel from dbo.docReceivablesBRW(@mode,@invTypeString,@taxYear,@paidRatio,@switches,@dtypesBlob)
  
  
 while exists (select * from @wtCursor)
 		begin
 			select top 1
-					@idToken = id
-				from @wtCursor order by id
+				@idToken = id
+				from @wtCursor order by case when @order = 'name' then name else parcel end
 
 				if @idToken>0
 				 begin
 					insert @rt select
-								parentId,
-								invoiceId, 
-								rowstring,
-								ord
-								from dbo.docUnpaidTF(@idToken,@interestDate)
+						parentId,
+						invoiceId, 
+						rowstring,
+						taxYear,
+						invoiceType,
+						taxDue,
+						penalty,
+						fees,
+						certFees,
+						Total,
+						ord
+					from dbo.docUnpaidTF(@idToken,@interestDate)
+
 					delete @wtCursor where id = @idToken
-			  end
+			 	 end
 		end
 		
 		

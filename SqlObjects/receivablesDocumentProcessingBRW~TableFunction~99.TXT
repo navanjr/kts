@@ -1,0 +1,53 @@
+create function dbo.receivablesDocumentProcessingBRW(
+ @documentName varchar(50),
+ @date int,
+ @days int,
+ @theDate int = 0,
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00
+) returns @rt table(
+ id int default 0,
+ ord varchar(50) default '',
+ display varchar(max) default '',
+ count1 varchar(50) default '',
+ count2 varchar(50) default '',
+ blob varchar(max) default '',
+ rowType int default 0 
+) as
+begin
+ 
+ declare 
+  @tally int
+
+ if @documentName < '  0'
+  return
+
+ select @tally = count(*) from dbo.receivablesBRW('DETAIL', @theDate, @taxyear, @paidRatio)
+
+-- unprinted total
+ insert @rt (ord, display, count1, count2, rowType) select 'aa', 'Document Tally', 'Matches', 'Printed', 5
+ insert @rt (ord, count1) select 'ab', @tally
+-- insert @rt (ord) select 'az'
+
+-- printed total
+-- insert @rt select 0, 'ba', 'Printed Tally', dbo.receivableDocumentCount(@documentName,@date,@days), '', 5
+ insert @rt (ord) select 'bz'
+
+-- document processing 
+ insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
+ from documentProcessing
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by processCode 
+ insert @rt (ord) select 'cz'
+
+-- completed batches
+ insert @rt select 0, 'd'+stamp, stamp, count(*), 0, '', 0
+ from taxrollDetail
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by stamp
+
+ return
+
+end
