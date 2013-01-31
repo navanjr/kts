@@ -1,0 +1,52 @@
+@bb5=&Print; 
+ @bbproc5=printImportWarrants=;
+
+@printImportWarrants=
+ break(gcimportId+0<1),
+ do(452,getSiteInfo=),
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ lcFundBal=0,
+ lcFundHeader='',
+ lcTotBal=0,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcDet5037='select dbo.date1(warrantDate) as warrantDate1,warrantDate,warrantNumber,amount,vendorCode,fundCode,FundDesc from warrantimportbrw('&gcimportId&') where postcheck=0 order by fundcode,warrantDate,warrantNumber',
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'Warrants To Import',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  prn(,lcRm,1500,,,lcFont),
+  grp(1,obj5:a6,
+   do(
+    lcFundBal=0,
+    bnd('H',,lcAw+2000),
+    bnd('H',clip(obj5:a7)&' Warrants To Import'),
+    bnd('H','Date',500,'Warrant #',500,'Amount',lcCw*-1,'Vendor',2000),
+    bnd('H',,lcAw+2000),
+    nl,
+   lcFundHeader=clip(obj5:a7),
+   ),
+   do(
+    prn(,2500),
+    bnd('H',,lcAw),
+    prn(,lcRm),
+    bnd('H','',500,clip(lcFundHeader)&' Total:',500,format(lcFundBal,@n$-19.2b),lcCw*-1),
+    prn(,lcRm),
+    nl,
+   )
+  ),
+  det(gcDet5037),
+   bnd('D',format(obj5:a2,@d2),500,obj5:a3,500,format(obj5:a4,@n$-19.2b),lcCw*-1,obj5:a5,2000),
+   lcFundBal=lcFundBal+obj5:a4,
+   lcTotBal=lcTotBal+obj5:a4,
+   edt, 
+   bnd('H','Grand Total:',1000R,format(lcTotBal,@n$-19.2b),lcCw*-1),
+
+);
