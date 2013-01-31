@@ -1,11 +1,12 @@
 create proc dbo.docFormLetter(
  @documentId int,
  @invoiceId int,
+ @taxRollDetailId int,
  @batchId int,
  @rawFlag int = 1
 ) as
 begin
- exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId
+ exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId, '@batchId', @batchId
 
  declare
   @rawText varchar(max),
@@ -27,11 +28,16 @@ begin
   value varchar(max)
  )
 
-select @documentName = key1 from object where id = @documentId
+ select @documentName = key1 from object where id = @documentId
 
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
-insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+
+if isnull(@taxRollDetailId,0) < 1
+ insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+else
+ insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
+ 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
 select @interestDate = value from @fields where tag = '<interestDate>'
@@ -41,40 +47,36 @@ insert @fields select null,null,'<line>',dbo.padleft('','_',60)
 
 
 
-declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
+ declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
  insert @tables
-   select 'invoices','id = ' + cast(@invoiceId as varchar)
-     union
-   select 'site','1 = 1'
-     union 
-   select 'Adtax','id = (select taxrollid from invoices where id = ' + cast(@invoiceId as varchar) + ' )'
+ select 'invoices','id = ' + cast(@invoiceId as varchar)
+  union
+ select 'site','1 = 1'
+  union 
+ select 'Adtax','id = (select taxrollid from invoices where id = ' + cast(@invoiceId as varchar) + ' )'
     
-    
-
-
-  while exists(select * from @tables)
-begin
+ while exists(select * from @tables)
+ begin
 
   select top 1 @tableId = id, @tableToken = tableToken,@where = wherefrom from @tables order by id desc
 
-
-
- declare i cursor for select column_name from INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableToken
- open i
- fetch next from i into @fieldToken
- while @@fetch_status = 0 
- begin
-  set @sql = 'select ''' + @tableToken + ''',''' + @fieldToken + ''', ''<' + @fieldToken + '>'', ' + @fieldToken
-   + ' from '+@tableToken+' WHERE ' + @where
-  print(@fieldToken + ' | ' + @sql)
-  insert @fields exec(@sql)
+  declare i cursor for select column_name from INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableToken
+  open i
   fetch next from i into @fieldToken
- end
- close i
- deallocate i
+  while @@fetch_status = 0 
+  begin
+   set @sql = 'select ''' + @tableToken + ''',''' + @fieldToken + ''', ''<' + @fieldToken + '>'', ' + @fieldToken
+    + ' from '+@tableToken+' WHERE ' + @where
+   print(@fieldToken + ' | ' + @sql)
+   insert @fields exec(@sql)
+   fetch next from i into @fieldToken
+  end
+  close i
+  deallocate i
 
- delete from @tables where id = @tableId
-end
+  delete from @tables where id = @tableId
+
+ end
 
  select @rawText = e1 from object where typ = 4900 and id = @documentId
 
@@ -83,18 +85,16 @@ end
  fetch next from f into @tag, @value
  while @@fetch_status = 0 
  begin
-  set @rawText = replace(@rawText,@tag,@value)
+  set @rawText = replace(@rawText,isnull(@tag,''),isnull(@value,''))
   fetch next from f into @tag, @value 
  end
  close f
  deallocate f
 
-if @rawFlag = 1
- select @rawText 
-  else
- select * from @fields
-
-
+ if @rawFlag = 1
+  select @rawText 
+ else
+  select * from @fields
 
  return
 end

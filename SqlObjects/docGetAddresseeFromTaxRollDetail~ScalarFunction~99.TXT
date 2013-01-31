@@ -1,0 +1,35 @@
+create function dbo.docGetAddresseeFromTaxRollDetail(
+ @taxRollDetailId int
+) returns varchar(max) as
+begin
+
+ declare
+  @retMax varchar(max) = '',
+  @retTemp varchar(max) = '',
+  @city varchar(50), 
+  @state varchar(50), 
+  @zip1 varchar(50), 
+  @zip2 varchar(50),
+  @zip3 varchar(50) 
+ 
+ select
+  @retTemp = isnull(name,'') 
+   + '|' + isnull(businessName,'')
+   + '|' + isnull(address1,'')
+   + '|' + isnull(address2,'')
+   + '|' + isnull(address3,''),
+  @city = isnull(city,''),
+  @state = isnull(state,''), 
+  @zip1 = isnull(zip1,''), 
+  @zip2 = isnull(zip2,''),
+  @zip3 = isnull(zip3,'') 
+ from dbo.taxRollDetail
+ where id = @taxRollDetailId
+
+ select @retMax = @retMax + data + CHAR(13) + CHAR(10) from dbo.split(@retTemp,'|') where data > '  0'
+
+ select @retMax = @retMax + @city + ', ' + @state + '  ' + @zip1
+ + '-' + @zip2
+
+ return @retMax
+end

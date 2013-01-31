@@ -1,0 +1,75 @@
+create function dbo.docAddresses(@invoiceId int) 
+returns @rt table(
+ invoiceId int,
+ taxrollDetailId int,
+ taxyear int,
+ name varchar(50),
+ parcel varchar(50),
+ businessName varchar(50),
+ address1 varchar(50),
+ address2 varchar(50),
+ address3 varchar(50),
+ city varchar(50),
+ state varchar(2),
+ zip1 varchar(5),
+ zip2 varchar(5),
+ zip3 varchar(5),
+ dtype varchar(50),
+ enabled int
+) as
+begin
+
+ insert @rt
+ select top 1 
+  @invoiceId,
+  t.id,
+  t.taxyear,
+  t.name,
+  t.parcelNumber,
+  t.businessName,
+  address1,
+  address2,
+  address3,
+  city,
+  state,
+  zip1,
+  zip2,
+  zip3,
+  t.dtype,
+  t.enabled
+ from dbo.taxRollDetail t
+ join invoices on item = itemNumber and invoices.taxyear = t.taxyear
+ where
+  t.dtype in ('a')
+  and t.enabled = 0
+  and invoices.id = @invoiceId
+ order by t.id desc
+
+ insert @rt
+ select distinct
+  @invoiceId,
+  t.id,
+  t.taxyear,
+  t.name,
+  t.parcelNumber,
+  t.businessName,
+  address1,
+  address2,
+  address3,
+  city,
+  state,
+  zip1,
+  zip2,
+  zip3,
+  t.dtype,
+  t.enabled
+ from dbo.taxRollDetail t
+ join invoices on item = itemNumber and invoices.taxyear = t.taxyear
+ where
+  t.dtype in ('aa')
+  and t.enabled = 0
+  and invoices.id = @invoiceId
+ order by t.id desc
+
+ return
+end

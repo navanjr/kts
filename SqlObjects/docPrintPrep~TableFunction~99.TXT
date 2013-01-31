@@ -1,0 +1,69 @@
+create function dbo.docPrintPrep(
+ @invoiceId int,
+ @batchId int,
+ @count int,
+ @multiAddressSwitch int
+) returns @rt table(
+ invoiceId int,
+ taxYear numeric(5,0),
+ item numeric(7,1),
+ taxrollDetailId int,
+ printOrder varchar(50)
+) as
+begin
+
+ if isnull(@invoiceId,0) > 0
+ begin
+
+  insert @rt select
+   a.invoiceId,
+   a.taxyear,
+   a.item,
+   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a'),
+   a.printOrder
+  from dbo.docBatchBRW(@batchId,null,null) a
+  where a.invoiceId = @invoiceId
+
+ end
+ else
+ begin
+
+  if isnull(@count,0) > 0
+   insert @rt select top (@count)
+    a.invoiceId,
+    a.taxyear,
+    a.item,
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a'),
+    a.printOrder
+   from dbo.docBatchBRW(@batchId,null,null) a
+   where a.printed = ''
+   order by printOrder
+
+  else
+   insert @rt select 
+    a.invoiceId,
+    a.taxyear,
+    a.item,
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a'),
+    a.printOrder
+   from dbo.docBatchBRW(@batchId,null,null) a
+   where a.printed = ''
+   order by printOrder
+
+ end
+
+ if @multiAddressSwitch = 1 --get all the alternate addresses
+  insert @rt select 
+   a.invoiceId,
+   a.taxyear,
+   a.item,
+   b.id,
+   a.printOrder
+  from @rt a
+  join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.itemNumber = a.item
+  where
+   b.enabled = 0
+   and b.dtype = 'aa' 
+ 
+ return
+end
