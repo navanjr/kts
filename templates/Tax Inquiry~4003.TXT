@@ -151,16 +151,39 @@
  break(lcId<1),
  d1select('exec dbo.invoiceUpdate '&lcId),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'InvoiceUpdate...')),
- m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|Refund &Invoice|&Apply Refund|&Owner Report|&Show Detail|&Cancel'),
+ m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|Refund &Invoice|&Apply Refund|&Owner Report|&More Options|&Cancel'),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
  if(gcretval=2,selectedRateToggle=),
  if(gcretval=3,releaseProtest=),
  if(gcretval=4,refundInvoice=),
  if(gcretval=5,applyRefund=),
  if(gcretval=6,ownerReport=),
- if(gcretval=7,showFeePenalty=),
+ if(gcretval=7,moreOptions=),
+ break(gcretval=7),
  refreshBRW=;
 
+@moreOptions=
+ m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|&Cancel'),
+ if(gcretval=1,showFeePenalty=),
+ if(gcretval=2,Attach=),
+ if(gcretval=3,UnAttach=),
+ refreshBRW=;
+
+@Attach=
+ lcClickedId=kpbrwid(1),
+ lcMethod='Check',
+ d1select('exec dbo.attachInvoice '&obj:id&','&lcClickedId*-1&','''&lcMethod&''''),
+ m(readstring(obj7:d1,'@invoice=')&'||'&readstring(obj7:d1,'@invoiceCount='),'Are you sure?....',,6,4),
+ break(gcretval<>2),
+ lcMethod='Attach',
+ d1select('exec dbo.attachInvoice '&obj:id&','&lcClickedId*-1&','''&lcMethod&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message=')));
+
+@UnAttach=
+ lcClickedId=kpbrwid(1),
+ lcMethod='UnAttach',
+ d1select('exec dbo.attachInvoice '&obj:id&','&lcClickedId*-1&','''&lcMethod&''''); 
+ 
 @applyRefund=
  gcInvoiceId=lcid,
  select(1,4512,'a17<>''Posted'' and a18=''Tax Refund'''),
