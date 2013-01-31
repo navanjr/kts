@@ -109,34 +109,6 @@
 );
 
 
-@printOpenVouchers=
-do(452,getSiteInfo=),
-lcsql='select treasurersNumber,dateRegistered,clerksNumber,clerksDate,payee,amount,status,paymentType,official,slink from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&'  and paymentType=''Official Voucher'' and slink in (select slink from dbo.gldetail where isnull(bsId,0) = 0) order by official,clerksDate  ',
- tr(
-   lcLm=450,
-    lcTm=250,
-    lcRecCnt=0,
-    lcCnt=0,
-    lcy=lcTm,
-    prn(printed,lcLm,lcTm),
-    prn(page,lcLm+7000,lcTm+125),
-    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
-    bnd('D9','Uncleared Vouchers by Official',8000C),
-    nl,
-    prn(,,,lcHeaderFontSize,regular),
-    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
-    bnd('D9',gcCity&', '&gcFState,8000C),
-    nl,
-    nl,
-    bnd('HU','Vchr No.',600,'Vchr Date',600,'Reg No.',500,'Reg Date',600,'Amount',700C,'Official',1600,'Pay To Whom',1800,'Status',500),
-    grp(1,obj5:a9,do(nl,nl,)  ),
-  det(lcsql),
-    bnd('D',obj5:a3,600,format(obj5:a4,@d1),600,obj5:a1,500,format(obj5:a2,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a9,@s18),1600,format(obj5:a5,@s20),1800,obj5:a7,500),
-  edt,
-
-);
-
-
 @printAllWarrants=
 do(452,getSiteInfo=),
 lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,case when warrantLinkId=0 then ''a'' else ''b'' end,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' order by case when warrantLinkId = 0 then ''a'' else ''b'' end,debitAccountCode',
