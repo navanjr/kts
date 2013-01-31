@@ -86,7 +86,7 @@
  gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
  gcbrwsql51='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
  gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')',
- lcReport='select taxYear,invoiceType,taxDue,penalty,fees,certFees,Total,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''','''&lcOrderBy&''')';
+ lcReport='select taxYear,invoiceType,taxDue,penalty,fees,certFees,Total,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''','''&lcOrderBy&''','''&lcInterestDate+0&''')';
 
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
@@ -174,17 +174,15 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 
 \t111Receivables &Detail; \x111255; \y111317;
 @acc111=
- m('Print by:',,,'&Name|&Parcel|&Cancel'),
- break(gcretval=3),
- if(gcretval=1,lcOrderBy='Name'),
- if(gcretval=2,lcOrderBy='Parcel'),
+ iw('\t001Interest Date; \t002@d2; \w00245; \t105Print by &Parcel; @acc105=gcOrderBy='Parcel',close('ok'); \t108Print by &Name; @acc108=gcOrderBy='Name',close('ok');'),
+ lcInterestDate=obj7:key1,
+ lcOrderBy=gcOrderBy,
+ gcOrderBy='',
+ break(gcretval='esc'),
  gcvars=,
- lctally=0,lct1=0,lct2=0,
  tr(
-  printed,
-  page,
   prn('Receivables Detail',t1),
-  prn('Invoice Type: '&obj:key2&' Tax Year: '&obj:key3&'  Paid Ratio: '&obj:a1&' Document: '&obj:a17,t2),
+  prn('Interest Date: '&format(lcInterestDate,@d2)&' Invoice Type: '&obj:key2&' Tax Year: '&obj:key3&'  Paid Ratio: '&obj:a1&' Document: '&obj:a17,t2),
   prn(,250,,,,'courier new'),
   bnd('DU','Year',475,'Tax Due',-750,'Int Due',-750,'FeeDue',-750,'Cert',-750,'Total',-750),
   nl,
