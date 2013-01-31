@@ -1,0 +1,48 @@
+create function dbo.docReceivablesList(
+ @mode varchar(10) = 'SUMMARY',
+ @invTypeString varchar(50),
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00,
+ @switches varchar(10),
+ @dtypesBlob varchar(max))
+
+
+
+returns @rt table (	parentId int,
+					invoiceId int,
+					rowstring varchar(2000),
+					ord varchar(1000))
+as
+begin
+
+declare @interestDate varchar(20) = '20130215'
+
+declare @idToken int
+
+declare @wtCursor table(id int)
+	insert @wtCursor
+		select id from dbo.docReceivablesBRW('DETAIL','ROS','2009',null,'101','1:1|2:0|3:0|') order by parcel
+ 
+ 
+while exists (select * from @wtCursor)
+		begin
+			select top 1
+					@idToken = id
+				from @wtCursor order by id
+
+				if @idToken>0
+				 begin
+					insert @rt select
+								parentId,
+								invoiceId, 
+								rowstring,
+								ord
+								from dbo.docUnpaidTF(@idToken,@interestDate)
+					delete @wtCursor where id = @idToken
+			  end
+		end
+		
+		
+return
+end		
+		

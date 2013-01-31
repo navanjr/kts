@@ -1,0 +1,116 @@
+create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20))
+ returns
+	 @rt table(
+				id int identity(1,1),
+				parentId int,
+				invoiceId int,
+				rowString varchar (2000),
+				ord varchar(1000))
+	as 
+	begin						
+
+declare @taxYear varchar(4),
+		@item varchar(50),
+		@parcel varchar(50),
+		@name varchar(50),
+        @interestDateInt int = dbo.clariondate(@interestDate)
+
+select	@taxYear = taxYear, 
+		@item = ITEM, 
+		@parcel = PARCEL,
+		@name = NAME
+		from invoices where ID = @invoiceID
+		
+		
+declare @wt table(
+				invoiceId int,
+                taxrollId int,
+				taxYear varchar(4),
+				parcel varchar(50),
+				invoiceDue money,
+				fees money,
+				penalty money,
+				interestDate varchar(10),
+				invoiceType varchar(10),
+                                perTyp varchar(10))
+	
+insert @wt
+	select	id,
+			taxrollId,
+			taxYear,
+			parcel,
+			invoiceDue,
+			0,
+			0,
+			interestDate,
+			TYP,
+	        ''   					
+			from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
+			
+insert @wt
+	select	id,
+			taxrollId,
+			taxYear,
+			parcel,
+			invoiceDue,
+			0,
+			0,
+			interestDate,
+			TYP,
+	                ''   					
+			from invoices where statementId = @invoiceId and id not in (select invoiceId from @wt)
+
+update w set w.perTyp = a.perTyp from adtax a, @wt w where w.taxrollId = a.id
+			
+update a set			
+	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
+	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
+    from @wt a
+   
+   insert @rt (parentId,rowString,ord)
+     select	@invoiceId,
+			dbo.padRight('CERT: ',' ',14)
+			+ dbo.padRight(@name,' ',35)
+			+ dbo.padRight('PARCEL: '+@parcel,' ',40),
+			@parcel+'00000a'
+   insert @rt (rowString,ord)
+     select	dbo.padRight('','-',77),
+			@parcel+'00000b' 
+    
+   insert @rt 
+    select	@invoiceId,
+			invoiceId,
+			'   '+ dbo.padRight(taxYear,' ',6)
+			+ dbo.padRight(invoiceType,' ',3)
+			+ dbo.padLeft(dbo.formatcurr(invoiceDue),' ',14)
+			+ dbo.padLeft(dbo.formatcurr(penalty),' ',14)
+			+ dbo.padLeft(dbo.formatcurr(fees),' ',10)
+			+ dbo.padLeft(dbo.formatcurr(0),' ',10)
+			+ dbo.padLeft(dbo.formatcurr(invoiceDue+penalty+fees),' ',14),
+			@parcel+''+taxyear+''+invoiceType+'c' 
+			from @wt order by taxYear
+insert @rt (rowString,ord)
+     select	dbo.padRight('',' ',10)
+			+ dbo.padRight('','=',67),
+			@parcel+'9999zd' 
+ 
+   insert @rt (parentId,rowString,ord)
+    select	@invoiceId,
+			dbo.padRight('',' ',12)
+			+ dbo.padLeft(dbo.formatcurr(sum(invoiceDue)),' ',14)
+			+ dbo.padLeft(dbo.formatcurr(sum(penalty)),' ',14)
+			+ dbo.padLeft(dbo.formatcurr(sum(fees)),' ',10)
+			+ dbo.padLeft(dbo.formatcurr(sum(0)),' ',10)
+			+ dbo.padLeft(dbo.formatcurr(sum(invoiceDue+penalty+fees)),' ',14),
+			@parcel+'9999ze' 
+			from @wt 
+insert @rt (rowString,ord)
+     select	'',
+			@parcel+'9999zf' 
+insert @rt (rowString,ord)
+     select	'',
+			@parcel+'9999zf' 
+
+
+return
+end		

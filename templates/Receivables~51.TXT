@@ -85,7 +85,9 @@
  lcbrwsql50='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by name, item',
  gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
  gcbrwsql51='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
- gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')';
+ gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')',
+ lcReport='select rowstring,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord';
+
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
  brw(150,1,gcbrwsql50,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
@@ -168,4 +170,22 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
   edt,
   nl,
   bnd('HO',,2500,,400,,200C,'Count of Items: '&lctally,1500,,-500,format(lct1,@n14.2b),-600,format(lct2,@n14.2b),-600),
+ );
+
+\t111Receivables &Detail; \x111255; \y111317;
+@acc111=
+ gcvars=,
+ lctally=0,lct1=0,lct2=0,
+ tr(
+  printed,
+  page,
+  prn('Receivables Detail',t1),
+  prn(obj:a17,t2),
+  prn(format(obj:key2,@d2b),t3),
+  if(obj:key3>'  0'),prn('Tax Year: '&obj:key3,t4),
+  if(obj:a1>'  0'),prn('Paid Ratio: '&obj:a1,t5),
+  bnd('HU','Year',2500,'Tax Due',400,'Int Due',200C,'FeeDue',1500,'Cert',-500,'Total',-600),
+  det(lcReport),
+   bnd('D',obj5:a1,5000,),
+  edt,
  );
