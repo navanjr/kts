@@ -47,20 +47,20 @@ begin
 
 -- document processing 
  insert @batches 
- select cast('9' + cast(max(id) as varchar) as int), processCode, count(*), 0
+ select cast('9' + cast(max(id) as varchar) as int), documentName, count(*), 0
  from documentProcessing
  where documentName = @documentName
   and documentDate between @date and @date + @days
- group by processCode 
+ group by documentName,processCode 
 
 -- completed batches
  insert @batches
- select cast('8' + cast(max(id) as varchar) as int), stamp, 0, count(*)
+ select cast('8' + cast(max(id) as varchar) as int), documentName, 0, count(*)
  from taxrollDetail
  where documentName = @documentName
   and documentDatetime between @beginDateDT and @endDateDT
   and invoiceLinkId > 0
- group by stamp
+ group by documentName,stamp
 
  insert @rt (id, ord, display, count1, count2)
  select max(id), 'd'+processCode, ' ' + processCode, sum(count1), sum(count2)
