@@ -1,8 +1,9 @@
-create function dbo.auditorReportOSDetail(@beginDate varchar(20),@endDate varchar(20))
+create function dbo.auditorReportOSDetail(@beginDate varchar(20), @endDate varchar(20), @bankAccountCode varchar(50))
 returns
  @rt table(
  auditReportGroup varchar(60),
- amount money)
+ amount money,
+ comment varchar(250))
 
 as
 begin
@@ -29,7 +30,8 @@ declare @wt table(
  sourceCode varchar(60),
  bsId int,
  auditReportGroup varchar(60),
- reportOrder varchar(60)
+ reportOrder varchar(60),
+ comment varchar(250)
 )
 insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder)
 select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
@@ -37,6 +39,7 @@ where
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0)<1
 and sourceDate <= @endDate  
+and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 
 union all
 
@@ -45,6 +48,7 @@ where
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
 and sourceDate <=@endDate 
+and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 
 union all
 
@@ -53,10 +57,11 @@ where
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
 and sourceDate > @endDate 
+and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 
 update @wt set auditReportGroup='OS Journals' where auditReportGroup<' 0' and sourceType = '4512'
 
-update @wt set auditReportGroup='OS Official Vouchers' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Official Voucher'
+update @wt set auditReportGroup='OS Official Vouchers' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 in ('Official Voucher','Trust Voucher')
 
 update @wt set auditReportGroup='OS Cancelled Vouchers' where auditReportGroup<' 0' and sourceType = '4771' and sourcea18 = 'Cancel Voucher'
 
@@ -68,16 +73,17 @@ update @wt set auditReportGroup='OS Payments' where auditReportGroup<' 0' and so
 
 update @wt set auditReportGroup='OS Deposits' where auditReportGroup<' 0' and sourceType = '4513'
 
-insert @wt (auditReportGroup, amount)
+insert @wt (auditReportGroup, amount, comment)
         select key1, 
-               case when isnumeric(key2)=1 then cast(key2 as money) else 0 end 
+               case when isnumeric(key2)=1 then cast(key2 as money) else 0 end,
+               d1 
           from object where typ=4781 
-          and link1 in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
+          and link1 in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=key1))
 
 
 
 insert @rt
-select auditReportGroup,sum(amount) from @wt group by auditReportGroup
+select auditReportGroup,sum(amount),comment from @wt group by auditReportGroup,comment
 
 return
 end
