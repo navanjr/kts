@@ -138,15 +138,12 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
 
 );
 
-and a.a1 <= ''&gcAsOfDate&'' data group by fund, Date order by fund, date
-
 
 @printPaidWarrants=
     gcAsOfDate=gcEndDate,
     do(452,getSiteInfo=),
     if(gcAsOfDate+0<5,gcAsOfDate=today() ),
-    lcCheckAmt=0,
-    lcCheckTot=0,
+    lcWarrantTot=0,
 
     lcsql='select 
     a.key3 as TreasurersCheck,
@@ -167,7 +164,6 @@ and a.a1 <= ''&gcAsOfDate&'' data group by fund, Date order by fund, date
     prn('Warrants Paid as of '&format(gcAsOfDate,@d2),t1),
     prn(gcCounty&' County - '&gcCity&', '&gcState,t2),
     prn(,lcLm,lcTm),
-
     bnd('HU',
      'Purch Date',750,
      'Tres Check',700,
@@ -178,10 +174,13 @@ and a.a1 <= ''&gcAsOfDate&'' data group by fund, Date order by fund, date
 
     grp(1,obj5:a7,
     do(
+    bnd('H','Fund: '&obj5:a7,5000),
     nl,
-    bnd('H9','Fund: '&obj5:a7,5000),
-    nl,
-      )  ),
+      ),do(
+   nl,
+   bnd('H','Total:',1550R,format(lcWarrantTot,@n$14.2),1000R,),
+   lcWarrantTot=0,
+   nl,) ),
 
  det(lcsql),
   bnd('D',
@@ -191,7 +190,7 @@ and a.a1 <= ''&gcAsOfDate&'' data group by fund, Date order by fund, date
   format(obj5:a4,@n05),700C,
   format(obj5:a5,@d1),750C,
   format(obj5:a6,@s70),2800 ),
-
+  lcWarrantTot=lcWarrantTot+obj5:a3,
  edt,
 
 );
