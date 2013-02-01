@@ -2,8 +2,9 @@
 @bb4=&Print; 
 @bbproc4=
  gcBeginDate=00000,
- gcEndDate=99999,
- print=;
+ gcEndDate=77404,
+ gcAsOfDate=77404 ,
+ printPaidWarrants=;
 
 
 @print=
@@ -16,7 +17,8 @@
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
  (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' order by a.key3  ',
- lcCheckAmt=0,
+ 
+lcCheckAmt=0,
  tr(
   prn(printed),
   prn(page),
@@ -36,7 +38,7 @@
   )),
   bnd('H','',7500),
   det(lcsql),
-   bnd('D',,500,obj5:a4,1000,obj5:a5,1000,format(obj5:a6,@n14.2),1000R,obj5:a7,2000,),
+   bnd('BD',,500,obj5:a4,1000,obj5:a5,1000,format(obj5:a6,@n14.2),1000R,obj5:a7,2000,),
    lcCheckAmt=lcCheckAmt+obj5:a6,
   edt
 
@@ -44,13 +46,19 @@
 
 @printsum=
  do(452,getSiteInfo=),
- lcsql='select fund, Date, sum(warAmount) as warAmount from (select a.key3 as TreasurersCheck,
+ gcAsOfDate=gcEndDate,
+ if(gcAsOfDate+0<5,gcAsOfDate=today() ),
+
+ lcsql='select 
+ fund, 
+ Date, 
+ sum(warAmount) as warAmount from (select a.key3 as TreasurersCheck,
  dbo.date1(a.a1) as Date, 
  cast(a.a3 as money) as amount,
  w.key3 as warNumber,
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
- (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1>='&gcBeginDate&' and a.a1<='&gcEndDate&') data group by fund, Date order by fund, date ',
+ (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 <= '&gcAsOfDate&') data group by fund, Date order by fund,  date ',
  lcCheckAmt=0,
  lcCheckTot=0,
  tr(
@@ -60,7 +68,9 @@
   prn(gcCounty&' County',t2), 
   prn(gcCity&', '&gcState,t3), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
-  grp(1,obj5:a1,do(
+ 
+
+ grp(1,obj5:a1,do(
    bnd('HOU','Date: '&obj5:a2,1000,,4000),
    bnd('H',,500,'Fund',1500,'Date',1000,'Amount Paid',1000,),
   ),do(
@@ -70,6 +80,7 @@
    nl,nl,
   )),
   bnd('H','',7500),
+
   det(lcsql),
    bnd('D',,500,obj5:a1,1500,obj5:a2,1000,format(obj5:a3,@n14.2),1000R,),
    lcCheckAmt=lcCheckAmt+obj5:a3,
@@ -83,7 +94,21 @@
  gcAsOfDate=gcEndDate,
  do(452,getSiteInfo=),
  if(gcAsOfDate+0<5,gcAsOfDate=today()),
- lcsql='select treasurersNumber,dateRegistered,clerksNumber,clerksDate,payee,amount,debitAccountDesc,status,paymentType,warrantLinkId,fiscalYear,payee,debitAccountCode from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+ lcsql='select 
+treasurersNumber,
+dateRegistered,
+clerksNumber,
+clerksDate,
+payee,
+amount,
+debitAccountDesc,
+status,
+paymentType,
+warrantLinkId,
+fiscalYear,
+payee,
+debitAccountCode 
+from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
 
  tr(
    lcLm=450,
@@ -103,10 +128,71 @@
     nl,
     bnd('HU','Wrnt No.',600,'Wrnt Date',600,'Reg No.',500,'Reg Date',600,'Amount',700C,'Fund Desc',1200,'Pay To Whom',1400,'Status',500,'Fiscal Year',700),
 
-    grp(1,obj5:a7,do(nl,nl,)  ),
+    grp(1,obj5:a7,
+       do(nl,
+          nl,)  ),
+
   det(lcsql),
     bnd('D',obj5:a3,600,format(obj5:a4,@d1),600,obj5:a1,500,format(obj5:a2,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a7,@s18),1200,format(obj5:a12,@s22),1400,obj5:a8,500,obj5:a11,700),
   edt,
+
+);
+
+and a.a1 <= ''&gcAsOfDate&'' data group by fund, Date order by fund, date
+
+
+@printPaidWarrants=
+    gcAsOfDate=gcEndDate,
+    do(452,getSiteInfo=),
+    if(gcAsOfDate+0<5,gcAsOfDate=today() ),
+    lcCheckAmt=0,
+    lcCheckTot=0,
+
+    lcsql='select 
+    a.key3 as TreasurersCheck,
+    a.a1 as Date, 
+    a.a3 as amount,
+    w.key3 as warNumber,
+    w.a1 as warDate,
+    w.a2 as payee,
+    (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a,
+      object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 <= '&gcAsOfDate&' order by fund, TreasurersCheck ',
+    tr(
+    lcLm=600,
+    lcTm=1100,
+    lcRecCnt=0,
+    lcCnt=0,
+    prn(printed),
+    prn(page),
+    prn('Warrants Paid as of '&format(gcAsOfDate,@d2),t1),
+    prn(gcCounty&' County - '&gcCity&', '&gcState,t2),
+    prn(,lcLm,lcTm),
+
+    bnd('HU',
+     'Purch Date',750,
+     'Tres Check',700,
+     'Amount',1000C,
+     'Warnt No.',700,
+     'Warnt Date',750,
+     'Warrant Payee',2800 ),
+
+    grp(1,obj5:a7,
+    do(
+    nl,
+    bnd('H9','Fund: '&obj5:a7,5000),
+    nl,
+      )  ),
+
+ det(lcsql),
+  bnd('D',
+  format(obj5:a2,@d1),750C,
+  format(obj5:a1,@n05),700C,
+  format(obj5:a3,@n$14.2),1000R,
+  format(obj5:a4,@n05),700C,
+  format(obj5:a5,@d1),750C,
+  format(obj5:a6,@s70),2800 ),
+
+ edt,
 
 );
 
@@ -143,12 +229,10 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 
 );
 
-@printPaidWarrants=
- gcAsOfDate=gcEndDate,
- do(452,getSiteInfo=),
- if(gcAsOfDate+0<5,gcAsOfDate=today()),
 
-lcsql='select 
+
+
+lcsql2='select 
 treasurersNumber,
 dateRegistered,
 clerksNumber,
@@ -169,52 +253,4 @@ id,
 dateRegistered,
 clerksNumber,
 payee
-  from dbo.payments where dateregistered between 00000 and 99999 and id = warrantLinkId and paymentType=''Treasurers Check'' ',
-
-
- tr(
-   lcLm=500,
-    lcTm=250,
-    lcRecCnt=0,
-    lcCnt=0,
-    lcy=lcTm,
-    prn(printed,lcLm,lcTm),
-    prn(page,lcLm+7000,lcTm+125),
-    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
-    bnd('D9','Purchased Warrants Report',8000C),
-    nl,
-    prn(,,,lcHeaderFontSize,regular),
-    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
-    bnd('D9',gcCity&', '&gcFState,8000C),
-    nl,
-    nl,
-    bnd('HU',
-'Wrnt No.',600,
-'Wrnt Date',600,
-'Reg No.',500,
-'Reg Date',600,
-'Payee',1500,
-'Amount',900C,
-'Treas Crtl No.',700
-),
-
-    grp(1,obj5:a6,do(
-    nl,
-    bnd('H9','Account: '&obj5:a7,5000),
-    nl,
-    )  ),
-
- det(lcsql),
- bnd('D',
-obj5:a3,600,
-format(obj5:a4,@d1),600,
-obj5:a1,500,
-format(obj5:a2,@d1),600,
-format(obj5:a11,@s20),1500,
-format(obj5:a5,@n$-14.2),900R,
-obj5:a9,700C
-),
- edt,
-
-);
-
+  from dbo.payments where dateregistered <= '&gcAsOfDate&' and id = warrantLinkId and paymentType=''Treasurers Check'' ',
