@@ -69,7 +69,13 @@ begin
  update @rt set postCheck = 3 where postCheck = 0 and (voucherNumber < '  0' or isdate(dbo.date1(voucherDate)) != 1 or payee < '  0')
 
 -- set the potential register numbers
- select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Official Voucher' order by key2 desc, key1 desc
+--  declare @newNumber varchar(50), @nextNumber varchar(50)
+
+--  exec dbo.nextObjectAutoNumber @typ=4771, @seriesString = 'Official Voucher', @ignoreDeleted = 'FALSE', @nextNumber=@newNumber output 
+
+--  select @lastNumber = cast(@nextNumber as int)-1
+
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and dbo.nextObjectAutoNumberControl(4771,a18) = dbo.nextObjectAutoNumberControl(4771,'Official Voucher') order by key2 desc, key1 desc
  declare @reg table(regSeed int identity(1,1), id int)
  insert @reg select id from @rt where postCheck = 0 order by voucherNumber
  update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
