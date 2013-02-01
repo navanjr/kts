@@ -1,5 +1,6 @@
 create procedure dbo.diagnostics(
  @method varchar(50) = 'all',
+ @mode varchar(50) = 'heavy',
  @verbose varchar(5) = 'TRUE'
 ) as 
 begin
@@ -20,206 +21,44 @@ begin
   @tally int = 0,
   @fixProc varchar(max) = ''
 
--- Debits equal Credits by slink
- set @methodUnit = 'slinkBalance'
- if @method in ('all', @methodUnit)
+ if @method = 'light'
+  select @method = 'all', @mode = 'light'
+
+ if @method != 'all'
+  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%' and name like '%' + @method
+ else
+  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%'
+
+ open routines
+ fetch next from routines into @methodUnit
+ while @@FETCH_STATUS = 0
  begin
 
-  select 
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'slinks out of balance'
-  from gldetail
-  group by slink
-  having SUM(amount) !=0
+  if @method in ('all', @methodUnit)
+  begin
 
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'none'  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
- end
- 
--- receiptLinks
- set @methodUnit = 'receiptLinks'
- if @method in ('all', @methodUnit)
- begin
-
-  exec dbo.diagFix_orphanedReceiptLinks
+   exec @methodUnit
+    @mode = @mode,
     @code = @code output,
     @tally = @tally output,
     @message = @message output,
     @fixProc = @fixProc output
 
-  insert @results
-   select @methodUnit, @code, @message, @tally, @fixProc  
- 
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+   insert @results
+    select @methodUnit, @code, @message, @tally, 'none'  
 
-  select 
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'Tax receipts with out receiptLinks'
-  from Object
-  where typ = 4502 and key3 = 'TAX' and A17 = 'Posted'
-   and ID not in (select receiptId from receiptlink)
+   exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
 
-  -- insert into results
-  insert @results
-   select @methodUnit, @code, @message, @tally ,'none' 
- 
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+  end
 
+  fetch next from routines into @methodUnit
  end
 
--- receiptLinks
- set @methodUnit = 'journalLinks'
- if @method in ('all', @methodUnit)
- begin
+ close routines
+ deallocate routines
 
-  exec dbo.diagFix_orphanedJournalLinks
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output,
-    @fixProc = @fixProc output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, @fixProc  
- 
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
-
--- posted receipts with wrong status
- set @methodUnit = 'receiptWrongStatus'
- if @method in ('all', @methodUnit)
- begin
-
-  select
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = count(*),
-   @message = 'posted receipts with wrong status'
-  from object where typ = 4502 and a17 != 'Posted' and 'o' + cast(id as varchar) in (select slink from gldetail)
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_receiptWrongStatus'  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
- end
-
-
--- tax receipt numbers
- set @methodUnit = 'taxReceiptNumbers'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_taxReceiptNumbers
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
--- tax statement Printed Comments
- set @methodUnit = 'taxStatementPrinted'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_taxStatementPrinted
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
--- GLDetail dbo.diagFix_orphanedGLDetail
- set @methodUnit = 'orphanedGLDetail'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_orphanedGLDetail
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
--- taxRuleDue dbo.diagFix_taxRuleDue
- set @methodUnit = 'taxRuleDue'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_taxRuleDue
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
--- bankrupt dbo.diagFix_bankrupt
- set @methodUnit = 'bankrupt'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_bankrupt
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
--- bankrupt dbo.diagFix_documentProcessing
- set @methodUnit = 'documentProcessing'
- if @method in ('all', @methodUnit)
- begin
- 
-  exec dbo.diagFix_documentProcessing
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
-
-  insert @results
-   select @methodUnit, @code, @message, @tally, 'exec dbo.diagFix_' + @methodUnit + ' @method = ''FIX'''  
-
-  exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
-
- end
-
-
--- Next unit test here
-
-
-
-
-
- 
-  if @verbose = 'TRUE'
-   select method, tally, message, fixProc from @results where code = 1 order by id
-  return
+ if @verbose = 'TRUE'
+  select method, tally, message, fixProc from @results where code = 1 order by id
+ return
 
 end

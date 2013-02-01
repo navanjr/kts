@@ -1,0 +1,41 @@
+create proc dbo.diagFix_taxReceiptLinks(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as 
+begin
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Tax receipts with out receiptLinks'
+  from Object
+  where typ = 4502 and key3 = 'TAX' and A17 = 'Posted'
+   and ID not in (select receiptId from receiptlink)
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from Object
+  where typ = 4502 and key3 = 'TAX' and A17 = 'Posted'
+   and ID not in (select receiptId from receiptlink)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+ 
+  return
+
+ end
+
+end

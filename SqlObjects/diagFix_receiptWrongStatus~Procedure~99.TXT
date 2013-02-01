@@ -1,12 +1,46 @@
-create proc dbo.diagFix_receiptWrongStatus as 
+create proc dbo.diagFix_receiptWrongStatus(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output
+) as 
 begin
- 
- exec dbo.logit @@procId, 'Ok ill fix it...'
 
- update object set a17 = 'Posted'
- where
-  typ = 4502
-  and a17 != 'Posted'
-  and 'o' + cast(id as varchar) in (select slink from gldetail)
+ if @method = 'GET'
+ begin 
+ 
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'posted receipts with wrong status'
+  from object where typ = 4502 and a17 != 'Posted' and 'o' + cast(id as varchar) in (select slink from gldetail)
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from object 
+  where
+   typ = 4502
+   and a17 != 'Posted'
+   and 'o' + cast(id as varchar) in (select slink from gldetail)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+ 
+  exec dbo.logit @@procId, 'Ok ill fix it...'
+
+  update object set a17 = 'Posted'
+  where
+   typ = 4502
+   and a17 != 'Posted'
+   and 'o' + cast(id as varchar) in (select slink from gldetail)
+
+ end
 
 end

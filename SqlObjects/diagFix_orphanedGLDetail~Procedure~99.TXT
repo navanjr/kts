@@ -1,4 +1,5 @@
 create proc dbo.diagFix_orphanedGLDetail(
+ @mode varchar(5) = 'heavy',
  @method varchar(5) = 'GET',
  @code int = 0 output,
  @message varchar(100) = null output,
@@ -10,7 +11,16 @@ begin
  if @method = 'GET'
  begin  
 
- declare @rt table(typ varchar(1),cnt int)
+  if @mode != 'heavy'
+  begin
+   select
+    @code = 1, 
+    @message = 'SKIPPED - orphaned glDetail - Heavy proc',
+    @fixProc = 'exec dbo.diagFix_orphanedGLDetail @method = ''SHOW'''
+   return
+  end
+
+  declare @rt table(typ varchar(1),cnt int)
 
 
   insert @rt
