@@ -3,8 +3,13 @@
 @lbrwclick160=
  gcvars=,
  lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
- m('Choose one of the following options...','Right Click Menu...','Question.ico','&Debug|&Cancel'),
- if(gcretval=1,m(lcFormLetterSQL));
+ m('Choose one of the following options...','Right Click Menu...','Question.ico','&Manage Addresses|&Debug|&Cancel'),
+ if(gcretval=1,manageAddress=),
+ if(gcretval=2,m(lcFormLetterSQL));
+
+@manageAddress=
+  gcInvoiceId=kpbrwid(1)*-1,
+  do(4006,menuprocess=);
 
 \t116Process Fees;
 @acc116=
@@ -103,7 +108,7 @@
  brwStuff=;
 
 @setVars=
- gcbrwFormat4025='130L(2)~Name~#2#|M'&choose(gcPBStuffer<>1,'40R(2)~Item~#5#|M','80R(2)~POrder~#12#|M')&'75L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M45R(2)~Other~@n14.2b@#13#|M65L(2)~Printed~#10#|M50R(2)~Fees Processed~@n14.2b@#14#|M',
+ gcbrwFormat4025='130L(2)~Name~#2#|M'&choose(gcPBStuffer<>1,'40L(2)~Item~#5#|M','80R(2)~POrder~#12#|M')&'75L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M45R(2)~Other~@n14.2b@#13#|M65L(2)~Printed~#10#|M50R(2)~Fees Processed~@n14.2b@#14#|M',
  gcsql4025='select invoiceId * -1,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort,printOrder,otherAmount,feesProcessed from dbo.docBatchBRW('&gcBatchId&',null,null)'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by printOrder';
 
 @brwStuff=
