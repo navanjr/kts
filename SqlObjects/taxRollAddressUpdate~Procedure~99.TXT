@@ -1,84 +1,83 @@
-create procedure [dbo].[taxRollAddressUpdate]( @Id int, @typ varchar(10) = 'A', @taxrollDetailId int = 0)
-        as begin
+create procedure [dbo].[taxRollAddressUpdate](
+ @Id int,
+ @typ varchar(10) = 'A',
+ @taxrollDetailId int = 0
+) as
+begin
 
+ exec dbo.logit @@procId, '@id', @id, '@typ', @typ, '@taxrollDetailId', @taxrollDetailId
 
-declare @name varchar(50),
-        @parcel varchar(50),
-        @item varchar(50),
-        @taxyear varchar(5),
-        @dType varchar(10),
-        @ini varchar(5) = dbo.readstring('@ini=',dbo.whoamI())
+ declare
+  @name varchar(50),
+  @parcel varchar(50),
+  @item varchar(50),
+  @taxyear varchar(5),
+  @dType varchar(10),
+  @ini varchar(5) = dbo.readstring('@ini=',dbo.whoamI())
         
 
-
-if @taxrollDetailId = 0 
- begin
-insert into
-        taxRollDetail(
-            [adTaxId],
-            [parcelNumber],
-            [name],
-            [businessname],
-            [itemNumber],
-            [taxYear],
-            [Stamp],
-            [ADDRESS1],
-                [ADDRESS2],
-                [ADDRESS3],
-                [CITY],
-                [STATE],
-                [ZIP1],
-                [ZIP2],
-                [ZIP3],
-                [dType],
-                [Comments]
-                )
-select
-        0,
-        key1,
-        left(key2,30),
-        '',
-        key3,
-        a1,
-        a20,
-        a2,
-        a3,
-        a4,
-        a5,
-        a6,
-        a7,
-        a8,
-        '',
-        case when a17 = '1' then 'A' else 'AA' end,
-        ''
-
-   from object where id=@Id
-
+ if @taxrollDetailId = 0 
+ begin 
+  insert into taxRollDetail(
+   [adTaxId],
+   [parcelNumber],
+   [name],
+   [businessname],
+   [itemNumber],
+   [taxYear],
+   [Stamp],
+   [ADDRESS1],
+   [ADDRESS2],
+   [ADDRESS3],
+   [CITY],
+   [STATE],
+   [ZIP1],
+   [ZIP2],
+   [ZIP3],
+   [dType],
+   [Comments]
+  )
+  select
+   0,
+   key1,
+   left(key2,30),
+   '',
+   key3,
+   a1,
+   a20,
+   a2,
+   a3,
+   a4,
+   a5,
+   a6,
+   a7,
+   a8,
+   '',
+   case when a17 = '1' then 'A' else 'AA' end,
+   ''
+  from object where id=@Id
 
 ---update the name on invoices
+  select
+   @name = left(key2,30),
+   @item = key3,
+   @taxyear = a1,
+   @dType = case when a17 = '1' then 'A' else 'AA' end
+  from object where id=@id
+
+ end
+
+ if @taxrollDetailId > 0
+ begin 
+
+  select @parcel = key1,
+   @name = left(key2,30),
+   @item = key3,
+   @taxyear = a1
+  from object where id=@id
 
 
-select @name = left(key2,30),
-       @item = key3,
-       @taxyear = a1,
-       @dType = case when a17 = '1' then 'A' else 'AA' end
-
-    from object where id=@id
-
-end
-
-if @taxrollDetailId > 0
-begin 
-
-select @parcel = key1,
-       @name = left(key2,30),
-       @item = key3,
-       @taxyear = a1
-       
-    from object where id=@id
-
-
-insert into
+  insert into
         taxRollDetail(
             [adTaxId],
             [parcelNumber],
@@ -98,10 +97,10 @@ insert into
             [Comments],
             [stamp]
                 )
-select
+  select
         0,
         @parcel,
-        @name,
+        case when @typ = 'AA' then name else @name end,
         '',
         @item,
         @taxyear,
@@ -116,18 +115,14 @@ select
         @typ,
         '',
         convert(varchar(10),GETDATE(),101) + ' ' + @ini
-         
    from taxrollDetail where id=@taxrollDetailId
 
-set @dType = @typ
+  set @dType = @typ
 
-
-end
 ---update the name on invoices
+  if @dType = 'A'
+   update invoices set name = @name where item = CAST(@item AS VARCHAR) and taxyear = CAST(@taxyear AS VARCHAR)
 
-if @dType = 'A'
-  update invoices set 
-       name = @name 
-       where item = CAST(@item AS VARCHAR) 
-             and taxyear = CAST(@taxyear AS VARCHAR)
+ end
+
 end
