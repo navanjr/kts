@@ -1,7 +1,8 @@
 create procedure dbo.diagnostics(
  @method varchar(50) = 'all',
  @mode varchar(50) = 'heavy',
- @verbose varchar(5) = 'TRUE'
+ @verbose varchar(10) = 'TRUE',
+ @storeResults varchar(5) = 'FALSE'
 ) as 
 begin
 
@@ -11,7 +12,8 @@ begin
   code int,
   message varchar(max),
   tally int,
-  fixProc varchar(100)
+  fixProc varchar(100),
+  timeStamp datetime
  ) 
 
  declare 
@@ -45,7 +47,7 @@ begin
     @fixProc = @fixProc output
 
    insert @results
-    select @methodUnit, @code, @message, @tally, 'none'  
+    select @methodUnit, @code, @message, @tally, 'none', getDate()  
 
    exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
 
@@ -58,7 +60,18 @@ begin
  deallocate routines
 
  if @verbose = 'TRUE'
-  select method, tally, message, fixProc from @results where code = 1 order by id
- return
+ begin
+  select * from @results where code = 1 order by id
+  return
+ end
+
+ if @storeResults = 'TRUE'
+ begin
+  declare @trialId int
+  select @trialId = isnull(max(trialId),0) + 1 from dbo.diagnosticResults
+  insert dbo.diagnosticResults 
+  select @trialId, * from @results order by id
+  return
+ end
 
 end
