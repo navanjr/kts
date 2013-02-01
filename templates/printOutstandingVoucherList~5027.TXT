@@ -1,4 +1,9 @@
-@bb7=&Print; @bbproc7=gcAsOfDate=today(),printCancelVoucherList=;
+@bb7=&Print;
+@bbproc7=
+gcAsOfDate=today(),
+gcBeginDate=today(),
+gcEndDate=today(),
+printCancelVoucherList=;
 
 @printOutstandingVoucherList=
  gcAsOfDate=gcEndDate,
@@ -75,12 +80,10 @@ and isnull(bsId,-1) not in (select id from object where typ=4780 and a3<='''&gcA
 );
 
 
-/*When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
+/*The report is run for a month at a time.  When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
 
 @printCancelVoucherList=
- gcAsOfDate=gcEndDate,
- do(452,getSiteInfo=),
-  if(gcAsOfDate+0<5,gcAsOfDate=today()),
+  do(452,getSiteInfo=),
   lcLm=600,
   lcTm=350,
   lcM=1000,
@@ -95,13 +98,13 @@ and isnull(bsId,-1) not in (select id from object where typ=4780 and a3<='''&gcA
     debitAccountDesc,
     amount,
     creditAccountDesc
-      from dbo.payments where paymentType = ''Cancel Voucher'' and dateRegistered <= '&gcAsOfDate+0&' order by treasurersNumber ',   
+      from dbo.payments where paymentType = ''Cancel Voucher'' and dateRegistered between '&gcBeginDate+0&' and '&gcEndDate+0&' order by treasurersNumber ',   
 tr(
   prn(printed),
   prn(pages),
   prn('Cancelled Voucher List',t1),
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
-  prn('As Of: '&format(gcAsOfDate,@d1),t3),
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
   prn(,lcLm,lcTm+1000),
   nl, 
   bnd('H','REGIST',600,'DATE',800,'TO WHOM ISSUED',2500,'WHOM DRAWN',1800,'AMOUNT',1000R,),
@@ -118,5 +121,4 @@ format(obj5:a5,@n$-19.2),1000R,
   edt,
 
  );
-
 
