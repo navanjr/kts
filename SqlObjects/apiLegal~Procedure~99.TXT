@@ -28,7 +28,8 @@ begin
   @theDate datetime,
   @updated int,
   @inserted int,
-  @tally int
+  @tally int,
+  @goofyChars varchar(100) = '13,10,248'
 
  exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @method='GET', @dump = @apiService output
  exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
@@ -80,11 +81,13 @@ begin
    id, 
    REALTAXYEAR,
    OWNERNAME,
-   legalDescription,
+   dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102')),@goofyChars),
    apiUpdatedLegal
    from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdatedLegal,0) < modified and ltrim(cast(legalDescription as varchar(max))) > '  0'
    order by OWNERNAME, ITEMNUMBER  
+
+
 
   if @debugMode = 'TRUE'
   begin
