@@ -85,7 +85,7 @@ declare @idToken int
  begin
   select top 1 @idToken = id from @mr where processFlag=0
   insert @mrd (mrId,amount,fundCode,sourceCode,[description])
-  select @idToken,amount,creditCode,sourceCode,comment from dbo.apportionCollectionsWT(0,@endDate,'',@idToken) where creditCode > ' 0' and isnull(contraId,0)=0
+  select @idToken,amount,creditCode,sourceCode,comment from dbo.apportionCollectionsWT(0,@endDate,'',@idToken,null) where creditCode > ' 0' and isnull(contraId,0)=0
   update @mr set processFlag=1 where id=@idToken
  end
 
@@ -107,76 +107,7 @@ declare @idToken int
    and f.accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 
 
-/*  OLD CODE MAK: 12/19/12
 
-declare @wt table(postDate int, 
-   postDate1 varchar(50),
-   ReceiptNo varchar(50),
-   FundDesc varchar(60),
-   ReceivedOf varchar(60),
-   amount money,
-   PrevApportioned money,
-   slink varchar(16),
-   fundCode varchar(60),
-   description varchar(150),
-   sourceDesc varchar(60),
-   detCount int,
-   recId int)
-
-insert @rt
-select d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,f.accountDesc,r.a1,amount,
-  0000000.0000 as PrevApportioned, d.slink, d.accountCode,'','',0, r.id, 0.00 
-from dbo.glDetailReports d, glAccounts a, glAccounts f, object r 
-where d.accountCode=a.accountCode 
- and a.targetAccountCode=f.accountCode
- and (dbo.slinkId(d.slink)=r.id)
- and d.[sourcedate]>=@beginDate 
- and d.[sourcedate]<=@endDate 
- and contraId=@miscTaxAccountId
-
-declare @st table(slink varchar(16), fundCode varchar(60), sourceCode varchar(60), sourceDesc varchar(100), Description varchar(150))
-insert @st
- select rd.slink, f.accountCode, rd.sourceCode, a.accountDesc, rd.[description]
-  from receiptDetail rd, glAccounts a, glAccounts f 
- where 
-  rd.sourceCode=a.accountCode
-  and rd.fundCode = f.targetAccountCode
-  and f.accountType='ACCRUED RECEIVABLE'
-  and slink in (select slink from @rt)
-
-update r set detCount=c.cnt
- from @rt r, (select count(*) as cnt,slink,fundCode from @st group by slink,fundCode ) c
- where r.slink=c.slink
-  and r.fundCode=c.fundCode
-
-update r set [description]=s.[description], sourceDesc = s.sourceDesc 
-from @rt r, @st s 
-where 
- r.slink=s.slink
-  and r.fundCode=s.fundCode
-  and r.detCount=1
-  
-insert @rt (ReceiptNo, fundCode, [description], sourceDesc, detCount)
- select r.ReceiptNo, r.fundCode, s.[description], s.sourceDesc, 0
- from @rt r, @st s 
-where 
- r.slink=s.slink
-  and r.fundCode=s.fundCode
-  and r.detCount>1
-
-insert @wt
-select d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1,amount,
-  0000000.0000 as PrevApportioned, d.slink, d.accountCode,'','',0, r.id 
-from dbo.glDetailReports d, glAccounts a, object r 
-where d.accountCode=a.accountCode 
- and a.targetAccountCode not in (select f.accountCode from glaccounts f)
- and (dbo.slinkId(d.slink)=r.id)
- and d.[sourcedate]>=@beginDate 
- and d.[sourcedate]<=@endDate 
- and contraId=@miscTaxAccountId
-
-
-*/
 
 return
 end
