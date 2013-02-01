@@ -80,8 +80,10 @@
 
 
 @printOpenWarrants=
+ gcAsOfDate=gcEndDate,
  do(452,getSiteInfo=),
- lcsql='select treasurersNumber,dateRegistered,clerksNumber,clerksDate,payee,amount,debitAccountDesc,status,paymentType,warrantLinkId,fiscalYear,payee,debitAccountCode from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&'  and paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+ if(gcAsOfDate+0<5,gcAsOfDate=today()),
+ lcsql='select treasurersNumber,dateRegistered,clerksNumber,clerksDate,payee,amount,debitAccountDesc,status,paymentType,warrantLinkId,fiscalYear,payee,debitAccountCode from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
 
  tr(
    lcLm=450,
@@ -142,7 +144,10 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 );
 
 @printPaidWarrants=
-do(452,getSiteInfo=),
+ gcAsOfDate=gcEndDate,
+ do(452,getSiteInfo=),
+ if(gcAsOfDate+0<5,gcAsOfDate=today()),
+
 lcsql='select 
 treasurersNumber,
 dateRegistered,
@@ -156,7 +161,7 @@ treasurersWarrant,
 fiscalYear,
 payee,
 warrantLinkId 
-  from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and warrantLinkId+0>0 and paymentType=''Warrant'' order by debitAccountCode, clerksDate  ',
+  from dbo.payments where dateregistered <= '&gcAsOfDate&' and warrantLinkId+0>0 and paymentType=''Warrant'' order by debitAccountCode, clerksDate  ',
 
 
 lcsql1='select 
