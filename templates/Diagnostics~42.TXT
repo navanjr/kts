@@ -38,12 +38,30 @@
 @acc550=
  refreshbrw=; 
 
-@brw1=
+@lbrwclick150=
  lcId=kpbrwid(1)*-1,
- lcModule=kp('select method from dbo.diagnosticResults where id = '&lcId),
+ lcMessage=kp('select message from dbo.diagnosticsBRW(''inspect'','&lcId&')'),
+ lcGuide=readstring(lcMessage,'@guide='),
+ lcModule=readstring(lcMessage,'@procName='),
+ if(instring('FIX',lcGuide,1,1)+0>0,rightClickMenu1=,rightClickMenu2=);
+
+@rightClickMenu1= 
  m('Diagnostic Options...','Right Click Menu','question.ico','&Show|&Fix|&Cancel'),
  if(gcretval=1,m('exec dbo.'&lcModule&' @method=''show''')),
- if(gcretval=2,m('exec dbo.diagnostics @brwId='&lcId&' @mode=''fix'''));
+ if(gcretval=2,fixModule=);
+
+@rightClickMenu2= 
+ m('Diagnostic Options...','Right Click Menu','question.ico','&Show|&Cancel'),
+ if(gcretval=1,m('exec dbo.'&lcModule&' @method=''show'''));
+
+@fixModule=
+ lcFixSQL='exec dbo.'&lcModule&' @method=''fix''',
+ m('Are you sure you wish to run the Diagnostic Fix?||'&lcFixSQL,'Diag Fix...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Running Diagnostic Fix...','Please Wait...'),
+ d1select(lcFixSQL),
+ kpmc();
+
 
 \t077Mode;\h077078;r
 

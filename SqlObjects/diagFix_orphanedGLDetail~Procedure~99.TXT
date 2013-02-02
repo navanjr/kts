@@ -5,12 +5,9 @@ create proc dbo.diagFix_orphanedGLDetail(
  @message varchar(100) = null output,
  @tally int = 0 output,
  @fixProc varchar(100) = null output,
- @guide varchar(100) = 'GET|SHOW|FIX' output
+ @guide varchar(100) = null output
 ) as
 begin
-
- if @method = 'INSPECT'
-  return
 
  if @method = 'GET'
  begin  
@@ -18,6 +15,7 @@ begin
   if @mode != 'heavy'
   begin
    select
+    @guide = 'GET|SHOW|FIX',
     @code = 0, 
     @message = 'SKIPPED - orphaned glDetail - Heavy proc',
     @fixProc = 'exec dbo.diagFix_orphanedGLDetail @method = ''SHOW'''
@@ -64,12 +62,12 @@ begin
    group by left(slink,1)
 
    select 
-   @tally = sum(cnt),
-   @code = case when count(*) > 0 then 1 else 0 end,  
-   @message = 'orphaned glDetail',
-   @fixProc = 'exec dbo.diagFix_orphanedGLDetail @method = ''FIX'''
+    @guide = 'GET|SHOW|FIX',
+    @tally = sum(cnt),
+    @code = case when count(*) > 0 then 1 else 0 end,  
+    @message = 'orphaned glDetail',
+    @fixProc = 'exec dbo.diagFix_orphanedGLDetail @method = ''FIX'''
    from @rt
-
 
   return
  end
