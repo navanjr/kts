@@ -1,0 +1,39 @@
+create proc dbo.diagFix_defaultName(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = 'GET|SHOW' output
+) as 
+begin
+
+ if @method = 'INSPECT'
+  return
+
+ if @method = 'GET'
+ begin 
+ 
+  select
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'invoice.name does not match default address.name'
+  from invoices a
+  where a.NAME !=
+   (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select *   from invoices a
+  where a.NAME !=
+   (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+
+ end
+
+-- if @method = 'FIX'
+
+end

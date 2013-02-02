@@ -1,6 +1,6 @@
 create function dbo.diagnosticsBRW(
  @mode varchar(10),
- @trialId int
+ @id int
 )
  returns @rt table(
   id int,
@@ -15,43 +15,60 @@ create function dbo.diagnosticsBRW(
 ) as 
 begin
 
- if not isnull(@trialId,0) > 0
-  select @trialId = max(trialId) from dbo.diagnosticResults where mode = @mode
+ if @mode = 'INSPECT'
+ begin
+  insert @rt (id, method, code, tally, message, timeStamp)
+  select
+   id,
+   replace(method,'diagFix_',''),
+   code,
+   tally,
+   message,
+   timeStamp
+  from dbo.diagnosticResults
+  where id = @id
+ end
 
- insert @rt (id, method, code, tally, message, timeStamp)
- select
-  id,
-  replace(method,'diagFix_',''),
-  code,
-  tally,
-  message,
-  timeStamp
- from dbo.diagnosticResults
- where trialId = @trialId
- order by testId
+ if @mode in ('HEAVY','LIGHT')
+ begin
+  if not isnull(@id,0) > 0
+   select @id = max(trialId) from dbo.diagnosticResults where mode = @mode
 
- update @rt set 
-  display = dbo.padRight(' ' + method, ' ',50) + case when tally > 0 then dbo.padLeft(convert(varchar, tally,1), ' ', 12) else '' end,
-  ord = 'a' + method
+  insert @rt (id, method, code, tally, message, timeStamp)
+  select
+   id,
+   replace(method,'diagFix_',''),
+   code,
+   tally,
+   message,
+   timeStamp
+  from dbo.diagnosticResults
+  where trialId = @id
+  order by testId
 
- update @rt set 
-  colorFlag = 1 
- where tally > 0
+  update @rt set 
+   display = dbo.padRight(' ' + method, ' ',50) + case when tally > 0 then dbo.padLeft(convert(varchar, tally,1), ' ', 12) else '' end,
+   ord = 'a' + method
 
- insert @rt (id, display, ord, colorFlag)
- select 
-  id,
-  '   ~ ' + message,
-  'a' + method + 'z',
-  1 
- from @rt
- where colorFlag = 1
+  update @rt set 
+   colorFlag = 1 
+  where tally > 0
 
- insert @rt (display, ord)
- select
-  upper(@mode) + ' - ' + cast(max(timeStamp) as varchar) + ' (' + dbo.formatAge(max(timeStamp),getdate()) + ' old)',
-  'a' 
- from @rt 
+  insert @rt (id, display, ord, colorFlag)
+  select 
+   id,
+   '   ~ ' + message,
+   'a' + method + 'z',
+   1 
+  from @rt
+  where colorFlag = 1
+
+  insert @rt (display, ord)
+  select
+   upper(@mode) + ' - ' + cast(max(timeStamp) as varchar) + ' (' + dbo.formatAge(max(timeStamp),getdate()) + ' old)',
+   'a' 
+  from @rt 
+ end
 
  return
 end

@@ -15,7 +15,8 @@ begin
   message varchar(max),
   tally int,
   fixProc varchar(100),
-  timeStamp datetime
+  timeStamp datetime,
+  guideBlob varchar(250)
  ) 
 
  declare 
@@ -23,7 +24,8 @@ begin
   @code int = 0,
   @message varchar(max) = '',
   @tally int = 0,
-  @fixProc varchar(max) = ''
+  @fixProc varchar(max) = '',
+  @guide varchar(max) = ''
 
  if @method = 'light'
   select @method = 'all', @mode = 'light'
@@ -46,10 +48,11 @@ begin
     @code = @code output,
     @tally = @tally output,
     @message = @message output,
-    @fixProc = @fixProc output
+    @fixProc = @fixProc output,
+    @guide = @guide output
 
    insert @results
-    select @methodUnit, @code, @message, @tally, 'none', getDate()  
+    select @methodUnit, @code, @message, @tally, 'none', getDate(), @guide  
 
    exec dbo.logit @@procId, '@method', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
 
@@ -72,7 +75,7 @@ begin
   declare @trialId int
   select @trialId = isnull(max(trialId),0) + 1 from dbo.diagnosticResults
   insert dbo.diagnosticResults 
-  select @trialId, *, @mode from @results order by id
+  select @trialId, id, method, code, message, tally, fixProc, timeStamp, @mode, guideBlob from @results order by id
   return
  end
 
