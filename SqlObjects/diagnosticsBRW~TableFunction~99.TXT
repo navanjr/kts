@@ -1,27 +1,57 @@
-create function dbo.diagnosticsBRW()
+create function dbo.diagnosticsBRW(
+ @mode varchar(10),
+ @trialId int
+)
  returns @rt table(
-  id int identity(1,1),
+  id int,
+  display varchar(max),
   method varchar(50),
   code int,
-  message varchar(max),
   tally int,
-  fixProc varchar(100)
+  message varchar(50),
+  timeStamp datetime,
+  ord varchar(50),
+  colorFlag int
 ) as 
 begin
 
- declare 
-  @methodUnit varchar(50),
-  @code int = 0,
-  @message varchar(max) = '',
-  @tally int = 0
+ if not isnull(@trialId,0) > 0
+  select @trialId = max(trialId) from dbo.diagnosticResults where mode = @mode
 
-  exec dbo.diagFix_orphanedReceiptLinks
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output
+ insert @rt (id, method, code, tally, message, timeStamp)
+ select
+  id,
+  replace(method,'diagFix_',''),
+  code,
+  tally,
+  message,
+  timeStamp
+ from dbo.diagnosticResults
+ where trialId = @trialId
+ order by testId
 
-  insert @rt
-   select @methodUnit, @code, @message, @tally ,'none' 
+ update @rt set 
+  display = dbo.padRight(' ' + method, ' ',50) + case when tally > 0 then dbo.padLeft(convert(varchar, tally,1), ' ', 12) else '' end,
+  ord = 'a' + method
+
+ update @rt set 
+  colorFlag = 1 
+ where tally > 0
+
+ insert @rt (id, display, ord, colorFlag)
+ select 
+  id,
+  '   ~ ' + message,
+  'a' + method + 'z',
+  1 
+ from @rt
+ where colorFlag = 1
+
+ insert @rt (display, ord)
+ select
+  upper(@mode) + ' - ' + cast(max(timeStamp) as varchar) + ' (' + dbo.formatAge(max(timeStamp),getdate()) + ' old)',
+  'a' 
+ from @rt 
 
  return
 end
