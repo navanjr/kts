@@ -1,0 +1,52 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@menuprocess=
+ lcid=kp('select min(id) from object where typ = 42'),
+ if(lcid+0>0,change(lcid),new(42));
+
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+
+@loadwindow=
+ create(550,12,437,36,'Heavy Mode',78),
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ lcMode=choose(obj:c1+0=0,'light','heavy'),
+ lcDate=kp('select max(timeStamp) from dbo.diagnosticResults where mode = '''&lcMode&''''),
+ prop(000,'text','Last Diagnostic Date: '&lcDate&' - '&upper(lcMode)),
+ lcId=kp('select max(trialId) from dbo.diagnosticResults where mode = '''&lcMode&''''),
+ gcbrwsql50='select id*-1,replace(method,''diagFix_'',''''),code,tally,message,fixProc from dbo.diagnosticResults where trialId = '&choose(lcId+0>0,lcId,0)&' order by id';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsql50,2,2,420,262,'115L(5)~~#2#|M40R(5)~Tally~@n12.0b@#4#|M180L(5)~Message~#5#|M'),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0);
+
+@refreshbrw=
+ gcvars=,
+ brwreload(1,gcbrwsql50);
+
+@gfwindow=
+ refreshbrw=;
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+@acc550=
+ refreshbrw=; 
+
+\t077Mode;\h077078;r
+
+\t110&Run;
+@acc110=
+ kpmo('Running Diagnostics...'),
+ lcMode=choose(obj:c1+0=0,'light','heavy'),
+ d1select('exec dbo.diagnostics @mode='''&lcMode&''', @storeResults=''TRUE'', @verbose=''FALSE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Diagnostics...')),
+ refreshbrw=,
+ kpmc();

@@ -6,6 +6,8 @@ create procedure dbo.diagnostics(
 ) as 
 begin
 
+ exec dbo.logit @@procId, '@method', @method, '@mode', @mode, '@verbose', @verbose, '@storeResults', @storeResults   
+
  declare @results table(
   id int identity(1,1),
   method varchar(50),
@@ -59,7 +61,7 @@ begin
  close routines
  deallocate routines
 
- if @verbose = 'TRUE'
+ if @verbose = 'TRUE' and @storeResults != 'TRUE'
  begin
   select * from @results where code = 1 order by id
   return
@@ -70,7 +72,7 @@ begin
   declare @trialId int
   select @trialId = isnull(max(trialId),0) + 1 from dbo.diagnosticResults
   insert dbo.diagnosticResults 
-  select @trialId, * from @results order by id
+  select @trialId, *, @mode from @results order by id
   return
  end
 
