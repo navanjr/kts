@@ -4,7 +4,7 @@
  gcBeginDate=77449,
  gcEndDate=77466,
  gcAsOfDate=77466,
- printPaidWarrants=;
+ printOpenWarrants=;
 
 
 @print=
@@ -67,6 +67,7 @@ lcCheckAmt=0,
   prn(gcCounty&' County',t2), 
   prn(gcCity&', '&gcState,t3), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
+
   grp(1,obj5:a1,do(
    bnd('HOU','Date: '&obj5:a2,1000,,4000),
    bnd('H',,500,'Fund',1500,'Date',1000,'Amount Paid',1000,),
@@ -85,57 +86,73 @@ lcCheckAmt=0,
    bnd('H',,500,'',1500,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
  );
 
+
 /** unpaid warrants have no treasurer's check created yet **/
 @printOpenWarrants=
- gcAsOfDate=gcEndDate,
- do(452,getSiteInfo=),
- if(gcAsOfDate+0<5,gcAsOfDate=today()),
- lcsql='select 
-treasurersNumber,
-dateRegistered,
-clerksNumber,
-clerksDate,
-payee,
-amount,
-debitAccountDesc,
-status,
-paymentType,
-warrantLinkId,
-fiscalYear,
-payee,
-debitAccountCode 
-from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate$' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
-
- tr(
+  do(452,getSiteInfo=),
+  if(gcEndDate+0<5,gcEndDate=today()),
+  lcsql='select 
+     treasurersNumber,
+     dateRegistered,
+     clerksNumber,
+     clerksDate,
+     payee,
+     amount,
+     debitAccountDesc,
+     status,
+     paymentType,
+     warrantLinkId,
+     fiscalYear,
+     payee,
+     debitAccountCode 
+  from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+  lcWarrantTot=0,
+  tr(
    lcLm=450,
     lcTm=250,
     lcRecCnt=0,
     lcCnt=0,
     lcy=lcTm,
-    prn(printed,lcLm,lcTm),
-    prn(page,lcLm+7000,lcTm+125),
-    prn(,lcLm,lcy,lcHeaderFontSize+2,bold,lcFont),
-    bnd('D9','Outstanding Warrants by Fund',8000C),
-    nl,
-    prn(,,,lcHeaderFontSize,regular),
-    bnd('D9',gcOfficial& ' - Treasurer of '&gcCounty&' County',8000C),
-    bnd('D9',gcCity&', '&gcFState,8000C),
-    nl,
-    nl,
-    bnd('HU','Wrnt No.',600,'Wrnt Date',600,'Reg No.',500,'Reg Date',600,'Amount',700C,'Fund Desc',1200,'Pay To Whom',1400,'Status',500,'Fiscal Year',700),
-
+    prn(printed),
+    prn(page),
+    prn('Outstanding Warrants',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3), 
+    prn(format(gcBeginDate,@d2)&' - '&format(gcEndDate,@d2),t4), 
+    bnd('HU',
+     'Wrnt No.',700,
+     'Wrnt Date',750,
+     'Reg No.',700,
+     'Reg Date',750,
+     'Amount',700C,
+     'Pay To Whom',2000,
+     'Status',700),
     grp(1,obj5:a7,
-       do(nl,
-          nl,)  ),
-
-  det(lcsql),
-    bnd('D',obj5:a3,600,format(obj5:a4,@d1),600,obj5:a1,500,format(obj5:a2,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a7,@s18),1200,format(obj5:a12,@s22),1400,obj5:a8,500,obj5:a11,700),
-  edt,
+      do(
+      bnd('H','Fund: '&obj5:a7,5000),
+      nl,
+      ),do(
+      nl,
+      bnd('H','Total:',2900R,format(lcWarrantTot,@n$14.2),1000R,),
+      lcWarrantTot=0,
+      nl,
+    ) ),
+    det(lcsql),
+      bnd('D',
+      obj5:a3,700,
+      format(obj5:a4,@d2),750,
+      obj5:a1,700,
+      format(obj5:a2,@d2),750,
+      format(obj5:a6,@n$-14.2),700R,
+      format(obj5:a12,@s22),2000,
+      obj5:a8),
+      lcWarrantTot=lcWarrantTot+obj5:a6,
+    edt,
 
 );
 
 
-/** paid warrants have 4771 Link1>0 where Link1 = Treas Check id  **/
+/** paid warrants have type 4771 Link1>0 where Link1 = Treas Check id  **/
 @printPaidWarrants=
     do(452,getSiteInfo=),
     if(gcEndDate+0<5,gcEndDate=today() ),
@@ -221,28 +238,3 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 
 );
 
-
-
-
-lcsql2='select 
-treasurersNumber,
-dateRegistered,
-clerksNumber,
-clerksDate,
-amount,
-debitAccountCode,
-debitAccountDesc,
-depositAccountCode,
-treasurersWarrant,
-fiscalYear,
-payee,
-warrantLinkId 
-  from dbo.payments where dateregistered <= '&gcAsOfDate&' and warrantLinkId+0>0 and paymentType=''Warrant'' order by debitAccountCode, clerksDate  ',
-
-
-lcsql1='select 
-id,
-dateRegistered,
-clerksNumber,
-payee
-  from dbo.payments where dateregistered <= '&gcAsOfDate&' and id = warrantLinkId and paymentType=''Treasurers Check'' ',
