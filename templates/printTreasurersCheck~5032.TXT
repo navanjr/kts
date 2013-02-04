@@ -1,10 +1,10 @@
 
 @bb4=&Print; 
 @bbproc4=
- gcBeginDate=00000,
- gcEndDate=77404,
- gcAsOfDate=77404 ,
- printsum=;
+ gcBeginDate=77449,
+ gcEndDate=77466,
+ gcAsOfDate=77466,
+ printPaidWarrants=;
 
 
 @print=
@@ -48,7 +48,6 @@ lcCheckAmt=0,
  do(452,getSiteInfo=),
  gcAsOfDate=gcEndDate,
  if(gcAsOfDate+0<5,gcAsOfDate=today() ),
-
  lcsql='select 
  fund, 
  Date, 
@@ -68,9 +67,7 @@ lcCheckAmt=0,
   prn(gcCounty&' County',t2), 
   prn(gcCity&', '&gcState,t3), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
- 
-
- grp(1,obj5:a1,do(
+  grp(1,obj5:a1,do(
    bnd('HOU','Date: '&obj5:a2,1000,,4000),
    bnd('H',,500,'Fund',1500,'Date',1000,'Amount Paid',1000,),
   ),do(
@@ -80,7 +77,6 @@ lcCheckAmt=0,
    nl,nl,
   )),
   bnd('H','',7500),
-
   det(lcsql),
    bnd('D',,500,obj5:a1,1500,obj5:a2,1000,format(obj5:a3,@n14.2),1000R,),
    lcCheckAmt=lcCheckAmt+obj5:a3,
@@ -89,7 +85,7 @@ lcCheckAmt=0,
    bnd('H',,500,'',1500,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
  );
 
-/**BEING REPLACED*/	
+/** unpaid warrants have no treasurer's check created yet **/
 @printOpenWarrants=
  gcAsOfDate=gcEndDate,
  do(452,getSiteInfo=),
@@ -108,7 +104,7 @@ warrantLinkId,
 fiscalYear,
 payee,
 debitAccountCode 
-from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate$' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
 
  tr(
    lcLm=450,
@@ -139,70 +135,11 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
 );
 
 
-@printUnPaidWarrants=
-    gcAsOfDate=gcEndDate,
-    do(452,getSiteInfo=),
-    if(gcAsOfDate+0<5,gcAsOfDate=today() ),
-    lcWarrantTot=0,
-
-    lcsql='select 
-    a.key3 as TreasurersCheck,
-    a.a1 as Date, 
-    a.a3 as amount,
-    w.key3 as warNumber,
-    w.a1 as warDate,
-    w.a2 as payee,
-    (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a,
-      object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 <= '&gcAsOfDate&' order by fund, TreasurersCheck ',
-    tr(
-    lcLm=600,
-    lcTm=1100,
-    lcRecCnt=0,
-    lcCnt=0,
-    prn(printed),
-    prn(page),
-    prn('Warrants Paid as of '&format(gcAsOfDate,@d2),t1),
-    prn(gcCounty&' County - '&gcCity&', '&gcState,t2),
-    prn(,lcLm,lcTm),
-    bnd('HU',
-     'Purch Date',750,
-     'Tres Check',700,
-     'Amount',1000C,
-     'Warnt No.',700,
-     'Warnt Date',750,
-     'Warrant Payee',2800 ),
-
-    grp(1,obj5:a7,
-    do(
-    bnd('H','Fund: '&obj5:a7,5000),
-    nl,
-      ),do(
-   nl,
-   bnd('H','Total:',1550R,format(lcWarrantTot,@n$14.2),1000R,),
-   lcWarrantTot=0,
-   nl,) ),
-
- det(lcsql),
-  bnd('D',
-  format(obj5:a2,@d1),750C,
-  format(obj5:a1,@n05),700C,
-  format(obj5:a3,@n$14.2),1000R,
-  format(obj5:a4,@n05),700C,
-  format(obj5:a5,@d1),750C,
-  format(obj5:a6,@s70),2800 ),
-  lcWarrantTot=lcWarrantTot+obj5:a3,
- edt,
-
-);
-
-
-
+/** paid warrants have 4771 Link1>0 where Link1 = Treas Check id  **/
 @printPaidWarrants=
-    gcAsOfDate=gcEndDate,
     do(452,getSiteInfo=),
-    if(gcAsOfDate+0<5,gcAsOfDate=today() ),
+    if(gcEndDate+0<5,gcEndDate=today() ),
     lcWarrantTot=0,
-
     lcsql='select 
     a.key3 as TreasurersCheck,
     a.a1 as Date, 
@@ -211,7 +148,7 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
     w.a1 as warDate,
     w.a2 as payee,
     (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a,
-      object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 <= '&gcAsOfDate&' order by fund, TreasurersCheck ',
+      object w where w.link1 > 0 and a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 between '&gcBeginDate&' and '&gcEndDate&' order by fund, TreasurersCheck ',
     tr(
     lcLm=600,
     lcTm=1100,
@@ -219,7 +156,7 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
     lcCnt=0,
     prn(printed),
     prn(page),
-    prn('Warrants Paid as of '&format(gcAsOfDate,@d2),t1),
+    prn('Warrants Paid between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t1),
     prn(gcCounty&' County - '&gcCity&', '&gcState,t2),
     prn(,lcLm,lcTm),
     bnd('HU',
@@ -229,7 +166,6 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
      'Warnt No.',700,
      'Warnt Date',750,
      'Warrant Payee',2800 ),
-
     grp(1,obj5:a7,
     do(
     bnd('H','Fund: '&obj5:a7,5000),
@@ -239,17 +175,16 @@ from dbo.payments where dateregistered <= '&gcAsOfDate&' and  paymentType=''Warr
    bnd('H','Total:',1550R,format(lcWarrantTot,@n$14.2),1000R,),
    lcWarrantTot=0,
    nl,) ),
-
- det(lcsql),
-  bnd('D',
-  format(obj5:a2,@d1),750C,
-  format(obj5:a1,@n05),700C,
-  format(obj5:a3,@n$14.2),1000R,
-  format(obj5:a4,@n05),700C,
-  format(obj5:a5,@d1),750C,
-  format(obj5:a6,@s70),2800 ),
-  lcWarrantTot=lcWarrantTot+obj5:a3,
- edt,
+   det(lcsql),
+     bnd('D',
+     format(obj5:a2,@d1),750C,
+     format(obj5:a1,@n05),700C,
+     format(obj5:a3,@n$14.2),1000R,
+     format(obj5:a4,@n05),700C,
+     format(obj5:a5,@d1),750C,
+     format(obj5:a6,@s70),2800 ),
+     lcWarrantTot=lcWarrantTot+obj5:a3,
+   edt,
 
 );
 
