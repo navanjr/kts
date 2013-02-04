@@ -2,7 +2,8 @@ create function dbo.bankStatementBRW(
  @id int,
  @accountId int,
  @showFlag int, 
- @warrantFlag int 
+ @warrantFlag int,
+ @orderByVoucherFlag int 
 ) returns @rt table(
  id int,
  fpid int,
@@ -74,31 +75,53 @@ begin
 
 -- set description and ord
  update @rt set
-  description = '      ' + dbo.padLeft(instrumentNumber,'0',6) + '   ' + dbo.date2(depositDate),
-  ord = fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + dbo.date2(depositDate),
+  ord = case when @orderByVoucherFlag = 1 then 
+    paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
+   else
+    fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+   end
  where rowtype = 0
 
 -- add Period headers for the account details
- insert @rt (id,description,ord,rowType)
-  select
-   0,
-   'Period: ' + a.fpCode + ' ' + key2,
-   a.fpCode,
-   3 
-  from @rt a, object b
-  where a.fpid = b.id and a.rowType = 0
-  group by b.key1,b.key2,b.id,a.fpCode
+ if @orderByVoucherFlag <> 1
+  begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     'Period: ' + a.fpCode + ' ' + key2,
+     a.fpCode,
+     3 
+    from @rt a, object b
+    where a.fpid = b.id and a.rowType = 0
+    group by b.key1,b.key2,b.id,a.fpCode
+   end
 
 -- add paymentType headers
- insert @rt (id,description,ord,rowType)
-  select
-   0,
-   '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
-   fpCode +  paymentType + 'a',
-   2 
-  from @rt 
-  where rowType = 0 and paymentType is not null
-  group by fpCode, paymentType
+ if @orderByVoucherFlag = 1
+  begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     paymentType + 'a',
+     2 
+    from @rt 
+    where rowType = 0 and paymentType is not null
+    group by paymentType
+   end
+  else
+   begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     fpCode +  paymentType + 'a',
+     2 
+    from @rt 
+    where rowType = 0 and paymentType is not null
+    group by fpCode, paymentType
+   end
 
 -- add Warrants, Maybe
  if not @warrantFlag = 1

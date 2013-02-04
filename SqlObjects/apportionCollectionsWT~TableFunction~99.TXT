@@ -101,11 +101,12 @@ declare @twt table(
  '' as acrAccountCode,
  '' as acrAccountDesc,
  '' 
-   from gldetail a, glaccounts c
+   from gldetailreports a, glaccounts c
      where a.contraId=c.accountId and 
      contraId > 0 and 
      c.accountType='FUND' and 
      ISNULL(bsId,0) = 0 
+     and sourceDate <= cast(@apportionToDate as varchar)
   end
   else
   begin
@@ -120,8 +121,9 @@ declare @twt table(
  accountId as acrAccountId, 
  '' as acrAccountCode,
  '' as acrAccountDesc,
- ''   from gldetail 
+ ''   from gldetailreports 
      where contraId = @accountId and ISNULL(bsId,0) = 0 
+      and sourceDate <= cast(@apportionToDate as varchar)
     end   
 
    if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly <> 'TRUE' and isnull(@amount,0) < .01
@@ -133,8 +135,9 @@ declare @twt table(
  accountId as acrAccountId, 
  '' as acrAccountCode,
  '' as acrAccountDesc,
- ''   from gldetail 
+ ''   from gldetailreports 
      where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
+      and sourceDate <= cast(@apportionToDate as varchar)
     end
 
    if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly = 'TRUE' and isnull(@amount,0) > 0
