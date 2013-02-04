@@ -13,7 +13,7 @@ begin
  begin 
  
   select
-   @guide = 'GET|SHOW',
+   @guide = 'GET|SHOW|FIX',
    @code = case when count(*) > 0 then 1 else 0 end,
    @tally = count(*),
    @message = 'invoice.name does not match default address.name'
@@ -26,12 +26,27 @@ begin
  if @method = 'SHOW'
  begin  
 
-  select *   from invoices a
+  select 
+   a.name as invoiceName,
+   (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc) as defaultName,
+   a.*
+  from invoices a
   where a.NAME !=
    (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
 
  end
 
--- if @method = 'FIX'
+ if @method = 'FIX'
+ begin
+
+  update a set
+   a.name = (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+  from invoices a
+  where a.NAME !=
+   (select top 1 b.name from dbo.taxrollDetail b where b.taxyear = a.taxyear and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+  
+  exec dbo.logit @@procId, 'Just updated some invoices....', @@rowcount
+
+ end
 
 end
