@@ -1,6 +1,6 @@
 @gfbnr=1;
 @dk1;
-@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M100L(2)~ImportStamp~#28#|M;
+@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 
 @filtername=All,Official Vouchers,Warrants,Treasurers Checks,Posted,Un-Posted,Outstanding Warrants,Cancelled Vouchers;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -12,16 +12,8 @@
   'typ=4771 and link1=0 and a18=''Warrant'' and a17 = ''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18=''Cancel Voucher'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
 
-filtername=All,All Un-Posted,All Query,Miscellaneous,Mortgage,Tax,Trust,Individual Redemption;
-filter='id>0',
-'a17<>''Posted''',
-'typ=4502 '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
-'typ=4502 and key3=''MISC'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
-'typ=4502 and key3=''MTG'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
-'typ=4502 and key3=''TAX'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
-'typ=4502 and key3=''TRUST'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
-'typ=4502 and key3=''INDIV'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ';
-
+@browse4='select isnull((select ''Cancelled'' from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''),'''') '
+;
 
 @seriesField=a18;
 @gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
@@ -33,9 +25,11 @@ filter='id>0',
  lcPaymentType=obj:a18,
  if(lcPaymentType='Warrant',cancelRoutine=),
  if(lcPaymentType='Official Voucher',cancelRoutineV=);
+
 @cancelRoutineV=
  lcPaymentType='Voucher',
  cancelRoutine=;
+
 @cancelRoutine=
  m('Are you sure you wish to Cancel this '&lcPaymentType&'?','Cancel '&lcPaymentType&'...','Question.ico',6,4),
  break(gcretval<>2),
@@ -200,6 +194,10 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
 \t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855;
+
+\t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
+ \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''';
+
 
 \t101Comment;
 
