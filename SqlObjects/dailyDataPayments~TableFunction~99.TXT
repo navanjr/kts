@@ -52,14 +52,14 @@ begin
  select
   a.accountId,
   g.accountDesc,
-  p.paymentType,
+  dbo.nextObjectAutoNumberControl(4771,p.paymentType),
   case when @accountType <> 'Official' then p.treasurersNumber else p.clerksNumber end,
   g.amount
  from dbo.glDetail g
  join payments p on g.slink = p.slink 
  join dbo.glaccounts a on g.accountId = a.accountId 
  where case when isnumeric(p.dateRegistered)=1 then cast(p.dateRegistered as int) else 0 end between @theDate and @theDate + @days
-  and p.paymentType = @paymentType
+  and dbo.nextObjectAutoNumberControl(4771,p.paymentType) = @paymentType
   and accountType  in  (select accountType from dbo.glBankFundTypes(@accountType) union select @accountType)
 
 -- summarize the detail 
