@@ -4,8 +4,7 @@ create function dbo.docReceivablesBRW(
  @taxYear varchar(5) = '',
  @paidRatio money = 0.00,
  @switches varchar(10),
- @dtypesBlob varchar(max),
- @mortBlob varchar(max)
+ @dtypesBlob varchar(max)
 ) returns @rt table(
  id int,
  ord varchar(50),
@@ -57,7 +56,7 @@ begin
  else
   insert @years select taxyear from invoices group by taxyear
 
- declare dType cursor for select code from dbo.docDTypes(@dTypesBlob,@mortBlob) where switch = 0
+ declare dType cursor for select code from dbo.docDTypes(@dTypesBlob) where switch = 0
 
  declare @wt table(
   id int,
@@ -115,7 +114,7 @@ begin
 
  declare @dtypeIds table(id int, switch int)
  declare @deleteAllOthers int = 0
- insert @dtypeIds select invoiceLinkId, switch from taxRollDetail join dbo.docDTypes(@dTypesBlob, @mortBlob) on code = dtype 
+ insert @dtypeIds select invoiceLinkId, switch from taxRollDetail join dbo.docDTypes(@dTypesBlob) on code = dtype 
 
 /* open dType
  fetch next from dType into @dTypeCode
@@ -132,7 +131,7 @@ begin
  deallocate dType
 */
  delete @wt where id in (select id from @dTypeIds where switch = 0)
- if (select switch from dbo.docDTypes(@dTypesBlob,@mortBlob) where code = 'All Others') = 0
+ if (select switch from dbo.docDTypes(@dTypesBlob) where code = 'All Others') = 0
   delete @wt where id not in (select id from @dTypeIds where switch != 0)
  
  update a set a.paidRatio = b.maxPaidRatio
