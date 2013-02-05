@@ -14,7 +14,7 @@ begin
   @slink varchar(15) = 'o'+cast(@id as varchar),
   @importData varchar(max)
 
- if exists(select * from glDetailStage where slink = @slink)
+ if exists(select * from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t'))
   insert @rt
   select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountDesc, amount, comment2, 0, case when accountType = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<1 then 1 else 0 end, accountType 
   from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
@@ -117,6 +117,19 @@ if exists(select * from dbo.journalLink where jeId = @id)
 			where a.accountId = b.accountId
 			and a.slink = c. realslink
 			group by c.slink,a.accountDesc,b.accountType, c.ord, a.comment2 
+
+  -- invoice GL Detail from receipt apportionment adjustments
+		insert @rt (ord,id,accountDesc,amount)
+			select
+				'ec' + 'b',
+				0,
+				left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
+				sum(a.amount)
+			from dbo.glDetail a, glaccounts b, journallink d
+			where a.accountId = b.accountId
+                        and a.slink='j'+cast(d.id as varchar(15))
+                        and d.jeId = @id
+			group by a.accountDesc,b.accountType, a.comment2 
 
 	end
 */ 

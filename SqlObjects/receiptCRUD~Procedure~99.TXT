@@ -25,6 +25,13 @@ begin
   @slink varchar(15) = 'o' + cast(@receiptId as varchar),
   @receiptType varchar(50) 
 
+         declare @jeType varchar(50),
+                 @accountDesc varchar(50) = '',
+                 @resultCode varchar(50) = '',
+                 @resultMessage varchar(1000) = '',
+                 @newId int = '',
+                 @receiptSLink varchar(16) = 'o'+cast(@receiptId as varchar(15))
+
  select @receiptType = key3 from object where id = @receiptId and typ = 4502
 
 -- Create
@@ -33,6 +40,7 @@ begin
   -- bail if no series
   if len(@series)<2
    return
+
 
 --  declare 
 --    @retval nvarchar(max)  
@@ -50,12 +58,6 @@ begin
      if @debugMode = 'FALSE' 
        begin
 
-         declare @jeType varchar(50),
-                 @accountDesc varchar(50) = '',
-                 @resultCode varchar(50) = '',
-                 @resultMessage varchar(1000) = '',
-                 @newId int = '',
-                 @receiptSLink varchar(16) = 'o'+cast(@receiptId as varchar(15))
          -- create new JE
                	select  @jeType = 'Tax Refund', @accountDesc = 'Tax Receipt Refund Control #'+cast(key1 as varchar) from object where id = @receiptId 
             exec dbo.journalEntryCRUD
@@ -84,7 +86,6 @@ begin
                    in (select id from invoices where invoiceId=@invoiceId)
 
              end
-
          -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
                   select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
@@ -103,9 +104,6 @@ begin
                    'o'+cast(@newId as varchar),@receiptSLink 
                    from glDetail g ,receiptlink r,journalLink j
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
-
-
-
 
          end
          else
@@ -286,6 +284,41 @@ begin
   commit transaction
 
  end
+
+
+-- Adjust Apportionment
+ if @mode = 5 and @receiptId > 0
+    begin
+     if @debugMode = 'FALSE' 
+       begin
+
+         -- create new JE
+               	select  @jeType = 'Adjust Apportionment', @accountDesc = 'Adjust Apportionment Receipt #'+cast(key1 as varchar) from object where id = @receiptId 
+            exec dbo.journalEntryCRUD
+                 @mode = 0,
+                 @description = @accountDesc,
+                 @jeType = @jeType,
+                 @resultCode = @resultCode output,
+                 @resultMessage = @resultMessage output,
+                 @newId = @newId output
+                 select @slink = 'o' + cast(@newId as varchar)
+
+
+         -- create journalLinks
+                insert into journalLink
+                  select @newId,0,0,@receiptId  
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from gldetail g, journallink j 
+                     where g.slink = @receiptSLink
+                        and j.receiptId=@receiptId  
+                        and g.accountCode in (select accountCode from glaccounts where accountType in ('ACCRUED RECEIVABLE','FUND'))
+
+         select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
+        end
+   end
+
 
  return
 end

@@ -89,7 +89,17 @@ begin
   -- get the value of the transaction
   select @contraAmount = sum(amount)*-1 from glDetailStage where slink = @slink and contraId = @contraId and accountId <> @contraId
   set @contraStageId = ISNULL(@contraStageId,0)
-  exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
+  if @contraAmount <> 0.00
+   begin
+    exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
+   end
+  else
+   begin
+    if isnull(@contraStageId,0)>1
+     begin
+      delete from gldetailstage where id=@contraStageId
+     end
+   end
  end
 
  select '@code=0;@message=Staging of GL Successful;'
