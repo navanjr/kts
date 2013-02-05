@@ -30,22 +30,20 @@ begin
 
  select @documentName = key1 from object where id = @documentId
 
-insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
-insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
+ insert @fields select 'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
+ insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
 
-if isnull(@taxRollDetailId,0) < 1
- insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
-else
- insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
+ if isnull(@taxRollDetailId,0) < 1
+  insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+ else
+  insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
  
-insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
-insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
-select @interestDate = value from @fields where tag = '<interestDate>'
-insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate)
-insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
-insert @fields select null,null,'<line>',dbo.padleft('','_',60)
-
-
+ insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
+ insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
+ select @interestDate = value from @fields where tag = '<interestDate>'
+ insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate)
+ insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
+ insert @fields select null,null,'<line>',dbo.padleft('','_',60)
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
  insert @tables
