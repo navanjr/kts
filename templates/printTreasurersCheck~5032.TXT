@@ -1,11 +1,10 @@
 
 @bb4=&Print; 
 @bbproc4=
- gcBeginDate=77449,
+ gcBeginDate=77436,
  gcEndDate=77466,
  gcAsOfDate=77466,
- printOpenWarrants=;
-
+ printsum=;
 
 @print=
  do(452,getSiteInfo=),
@@ -44,10 +43,10 @@ lcCheckAmt=0,
 
  );
 
+
 @printsum=
  do(452,getSiteInfo=),
- gcAsOfDate=gcEndDate,
- if(gcAsOfDate+0<5,gcAsOfDate=today() ),
+ if(gcEndDate+0<5,gcEndDate=today() ),
  lcsql='select 
  fund, 
  Date, 
@@ -57,7 +56,7 @@ lcCheckAmt=0,
  w.key3 as warNumber,
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
- (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 <= '&gcAsOfDate&') data group by fund, Date order by fund,  date ',
+ (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 between '&gcBeginDate&' and '&gcEndDate&') data group by fund, Date order by fund,  date ',
  lcCheckAmt=0,
  lcCheckTot=0,
  tr(
@@ -85,6 +84,7 @@ lcCheckAmt=0,
   edt,
    bnd('H',,500,'',1500,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
  );
+
 
 
 /** unpaid warrants have no treasurer's check created yet **/
@@ -188,6 +188,7 @@ lcCheckAmt=0,
      'Warnt No.',700,
      'Warnt Date',750,
      'Warrant Payee',2800 ),
+nl,
     grp(1,obj5:a7,
     do(
     bnd('H','Fund: '&obj5:a7,5000),
