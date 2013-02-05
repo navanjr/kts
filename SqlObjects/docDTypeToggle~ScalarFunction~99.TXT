@@ -6,15 +6,21 @@ begin
  declare @returnMax varchar(max) = ''
  
  if isnull(@blob,'') < '  0' 
-  select @blob = isnull(@blob,'') + cast(id as varchar) + ':0|' from dbo.docDTypes('') 
+  select @blob = isnull(@blob,'') + cast(id as varchar) + ':0|' from dbo.docDTypes('','') 
 
  declare @wt table(id int,switch int)
  insert @wt select
-  dbo.splitF(data,':',1),
-  dbo.splitF(data,':',2)
- from dbo.split(@blob,'|') where data > '  0'
+  id,switch 
+ from dbo.docDTypes(@blob,'')
 
- update @wt set switch = case when switch = 1 then 0 else 1 end where id = @id
+ if exists(select * from @wt where id = @id)
+  update @wt set switch = case when switch = 1 then 0 else 1 end where id = @id
+ else
+  if @id > 0
+   insert @wt select @id, 0
+  else
+   delete @wt where id = abs(@id) 
+
 
  select @returnMax = @returnMax + cast(id as varchar) + ':' + cast(switch as varchar) + '|' from @wt order by id
  return @returnMax
