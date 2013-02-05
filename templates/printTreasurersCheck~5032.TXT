@@ -92,20 +92,24 @@ lcCheckAmt=0,
   do(452,getSiteInfo=),
   if(gcEndDate+0<5,gcEndDate=today()),
   lcsql='select 
-     treasurersNumber,
-     dateRegistered,
-     clerksNumber,
-     clerksDate,
-     payee,
-     amount,
-     debitAccountDesc,
-     status,
-     paymentType,
-     warrantLinkId,
-     fiscalYear,
-     payee,
-     debitAccountCode 
-  from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and  paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+     p.treasurersNumber,
+     p.dateRegistered,
+     p.clerksNumber,
+     p.clerksDate,
+     p.payee,
+     p.amount,
+     a.AccountDesc,
+     p.status,
+     p.paymentType,
+     p.warrantLinkId,
+     p.fiscalYear,
+     p.payee,
+     p.debitAccountCode
+    from dbo.payments p 
+    join dbo.glAccounts a on replace(p.debitAccountCode,''_WR'','''') = a.accountCode 
+    where p.dateregistered between '&gcBeginDate&' and '&gcEndDate&'
+     and p.paymentType=''Warrant'' and p.warrantLinkId+0=0 
+    order by p.debitAccountCode, p.clerksDate ',
   lcWarrantTot=0,
   tr(
    lcLm=450,
@@ -127,7 +131,7 @@ lcCheckAmt=0,
      'Amount',700C,
      'Pay To Whom',2000,
      'Status',700),
-    grp(1,obj5:a7,
+    grp(1,obj5:a13,
       do(
       bnd('H','Fund: '&obj5:a7,5000),
       nl,
@@ -238,3 +242,19 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 
 );
 
+'select 
+     treasurersNumber,
+     dateRegistered,
+     clerksNumber,
+     clerksDate,
+     payee,
+     amount,
+     debitAccountDesc,
+     status,
+     paymentType,
+     warrantLinkId,
+     fiscalYear,
+     payee,
+     debitAccountCode,
+     select p.debitAccountCode a.accountDesc from dbo.payments p join dbo.glAccounts on p.debitAccountCode = a.accountDesc 
+  from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
