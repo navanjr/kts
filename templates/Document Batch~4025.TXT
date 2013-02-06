@@ -3,9 +3,15 @@
 @lbrwclick160=
  gcvars=,
  lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
- m('Choose one of the following options...','Right Click Menu...','Question.ico','&Manage Addresses|&Debug|&Cancel'),
+ m('Choose one of the following options...','Right Click Menu...','Question.ico','&Manage Addresses|&Remove from Batch|&Debug|&Cancel'),
  if(gcretval=1,manageAddress=),
- if(gcretval=2,m(lcFormLetterSQL));
+ if(gcretval=2,removeFromBatch=),
+ if(gcretval=3,m(lcFormLetterSQL));
+
+@removeFromBatch=
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''RemoveFromBatch'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
+ refreshTheBrw=;
 
 @manageAddress=
   gcInvoiceId=kpbrwid(1)*-1,
