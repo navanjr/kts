@@ -91,7 +91,6 @@ lcCheckAmt=0,
 /** unpaid warrants have no treasurer's check created yet **/
 @printOpenWarrants=
   do(452,getSiteInfo=),
-  if(gcEndDate+0<5,gcEndDate=today()),
   lcsql='select 
      p.treasurersNumber,
      p.dateRegistered,
@@ -108,11 +107,10 @@ lcCheckAmt=0,
      a.accountCode
     from dbo.payments p 
     join dbo.glAccounts a on replace(p.debitAccountCode,''_WR'','''') = a.accountCode 
-    where p.dateregistered between '&gcBeginDate&' and '&gcEndDate&'
+    where p.dateregistered<='&gcEndDate&'
      and p.paymentType=''Warrant'' and p.warrantLinkId+0=0 
-    order by a.accountCode, p.clerksDate ',
+    order by a.accountCode, p.dateregistered ',
   lcWarrantTot=0,
-  
   tr(
    lcLm=450,
     lcTm=250,
@@ -124,7 +122,7 @@ lcCheckAmt=0,
     prn('Outstanding Warrants',t1),
     prn(gcCounty&' County',t2), 
     prn(gcCity&', '&gcState,t3), 
-    prn('Registered from '&format(gcBeginDate,@d2)&' to '&format(gcEndDate,@d2),t4), 
+    prn('Warrants Registered Thru '&format(gcEndDate,@d2),t4), 
     bnd('HU',
      'Wrnt No.',700,
      'Wrnt Date',750,
@@ -133,6 +131,7 @@ lcCheckAmt=0,
      'Amount',700C,
      'Pay To Whom',2000,
      'Status',700),
+    nl,
     grp(1,obj5:a13,
       do(
       bnd('H','Fund: '&obj5:a13&' '&obj5:a7,5000),
