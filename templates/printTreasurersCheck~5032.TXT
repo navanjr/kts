@@ -4,7 +4,9 @@
  gcBeginDate=77436,
  gcEndDate=77466,
  gcAsOfDate=77466,
- printsum=;
+ gcFundCode='001H_WR',
+ gcFundDesc='CO GEN 2012-2013',
+ printFundOpenWarrants=;
 
 @print=
  do(452,getSiteInfo=),
@@ -244,19 +246,52 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
 
 );
 
-'select 
+
+@printFundOpenWarrants=
+  do(452,getSiteInfo=),
+  lcsql='select 
      treasurersNumber,
      dateRegistered,
      clerksNumber,
      clerksDate,
      payee,
-     amount,
-     debitAccountDesc,
-     status,
-     paymentType,
-     warrantLinkId,
-     fiscalYear,
-     payee,
-     debitAccountCode,
-     select p.debitAccountCode a.accountDesc from dbo.payments p join dbo.glAccounts on p.debitAccountCode = a.accountDesc 
-  from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' and warrantLinkId+0=0 order by debitAccountCode,clerksDate  ',
+     amount
+    from dbo.payments where paymentType=''Warrant'' and warrantLinkId+0=0 and debitAccountCode='gcFundCode' order by clerksDate ',
+  lcWarrantTot=0,
+  tr(
+   lcLm=600,
+    lcTm=250,
+    lcRecCnt=0,
+    lcCnt=0,
+    lcy=lcTm,
+    prn(printed),
+    prn(page),
+    prn('Outstanding Warrants for '&gcFundDesc,t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),
+    rn(gcFundCode&', '&gcFundDesc,t4),
+    bnd('HU',
+     'Wrnt No.',700,
+     'Wrnt Date',750,
+     'Reg No.',700,
+     'Reg Date',750,
+     'Amount',1000C,
+     'Pay To Whom',3000),
+    det(lcsql),
+      bnd('D',
+      obj5:a3,700,
+      format(obj5:a4,@d2),750,
+      obj5:a1,700,
+      format(obj5:a2,@d2),750,
+      format(obj5:a6,@n$-14.2),1000R,
+      format(obj5:a5,@s22),3000
+       ),
+      lcWarrantTot=lcWarrantTot+obj5:a6,
+    edt,
+    nl,
+    bnd('H','Total:',3200R,format(lcWarrantTot,@n$14.2),1000R,),
+    lcWarrantTot=0,
+   
+);
+
+
