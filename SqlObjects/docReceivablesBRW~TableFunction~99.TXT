@@ -56,7 +56,7 @@ begin
  else
   insert @years select taxyear from invoices group by taxyear
 
- declare dType cursor for select code from dbo.docDTypes(@dTypesBlob) where switch = 0
+-- declare dType cursor for select code from dbo.docDTypes(@dTypesBlob) where switch = 0
 
  declare @wt table(
   id int,
@@ -72,9 +72,15 @@ begin
   typ varchar(5),
   pertyp varchar(5),
   paidRatio money,
-  statementId int
+  statementId int,
+  mortgageCode varchar(50)
 )
 
+-- Deal with Mortgagecodes, delete everything that is not the selected mortcodes
+ declare @selectedMortgageCodes table(code varchar(50))
+ insert @selectedMortgageCodes select code from dbo.docDTypes(@dtypesBlob) where id > 3 and switch = 1
+
+ if not exists(select * from @selectedMortgageCodes)
  insert @wt
  select
   i.id,
@@ -94,15 +100,43 @@ begin
   else
    0
   end,
-  i.statementId
+  i.statementId,
+  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) 
  from invoices i
  left outer join adtax on taxrollId = adtax.id
  where (invoiceDue + taxRuleDue) != 0
   and invoiceId = 0
---  and coalesce(nullif(interestDate,''),postDate) <= @theDate
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
---  and case when @taxRulesFlag = 1 then statementId else 0 end = 0
+ else
+ insert @wt
+ select
+  i.id,
+  name,
+  PARCEL,
+  item,
+  invoiceAmount,
+  invoiceDue,
+  subInvoiceDue,
+  taxRuleDue,
+  taxyear,
+  coalesce(nullif(interestDate,''),postDate),
+  typ,
+  pertyp,
+  case when invoiceAmount != 0 then
+   case when abs(round(invoiceDue / invoiceAmount, 1) - 1) = 1 then .99 else abs(round(invoiceDue / invoiceAmount, 1) - 1) end
+  else
+   0
+  end,
+  i.statementId,
+  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) 
+ from invoices i
+ left outer join adtax on taxrollId = adtax.id
+ where (invoiceDue + taxRuleDue) != 0
+  and invoiceId = 0
+  and taxyear in (select taxyear from @years)
+  and typ in (select typ from @invoiceTypes)
+  and coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) in (select code from @selectedMortgageCodes) 
 
  if @taxRulesFlag = 1
  begin
@@ -112,9 +146,13 @@ begin
   delete @wt where statementId > 0
  end
 
+-- Deal with dtypes
  declare @dtypeIds table(id int, switch int)
  declare @deleteAllOthers int = 0
- insert @dtypeIds select invoiceLinkId, switch from taxRollDetail join dbo.docDTypes(@dTypesBlob) on code = dtype 
+ insert @dtypeIds select invoiceLinkId, d.switch from taxRollDetail join dbo.docDTypes(@dTypesBlob) d on d.code = dtype and d.id < 4
+ delete @wt where id in (select id from @dTypeIds where switch = 0)
+ if (select switch from dbo.docDTypes(@dTypesBlob) where code = 'All Others') = 0
+  delete @wt where id not in (select id from @dTypeIds where switch != 0)
 
 /* open dType
  fetch next from dType into @dTypeCode
@@ -130,10 +168,8 @@ begin
  close dType
  deallocate dType
 */
- delete @wt where id in (select id from @dTypeIds where switch = 0)
- if (select switch from dbo.docDTypes(@dTypesBlob) where code = 'All Others') = 0
-  delete @wt where id not in (select id from @dTypeIds where switch != 0)
  
+-- Deal with paidRatio
  update a set a.paidRatio = b.maxPaidRatio
  from @wt a, @saveIds b where a.id = b.id and b.maxPaidRatio > a.paidRatio
 
