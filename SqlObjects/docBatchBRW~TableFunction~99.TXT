@@ -1,7 +1,8 @@
 create function dbo.docBatchBRW(
  @batchBRWId int, -- this parameters first character is either a 9(documentProcessing) or 8(comments)
  @documentName varchar(50) = null,
- @processCode varchar(50) = null
+ @processCode varchar(50) = null,
+ @sortMode varchar(1) = ''
 ) returns @rt table(
  invoiceId int,
  name nvarchar(60),
@@ -26,7 +27,8 @@ create function dbo.docBatchBRW(
  printed varchar(50),
  origin int,
  documentDate int,
- feesProcessed money
+ feesProcessed money,
+ display varchar(250)
 ) as
 begin
 
@@ -62,6 +64,16 @@ begin
  where
   d.documentName = @documentName
   and d.stamp = @processCode
+
+ if @sortMode = 'P'
+ begin
+
+  update a set
+   a.display = '   ' + a.name,
+   a.ord = (select top 1 i.name from invoices i where i.parcel = a.parcel order by taxYear desc) + '|' + cast(9999 - a.taxyear as varchar)
+  from @rt a
+ 
+ end
 
  return
 end
