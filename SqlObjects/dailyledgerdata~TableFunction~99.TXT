@@ -26,6 +26,12 @@ where sourceDate<@beginDate
 and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
 group by accountCode, accountDesc, accountType, ledgerGroup
 
+insert @wt (accountCode, accountDesc, beginbalance, accountType, ledgerGroup)
+select accountCode, accountDesc,0 as amount, accountType, ledgerGroup from dbo.glaccounts 
+where accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
+ and accountcode not in (select accountcode from @wt)
+group by accountCode, accountDesc, accountType, ledgerGroup
+
 insert @wt (accountCode, accountDesc, paid, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
 where sourceDate>=@beginDate and sourceDate<=@endDate
