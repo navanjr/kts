@@ -48,7 +48,9 @@ begin
   @sourceCode varchar(60),
   @balanceToken money,
   @log varchar(max),
-  @suspenseMethod varchar(50)
+  @suspenseMethod varchar(50),
+  @exempt varchar(10),
+  @blob varchar(max)
 
  select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
@@ -56,11 +58,15 @@ begin
   @code = code,
   @contraId = contraId ,
   @arAccountId = arAccountId,
-  @receiptType = receiptType
+  @receiptType = receiptType,
+  @exempt = exempt
  from dbo.receiptCheck(@receiptId,null)
 
+ select @blob = '@code='+cast(@code as varchar(10))+';@contraId='+cast(@contraId as varchar(15))+';@arAccountId='+cast(@arAccountId as varchar(15))+';@receiptType='+@receiptType+';@exempt='+@exempt+';'  
+
+ exec dbo.logit @@procId,@blob
 -- credit Source and Debit AR
- if @receiptType<>'OFFICIAL'
+ if @receiptType<>'OFFICIAL' and @exempt<>'TRUE'
  begin
   insert @accountsWorking
    select b.accountId, null, sum(a.amount)*-1,'', '', '', case when a.altContraId > 0 then altContraId else @contraId end
@@ -68,6 +74,23 @@ begin
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
   insert @accountsWorking select @arAccountId, null, @tokenAmount,'','','',0
  end
+
+-- credit Source and Debit AR
+ if @exempt = 'TRUE'
+ begin
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount)*-1,'Source', '', '', 0
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+    and a.sourceCode = b.accountCode 
+    group by b.accountId
+
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'Credit', '', '', 0
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+    and a.sourceCode = b.accountCode 
+    group by b.accountId
+ end
+
 
 -- Here we go with the Paid Block
  if exists(select * from paid where slink = @slink)
