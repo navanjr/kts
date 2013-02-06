@@ -22,10 +22,10 @@ key7=apiUpdate
      insertSelections=;
 
 
-@nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and obj:a17<>'Saved' and obj:a17<>'Abandoned'; 
+@nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and obj:a17<>'Saved' and obj:a17<>'Abandoned' and obj:a17<>'Exempt'; 
 @noexit=cancelRoutine=;
 
-@noc=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and obj:a17<>'Saved' and obj:a17<>'Abandoned'; 
+@noc=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and obj:a17<>'Saved' and obj:a17<>'Abandoned' and obj:a17<>'Exempt'; 
 @nocancel=cancelRoutine=;
 
 @cancelRoutine=m('This Receipt Has not Been Posted, Do you want to:',,,'Abandon It|Save It|Cancel'),
@@ -620,7 +620,7 @@ set(040,'Abandoned'),close('ok');
  break(lccashreturned+0>0 and gcretval<>2),
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),update,
  getRecNum=,
- postGL=,
+ if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
  checkCert=,
  gccertId=0;
@@ -647,7 +647,7 @@ set(040,'Abandoned'),close('ok');
  lcBranch=1,
  lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&',0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&',0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&',0'),
  e1select('select dbo.readstring(''@taxRateDescription='',blob)  from dbo.mortgageTaxCalculator('&lcOptions&')'),
- gcRateDesc=obj7:e1,
+ gcRateDesc=obj7:e1;
 
 @postGL=
  break(obj:a17='Posted'),
