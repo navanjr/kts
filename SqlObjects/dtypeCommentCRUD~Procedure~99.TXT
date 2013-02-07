@@ -1,0 +1,40 @@
+create procedure dbo.dtypeCommentCRUD(
+ @mode varchar(10),
+ @dtype varchar(50),
+ @parcel varchar(50) = null,
+ @item numeric(7,1) = null,
+ @docReceivablesBRWBlob varchar(max) = null
+) as 
+begin
+
+ exec dbo.logit @@procid, '@mode', @mode, '@dtype', @dtype, '@parcel', @parcel, '@item', @item
+
+ declare 
+  @keyFieldName varchar(50)
+
+ select
+  @keyFieldName = case when @dtype = 'RESALE' then 'parcel' else 'item' end
+
+ if @mode = 'CREATE'
+ begin
+
+-- bail if we dont have our receivables blob
+  if isnull(@docReceivablesBRWBlob,'') < '  0'
+   return
+
+ if @dtype = 'RESALE'
+  insert taxRollDetail (parcelNumber, dtype, comments)
+  select code, @dtype, 'initiated: ' + @dtype
+  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+  where taxRollDetailId is null
+ else
+  insert taxRollDetail (itemNumber, dtype, comments)
+  select cast(code as numeric(7,1)), @dtype, 'initiated: ' + @dtype
+  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+  where taxRollDetailId is null
+
+  exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
+
+ end
+
+end

@@ -1,0 +1,66 @@
+create function dbo.dtypeKeysFromReceivables(
+ @keyCode varchar(50),
+ @blob varchar(max)
+) returns @rt table(
+ code varchar(50),
+ taxRollDetailId int
+) as 
+begin
+
+-- bail if not a supported key
+ if not @keyCode in ('item','parcel')
+  return
+
+ declare
+  @invTypeString varchar(50),
+  @taxYear varchar(5) = '',
+  @paidRatio money = 0.00,
+  @switches varchar(10),
+  @dtypesBlob varchar(max),
+  @dtype varchar(50)
+
+ select 
+  @invTypeString = dbo.splitF(@blob, '^', 1),
+  @taxYear = dbo.splitF(@blob, '^', 2),
+  @paidRatio = dbo.splitF(@blob, '^', 3),
+  @switches = dbo.splitF(@blob, '^', 4),
+  @dtypesBlob = dbo.splitF(@blob, '^', 5)
+
+ if @keyCode = 'item'
+ begin
+  insert @rt 
+  select distinct item, null
+  from dbo.docReceivablesBRW(
+   'DETAIL', 
+   @invTypeString,
+   @taxYear,
+   @paidRatio,
+   @switches,
+   @dtypesBlob
+  )
+
+  update a set a.taxrollDetailId = b.id
+  from @rt a
+  join taxrollDetail b on itemNumber = code and dtype = 'TAXWARANT'
+ end
+
+ if @keyCode = 'parcel'
+ begin
+  insert @rt 
+  select distinct parcel, null
+  from dbo.docReceivablesBRW(
+   'DETAIL', 
+   @invTypeString,
+   @taxYear,
+   @paidRatio,
+   @switches,
+   @dtypesBlob
+  )
+
+  update a set a.taxrollDetailId = b.id
+  from @rt a
+  join taxrollDetail b on parcelNumber = code and dtype = 'RESALE'
+ end  
+
+ return
+end
