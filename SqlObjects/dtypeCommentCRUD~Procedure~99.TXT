@@ -1,19 +1,56 @@
 create procedure dbo.dtypeCommentCRUD(
- @mode varchar(10),
- @dtype varchar(50),
+ @mode varchar(50),
+ @dtype varchar(50) = null,
  @parcel varchar(50) = null,
  @item numeric(7,1) = null,
- @docReceivablesBRWBlob varchar(max) = null
+ @docReceivablesBRWBlob varchar(max) = null,
+ @taxRollDetailId int = null,
+ @invoiceId int = null
 ) as 
 begin
 
  exec dbo.logit @@procid, '@mode', @mode, '@dtype', @dtype, '@parcel', @parcel, '@item', @item
 
  declare 
-  @keyFieldName varchar(50)
+  @keyFieldName varchar(50),
+  @invoiceTyp varchar(10)
 
  select
   @keyFieldName = case when @dtype = 'RESALE' then 'parcel' else 'item' end
+
+ if @mode = 'REMOVE'
+ begin
+  exec dbo.logit @@procid, 'deleting @taxrollDetailId', @taxRollDetailId
+  delete taxrollDetail where id = @taxrollDetailId
+ end
+
+ if @mode = 'CREATEBYINVOICE'
+ begin
+
+  select
+   @invoiceTyp = typ,
+   @parcel = parcel,
+   @item = item 
+  from invoices where id = @invoiceId 
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@invoiceTyp', @invoiceTyp, '@parcel', @parcel, '@item', @item
+
+  if @invoiceTyp in ('R','O','S') and isnull(@parcel,'') > '  0'
+  begin
+   set @dtype = 'RESALE'
+   if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype)
+    insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, 'initiated: ' + @dtype
+  end
+
+  if @invoiceTyp in ('I','B','P') and isnull(@item,0) > 0
+  begin
+   set @dtype = 'TAXWARRANT'
+   if not exists(select * from taxrollDetail where itemNumber = @item and dtype = @dtype)
+    insert taxRollDetail (itemNumber, dtype, comments) select @item, @dtype, 'initiated: ' + @dtype
+  end
+
+  return
+ end
 
  if @mode = 'CREATE'
  begin
@@ -35,6 +72,7 @@ begin
 
   exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
 
+  return
  end
 
 end

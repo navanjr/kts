@@ -1,0 +1,90 @@
+create function dbo.collectionsBRW(
+ @dtype varchar(50)
+) returns @rt table(
+ id int,
+ invoiceIdMain int,
+ taxrollDetailId int,
+ display varchar(250),
+ keyCode varchar(50),
+ taxYearMax varchar(5),
+ taxYearMin varchar(5),
+ invoiceCount int,
+ totalDue money,
+ invoiceDue money,
+ subInvoiceDue money,
+ taxRuleDue money,
+ invoiceBlob varchar(max),
+ rowType int,
+ ord varchar(250)
+) as
+begin
+
+ if @dtype = 'RESALE'
+  insert @rt(id,taxrollDetailId,keyCode,taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
+  select  d.id, d.id, d.parcelNumber, 
+   max(i.taxYear),
+   min(i.taxYear),
+   COUNT(i.id),
+   sum(i.invoiceDue),
+   SUM(i.subInvoiceDue),
+   SUM(i.taxRuleDue),
+   stuff((
+    select
+     '|' + right('000000000'+CAST(ii.id as varchar),9)
+      + ':' + ii.NAME
+      + ':' + CAST(ii.taxYear as varchar)
+      + ':' + cast(isnull(ii.invoiceDue,0) 
+      + isnull(ii.subInvoiceDue,0) 
+      + isnull(ii.taxRuleDue,0) as varchar)
+    from invoices ii
+    where ii.PARCEL = d.parcelNumber
+    order by ii.taxyear desc
+    for xml path('')
+   ),1,1,''),
+   0   
+  from taxrollDetail d
+  left outer join invoices i on d.parcelNumber = i.parcel and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
+  where d.dtype = @dtype
+  group by d.id, d.parcelNumber
+ 
+ else
+  insert @rt(id,taxrollDetailId,keyCode,taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
+  select  d.id, d.id, d.itemNumber, 
+   max(i.taxYear),
+   min(i.taxYear),
+   COUNT(i.id),
+   sum(i.invoiceDue),
+   SUM(i.subInvoiceDue),
+   SUM(i.taxRuleDue),
+   stuff((
+    select
+     '|' + right('000000000'+CAST(ii.id as varchar),9)
+      + ':' + ii.NAME
+      + ':' + CAST(ii.taxYear as varchar)
+      + ':' + cast(isnull(ii.invoiceDue,0) 
+      + isnull(ii.subInvoiceDue,0) 
+      + isnull(ii.taxRuleDue,0) as varchar)
+    from invoices ii
+    where ii.PARCEL = d.itemNumber
+    order by ii.taxyear desc
+    for xml path('')
+   ),1,1,''),
+   0 
+  from taxrollDetail d
+  left outer join invoices i on d.itemNumber = i.item and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
+  where d.dtype = @dtype
+  group by d.id, d.itemNumber
+
+ update @rt set
+  invoiceIdMain = left(invoiceBlob,9),
+  display = replace(dbo.splitF(invoiceBlob,':',2),'&amp;','&'),
+  ord = replace(dbo.splitF(invoiceBlob,':',2),'&amp;','&'),
+  totalDue = invoiceDue + subInvoiceDue + taxRuleDue
+
+ --insert @rt (display, ord)
+ -- select '   -', display + 'b' from @rt 
+
+ insert @rt (totalDue, ord, rowType) select sum(totalDue), ' ', 2  from @rt where rowType = 0
+
+ return
+end

@@ -1,0 +1,73 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@lbrwclick150=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Remove|&Cancel'),
+ if(gcretval=1,removeFromCollection=);
+
+@removeFromCollection=
+ lcid=kpbrwid(1)*-1,
+ d1select('exec dbo.dtypeCommentCRUD @mode=''REMOVE'', @dtype='''&gcDType&''', @taxrollDetailId='&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collection Processing...')),
+ refreshbrw=;
+
+@menuprocess=
+ gcDType='RESALE',
+ lcid=kp('select min(id) from object where typ = 4026'),
+ if(lcid+0>0,change(lcid),new(4026));
+
+@wbgcolor=kp('select dbo.keyColor(185,222,187)');
+
+@loadwindow=
+ create(550,12,515,36,'Heavy Mode',10),
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ lcKeyName=choose(gcDType='RESALE','Parcel','Item #'),
+ lcKeyWidth=choose(gcDType='RESALE','115','50'),
+ gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''') where rowType = 0 order by ord',
+ gcbrwsql4026='select id*-1,display, keyCode, totalDue, null, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''') order by ord',
+ gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M100L(2)~~#5#M200L(5)~~#6#M';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsql4026,2,2,500,262,gcbrwFormat4026),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0);
+
+@refreshbrw=
+ gcvars=,
+ prop(000,'TEXT',gcDType&' Collections'),
+ brwreload(1,gcbrwsql4026,gcbrwFormat4026);
+
+@gfwindow=
+ refreshbrw=;
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+\t120&List;
+@acc120=trreport('collectionList',4026,'collectionList=');
+
+@collectionList=
+ gcvars=,
+ do(452,getSiteInfo=),
+ lcKeyWidthReport=lcKeyWidth*10,
+ lcDueTot=0,
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Collection List',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  bnd('HU','Name',2000,gcDType,lcKeyWidthReport,'Total Due',-1000),
+  det(gcbrwsql4026Report),
+   bnd('D',obj5:a2,2000,obj5:a3,lcKeyWidthReport,format(obj5:a4,@n14.2b),-1000),
+   lcDueTot=lcDueTot+obj5:a4,
+  edt,
+  nl,
+  bnd('D',,2000,,lcKeyWidthReport,format(lcDueTot,@n$14.2b),-1000),
+ );
