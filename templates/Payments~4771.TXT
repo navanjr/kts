@@ -35,8 +35,8 @@
  d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
 
-@bb4=&Print Item;  
-@bbproc4=
+bb4=&Print Item;  
+bbproc4=
  if(obj:a18<>'Treasurers Check',print=,printTreasurersCheck=);
 
 @printTreasurersCheck=
@@ -64,35 +64,30 @@
  if(gcEndDate+0<1,gcEndDate=today() ),
  trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
 
-
-
-
-
-
 @bb10=Paid Warrants;
 @bbproc10=
  iw(
-\t000Please Enter Date Range...;
-\t001Begin Date;
-\t002@d2;
-\w00250;
-\t003End Date;
-\t004@d2;
-\w00450;
-@loadwindow=create(150,12,3,30,'Detailed Report',80);
-),
+   \t000Please Enter Date Range...;
+   \t001Begin Date;
+   \t002@d2;
+   \w00250;
+   \t003End Date;
+   \t004@d2;
+   \w00450;
+   @loadwindow=create(150,12,3,30,'Detailed Report',80);
+ ),
+  break(gcretval = 'esc'),
+  gcBeginDate=obj7:key1,
+  gcEndDate=obj7:key2,
+  if(gcBeginDate+0<1,gcBeginDate=10 ),
+  if(gcEndDate+0<1,gcEndDate=today() ),
+  if(obj7:c2+0=1,printDetailed=,printSummary=) ;
 
- break(gcretval = 'esc'),
- gcBeginDate=obj7:key1,
- gcEndDate=obj7:key2,
- if(gcBeginDate+0<1,gcBeginDate=10 ),
- if(gcEndDate+0<1,gcEndDate=today() ),
- trreport('Paid Warrants',5032,'printPaidWarrants=');
-  
+@printDetailed=
+  trreport('Paid Warrants',5032,'printPaidWarrants=');
 
-
-
-
+@printSummary=
+  trreport('Warrants Paid',5032,'printsum=');
 
 
 @bb11=Cancel Voucher;
@@ -182,6 +177,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 \t041Payment Type; \x042-10; \w04265; \p0427cfah,13499135; \p0427c13h,700; \p0427c06h,1; \p0427c10h,Arial; \p0427c11h,7; \d042;
 \t043Tres Warrant; \l0444771,1; @lf044='a18=''Treasurers Check'''; \h043044;r
 \t045&Printed; \h045046;r \d046; \w04655;
+
 @print=
  gcVouchId=obj:id,
  trreport(voucher,4506,voucher=,,,,,voucher);
