@@ -5,7 +5,7 @@
  gcEndDate=77466,
  gcFundCode='001H',
  gcFundDesc='CO GEN 2012-2013',
- printFundOpenWarrants=;
+ printPaidWarrants=;
 
 @print=
  do(452,getSiteInfo=),
@@ -44,48 +44,51 @@ lcCheckAmt=0,
 
  );
 
-
+/** Warrant cleared date = date when warrant hits the G/L **/
 @printsum=
  do(452,getSiteInfo=),
  if(gcEndDate+0<5,gcEndDate=today() ),
  lcsql='select 
  fund, 
- Date, 
- sum(warAmount) as warAmount from (select a.key3 as TreasurersCheck,
- dbo.date1(a.a1) as Date, 
- cast(a.a3 as money) as amount,
- w.key3 as warNumber,
- dbo.date1(w.a1) as warDate,
- cast(w.a3 as money) as warAmount,
- (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and a.a1 between '&gcBeginDate&' and '&gcEndDate&') data group by fund, Date order by fund,  date ',
+ Date,
+ sum(warAmount) as warAmount,
+ TreasurersCheck
+     from (select a.key3 as TreasurersCheck, dbo.date1(a.a1) as Date, cast(a.a3 as money) as amount, w.key3 as warNumber, dbo.date1(w.a1) as warDate, cast(w.a3 as money) as warAmount,
+     (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' and 
+     a.a1 between '&gcBeginDate&' and '&gcEndDate&')
+     data group by fund, Date, TreasurersCheck order by fund, Date ',
  lcCheckAmt=0,
  lcCheckTot=0,
  tr(
   prn(printed),
   prn(page),
-  prn('Warrants Paid',t1),
+  prn('Warrants Paid (Summary)',t1),
   prn(gcCounty&' County',t2), 
-  prn(gcCity&', '&gcState,t3), 
-  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4), 
-
+  prn(gcCity&', '&gcState,t3),
+  prn('Warrants Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4), 
+  prn(,2000,),
+  
   grp(1,obj5:a1,do(
-   bnd('HOU','Date: '&obj5:a2,1000,,4000),
-   bnd('H',,500,'Fund',1500,'Date',1000,'Amount Paid',1000,),
+   bnd('HU','Fund: '&obj5:a1,4500),
+   bnd('H','Treas Chk No.',1000,'Date',1000,'Amount',1000C,),
   ),do(
    nl,
-   bnd('H',,500,'',1500,'Total',1000,format(lcCheckAmt,@n$14.2),1000R,),
+   bnd('H','',1000,'Total',1000,format(lcCheckAmt,@n$14.2),1000R,),
    lcCheckAmt=0,
    nl,nl,
-  )),
-  bnd('H','',7500),
+   )),
+  
+   bnd('H','',7500),
   det(lcsql),
-   bnd('D',,500,obj5:a1,1500,obj5:a2,1000,format(obj5:a3,@n14.2),1000R,),
-   lcCheckAmt=lcCheckAmt+obj5:a3,
-   lcCheckTot=lcCheckTot+obj5:a3,
+   bnd('D',
+   obj5:a4,1000,
+   obj5:a2,1000,
+   format(obj5:a3,@n14.2),1000R,),
+   lcCheckAmt=lcCheckAmt+obj5:a4,
+   lcCheckTot=lcCheckTot+obj5:a4,
   edt,
-   bnd('H',,500,'',1500,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
+   bnd('H',,500,'',2500,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
  );
-
 
 
 /** unpaid warrants have no treasurer's check created yet **/
@@ -122,7 +125,8 @@ lcCheckAmt=0,
     prn('Outstanding Warrants',t1),
     prn(gcCounty&' County',t2), 
     prn(gcCity&', '&gcState,t3), 
-    prn('Warrants Registered Thru '&format(gcEndDate,@d2),t4), 
+    prn('Warrants Registered Thru '&format(gcEndDate,@d2),t4),
+
     bnd('HU',
      'Wrnt No.',700,
      'Wrnt Date',750,
@@ -157,11 +161,12 @@ lcCheckAmt=0,
 );
 
 
-/** paid warrants have type 4771 Link1>0 where Link1 = Treas Check id  **/
+/** cleared warrants have type 4771 Link1>0 where Link1 = Treas Check id  **/
 @printPaidWarrants=
     do(452,getSiteInfo=),
     if(gcEndDate+0<5,gcEndDate=today() ),
     lcWarrantTot=0,
+    lcWarrantGrTot=0,
     lcsql='select 
     a.key3 as TreasurersCheck,
     a.a1 as Date, 
@@ -178,9 +183,11 @@ lcCheckAmt=0,
     lcCnt=0,
     prn(printed),
     prn(page),
-    prn('Warrants Paid between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t1),
-    prn(gcCounty&' County - '&gcCity&', '&gcState,t2),
-    prn(,lcLm,lcTm),
+    prn('Warrants Paid (Detailed)',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),    
+    prn('Warrants Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
+    prn(,lcLm,lcTm+300),
     bnd('HU',
      'Purch Date',750,
      'Tres Check',700,
@@ -188,7 +195,7 @@ lcCheckAmt=0,
      'Warnt No.',700,
      'Warnt Date',750,
      'Warrant Payee',2800 ),
-nl,
+    nl,
     grp(1,obj5:a7,
     do(
     bnd('H','Fund: '&obj5:a7,5000),
@@ -198,6 +205,8 @@ nl,
    bnd('H','Total:',1550R,format(lcWarrantTot,@n$14.2),1000R,),
    lcWarrantTot=0,
    nl,) ),
+   bnd('H','',7500),  
+
    det(lcsql),
      bnd('D',
      format(obj5:a2,@d1),750C,
@@ -207,7 +216,9 @@ nl,
      format(obj5:a5,@d1),750C,
      format(obj5:a6,@s70),2800 ),
      lcWarrantTot=lcWarrantTot+obj5:a3,
+     lcWarrantGrTot=lcWarrantGrTot+obj5:a3,
    edt,
+   bnd('H',,450,'Grand Total',1000,format(lcWarrantGrTot,@n$14.2),1000R,),
 
 );
 
