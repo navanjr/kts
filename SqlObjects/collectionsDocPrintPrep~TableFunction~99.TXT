@@ -11,6 +11,7 @@ create function dbo.collectionsDocPrintPrep(
  taxYear numeric(5,0),
  item numeric(7,1),
  taxrollDetailId int, -- address Id
+ dtypeCommentId int,
  printOrder varchar(250)
 ) as
 begin
@@ -23,6 +24,7 @@ begin
    a.taxyearMax,
    a.item,
    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.id,
    a.ord
   from dbo.collectionsBRW(@dType,@documentId,null,null) a
   where a.id = @taxrollDetailId
@@ -37,6 +39,7 @@ begin
    a.taxyearMax,
    a.item,
    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.id,
    a.ord
   from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
    where a.documentStatus = ''
@@ -48,6 +51,7 @@ begin
    a.taxyearMax,
    a.item,
    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.id,
    a.ord
   from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
    where a.documentStatus = ''
@@ -61,6 +65,7 @@ begin
    a.taxyear,
    a.item,
    b.id,
+   a.dtypeCommentId,
    a.printOrder
   from @rt a
   join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.itemNumber = a.item
