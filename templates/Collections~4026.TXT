@@ -6,6 +6,7 @@
  if(lcid+0>0,change(lcid),new(4026));
 @wbgcolor=kp('select dbo.keyColor(185,222,187)');
 @loadwindow=
+ create(551,12,515,115,'Use All &Addresses',82),
  gcvars=,
  brwstuff=;
 
@@ -84,15 +85,20 @@
  m('Are you sure you wish to print/reprint?','Print/Reprint...','Question.ico',6,2),
  break(gcretval<>2),
  gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where id = '&kpbrwid(1)*-1),
- lcAddressSwitch=choose(obj:c2>0,obj:c2,'0'),
+ lcAddressSwitch=choose(obj:c3>0,obj:c3,'0'),
  lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
+ if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
  break(lcReportName<'  0'),
- gcDocumentId=obj:link; -- more work required here...
- lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
+ gcDocumentId=obj:link1,
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', '&kpbrwid(1)*-1&','''&obj:key1&''','''&obj:a17&''',null, '&lcAddressSwitch&') order by printOrder',
  kpmo('Printing...'),
  sqlloop(lcFormLetterSQL,formLetterProc=),
  markOne=,
  kpmc();
+@formLetterProc=
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName); 
 
 \t113&Reset Printed;
 @acc113=
@@ -108,6 +114,8 @@
  d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetThru'', @date='&obj:key1&', @days='&obj:a17),
  refreshbrw=;
 
+\t119&Manage Docs;
+@acc119=browse(1,4900);
 \t120&List;
 @acc120=trreport('collectionList',4026,'collectionList=');
 

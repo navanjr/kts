@@ -1,0 +1,72 @@
+create function dbo.collectionsDocPrintPrep(
+ @dtype varchar(50),
+ @documentId int,
+ @taxrollDetailId int,
+ @date int,
+ @days int,
+ @count int,
+ @multiAddressSwitch int
+) returns @rt table(
+ invoiceId int,
+ taxYear numeric(5,0),
+ item numeric(7,1),
+ taxrollDetailId int, -- address Id
+ printOrder varchar(50)
+) as
+begin
+
+ if isnull(@taxrollDetailId,0) > 0
+ begin
+
+  insert @rt select
+   a.invoiceIdMain,
+   a.taxyearMax,
+   a.item,
+   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.ord
+  from dbo.collectionsBRW(@dType,@documentId,null,null) a
+  where a.id = @taxrollDetailId
+
+ end
+ else
+ begin
+
+  if isnull(@count,0) > 0
+   insert @rt select top (@count)
+   a.invoiceIdMain,
+   a.taxyearMax,
+   a.item,
+   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.ord
+  from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
+   where a.documentStatus = ''
+   order by ord
+
+  else
+   insert @rt select 
+   a.invoiceIdMain,
+   a.taxyearMax,
+   a.item,
+   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.ord
+  from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
+   where a.documentStatus = ''
+   order by ord
+
+ end
+
+ if @multiAddressSwitch = 1 --get all the alternate addresses
+  insert @rt select 
+   a.invoiceId,
+   a.taxyear,
+   a.item,
+   b.id,
+   a.printOrder
+  from @rt a
+  join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.itemNumber = a.item
+  where
+   b.enabled = 0
+   and b.dtype = 'aa' 
+ 
+ return
+end
