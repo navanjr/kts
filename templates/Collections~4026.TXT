@@ -100,6 +100,31 @@
  gcTaxRollDetailId=obj5:a2,
  trreport(lcReportName); 
 
+\t111Print &Batch;
+@acc111=
+ lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
+ if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
+ break(lcReportName<'  0'),
+ lcTally=kp('select count(*) from dbo.collectionsBRW('''&gcDType&''','&obj:link1&','&obj:key1&','&obj:a17&') where documentStatus = '''''),
+ iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230.,  \t000Create Batch..;,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ lcAddressSwitch=choose(obj:c3>0,obj:c3,'0'),
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ do(452,getSiteInfo=),
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', null, '''&obj:key1&''', '''&obj:a17&''', '&lcCount&', '&lcAddressSwitch&') order by printOrder',
+ sqlloop(lcFormLetterSQL,printIt1=),
+ kpmc(),
+ refreshTheBrw=;
+@printIt1=
+ lcCnt=lcCnt+1,
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcTally),
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName),
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&gcInvoiceId&', @documentId='&obj:link1&', @method=''print'', @date='&obj:key1&', @days='&obj:a17);
+
 \t113&Reset Printed;
 @acc113=
  lcKeyName=choose(gcDType='RESALE','Parcels','Items'),
