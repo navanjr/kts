@@ -13,7 +13,8 @@ begin
   @dtype varchar(50),
   @keyCode varchar(50),
   @ordToken varchar(250),
-  @documentName varchar(50)
+  @documentName varchar(50),
+  @tally int
 
  select
   @dtype = dtype,
@@ -59,6 +60,44 @@ begin
    and keyCode not in (select keyCode from dbo.collectionsPrintedTF(@dtype, @documentId, @date, @days))
 
   return
+ end
+
+ if @method = 'resetOne'
+ begin
+   delete taxrollDetail
+   where dtype = 'print'
+    and documentName = @documentName
+    and dbo.clarionDate(documentDateTime) between @date and @date + @days
+    and dbo.collectionsKeyCode(@dtype,parcelNumber,itemNumber) = @keyCode
+ 
+   exec dbo.logit @@procId, 'just Deleted... @@rowCount', @@rowCount
+ end
+
+ if @method in ('resetStage','resetThru')
+ begin
+
+  select @ordToken = ord from dbo.collectionsBRW(@dtype, @documentId, null, null) where id = @taxrollDetailId
+  select @tally = count(*) from dbo.collectionsBRW(@dtype, @documentId, null, null) where ord >= @ordToken
+
+  exec dbo.logit @@procId, '@ordToken', @ordToken, '@documentName', @documentName
+
+  if @method = 'resetStage'
+  begin
+   select '@ordToken=' + @ordToken + ';@tally=' + cast(@tally as varchar) + ';'
+   return
+  end
+  if @method = 'resetThru'
+  begin
+   delete taxrollDetail
+   where dtype = 'print'
+    and documentName = @documentName
+    and dbo.clarionDate(documentDateTime) between @date and @date + @days
+    and dbo.collectionsKeyCode(@dtype,parcelNumber,itemNumber) in (select keyCode from dbo.collectionsBRW(@dtype, @documentId, null, null) where ord >= @ordToken)
+ 
+   exec dbo.logit @@procId, 'just Deleted... @@rowCount', @@rowCount
+   
+   return
+  end
  end
 
 end

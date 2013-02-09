@@ -92,11 +92,17 @@
 
 \t113&Reset Printed;
 @acc113=
+ lcKeyName=choose(gcDType='RESALE','Parcels','Items'),
  d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetStage'', @date='&obj:key1&', @days='&obj:a17),
- m('Are you sure you wish to reset the printed flag for all '&obj:c2&' greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Document...','question.ico',6,4);,
- break(gcretval<>2),
- d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&lcbatchitemid&',''ResetPrintedCommit'''),
- refreshTheBrw=;
+ m('Document: '&obj:c2&'||Are you sure you wish to reset the printed flag for all '&lcKeyName&' greater than and equal to...||'&readstring(obj7:d1,'@ordToken=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Document...','question.ico','Reset &ONLY This '&lcKeyName&'|&Yes|&Cancel'),
+ if(gcretval=1,resetOne=),
+ if(gcretval=2,resetThru=);
+@resetOne=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetOne'', @date='&obj:key1&', @days='&obj:a17),
+ refreshbrw=;
+@resetThru=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetThru'', @date='&obj:key1&', @days='&obj:a17),
+ refreshbrw=;
 
 \t120&List;
 @acc120=trreport('collectionList',4026,'collectionList=');
