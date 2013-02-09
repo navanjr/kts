@@ -1,0 +1,64 @@
+create proc dbo.collectionsDocProcessing(
+ @taxrollDetailId int,
+ @documentId int,
+ @method varchar(50),
+ @date int = null,
+ @days int = null
+) as
+begin
+
+ exec dbo.logit @@procId, '@method', @method, '@taxrollDetailId', @taxrollDetailId, '@documentId', @documentId
+
+ declare
+  @dtype varchar(50),
+  @keyCode varchar(50),
+  @ordToken varchar(250),
+  @documentName varchar(50)
+
+ select
+  @dtype = dtype,
+  @keyCode = keyCode
+ from dbo.collectionsItem(@taxrollDetailId)
+
+ select
+  @documentName = documentName
+ from dbo.documents where documentId = @documentId
+ 
+ if @method = 'print'
+ begin
+
+  if not exists(select * from  dbo.collectionsDetailBRW(@taxrollDetailId) where documentName = @documentName and date between @date and @date + @days)
+   insert taxrollDetail (parcelNumber,itemNumber,dtype,comments,documentName)
+   select
+    a.parcel,
+    a.item,
+    'print',
+    'Printed ' + @documentName,
+    @documentName
+   from dbo.collectionsItem(@taxrollDetailId) a
+ 
+  return
+ end
+
+ if @method = 'printThru'
+ begin
+
+  select @ordToken = ord from dbo.collectionsBRW(@dtype, @documentId, null, null) where id = @taxrollDetailId
+
+  exec dbo.logit @@procId, '@ordToken', @ordToken, '@documentName', @documentName
+
+  insert taxrollDetail (parcelNumber,itemNumber,dtype,comments,documentName)
+  select
+   parcel,
+   item,
+   'print',
+   'Printed ' + @documentName,
+   @documentName
+  from dbo.collectionsBRW(@dtype, @documentId, null, null) 
+  where ord <= @ordToken
+   and keyCode not in (select keyCode from dbo.collectionsPrintedTF(@dtype, @documentId, @date, @days))
+
+  return
+ end
+
+end

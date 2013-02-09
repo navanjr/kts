@@ -1,5 +1,47 @@
 @dup;@lmode=2;@nolock;
 @loadbrowse=menuprocess=;
+@menuprocess=
+ gcDType='RESALE',
+ lcid=kp('select min(id) from object where typ = 4026'),
+ if(lcid+0>0,change(lcid),new(4026));
+@wbgcolor=kp('select dbo.keyColor(185,222,187)');
+@loadwindow=
+ create(550,12,515,36,'Heavy Mode',10),
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ lcKeyName=choose(gcDType='RESALE','Parcel','Item #'),
+ lcKeyWidth=choose(gcDType='RESALE','115','50'),
+ lcDocumentId=choose(obj:link1>0,obj:link1,0),
+ gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where rowType = 0 order by ord',
+ gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') order by ord',
+ gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M50L(2)~Doc Status~#5#M200L(5)~~#6#M',
+ gcbrw2sql4026='select id,display, date from dbo.collectionsDetailBRW(0) order by ord',
+ gcbrw2Format4026='50L(2)~~@d2b@#3#|M150L(5)~~#2#M';
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsql4026,2,15,500,262,gcbrwFormat4026),
+ brw(151,2,gcbrw2sql4026,2,280,500,150,gcbrw2Format4026),
+ kpmc(),
+ prop(150,'Color',16777215), prop(150,7c10h,'Courier New'), prop(150,'SelectedFillColor',65535), prop(150,'SelectedColor',0),
+ prop(151,'Color',16777215), prop(151,7c10h,'Courier New'), prop(151,'SelectedFillColor',16777215), prop(151,'SelectedColor',0);
+@refreshbrw=
+ kpmo('Loading Data...','Please Wait...'),
+ gcvars=,
+ prop(000,'TEXT',gcDType&' Collections'),
+ brwreload(1,gcbrwsql4026,gcbrwFormat4026),
+ refreshbrw2=,
+ kpmc();
+@gfwindow=
+ refreshbrw=;
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+@newselbrw150=refreshbrw2=;
+@refreshbrw2=
+ gcbrw2sql4026='select id,display, date from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&') order by ord',
+ gcbrw2Format4026='50L(2)~~@d2b@#3#|M150L(5)~~#2#M',
+ brwreload(2,gcbrw2sql4026,gcbrw2Format4026);
 
 @lbrwclick150=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Remove|&Cancel'),
@@ -11,43 +53,50 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collection Processing...')),
  refreshbrw=;
 
-@menuprocess=
- gcDType='RESALE',
- lcid=kp('select min(id) from object where typ = 4026'),
- if(lcid+0>0,change(lcid),new(4026));
+\t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;
+\t039(+) Days; \t040@p###p; \w04030; @acc040=changeDate=; @selected040=gcdr1=1; \x039040-90;r \x040-30; \p0407c0ch,1;
+\t077End Date; \t078@d2; \w07845; \f078=c; @acc078=changeDate=; @selected078=gcdr1=3; \x078-25; \x077078-200;r \p0787c0ch,1;
+@changeDate=
+ if(gcdr1=1,set(78,obj:key1+obj:a17)),
+ if(gcdr1=3,set(40,obj:c1-obj:key1)),
+ refreshBRW=,
+ if(gcdr1=1,focus(040));
+\t079Document; \l0804900,1; \y079=077; \y080=078; \x079-100; \x080-120; \w080120; @acc080=refreshbrw=;
 
-@wbgcolor=kp('select dbo.keyColor(185,222,187)');
-
-@loadwindow=
- create(550,12,515,36,'Heavy Mode',10),
- gcvars=,
- brwstuff=;
-
-@gcvars=
- lcKeyName=choose(gcDType='RESALE','Parcel','Item #'),
- lcKeyWidth=choose(gcDType='RESALE','115','50'),
- gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''') where rowType = 0 order by ord',
- gcbrwsql4026='select id*-1,display, keyCode, totalDue, null, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''') order by ord',
- gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M100L(2)~~#5#M200L(5)~~#6#M';
-
-@brwstuff=
- kpmo('Loading Initial Data...','Please Wait...'),
- brw(150,1,gcbrwsql4026,2,2,500,262,gcbrwFormat4026),
- kpmc(),
- prop(150,'Color',16777215),
- prop(150,7c10h,'Courier New'),
- prop(150,'SelectedFillColor',16777215),
- prop(150,'SelectedColor',0);
-
-@refreshbrw=
- gcvars=,
- prop(000,'TEXT',gcDType&' Collections'),
- brwreload(1,gcbrwsql4026,gcbrwFormat4026);
-
-@gfwindow=
+\t109&Mark Printed;
+@acc109=
+ m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
+ if(gcretval=1,markOne=),
+ if(gcretval=2,markAll=);
+@markOne=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''print'', @date='&obj:key1&', @days='&obj:a17),
+ refreshbrw=;
+@markAll=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''printThru'', @date='&obj:key1&', @days='&obj:a17),
  refreshbrw=;
 
-@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+\t110Print &Item;
+@acc110=
+ m('Are you sure you wish to print/reprint?','Print/Reprint...','Question.ico',6,2),
+ break(gcretval<>2),
+ gcInvoiceId=kpbrwid(1)*-1,
+ lcAddressSwitch=choose(obj:c2>0,obj:c2,'0'),
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ break(lcReportName<'  0'),
+ gcDocumentId=kp('select documentId from dbo.docBRWDecoder('&gcBatchId&')'),
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
+ kpmo('Printing...'),
+ sqlloop(lcFormLetterSQL,formLetterProc=),
+ markOne=,
+ kpmc();
+
+\t113&Reset Printed;
+@acc113=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetStage'', @date='&obj:key1&', @days='&obj:a17),
+ m('Are you sure you wish to reset the printed flag for all '&obj:c2&' greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Document...','question.ico',6,4);,
+ break(gcretval<>2),
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&lcbatchitemid&',''ResetPrintedCommit'''),
+ refreshTheBrw=;
 
 \t120&List;
 @acc120=trreport('collectionList',4026,'collectionList=');

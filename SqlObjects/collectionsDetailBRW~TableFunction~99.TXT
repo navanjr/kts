@@ -1,0 +1,53 @@
+create function dbo.collectionsDetailBRW(
+ @taxrollDetailId int
+) returns @rt table(
+ id int identity(-1,-1),
+ display varchar(250),
+ date int,
+ dtype varchar(50),
+ keyCode varchar(50),
+ documentName varchar(50),
+ ord int
+) as
+begin
+
+ declare
+  @dtype varchar(50),
+  @parcel varchar(50),
+  @item numeric(7,1),
+  @keyCode varchar(50)
+
+ select
+  @dtype = dtype,
+  @parcel = parcel,
+  @item = item,
+  @keyCode = keyCode
+ from dbo.collectionsItem(@taxrollDetailId)
+
+ if @dtype = 'RESALE'
+ begin
+  insert @rt
+  select
+   comments,
+   dbo.clarionDate(documentDateTime),
+   @dtype,
+   @keyCode,
+   documentName,
+   999999 - dbo.clarionDate(documentDateTime)
+  from taxrollDetail where parcelNumber = @parcel
+   and dtype in ('print','resale','taxwarrant')
+
+-- manually entered comments
+  insert @rt (display, date, ord)
+  select --id,a2,a3,
+   cast(e1 as varchar(250)),
+   a2,
+   999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
+  from dbo.object
+  where typ=4002 
+  and key2 = @parcel
+
+ end
+
+ return
+end

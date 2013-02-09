@@ -1,11 +1,16 @@
 create function dbo.collectionsBRW(
- @dtype varchar(50)
+ @dtype varchar(50),
+ @documentId int,
+ @date int,
+ @days int
 ) returns @rt table(
  id int,
  invoiceIdMain int,
  taxrollDetailId int,
  display varchar(250),
  keyCode varchar(50),
+ parcel varchar(50),
+ item numeric(7,1),
  taxYearMax varchar(5),
  taxYearMin varchar(5),
  invoiceCount int,
@@ -15,65 +20,32 @@ create function dbo.collectionsBRW(
  taxRuleDue money,
  invoiceBlob varchar(max),
  rowType int,
- ord varchar(250)
+ ord varchar(250),
+ documentStatus varchar(50)
 ) as
 begin
 
- if @dtype = 'RESALE'
-  insert @rt(id,taxrollDetailId,keyCode,taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
-  select  d.id, d.id, d.parcelNumber, 
-   max(i.taxYear),
-   min(i.taxYear),
-   COUNT(i.id),
-   sum(i.invoiceDue),
-   SUM(i.subInvoiceDue),
-   SUM(i.taxRuleDue),
-   stuff((
-    select
-     '|' + right('000000000'+CAST(ii.id as varchar),9)
-      + ':' + ii.NAME
-      + ':' + CAST(ii.taxYear as varchar)
-      + ':' + cast(isnull(ii.invoiceDue,0) 
-      + isnull(ii.subInvoiceDue,0) 
-      + isnull(ii.taxRuleDue,0) as varchar)
-    from invoices ii
-    where ii.PARCEL = d.parcelNumber
-    order by ii.taxyear desc
-    for xml path('')
-   ),1,1,''),
-   0   
-  from taxrollDetail d
-  left outer join invoices i on d.parcelNumber = i.parcel and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
-  where d.dtype = @dtype
-  group by d.id, d.parcelNumber
- 
- else
-  insert @rt(id,taxrollDetailId,keyCode,taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
-  select  d.id, d.id, d.itemNumber, 
-   max(i.taxYear),
-   min(i.taxYear),
-   COUNT(i.id),
-   sum(i.invoiceDue),
-   SUM(i.subInvoiceDue),
-   SUM(i.taxRuleDue),
-   stuff((
-    select
-     '|' + right('000000000'+CAST(ii.id as varchar),9)
-      + ':' + ii.NAME
-      + ':' + CAST(ii.taxYear as varchar)
-      + ':' + cast(isnull(ii.invoiceDue,0) 
-      + isnull(ii.subInvoiceDue,0) 
-      + isnull(ii.taxRuleDue,0) as varchar)
-    from invoices ii
-    where ii.PARCEL = d.itemNumber
-    order by ii.taxyear desc
-    for xml path('')
-   ),1,1,''),
-   0 
-  from taxrollDetail d
-  left outer join invoices i on d.itemNumber = i.item and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
-  where d.dtype = @dtype
-  group by d.id, d.itemNumber
+ declare @printed table(keyCode varchar(50))
+ insert @printed select keyCode from dbo.collectionsPrintedTF(@dtype,@documentId,@date, @days)
+
+ insert @rt( id, taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, documentStatus )
+ select
+  a.id,
+  a.taxrollDetailId,
+  a.keyCode,
+  a.parcel,
+  a.item,
+  a.taxYearMax,
+  a.taxYearMin,
+  a.invoiceCount,
+  a.invoiceDue,
+  a.subInvoiceDue,
+  a.taxRuleDue,
+  a.invoiceBlob,
+  a.rowType,
+  case when b.keyCode is null then '' else 'Printed' end 
+ from dbo.collectionsDtypeToggleTF(@dtype) a
+ left outer join @printed b on a.keyCode = b.keyCode
 
  update @rt set
   invoiceIdMain = left(invoiceBlob,9),
