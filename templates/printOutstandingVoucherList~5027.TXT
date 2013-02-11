@@ -3,8 +3,8 @@
 gcAsOfDate=today(),
 gcBeginDate=today(),
 gcEndDate=today(),
-gcBeginDate=77436,
-gcEndDate=77466,
+gcBeginDate=77405,
+gcEndDate=77475,
 printClearedVoucherList=;
 
 
@@ -58,7 +58,7 @@ and isnull(bsId,-1) not in (select id from object where typ=4780) ) order by deb
   prn(,lcLm,lcTm+1000),
   nl, 
   bnd('H','DATE',800,'TREAS',600,'VOUCR',600,'TO WHOM ISSUED',2000,'WHOM DRAWN',2000,'AMOUNT',800R),
-  bnd('HU','RGSTRD',800,'REGD #',600,'PAGE',600,'',2000,'',2000,'',800R),
+  bnd('HU','REGD #',800,'REGD #',600,'PAGE',600,'',2000,'',2000,'',800R),
   nl,
   det(gcsql5022,,,,),
     bnd(,format(obj5:a1,@d2),800,obj5:a2,600,obj5:a3,600,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),2000,format(obj5:a6,@n$-19.2b),800R),
@@ -136,18 +136,19 @@ format(obj5:a5,@n$-19.2),1000R,
   lcFont='',
   lcHeaderFontSize=8,
   lcsql='select
-    dateRegistered, 
-    treasurersNumber,
+    clerksDate,
     dbo.popro6(clerksNumber,6,1),
+    dateRegistered,
+    dbo.popro6(treasurersNumber,6,1),
     payee,
-    debitAccountDesc,
     amount,
     official,
-    comment,
-    creditAccountDesc
-    from dbo.payments where paymentType like ''%VOUCHER%'' and dateRegistered between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''' and slink in 
+    creditAccountDesc,
+    debitAccountDesc,
+    comment
+      from dbo.payments where paymentType like ''%VOUCHER%'' and dateRegistered between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''' and slink in 
       (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
-       and bsId > 0 ) order by official, debitAccountDesc',
+      and bsId > 0 ) order by official  ',
 
   lcRecCnt=0,
   lcVoucherTotal=0,
@@ -159,7 +160,7 @@ format(obj5:a5,@n$-19.2),1000R,
   lcBank3Total='',
   lcFundTotal=0,
   lcFundDesc='',
- tr(
+ tr(landscape,
   grp(1,obj5:a7,
      do(bnd('H',lcFundDesc,1000)),
      do(bnd('H','',5500,lcFundDesc&' TOTAL:',800R,format(lcFundTotal,@n$-19.2b),800R),
@@ -175,21 +176,21 @@ format(obj5:a5,@n$-19.2),1000R,
   prn('Vouchers Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
   prn(,lcLm,lcTm+1000),
   nl, 
-  bnd('H','DATE',800,'TREAS',600,'VOUCR',600,'TO WHOM ISSUED',2000,'WHOM DRAWN',2000,'AMOUNT',800R),
-  bnd('HU','RGSTRD',800,'REGD #',600,'PAGE',600,'',2000,'',2000,'',800R),
+  bnd('H','VOUCH',800,'DATE',800,'REGISTER',800,'DATE',800,'PAYEE',2000,'AMOUNT',800R,'BANK',1000,'FUND',1000,'COMMENTS',1000 ),
+  bnd('HU','No.',800,'CLEARED',800,'No.',800,'REGISTERED',800,'',2000,'',800R,' ',1000,' ',1000,' ',1000),
   nl,
   
   det(lcsql),
     bnd(,
+obj5:a2,
 format(obj5:a1,@d2),800,
-obj5:a2,600,
 obj5:a3,600,
 left(format(obj5:a4,@s30),25),2000,
-left(format(obj5:a5,@s30),25),2000,
-format(obj5:a6,@n$-19.2b),800R),
-left(format(obj5:a7,@s30),25),2000,
-left(format(obj5:a8,@s30),25),2000,
-left(format(obj5:a9,@s30),25),2000,
+obj5:a5,800R,
+obj5:a6,2000,
+obj5:a7,2000,
+obj5:a8,2000
+),
 
  
   edt,
@@ -198,6 +199,7 @@ left(format(obj5:a9,@s30),25),2000,
   bnd('H','',5500,'TOTAL:',800R,format(lcVoucherTotal,@n$-19.2b),800R),
 
 );
+
 
    lcRecCnt=lcRecCnt+1,
     lcVoucherTotal=lcVoucherTotal+obj5:a6,
