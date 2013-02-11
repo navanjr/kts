@@ -14,11 +14,12 @@ begin
         @typ varchar (1),
         @calcMethod varchar (1),
         @interestpercent decimal (21,9),
-        @interestDate int
+        @interestDate int,
+        @taxYear varchar(10)
         
         
         
- select @typ = [typ], @interestDate = interestDate from invoices where id=@invoiceId
+ select @typ = [typ], @interestDate = interestDate,@taxYear = taxYear from invoices where id=@invoiceId
  select top 1
   @calcMethod = a19, 
   @grace = cast(a20 as int),
@@ -27,7 +28,7 @@ begin
  where typ=40
 
 
- select @defaultdate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
+ select @defaultdate = '12/31/' + @taxYear
  select @begindate = dbo.date1(@interestDate)
 
  
@@ -49,11 +50,11 @@ begin
 -- we look to see if a half payment is made  
    if @balanceDue-.01 <= @totalDue/2
    begin
-    select @begindate = '03/31/' + cast(taxyear+1 as varchar) from invoices where id = @invoiceId
+    select @begindate = '03/31/' + @taxYear
    end
    else
    begin
-    select @begindate = '12/31/' + cast(taxyear as varchar) from invoices where id = @invoiceId
+    select @begindate = '12/31/' + @taxYear
    end
 
  end
