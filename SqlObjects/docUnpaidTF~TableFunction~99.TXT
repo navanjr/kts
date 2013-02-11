@@ -1,4 +1,4 @@
-create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20))
+create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20),@options varchar(10))
  returns
 	 @rt table(
 		id int identity(1,1),
@@ -73,7 +73,8 @@ update a set
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
 	 a.penalty = round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
     from @wt a
-   
+
+
 insert @rt (parentId,rowString,taxYear,taxDue,penalty,ord)
      select	@invoiceId,
 		dbo.padRight('CERT: ',' ',14)
@@ -135,7 +136,7 @@ insert @rt (rowString,ord)
 
 insert @rt (rowString,ord)
      select	'',
-		@parcel+'9999zf' 
+		@parcel+'9999zf'
 
 
 return

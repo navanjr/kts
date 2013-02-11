@@ -2,9 +2,9 @@ create proc dbo.docFormLetter(
  @documentId int,
  @invoiceId int,
  @taxRollDetailId int,
- @batchId int,
+ @batchId int = 0,
  @rawFlag int = 1
-) as
+ ) as
 begin
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId, '@batchId', @batchId
 
@@ -30,6 +30,8 @@ begin
 
  select @documentName = key1 from object where id = @documentId
 
+ select @rawText = e1 from object where typ = 4900 and id = @documentId
+
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
 insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
@@ -40,12 +42,16 @@ insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
   insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
  
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
-insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
+--insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
 select @interestDate = value from @fields where tag = '<interestDate>'
 insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
 insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
 insert @fields select null,null,'<line>',dbo.padleft('','_',60)
+
+if charindex('<resaleLegal>',@rawText) > 0
+  insert @fields select null,null,'<resaleLegal>',dbo.docCollectionDescResale(@interestDate)
+
 
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
@@ -79,7 +85,6 @@ insert @fields select null,null,'<line>',dbo.padleft('','_',60)
 
  end
 
- select @rawText = e1 from object where typ = 4900 and id = @documentId
 
  declare f cursor for select tag, value from @fields
  open f
