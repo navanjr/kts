@@ -10,15 +10,16 @@ w.key3 as WarNo,
 w.a1 as WarDateNo,
 dbo.date1(w.a1) as WarDate,
 w.a2 as Payee,
-case when isnumeric(w.a3)=1 then cast(w.a3 as money) else 0.00 end as amount,
+isnull((select sum(amount) from gldetail where slink='o'+cast(w.id as varchar) and accountcode=l.accountcode),0) as amount,
 f.accountCode as FundCode,
 f.accountDesc as FundDesc,
-tc.key1 as PayNo,
+tc.key3 as PayNo,
 tc.key2 as PayDateNo,
 dbo.date1(tc.key2) as PayDate,
-case when isnumeric(tc.a3)=1 then cast(tc.a3 as money) else 0.00 end as PayAmount,
+isnull((select sum(amount) from gldetail where slink='o'+cast(tc.id as varchar) and accountcode=f.accountcode),0) as PayAmount,
 w.c10 as fiscalYear,
-w.a4 as debitCode
+w.a4 as debitCode,
+f.reportOrder
 from object w, glaccounts l, glaccounts f, object tc 
 where 
 w.typ=4771 
@@ -39,7 +40,7 @@ w.key3 as WarNo,
 w.a1 as WarDateNo,
 dbo.date1(w.a1) as WarDate,
 w.a2 as Payee,
-case when isnumeric(w.a3)=1 then cast(w.a3 as money) else 0.00 end as amount,
+isnull((select sum(amount) from gldetail where slink='o'+cast(w.id as varchar) and accountcode=l.accountcode),0) as amount,
 f.accountCode as FundCode,
 f.accountDesc as FundDesc,
 '' as PayNo,
@@ -47,7 +48,8 @@ f.accountDesc as FundDesc,
 '' as PayDate,
 0.00 as PayAmount,
 w.c10 as fiscalYear,
-w.a4 as debitCode
+w.a4 as debitCode,
+f.reportOrder
 from object w, glaccounts l, glaccounts f 
 where 
 w.typ=4771 
