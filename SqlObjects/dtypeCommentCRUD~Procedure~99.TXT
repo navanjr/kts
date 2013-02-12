@@ -1,4 +1,4 @@
-create procedure dbo.dtypeCommentCRUD(
+ create procedure dbo.dtypeCommentCRUD(
  @mode varchar(50),
  @dtype varchar(50) = null,
  @parcel varchar(50) = null,
@@ -73,6 +73,15 @@ begin
   exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
 
   return
+ end
+
+ if @dtype = 'ABSTRACT'
+ begin
+  select @parcel = parcelNumber from taxrollDetail where id = @taxRollDetailId
+  if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype) and @parcel>'  0'
+   insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, 'Sent to Abstracter: ' + @mode
+
+ return
  end
 
 end

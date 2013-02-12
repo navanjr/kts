@@ -50,9 +50,33 @@ gfwindow=
  brwreload(2,gcbrw2sql4026,gcbrw2Format4026);
 
 @lbrwclick150=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|&Cancel'),
+ if(kpbrwid(1)<0,invoiceOptions=),
+ if(kpbrwid(1)=0,mainOptions=);
+
+@mainOptions=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Print Resale Legal|Print Abstract Legal|&Cancel'),
+ if(gcretval=1,resaleLegal=),
+ if(gcretval=2,resaleLegalAbstracter=);
+
+@resaleLegal=
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleLegal,5040,printResalelegal=);
+
+@resaleLegalAbstracter=
+ gcAbstracter=1,
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleLegal,5040,printResalelegal=);
+
+
+@invoiceOptions=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|&Cancel'),
  if(gcretval=1,manageAddress=),
- if(gcretval=2,removeFromCollection=);
+ if(gcretval=2,removeFromCollection=),
+ if(gcretval=3,flagforAbstracter=)
+  ;
 
 @manageAddress=
  gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where id = '&kpbrwid(1)*-1),
@@ -63,6 +87,16 @@ gfwindow=
  d1select('exec dbo.dtypeCommentCRUD @mode=''REMOVE'', @dtype='''&gcDType&''', @taxrollDetailId='&lcid),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collection Processing...')),
  refreshbrw=;
+ 
+@flagforAbstracter=
+ lcid=kpbrwid(1)*-1, 
+ iw('\t001Abstract; \f002=gcAbstract;'),
+ gcAbstract=obj7:key1,
+ break('esc'),
+ d1select('exec dbo.dtypeCommentCRUD @mode='''&gcAbstract&''',@dtype=''ABSTRACT'', @taxrollDetailId='&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collections...')),
+ refreshbrw=;
+
 
 \t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;
 \t039(+) Days; \t040@p###p; \w04030; \f0400; @acc040=changeDate=; @selected040=gcdr1=1; \x039040-90;r \x040-30; \p0407c0ch,1;
