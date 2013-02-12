@@ -30,9 +30,10 @@ Team America Rocks
 
 
 
-/** need to pass this a FundCode and FY **/
+/** pass this a date range **/
 @warrantRegister=
   do(452,getSiteInfo=),
+  lcFY = 2013,
   lcsql='select 
      WarNo,
      WarDateNo,
@@ -43,47 +44,52 @@ Team America Rocks
      PayNo,
      PayDateNo,
      FundDesc
-        from dbo.warrants where fiscalYear = ''2012-2013'' or fiscalYear = ''12-13'' order by FundCode, WarNo ',
+       from dbo.rpwarrantregister('gcBeginDate','gcEndDate') order by FundCode, FiscalYear, WarNo',
 
-  tr(landscape,
+  tr(
     lcLm=450,
     lcTm=250,
     prn(printed),
     prn(page),
     prn('Warrant Register',t1),
     prn('S.A.& I. 185 (2002)',t2),
-    prn('Fiscal Year: ',t3),
+    prn(format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),t3), 
     nl,
     lcTm=lcTm+1000,
     prn(,lcLm,lcTm),
-    nl,
-
-    prn(,lcLm),
-    bnd('H','FUND: '&obj5:a9,1000),
-    bnd('HOU',
-     'Wrnt No.',700,
-     'Date Issued',750,
-     'Date Regist',750,
-     'To Whom Payable',2000,
-     'Amount',700C,
-     'Interest',700,
-     'Total Pd',700,
-     'Payment No.',700,
-     'When Paid',750  ),
+  
+  grp(1,obj5:a9,do(
+     bnd('H','FUND: '&obj5:a9,1000),
+     bnd('HOU',
+     'Wrnt No.',600,
+     'Date Issued',650,
+     'Date Regist',650,
+     'To Whom Payable',1800,
+     'Amount',750R,
+     'Interest',400C,
+     'Total Pd',700R,
+     'Paymt No.',600,
+     'When Paid',650),
+      ),
+   do(
+   nl,
+   bnd('H',,3800,'',1000,'Total',1000,format(lcWarrantTot,@n$-14.2),1000R ),
+   lcWarrantTot=0,
+   detendpage )
+     ),   
  
     det(lcsql),
       bnd('D',
-      obj5:a1,700,
-      format(obj5:a2,@d1),750,
-      format(obj5:a3,@d1),750,
-      format(obj5:a4,@s30),2000,
-      format(obj5:a5,@n$-14.2),700R,
-      '0',700,
-      format(obj5:a6,@n$-14.2),700R,
-      obj5:a7,700,
-      format(obj5:a8,@d1),750  ),
-      
-
+      obj5:a1,600,
+      format(obj5:a2,@d1b),650,
+      format(obj5:a3,@d1b),650,
+      format(obj5:a4,@s30),1800,
+      format(obj5:a5,@n$-14.2),750R,
+      '',400C,
+      format(obj5:a6,@n$-14.2b),700R,
+      obj5:a7,600C,
+      format(obj5:a8,@d1b),650 ),
+      lcWarrantTot=lcWarrantTot+obj5:a6,
     edt,
 
 );
