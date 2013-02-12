@@ -1,6 +1,12 @@
 Team America Rocks
 
-@bb7=&Print; @bbproc7=trreport('PaymentRegister');
+@bb7=&Print;
+@bbproc7= 
+ gcBeginDate=77449,
+ gcEndDate=77466,
+ warrantRegister=;
+
+
 
 
 @payreg=
@@ -24,4 +30,66 @@ Team America Rocks
  edt,
   );
 
+/** need to pass this a FUND and FY **/
+@warrantRegister=
+  do(452,getSiteInfo=),
+  lcsql='select 
+     p.treasurersNumber,
+     p.dateRegistered,
+     p.clerksNumber,
+     p.clerksDate,
+     p.payee,
+     p.amount,
+     a.AccountDesc,
+     p.status,
+     p.paymentType,
+     p.fiscalYear,
+     a.accountCode
+    from dbo.payments p 
+    join dbo.glAccounts a on replace(p.debitAccountCode,''_WR'','''') = a.accountCode 
+    where p.paymentType=''Warrant'' and fiscalYear = ''2012-2013'' 
+    order by p.clerksNumber, p.clerksDate ',
 
+  tr(landscape,
+    lcLm=450,
+    lcTm=250,
+    lcRecCnt=0,
+    lcCnt=0,
+    prn(printed),
+    prn(page),
+    prn('Warrant Register',t1),
+    prn('S.A.& I. 185 (2002)',t2), 
+    nl,
+    lcTm=lcTm+1000,
+    prn(,lcLm,lcTm),
+    bnd('HU','FUND: ',700,obj5:a7,2000),
+    prn(,lcLm+5000,lcTm),
+    bnd('HU','Fiscal Year: ',700,obj5:a10,1000),
+    nl, nl,
+
+    prn(,lcLm),
+    bnd('HOU',
+     'Wrnt No.',700,
+     'Date Issued',750,
+     'Date Regist',750,
+     'To Whom Payable',2000,
+     'Amount',700C,
+     'Interest',700,
+     'Total Pd',700,
+     'Payment No.',700,
+     'Date Paid',750  ),
+ 
+    det(lcsql),
+      bnd(,
+      obj5:a3,700,
+      format(obj5:a4,@d1),750,
+      format(obj5:a2,@d1),750,
+      format(obj5:a5,@s30),2000,
+      format(obj5:a6,@n$-14.2),700R,
+      '0',700,
+      format(obj5:a6,@n$-14.2),700R,
+      obj5:a1,700 ),
+      
+    edt,
+
+);
