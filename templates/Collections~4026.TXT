@@ -12,14 +12,15 @@
  brwstuff=;
  
 @afterloadwindow=
- toggleButt=;
+ toggleButt=,
+ toggleOrder=;
 
 @gcvars=
  lcKeyName=choose(gcDType='RESALE','Parcel','Item #'),
  lcKeyWidth=choose(gcDType='RESALE','115','50'),
  lcDocumentId=choose(obj:link1>0,obj:link1,0),
- gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where rowType = 0 order by ord',
- gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') order by ord',
+ gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where rowType = 0 order by '&choose(gcColOrder='PARCEL','ordB','ord'),
+ gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') order by '&choose(gcColOrder='PARCEL','ordB','ord'),
  gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M200L(2)~Doc Status~#5#M200L(5)~~#6#M',
  gcbrw2sql4026='select id,display, date from dbo.collectionsDetailBRW(0) order by ord',
  gcbrw2Format4026='50L(2)~~@d2b@#3#|M150L(5)~~#2#M';
@@ -54,9 +55,12 @@ gfwindow=
  if(kpbrwid(1)=0,mainOptions=);
 
 @mainOptions=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','Print Resale Legal|Print Abstract Legal|&Cancel'),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Print Resale Legal|Print Abstract Legal|Print Resale for Publication|&Cancel'),
  if(gcretval=1,resaleLegal=),
- if(gcretval=2,resaleLegalAbstracter=);
+ if(gcretval=2,resaleLegalAbstracter=),
+ if(gcretval=3,resalForPub=);
+
+
 
 @resaleLegal=
  gcAbstracter='',
@@ -70,6 +74,12 @@ gfwindow=
  gcDays=obj:a17,
  trreport(printResaleLegal,5040,printResalelegal=);
 
+@resalForPub=
+ gcDocumentId=obj:link1,
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleForPub,5040,printResaleForPub=);
 
 @invoiceOptions=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|&Cancel'),
@@ -108,10 +118,19 @@ gfwindow=
  if(gcdr1=1,focus(040));
 \t079Document; \l0804900,1; \y079=077; \y080=078; \x079-100; \x080-120; \w080141; @acc080=refreshbrw=;
 
+\t105Order; @acc105=gcColOrder=choose(gcColOrder='PARCEL','NAME','PARCEL'),toggleOrder=,refreshbrw=;
+@toggleOrder=
+ if(gcColOrder<'  0',gcColOrder='PARCEL'),
+ gc105Label=choose(gcColOrder='PARCEL','Order by Name',choose(gcDType='TAXWARRANT','Order by Item','Order by Parcel')),
+ prop(105,'text',gc105Label);
+
+
 \t108Toggle; @acc108=gcDType=choose(gcDType='RESALE','TAXWARRANT','RESALE'),toggleButt=,refreshbrw=;
 @toggleButt=
  gcToggleLabel=choose(gcDType='RESALE','View TaxWarrant','View Resale'),
  prop(108,'text',gcToggleLabel);
+
+
 \t109&Mark Printed;
 @acc109=
  m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
@@ -134,7 +153,7 @@ gfwindow=
  if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
  break(lcReportName<'  0'),
  gcDocumentId=obj:link1,
- lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', '&kpbrwid(1)*-1&','''&obj:key1+0&''','''&obj:a17+0&''',null, '&lcAddressSwitch&') order by printOrder',
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', '&kpbrwid(1)*-1&','''&obj:key1+0&''','''&obj:a17+0&''',null, '&lcAddressSwitch&','''&gcColOrder&''') order by printOrder',
  kpmo('Printing...'),
  sqlloop(lcFormLetterSQL,formLetterProc=),
  markOne=,
@@ -157,7 +176,7 @@ gfwindow=
  kpmo('Printing Invoices...'&lcCount),
  lcCnt=0,
  do(452,getSiteInfo=),
- lcFormLetterSQL='select invoiceId, taxRollDetailId, dtypeCommentId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', null, '''&obj:key1&''', '''&obj:a17&''', '&lcCount&', '&lcAddressSwitch&') order by printOrder',
+ lcFormLetterSQL='select invoiceId, taxRollDetailId, dtypeCommentId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', null, '''&obj:key1&''', '''&obj:a17&''', '&lcCount&', '&lcAddressSwitch&','''&gcColOrder&''') order by printOrder',
  sqlloop(lcFormLetterSQL,printIt1=),
  kpmc(),
  refreshbrw=;

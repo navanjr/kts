@@ -1,7 +1,7 @@
 create proc dbo.docFormLetter(
  @documentId int,
  @invoiceId int,
- @taxRollDetailId int,
+ @taxRollDetailId int = 0,
  @batchId int = 0,
  @rawFlag int = 1
  ) as
@@ -34,18 +34,19 @@ begin
 
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
-insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
-
+if @invoiceId>0
+ begin
+ insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
  if isnull(@taxRollDetailId,0) < 1
   insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
  else
   insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
- 
+ select @interestDate = value from @fields where tag = '<interestDate>'
+ insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
+ insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
+ end 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 --insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
-select @interestDate = value from @fields where tag = '<interestDate>'
-insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
-insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
 insert @fields select null,null,'<line>',dbo.padleft('','_',60)
 

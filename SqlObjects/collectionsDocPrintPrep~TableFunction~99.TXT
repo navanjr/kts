@@ -5,7 +5,8 @@ create function dbo.collectionsDocPrintPrep(
  @date int,
  @days int,
  @count int,
- @multiAddressSwitch int
+ @multiAddressSwitch int,
+ @order varchar(50)
 ) returns @rt table(
  invoiceId int,
  taxYear numeric(5,0),
@@ -40,10 +41,10 @@ begin
    a.item,
    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
    a.id,
-   a.ord
+   case when @order = 'Parcel' then a.ordB else a.ord end
   from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
    where a.documentStatus = ''
-   order by ord
+   order by case when @order = 'Parcel' then a.ordB else a.ord end
 
   else
    insert @rt select 
@@ -52,10 +53,10 @@ begin
    a.item,
    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
    a.id,
-   a.ord
+   case when @order = 'Parcel' then a.ordB else a.ord end
   from dbo.collectionsBRW(@dType, @documentId, @date, @days) a
    where a.documentStatus = ''
-   order by ord
+   order by case when @order = 'Parcel' then a.ordB else a.ord end
 
  end
 
