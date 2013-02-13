@@ -1,0 +1,81 @@
+create function dbo.rpCounty4MillReport(@begindate varchar(20),@enddate varchar(20)) 
+
+returns @rt table(
+  accountId int,
+  accountCode varchar(60),
+  accountDesc varchar(60),
+  amount money,
+  journalType varchar(60),
+  MonthDistributed varchar(60),
+  MonthApportioned varchar(60),
+  schooldistrict varchar(60),
+  schoolname varchar(60)
+)
+as
+begin
+
+declare @det table(
+    id int identity(1,1),
+	[accountType] [varchar](50) NOT NULL default '',
+	[accountId] [int] NOT NULL default 0,
+	[accountCode] [varchar](60) NOT NULL default '',
+	[accountDesc] [varchar](50) NOT NULL default '',
+	[comment] [varchar](50) NOT NULL default '',
+	[comment2] [varchar](50) NOT NULL default '',
+	[sourceCode] [varchar](60) NOT NULL default '',
+	[amount] [money] NOT NULL default 0,
+	[journalType] [varchar](50) NOT NULL default '',
+	[sourceDesc] [varchar](50) NOT NULL default '',
+	[sourceSECA] [varchar](50) NOT NULL default '',
+	[journalDesc] [varchar](50) NOT NULL default ''
+)
+
+insert @det
+select isnull(accountType,''),
+	isnull(accountId,0),
+	isnull(accountCode,''),
+	isnull(accountDesc,''),
+	isnull(comment,''),
+	isnull(comment2,''),
+	isnull(sourceCode,''),
+	isnull(amount,0),
+	isnull(journalType,''),
+	isnull(sourceDesc,''),
+	isnull(sourceSECA,''),
+	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, 'FALSE') 
+ where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
+  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+  and left(journalType,13) = 'APPORTIONMENT'
+
+update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 like '%4%' and comment2 not like '%JOINT%' 
+
+update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' and sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M')
+
+--
+update @det set comment2='GENERAL' where accountType in ('SCHOOL','VOTECH','CITY') and comment2 like '%GEN%' 
+update @det set comment2=substring(comment2,8,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,7) in ('SCHDIST')
+update @det set comment2=substring(comment2,7,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,6) in ('VOTECH')
+
+
+
+update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
+and accountCode in (select accountCode from @det where comment2 like '%4 MILL%' and comment2 not like '%JOINT%' )
+
+update d set comment2 = case when sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M') then d.comment2 when monthEndCategory > ' 0' then monthEndCategory else 'GENERAL' end 
+ from @det d, glaccounts a where d.sourceCode=a.accountCode 
+
+insert @rt 
+select accountid,accountcode,accountdesc,sum(amount*-1),journaltype, 
+ case when right(journalType,7)='SPECIAL' then upper(datename(M,dbo.date1(@enddate))) 
+         else upper(datename(M,dbo.date1(@enddate+20))) end+' - '+
+ case when right(journalType,7)='SPECIAL' then cast(year(dbo.date1(@enddate)) as varchar) 
+         else cast(year(dbo.date1(@enddate+20)) as varchar) end,
+         upper(datename(M,dbo.date1(@enddate)))+' - '+cast(year(dbo.date1(@enddate)) as varchar),
+ case when len(isnull((select max(a1) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a1) from object where typ=4010 and key2=accountcode),'') else accountcode end,
+ case when len(isnull((select max(a2) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a2) from object where typ=4010 and key2=accountcode),'') else accountdesc end
+         
+ from @det where accountType='COUNTY SCHOOL' and comment2='4 MILL' 
+  group by accountid,accountcode,accountdesc,journaltype
+  
+  return
+  end
