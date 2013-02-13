@@ -2,35 +2,59 @@ Team America Rocks
 
 @bb7=&Print;
 @bbproc7= 
- gcBeginDate=77404,
- gcEndDate=77488,
- warrantRegister=;
+ gcBeginDate='77436',
+ gcEndDate='77466',
+ payreg=;
 
 
 @payreg=
  do(452,getSiteInfo=),
-  lcSQLcmd5010='select dateRegistered,PaymentNumber,Payee,clerksNumber,detailAmount from dbo.Payments',
+ lcPrincTot=0,
+ lcGrandTot=0,
+ lcsql='select 
+     PayDateNo,
+     PayNo,
+     RegNo,
+     payee,
+     dbo.popro6(WarNo,6,1),
+     amount,
+     PayAmount,
+     fiscalYear,
+     FundDesc
+       from dbo.rpPaymentRegister('gcBeginDate','gcEndDate') where PayNo+0>0 order by FundCode, PayNo ',
 
- tr(
-  prn(printed),prn(page),
-  prn(gcCounty&'  COUNTY',t1),
-  prn('TREASURERS PAYMENT REGISTER',t2),
-  prn('OF WARRANTS',t3),
+  tr(
+    lcLm=450,
+    lcTm=250,
+    prn(printed),
+    prn(page),
+    prn('Treasurers Payment Register',t1),
+    prn('of Warrants (S.A.& I. 2211)',t2),
+    prn(format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),t3), 
+    nl,
+    lcTm=lcTm+1000,
+    prn(,lcLm,lcTm),
+    bnd('HOU','Date Pd',600,'Pay No.',600,'Chk No.',600,'To Whom Payable',1800,'Warnt No.',600,'Amount',750C,'Interest',400C,'Total Pd',750C,'Fiscal Yr',750),
 
- prn(,500,,7,,'Arial'),
- bnd('','SA&I 2211',1000,),
- prn(,500,,13,'bold','Arial'),
- bnd('B','Date',1000,'Payment Number',2000,'To Whome Issued',3000,'Warrant Number',2000,'Amount',1000R,),
+  grp(1,obj5:a9,do(
+    bnd('H','FUND: '&obj5:a9,5000),
+    nl,
+     ), do(
+    nl,
+    bnd('H','',3100,'Fund Totals:',1200R,format(lcPrincTot,@n$-14.2),1000R, ' 0',200R,format(lcGrandTot,@n$-14.2),900R),
+    lcPrincTot=0,
+    lcGrandTot=0,
+    detendpage )
+     ),   
+ 
+  det(lcsql),
+      bnd('D',format(obj5:a1,@d1b),600,obj5:a2,600,obj5:a3,600,format(obj5:a4,@s22),1800,obj5:a5,600,format(obj5:a6,@n$-14.2),750R,'',400C,format(obj5:a7,@n$-14.2b),750R,obj5:a8,750 ),
+      lcPrincTot=lcPrincTot+obj5:a6,
+      lcGrandTot=lcGrandTot+obj5:a7,
+  edt,
+);
 
- prn(,500,,12,,'Arial'), 
- det(lcSQLcmd5010),
-   bnd('D','    '&obj5:a1,1000,obj5:a2,2000,obj5:a3,3000,obj5:a4,2000,obj5:a5,1000R,),
- edt,
-  );
 
-
-
-/** pass this a date range **/
 @warrantRegister=
   do(452,getSiteInfo=),
   lcsql='select 
@@ -63,7 +87,7 @@ Team America Rocks
      ),
    do(
    nl,
-   bnd('H','',3700,'Paid Grand Total:',1200R,format(lcWarrantTot,@n$-14.2),1000R),
+   bnd('H','',3700,'Fund Total Paid:',1200R,format(lcWarrantTot,@n$-14.2),1000R),
    lcWarrantTot=0,
    detendpage )
      ),   
