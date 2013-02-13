@@ -1,9 +1,10 @@
 create proc dbo.docFormLetter(
  @documentId int,
- @invoiceId int,
+ @invoiceId int = 0,
  @taxRollDetailId int = 0,
  @batchId int = 0,
- @rawFlag int = 1
+ @rawFlag int = 1,
+ @interestDate varchar(50) = ''
  ) as
 begin
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId, '@batchId', @batchId
@@ -17,13 +18,12 @@ begin
   @tableId int,
   @tableToken varchar(50),
   @where varchar(200),
-  @documentName varchar(50),
-  @interestDate varchar(20)
+  @documentName varchar(50)
+  
  
  declare @fields table(
   tableName varchar(50),
   fieldName varchar(50),
---  fieldType varchar(50),
   tag varchar(50),
   value varchar(max)
  )
@@ -31,6 +31,8 @@ begin
  select @documentName = key1 from object where id = @documentId
 
  select @rawText = e1 from object where typ = 4900 and id = @documentId
+if @interestDate>'  0'
+ insert @fields select null,null,'<interestDate>',dbo.dateformal(dbo.clariondate(@interestDate))
 
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
@@ -42,17 +44,20 @@ if @invoiceId>0
  else
   insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
  select @interestDate = value from @fields where tag = '<interestDate>'
- insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
- insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
+ if charindex('<docUnpaid>',@rawText) > 0
+  insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
+ if charindex('<docUnPaidSum>',@rawText) > 0
+  insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
+ if charindex('<totDue>',@rawText) > 0
+  insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1) ='e'
  end 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 --insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
-insert @fields select null,null,'<line>',dbo.padleft('','_',60)
+insert @fields select null,null,'<line>',dbo.padleft('','_',62)
 
 if charindex('<resaleLegal>',@rawText) > 0
   insert @fields select null,null,'<resaleLegal>',dbo.docCollectionDescResale(@interestDate)
-
 
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
