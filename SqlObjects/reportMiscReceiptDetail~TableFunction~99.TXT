@@ -58,16 +58,18 @@ select @miscTaxAccountId = accountId from glAccounts where accountCode=@miscColl
 
 
 insert @mr
-select d.id,d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1, amount,
-  0.00 as PrevApportioned, d.slink, d.accountCode,'','','',0, r.id, 0, d.bsId 
+select r.id,d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1, sum(amount),
+  0.00 as PrevApportioned, d.slink, '','','','',0, r.id, 0, d.bsId 
 from dbo.glDetailReports d, glAccounts a, object r 
 where d.accountCode=a.accountCode 
  and (dbo.slinkId(d.slink)=r.id)
  and d.[sourcedate]>=@beginDate 
  and d.[sourcedate]<=@endDate 
  and contraId=@miscTaxAccountId
- and isnull(d.bsId,0)=0
- 
+ and (isnull(d.bsId,0)=0 or isnull(d.bsId,0) in (select id from object where typ=4512 and a18='APPORTIONMENT'))
+ and sourceType='4502'
+group by r.id,d.[sourcedate],r.key1,r.a1,d.slink,r.id,d.bsId 
+
 insert @mr
 select 0,d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1,0.00,
   sum(amount) as PrevApportioned, d.slink, '','','','',0, r.id, 0, d.bsId 
@@ -78,14 +80,15 @@ where d.accountCode=a.accountCode
  and d.[sourcedate]<=@endDate 
  and contraId=@miscTaxAccountId
  and isnull(d.bsId,0) in (select id from object where typ=4512 and a18='APPORTIONMENT SPECIAL')
- group by d.[sourcedate],r.key1,r.a1,d.slink,r.id,d.bsId,d.id
+ group by d.[sourcedate],r.key1,r.a1,d.slink,r.id,d.bsId
+
 
 declare @idToken int
  while exists(select * from @mr where processFlag=0)
  begin
   select top 1 @idToken = id from @mr where processFlag=0
   insert @mrd (mrId,amount,fundCode,sourceCode,[description])
-  select @idToken,amount,creditCode,sourceCode,comment from dbo.apportionCollectionsWT(0,@endDate,'',@idToken,null) where creditCode > ' 0' and isnull(contraId,0)=0
+  select @idToken,amount,creditCode,sourceCode,comment from dbo.apportionCollectionsWT(@idToken,@endDate,'MISCREPORT',null,null) where creditCode > ' 0' and isnull(contraId,0)=0
   update @mr set processFlag=1 where id=@idToken
  end
 
@@ -96,7 +99,7 @@ declare @idToken int
   where mr.id=mrd.mrId
    and mrd.fundCode=f.accountCode
    and mrd.sourceCode=s.accountCode
-   and isnull(mr.bsId,0)=0  
+   and (isnull(mr.bsId,0)=0 or isnull(mr.bsId,0) in (select id from object where typ=4512 and a18='APPORTIONMENT')) 
    
  insert @rt  
  select postDate, postDate1,mr.receiptNo,f.accountDesc,ReceivedOf,g.amount*-1,g.amount*-1,mr.slink,g.accountCode,isnull((select max(comment) from gldetail where slink=g.slink),''),s.accountDesc,0,mr.recId,0 ,0 
@@ -105,6 +108,7 @@ declare @idToken int
    and g.accountCode=f.accountCode
    and g.sourceCode=s.accountCode
    and f.accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+   and isnull(mr.bsId,0) in (select id from object where typ=4512 and a18='APPORTIONMENT SPECIAL')
 
 
 
