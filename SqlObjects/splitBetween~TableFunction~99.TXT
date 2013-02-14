@@ -1,0 +1,56 @@
+create function dbo.splitBetween(@RowData nvarchar(max),@delimeter1 nvarchar(10),@delimeter2 nvarchar(10))
+returns @rt table(
+ id int identity(1,1),
+ data nvarchar(max),
+ FoundIndex1 int,
+ FoundIndex2 int) 
+as 
+begin
+
+ declare
+  @Iterator int = 1,
+  @FoundIndex1 int,
+  @FoundIndex2 int
+
+ if @delimeter1 is null or @delimeter2 is null
+ begin
+
+  while len(@rowData) > 0
+  begin
+   insert @rt (data) select left(@rowData,1)
+   if len(@rowData) = 1
+    break
+   set @rowData = substring(@rowData,2,len(@rowdata))
+  end
+
+ end
+ else
+ begin
+
+  select	@FoundIndex1 = CHARINDEX(@delimeter1,@RowData),
+			@FoundIndex2 = CHARINDEX(@delimeter2,@RowData)
+		
+
+    WHILE @FoundIndex1>0 and @FoundIndex2>0
+    BEGIN
+       INSERT INTO @rt (data,FoundIndex1,FoundIndex2)
+        SELECT 
+            Data = LTRIM(RTRIM(SUBSTRING(@RowData, @FoundIndex1+1, @FoundIndex2-(@FoundIndex1+1) ))),
+            @foundIndex1,
+            @FoundIndex2
+
+        SET @RowData = SUBSTRING(@RowData,
+                @FoundIndex2 + DATALENGTH(@delimeter2),
+                LEN(@RowData))
+
+        SET @Iterator = @Iterator + 1
+        select @FoundIndex1 = CHARINDEX(@delimeter1, @RowData),
+               @FoundIndex2 = CHARINDEX(@delimeter2,@RowData)
+     END
+
+ end
+
+return
+end
+
+

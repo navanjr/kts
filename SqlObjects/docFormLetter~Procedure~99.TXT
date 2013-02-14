@@ -7,7 +7,7 @@ create proc dbo.docFormLetter(
  @interestDate varchar(50) = ''
  ) as
 begin
- exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId, '@batchId', @batchId
+ exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@rawFlag',@rawFlag
 
  declare
   @rawText varchar(max),
@@ -28,9 +28,12 @@ begin
   value varchar(max)
  )
 
- select @documentName = key1 from object where id = @documentId
+ select @documentName = key1, @rawText = e1 from object where id = @documentId
 
- select @rawText = e1 from object where typ = 4900 and id = @documentId
+if @rawFlag = 2 and @invoiceId = 0
+ 	select	@invoiceId = (select top 1 ID from invoices)
+			 
+
 if @interestDate>'  0'
  insert @fields select null,null,'<interestDate>',dbo.dateformal(dbo.clariondate(@interestDate))
 
@@ -52,7 +55,6 @@ if @invoiceId>0
   insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1) ='e'
  end 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
---insert @fields select null,null,'<documentDate>',dbo.padCenter(dbo.dateFormal(documentDate),' ',80) from dbo.docBRWDecoder(@batchId)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
 insert @fields select null,null,'<line>',dbo.padleft('','_',62)
 
@@ -105,8 +107,20 @@ if charindex('<resaleLegal>',@rawText) > 0
 
  if @rawFlag = 1
   select @rawText 
- else
+ if @rawFlag = 0
   select * from @fields
-
+ if @rawFlag = 2
+  begin
+   declare @mv table(id int identity(1,1),missingVariable varchar(50))
+   insert @mv select data from dbo.splitBetween(@rawText,'<','>') where '<' + data + '>' not in (select tag from @fields) group by data
+   declare @missingVariable varchar(50),@settingsTag varchar(50)
+   while exists(select * from @mv)
+   begin
+    select @missingVariable = missingVariable,@settingsTag = @documentName + '.' + @missingVariable from @mv
+    exec dbo.settingsCRUD @settingName = @settingsTag, @method = 'POST'
+    exec dbo.logit @@procid, '@settingName',@settingsTag, '@method = POST'
+    delete from @mv where missingVariable = @missingVariable
+   end
+  end
  return
 end

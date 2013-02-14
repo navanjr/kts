@@ -8,7 +8,20 @@
  create(35,9,415,16,'Add &Variable',4),
  create(5,9),
  brwstuff=;
-@acc550=tsc;
+
+@acc550=
+ tsc,
+ if(obj:key2=1 and obj:key3='',setReportControl=);
+@setReportControl=
+ lcid=kp('select id from object where typ=452 and key1=''formLetter'''),
+ if(lcId+0=0,missingReportControl=),
+ set(006,'formLetter');
+
+@missingReportControl=
+ insert(-02=452,002='formLetter',004='4900',006='formLetter='),
+ insert(-02=453,002='4900',004='formLetter=');
+
+
 @afterloadwindow=
  prop(102,7c10h,'Courier New');
 
@@ -105,3 +118,20 @@
   prn(,,,11,,'courier new'),
   txt(obj7:e1,500,300,6000,1000,1,500),
  );
+
+\t105Import;
+@acc105=
+ iw('@loadwindow=brw(150,1,'select id,name from dbo.DirRead(''c:\client\key\kts\documents'')',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
+ break(gcretval='esc' or gcDocImportId+0=0),
+ lcFile=kp('select path from dbo.DirRead(''c:\client\key\kts\documents'') where id='&gcDocImportId),
+ lcName=kp('select name from dbo.DirRead(''c:\client\key\kts\documents'') where id='&gcDocImportId),
+ if(obj:key1='',set(002,lcName)),
+ readdos(lcFile),
+ if(len(obj:e1)>0,m('Are you sure you want to overwrite the existing document?','Overwrite Document?','',6,4)),
+ gcDocImportId=0,
+ break(gcretval=4),
+ set(102,workmemo),
+ update,
+ d1select('exec dbo.docFormLetter @documentId = '&obj:id&', @rawFlag = 2'),
+ brwreload(1);
+\t105Export;
