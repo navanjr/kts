@@ -1,6 +1,13 @@
-@bb7=&Print; @bbproc7=gcAccountId=10033,gcAmount=25000,printMillageBreakdown=;
+@bb7=&Print; @bbproc7=
+gcAccountId=10033,
+gcAmount=25000,
+gcBeginDate='77400',
+gcEndDate='77466',
+printFourMill= ;
 
 @keyReportMaintenance;
+
+
 
 @printMillageBreakdown=
  do(452,getSiteInfo=),
@@ -45,5 +52,94 @@
      bnd('HO','',1000,'Report Total:',3000,format(lcTotAmount,@n-19.2),700R),
  );
 
-   prn(,,,lcFontSize-4,regular,lcDetFont),
-  prn(,,,lcFontSize,,lcFont),
+  
+@printFourMill=
+  do(452,getSiteInfo=),
+lcLm=600,
+lcTm=1200,
+lcBold=700,
+lcItalics=4600,
+lcLgFont=12,
+lcRegular=400,
+lcRegFont=10,
+lcApportioned=0,
+lcDistributed=0,
+  
+  lcsql='select 
+    MonthApportioned,
+    MonthDistributed,    
+    schooldistrict,
+    schoolname,
+    amount
+          from dbo.rpCounty4MillReport('&gcBeginDate+0&','&gcEndDate+0&') order by schooldistrict',   
+tr(
+  prn(printed),
+  prn('County Four-Mill Monthly Data Collection',lcLm,lcTm,lcLgFont,lcBold,Arial),
+  prn('Fiscal Year: ',lcLm+5000,lcTm,lcLgFont,lcBold,Arial),
+  prn(,lcLm+6000,lcTm,,,),
+  bnd(,right(format(gcEndDate,@d2),4),350),
+  prn('(Form is due by the 10th day of the following month)',lcLm,lcTm+200,lcRegFont,lcItalics,Arial),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+  prn(,lcLm,lcTm+3000,lcRegFont,lcBold,Arial),
+  bnd(,'NOTE:   Show only one Amount* - Amount includes COUNTY FOUR-MILL from ALL SOURCES',5000),
+  bnd(,'              (Include JOINT COUNTY amounts in the TOTAL amount, if applicable)',5000),
+
+  prn(,lcLm,lcTm+4000,lcLgFont,lcBold,Arial),
+  bnd(,'(??) '&(upper(gcCounty)&' COUNTY'),2000),
+  nl,
+  bnd(,'County No.',1000,'District No.',1000,'District Name',2000,'Amount*',1200C,'Month Distributed',1600C, ),
+  bnd(,'',1000,'',1000,'',2000,'',1200,'(to schools)',1600C, ),
+  nl,
+  det(lcsql),
+    prn(,,,lcLgFont,lcRegular,),
+    bnd(,'',1000,obj5:a3,1000C,obj5:a4,2000,format(obj5:a5,@n$-14.2),1200R,obj5:a2,1600C, ),
+    lcApportioned=obj5:a1,
+    lcDistributed=obj5:a2,
+  edt,
+  nl,
+  nl,
+  nl,
+  nl,
+  prn(,,,lcLgFont,lcBold,Arial),
+  bnd(,'',2000,'___________________________________________________',5000),
+  nl,
+  bnd(,'',2000,'Signature of Authorized Official',5000),
+  prn(,,,lcRegFont,lcBold,Arial),
+  bnd(,'',2000,'County Treasurers Phone Number   '&gcPhone,5000),
+  
+
+prn(,lcLm+4500,lcTm+800,,,),
+bnd(,lcApportioned,1500C,lcDistributed,15C00),
+bnd('H','Apportioned',1500C,'Distributed',1500C),
+bnd('H','(collected)',1500C,'(to schools)',1500C),
+
+
+
+
+
+
+  lcTm=lcTm+8500,
+  prn('Submit form monthly to:',lcLm,lcTm,lcRegFont,lcItalics,Arial),
+  prn('State Department of Education',lcLm,lcTm+150,lcRegFont,lcRegular,Arial),
+  prn('STATE AID SECTION',lcLm,lcTm+300,lcRegFont,lcRegular,Arial),
+  prn('2500 North Lincoln Boulevard',lcLm,lcTm+450,lcRegFont,lcRegular,Arial),
+  prn('State Aid Section',lcLm+5900,lcTm+450,lcRegFont,lcRegular,Arial),
+  prn('Oklahoma City, Oklahoma 73105-4599',lcLm,lcTm+600,lcRegFont,lcRegular,Arial),
+  prn('Phone Number:  (405) 521-3460',lcLm+5000,lcTm+600,lcRegFont,lcRegular,Arial),
+
+ );
