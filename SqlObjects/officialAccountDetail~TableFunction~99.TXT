@@ -11,13 +11,15 @@ returns @rt table(accountCode varchar(60),
                   balance money,
                   DeptNo varchar(60),
                   OfficerName varchar(60),
-                  OfficerTitle varchar(60))
+                  OfficerTitle varchar(60),
+                  purposeAmount money,
+                  ord varchar(10))
 as
 begin
 insert @rt
 select * from (
 
-select accountCode,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,sum(amount*-1) as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle from dbo.gldetailreports where sourceDate<@begindate group by accountCode
+select accountCode,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,sum(amount*-1) as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle,0 as purposeAmount,'a' as ord from dbo.gldetailreports where sourceDate<@begindate group by accountCode
 
 union all     
 
@@ -30,8 +32,12 @@ select accountCode,
    amount*-1 as creditmemo,
    0 as deposits,
    0 as withdrawals,
-   0 as balance 
-   ,'' as DeptNo,'' as OfficerName,'' as OfficerTitle
+   0 as balance, 
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'da'
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -49,13 +55,42 @@ select accountCode,
    0 as creditmemo,
    0 as deposits,
    amount*-1 as withdrawals,
-   0 as balance  
-   ,'' as DeptNo,'' as OfficerName,'' as OfficerTitle
+   0 as balance,
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'db'
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and sourceType = '4771'
      and debit > ' 0'
+     and sourcea18 = 'Trust Voucher'
+     
+union all
+
+select accountCode,
+   sourcedate,
+   sourcekey1,
+   sourcekey3,
+   case when sourcetype in ('4502','4522') then sourcea1 when sourcetype in ('4771') then sourcea2 end as person,
+   left(sourcee1,59) as purpose,
+   0 as creditmemo,
+   0 as deposits,
+   amount*-1 as withdrawals,
+   0 as balance,
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'db'
+   from dbo.gldetailreports 
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType = '4771'
+     and debit > ' 0'
+     and sourcea18 <> 'Trust Voucher'
      
 union all
 
@@ -68,12 +103,69 @@ select accountCode,
    0 as creditmemo,
    amount*-1 as deposits,
    0 as withdrawals,
-   0 as balance  
-   ,'' as DeptNo,'' as OfficerName,'' as OfficerTitle
+   0 as balance,
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'ba'
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and sourceType in ('4522','4502')
+     and accountcode in (select key3 from object where typ=4503 and key1='TRUST')
+     
+union all
+
+select accountCode,
+   sourcedate,
+   sourcekey1,
+   '' as sourcekey3,
+   case when sourcetype in ('4502','4522') then sourcea1 when sourcetype in ('4771') then sourcea2 end as person,
+   '' as purpose,
+   0 as creditmemo,
+   amount*-1 as deposits,
+   0 as withdrawals,
+   0 as balance,
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'ba'
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and sourceType in ('4522','4502')
+     and accountcode not in (select key3 from object where typ=4503 and key1='TRUST')
+
+union all
+
+select accountcode,sourcedate,sourcekey1,'','',left(cast(purposeamount as varchar)+' - '+purpose,59),0,0,0,0,'','','',abs(purposeamount),ord from (
+select accountcode,sourcedate,sourcekey1,purpose,sum(purposeamount) as purposeamount,ord from (
+select (select key3 from object where typ=4503 and key1='TRUST') as accountCode,
+   sourcedate,
+   isnull((select top 1 key1 from object where id in (select officialdepositid from paid where slink=g.slink)),sourcekey1)as sourcekey1,
+   '' as sourcekey3,
+   '' as person,
+   accountdesc as purpose,
+   0 as creditmemo,
+   0 as deposits,
+   0 as withdrawals,
+   0 as balance,
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   amount as purposeamount,
+   case 
+    when sourceType in ('4771') and credit>' 0' then 'db' 
+    when sourceType in ('4771') and debit>' 0' then 'da' 
+    when sourceType in ('4502','4522') then 'ba' 
+     else 'c' end  as ord
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+) c group by accountcode,sourcedate,sourcekey1,purpose,ord) b
      
 union all
 
@@ -86,13 +178,18 @@ select accountCode,
    amount*-1 as creditmemo,
    0 as deposits,
    0 as withdrawals,
-   0 as balance  
-   ,'' as DeptNo,'' as OfficerName,'' as OfficerTitle
+   0 as balance, 
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'c'
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and sourceType not in ('4522','4502','4771')
 ) a order by balance desc,sourcedate,deposits desc,sourcekey1,sourcekey3
+
 
 update r
  set DeptNo=o.a1,
