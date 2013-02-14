@@ -71,6 +71,21 @@ where d.accountCode=a.accountCode
 group by r.id,d.[sourcedate],r.key1,r.a1,d.slink,r.id,d.bsId 
 
 insert @mr
+select r.id,d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1, sum(amount),
+  0.00 as PrevApportioned, d.slink, '','','','',0, r.id, 0, d.bsId 
+from dbo.glDetailReports d, glAccounts a, object r 
+where d.accountCode=a.accountCode 
+ and (dbo.slinkId(d.slink)=r.id)
+ and d.[sourcedate]>=@beginDate 
+ and d.[sourcedate]<=@endDate 
+ and contraId=@miscTaxAccountId
+ and (isnull(d.bsId,0)=0 or isnull(d.bsId,0) in (select id from object where typ=4512 and a18='APPORTIONMENT'))
+ and sourceType='4512'
+ and left(sourcea18,13) <> 'APPORTIONMENT'
+ and r.id not in (select jeId from journallink)
+group by r.id,d.[sourcedate],r.key1,r.a1,d.slink,r.id,d.bsId 
+
+insert @mr
 select 0,d.[sourcedate],dbo.date1(d.[sourcedate]) as postDate,r.key1 as receiptNo,'',r.a1,0.00,
   sum(amount) as PrevApportioned, d.slink, '','','','',0, r.id, 0, d.bsId 
 from dbo.glDetailReports d, glAccounts a, object r 

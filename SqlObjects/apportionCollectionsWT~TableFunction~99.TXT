@@ -176,7 +176,11 @@ declare @twt table(
  '' as acrAccountCode,
  '' as acrAccountDesc,
  ''   
-from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
+from gldetail a, object b 
+where b.typ=4775 
+  and a.slink2=b.olink2 
+  and b.link1=@accountId 
+  and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
 
 union all
 
@@ -187,7 +191,8 @@ union all
  '' as acrAccountCode,
  '' as acrAccountDesc,
  ''   
-from gldetail a where left(slink,1)='o' and dbo.slinkId(a.slink)=@accountId and a.amount>0 
+from gldetail a where left(slink,1)='o' and dbo.slinkId(a.slink)=@accountId and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
+  and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
 
     end
 
