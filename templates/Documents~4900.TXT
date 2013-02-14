@@ -12,6 +12,7 @@
 @acc550=
  tsc,
  if(obj:key2=1 and obj:key3='',setReportControl=);
+
 @setReportControl=
  lcid=kp('select id from object where typ=452 and key1=''formLetter'''),
  if(lcId+0=0,missingReportControl=),
@@ -25,6 +26,8 @@
 @afterloadwindow=
  prop(102,7c10h,'Courier New');
 
+@deleted=
+ d1select('exec dbo.settingsCRUD @parentId=''O'&obj:id&''',@method = ''DELETEALL''');
 
 @brwstuff=
  gcbrw1sql='select id,display,rowType from dbo.docFeesBRW('&obj:id&') order by ord',
@@ -36,7 +39,7 @@
 
 @lbrw1color=obj7:c10='1',13499135; 13499135; 2157055; 2350115; 7467519
 
-\t001Title;
+\t001Title; @acc002=d1select('exec dbo.settingsCRUD '''&obj:key1&''',@parentId=''O'&obj:id&''',@method = ''POSTNAME'''),brwreload(1);
 \t003FormLetterFlag; \h003004;r
 \t005Report Control; \l006452; 
 
@@ -46,6 +49,10 @@
  change(lcid);
 
 \t101Text; \w102390; \z102500; \h101102obj:key2+0<>1;r
+@acc102=
+ update,
+ d1select('exec dbo.docFormLetter @documentId = '&obj:id&', @rawFlag = 2'),
+ brwreload(1);
 
 \t033Add Fee; \h034;
 @acc033=
@@ -84,7 +91,7 @@
 @editVariableCore=
  iw('\t001Tag Name;\f002'&lcName&';\t003Value;\f004'&lcValue&';'&choose(lcName>'  0','\n002;','')),
  break(gcretval<>'OK'),
- d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&obj7:key2&''''),
+ d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&obj7:key2&''',@parentId=''O'&obj:id&''''),
  brwreload(1);
 
 @editVariable=
@@ -119,19 +126,23 @@
   txt(obj7:e1,500,300,6000,1000,1,500),
  );
 
-\t105Import;
+\t105Import; \h105obj:key2<>'1';
 @acc105=
- iw('@loadwindow=brw(150,1,'select id,name from dbo.DirRead(''c:\client\key\kts\documents'')',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
+ iw('@loadwindow=brw(150,1,'select id,name from dbo.docImportBRW(0)',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
  break(gcretval='esc' or gcDocImportId+0=0),
- lcFile=kp('select path from dbo.DirRead(''c:\client\key\kts\documents'') where id='&gcDocImportId),
- lcName=kp('select name from dbo.DirRead(''c:\client\key\kts\documents'') where id='&gcDocImportId),
+ lcFile=kp('select path from dbo.docImportBRW(0) where id='&gcDocImportId),
+ lcName=kp('select name from dbo.docImportBRW(0) where id='&gcDocImportId),
  if(obj:key1='',set(002,lcName)),
  readdos(lcFile),
- if(len(obj:e1)>0,m('Are you sure you want to overwrite the existing document?','Overwrite Document?','',6,4)),
+ if(len(clip(obj:e1))>0,m('Are you sure you want to overwrite the existing document?','Overwrite Document?','',6,4)),
  gcDocImportId=0,
  break(gcretval=4),
  set(102,workmemo),
- update,
- d1select('exec dbo.docFormLetter @documentId = '&obj:id&', @rawFlag = 2'),
- brwreload(1);
-\t105Export;
+ acc102=;
+
+\t108Export; \h108obj:key2<>'1';
+@acc108=
+update,
+d1select('exec dbo.docExport '&obj:id&',@method=''EXPORT'''),
+if(readstring(obj7:d1,'@code='),m(readstring(obj7:d1,'@message=')))
+;

@@ -4,7 +4,7 @@ create proc dbo.docFormLetter(
  @taxRollDetailId int = 0,
  @batchId int = 0,
  @rawFlag int = 1,
- @interestDate varchar(50) = ''
+ @interestTo varchar(50) = ''
  ) as
 begin
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@rawFlag',@rawFlag
@@ -18,7 +18,8 @@ begin
   @tableId int,
   @tableToken varchar(50),
   @where varchar(200),
-  @documentName varchar(50)
+  @documentName varchar(50),
+  @needInterestTo varchar(1) = ''
   
  
  declare @fields table(
@@ -30,12 +31,16 @@ begin
 
  select @documentName = key1, @rawText = e1 from object where id = @documentId
 
+---check to see if interestTo is needed
+if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @rawFlag = 2
+ set @needInterestTo = '1'
+
 if @rawFlag = 2 and @invoiceId = 0
- 	select	@invoiceId = (select top 1 ID from invoices)
+ select	@invoiceId = (select top 1 ID from invoices)
 			 
 
-if @interestDate>'  0'
- insert @fields select null,null,'<interestDate>',dbo.dateformal(dbo.clariondate(@interestDate))
+if @interestTo>'  0'
+ insert @fields select null,null,'<interestTo>',dbo.dateformal(dbo.clariondate(@interestTo))
 
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
@@ -46,20 +51,20 @@ if @invoiceId>0
   insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
  else
   insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
- select @interestDate = value from @fields where tag = '<interestDate>'
- if charindex('<docUnpaid>',@rawText) > 0
-  insert @fields select null,null,'<docUnpaid>',dbo.docUnpaidSF(@invoiceId,@interestDate,0)
- if charindex('<docUnPaidSum>',@rawText) > 0
-  insert @fields select null,null,'<docUnPaidSum>',dbo.docUnpaidSumSf(@invoiceId,@interestDate)
- if charindex('<totDue>',@rawText) > 0
-  insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1) ='e'
+ select @interestTo = value from @fields where tag = '<interestTo>'
+ if charindex('<docUnpaid>',@rawText) > 0 or @rawFlag = 2
+  insert @fields select null,null,'<docUnpaid>',case when @rawFlag=2 then '' else dbo.docUnpaidSF(@invoiceId,@interestTo,0) end
+ if charindex('<docUnPaidSum>',@rawText) > 0 or @rawFlag = 2
+  insert @fields select null,null,'<docUnPaidSum>',case when @rawFlag=2 then '' else dbo.docUnpaidSumSf(@invoiceId,@interestTo) end
+ if charindex('<totDue>',@rawText) > 0 or @rawFlag = 2
+  insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestTo) where RIGHT(ord,1) ='e'
  end 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
 insert @fields select null,null,'<line>',dbo.padleft('','_',62)
 
-if charindex('<resaleLegal>',@rawText) > 0
-  insert @fields select null,null,'<resaleLegal>',dbo.docCollectionDescResale(@interestDate)
+if charindex('<resaleLegal>',@rawText) > 0 or @rawFlag = 2
+  insert @fields select null,null,'<resaleLegal>',case when @rawFlag=2 then '' else dbo.docCollectionDescResale(@interestTo) end
 
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
@@ -113,14 +118,20 @@ if charindex('<resaleLegal>',@rawText) > 0
   begin
    declare @mv table(id int identity(1,1),missingVariable varchar(50))
    insert @mv select data from dbo.splitBetween(@rawText,'<','>') where '<' + data + '>' not in (select tag from @fields) group by data
-   declare @missingVariable varchar(50),@settingsTag varchar(50)
+   if @needInterestTo = '1'
+    begin
+     insert @mv select 'InterestTo'
+     exec dbo.logit @@procid, 'Missing InterestTo'
+    end    
+   declare @missingVariable varchar(50),@settingsTag varchar(50),@setParentId varchar(50) = 'o'+cast(@documentId as varchar)
    while exists(select * from @mv)
    begin
     select @missingVariable = missingVariable,@settingsTag = @documentName + '.' + @missingVariable from @mv
-    exec dbo.settingsCRUD @settingName = @settingsTag, @method = 'POST'
+    exec dbo.settingsCRUD @settingName = @settingsTag, @parentId = @setParentId, @method = 'POST'
     exec dbo.logit @@procid, '@settingName',@settingsTag, '@method = POST'
     delete from @mv where missingVariable = @missingVariable
    end
+   select * from @fields
   end
  return
 end

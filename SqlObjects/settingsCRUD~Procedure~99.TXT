@@ -2,8 +2,9 @@ create proc dbo.settingsCRUD(
  @settingName varchar(50) = null,
  @settingValue varchar(150) = null,
  @settingId int = null,
- @method varchar(10) = 'POST',
+ @method varchar(20) = 'POST',
  @verbose varchar(5) = 'FALSE',
+ @parentId varchar(50) = '',
  @valueOut varchar(max) = null output
 ) as
 begin
@@ -11,9 +12,9 @@ begin
   if @method = 'POST'
  begin
   if exists(select * from settings where settingName = @settingName)
-   update settings set settingValue = @settingValue where settingName = @settingName
+   update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
   else
-   insert settings (settingName, settingValue) select @settingName, @settingValue
+   insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
  end
 
  if @method = 'GET'
@@ -27,7 +28,7 @@ begin
   end
   else
   begin
-   select @valueOut ='@name=' + settingName + ';@value=' + settingValue + ';'  from dbo.settings where id = @settingId
+   select @valueOut ='@name=' + settingName + ';@value=' + isnull(settingValue,'') + ';'  from dbo.settings where id = @settingId
    if @verbose = 'TRUE'
     select @valueOut as settingValue
    return
@@ -38,6 +39,19 @@ begin
  begin
   delete settings where id = @settingId
  end
+
+ if @method = 'POSTNAME' and @parentId>'  0'
+ begin
+  if exists(select * from settings where parentId = @parentId)
+   update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))) where parentId = @parentId
+ end
+
+if @method = 'DELETEALL' 
+ begin
+  if exists(select * from settings where parentId = @parentId)
+   delete from settings where parentId = @parentId
+ end
+
 
 
 end
