@@ -3,11 +3,12 @@ create proc dbo.docFormLetter(
  @invoiceId int = 0,
  @taxRollDetailId int = 0,
  @batchId int = 0,
- @rawFlag int = 1,
+ @method varchar(10) = 'REPLACE',
  @interestTo varchar(50) = ''
  ) as
 begin
- exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@rawFlag',@rawFlag
+ set nocount on
+ exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@method',@method
 
  declare
   @rawText varchar(max),
@@ -32,10 +33,10 @@ begin
  select @documentName = key1, @rawText = e1 from object where id = @documentId
 
 ---check to see if interestTo is needed
-if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @rawFlag = 2
+if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY'
  set @needInterestTo = '1'
 
-if @rawFlag = 2 and @invoiceId = 0
+if @method = 'VERIFY' and @invoiceId = 0
  select	@invoiceId = (select top 1 ID from invoices)
 			 
 
@@ -52,19 +53,19 @@ if @invoiceId>0
  else
   insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
  select @interestTo = value from @fields where tag = '<interestTo>'
- if charindex('<docUnpaid>',@rawText) > 0 or @rawFlag = 2
-  insert @fields select null,null,'<docUnpaid>',case when @rawFlag=2 then '' else dbo.docUnpaidSF(@invoiceId,@interestTo,0) end
- if charindex('<docUnPaidSum>',@rawText) > 0 or @rawFlag = 2
-  insert @fields select null,null,'<docUnPaidSum>',case when @rawFlag=2 then '' else dbo.docUnpaidSumSf(@invoiceId,@interestTo) end
- if charindex('<totDue>',@rawText) > 0 or @rawFlag = 2
+ if charindex('<docUnpaid>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<docUnpaid>',case when @method = 'VERIFY' then '' else dbo.docUnpaidSF(@invoiceId,@interestTo,0) end
+ if charindex('<docUnPaidSum>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<docUnPaidSum>',case when @method = 'VERIFY' then '' else dbo.docUnpaidSumSf(@invoiceId,@interestTo) end
+ if charindex('<totDue>',@rawText) > 0 or @method = 'VERIFY'
   insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestTo) where RIGHT(ord,1) ='e'
  end 
 insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
 insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
 insert @fields select null,null,'<line>',dbo.padleft('','_',62)
 
-if charindex('<resaleLegal>',@rawText) > 0 or @rawFlag = 2
-  insert @fields select null,null,'<resaleLegal>',case when @rawFlag=2 then '' else dbo.docCollectionDescResale(@interestTo) end
+if charindex('<resaleLegal>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<resaleLegal>',case when @method = 'VERIFY' then '' else dbo.docCollectionDescResale(@interestTo) end
 
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
@@ -110,11 +111,11 @@ if charindex('<resaleLegal>',@rawText) > 0 or @rawFlag = 2
  close f
  deallocate f
 
- if @rawFlag = 1
+ if @method = 'REPLACE'
   select @rawText 
- if @rawFlag = 0
+ if @method = 'SHOW'
   select * from @fields
- if @rawFlag = 2
+ if @method = 'VERIFY'
   begin
    declare @mv table(id int identity(1,1),missingVariable varchar(50))
    insert @mv select data from dbo.splitBetween(@rawText,'<','>') where '<' + data + '>' not in (select tag from @fields) group by data
@@ -131,7 +132,7 @@ if charindex('<resaleLegal>',@rawText) > 0 or @rawFlag = 2
     exec dbo.logit @@procid, '@settingName',@settingsTag, '@method = POST'
     delete from @mv where missingVariable = @missingVariable
    end
-   select * from @fields
+   select tag from @fields
   end
  return
 end
