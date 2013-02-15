@@ -7,8 +7,6 @@ printFourMill= ;
 
 @keyReportMaintenance;
 
-
-
 @printMillageBreakdown=
  do(452,getSiteInfo=),
  lcgrpToken='',
@@ -64,13 +62,14 @@ lcRegular=400,
 lcRegFont=10,
 lcApportioned=0,
 lcDistributed=0,
-  
+lcCollection=0,
   lcsql='select 
     MonthApportioned,
     MonthDistributed,    
     schooldistrict,
     schoolname,
-    amount
+    amount,
+    journalType
           from dbo.rpCounty4MillReport('&gcBeginDate+0&','&gcEndDate+0&') order by schooldistrict',   
 tr(
   prn(printed),
@@ -82,26 +81,13 @@ tr(
 
 
 
-
-
-
-
-
-
-
-
-
-
-
- 
-
-  prn(,lcLm,lcTm+3000,lcRegFont,lcBold,Arial),
+  prn(,lcLm,lcTm+2300,lcRegFont,lcBold,Arial),
   bnd(,'NOTE:   Show only one Amount* - Amount includes COUNTY FOUR-MILL from ALL SOURCES',5000),
   bnd(,'              (Include JOINT COUNTY amounts in the TOTAL amount, if applicable)',5000),
 
-  prn(,lcLm,lcTm+4000,lcLgFont,lcBold,Arial),
+  prn(,lcLm,lcTm+3000,lcLgFont,lcBold,Arial),
   bnd(,'(??) '&(upper(gcCounty)&' COUNTY'),2000),
-  nl,
+  nl,nl,nl,
   bnd(,'County No.',1000,'District No.',1000,'District Name',2000,'Amount*',1200C,'Month Distributed',1600C, ),
   bnd(,'',1000,'',1000,'',2000,'',1200,'(to schools)',1600C, ),
   nl,
@@ -110,6 +96,7 @@ tr(
     bnd(,'',1000,obj5:a3,1000C,obj5:a4,2000,format(obj5:a5,@n$-14.2),1200R,obj5:a2,1600C, ),
     lcApportioned=obj5:a1,
     lcDistributed=obj5:a2,
+    lcCollection=obj5:a6,
   edt,
   nl,
   nl,
@@ -121,17 +108,16 @@ tr(
   bnd(,'',2000,'Signature of Authorized Official',5000),
   prn(,,,lcRegFont,lcBold,Arial),
   bnd(,'',2000,'County Treasurers Phone Number   '&gcPhone,5000),
-  
 
-prn(,lcLm+4500,lcTm+800,,,),
-bnd(,lcApportioned,1500C,lcDistributed,15C00),
-bnd('H','Apportioned',1500C,'Distributed',1500C),
-bnd('H','(collected)',1500C,'(to schools)',1500C),
+  prn(,lcLm+4300,lcTm+800,lcLgFont,lcBold,Arial),
+  bnd(,lcApportioned,1400C,lcDistributed,1400C),
+  bnd(,'Apportioned',1400C,'Distributed',1400C),
+  bnd(,'(collected)',1400C,'(to schools)',1400C),
 
-
-
-
-
+  prn(,lcLm+200,lcTm+900,lcRegFont,lcRegular,Arial),
+  box(lcLm,lcTm+800,lcLm+3000,lcTm+1200,10),
+  bnd('H',choose(lcCollection='APPORTIONMENT','REGULAR MONTHLY COLLECTION DATA','SPECIAL MONTHLY COLLECTION DATA'),2000),
+  box(lcLm,lcTm+1400,lcLm+3000,lcTm+1700,10),
 
   lcTm=lcTm+8500,
   prn('Submit form monthly to:',lcLm,lcTm,lcRegFont,lcItalics,Arial),
