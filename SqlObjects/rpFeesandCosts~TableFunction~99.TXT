@@ -1,0 +1,263 @@
+create function dbo.rpFeesandCosts(@begindate varchar(20),@enddate varchar(20))
+returns @rt table(id int identity(1,1),
+                   taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   Col1Name varchar(60),
+                   Col1Amt money,
+                   Col2Name varchar(60),
+                   Col2Amt money,
+                   Col3Name varchar(60),
+                   Col3Amt money,
+                   Col4Name varchar(60),
+                   Col4Amt money,
+                   Col5Name varchar(60),
+                   Col5Amt money,
+                   Col6Name varchar(60),
+                   Col6Amt money,
+                   Col7Name varchar(60),
+                   Col7Amt money,
+                   Col8Name varchar(60),
+                   Col8Amt money,
+                   Col9Name varchar(60),
+                   Col9Amt money,
+                   Col10Name varchar(60),
+                   Col10Amt money,
+                   Other varchar(60),
+                   OtherAmt money
+)
+as
+begin
+
+declare @wt table(id int identity(1,1),
+                   gldetailid int,
+                   slink varchar(16),
+                   subinvoiceId int,
+                   invoiceId int,
+                   taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   [description] varchar(60),
+                   amount money
+)
+
+declare @wt2 table(taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   [description] varchar(60),
+                   amount money
+)
+ 
+declare @headers table(id int identity(1,1),
+                       [description] varchar(60))
+                       
+insert @wt (gldetailId,slink,subinvoiceId,invoiceId,name,[description],amount,sourceDate)
+select 
+ g.id,
+ g.slink,
+ g.invoiceId,
+ i.invoiceId,
+ g.sourcea1,
+ rd.[description],
+ g.amount,
+ g.sourceDate
+ from gldetailreports g, invoices i, receiptdetail rd
+ where g.invoiceid=i.id
+   and left(rd.slink,1)='t'
+   and dbo.slinkid(rd.slink)=i.id
+    and sourceDate >= @begindate and sourceDate <= @enddate
+    and accountType = 'ACCRUED RECEIVABLE'
+    and left(g.slink,1)='l'
+    and i.typ='F'
+
+update w set ReceiptNo=rl.receiptNumber 
+  from @wt w, receiptlink l, receiptlink rl 
+  where dbo.slinkId(w.slink)=l.id
+    and l.receiptId=rl.receiptId
+    and rl.invoiceId=w.invoiceId
+
+update w set itemNo=i.item, taxyear=cast(i.taxyear as varchar)
+  from @wt w, invoices i
+  where w.invoiceId=i.id
+
+update w set taxrate = case when aprate > ' 0' then aprate else accountCode end from @wt w,receiptdetail rd, glaccounts a 
+   where left(rd.slink,1)='t'
+     and dbo.slinkId(rd.slink)=w.invoiceId
+     and rd.fundcode=a.accountcode
+
+insert @headers select distinct [description] from @wt
+
+insert @wt2 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],amount)
+select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],sum(amount) from @wt
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description]
+ 
+insert @rt (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name)
+select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name from @wt
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
+
+update a set col1Amt=c.amount, Col1Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 1
+     
+update a set col2Amt=c.amount, Col2Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 2
+
+update a set col3Amt=c.amount, Col3Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 3
+     
+update a set col4Amt=c.amount, Col4Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 4
+     
+update a set col5Amt=c.amount, Col5Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 5
+     
+update a set col6Amt=c.amount, Col6Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 6
+     
+update a set col7Amt=c.amount, Col7Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 7
+     
+update a set col8Amt=c.amount, Col8Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 8
+     
+update a set col9Amt=c.amount, Col9Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 9
+     
+update a set col10Amt=c.amount, Col10Name=b.[description]
+ from @rt a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 10
+ 
+ delete from @wt2 where [description] in (select [description] from @headers)    
+ 
+update a set OtherAmt=c.amount
+ from @rt a, 
+ (select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,sum(amount) as amount from @wt2
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
+) c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+ 
+ update @rt set Col1Name = (select max(Col1Name) from @rt) where id > 0
+ update @rt set Col2Name = (select max(Col2Name) from @rt) where id > 0
+ update @rt set Col3Name = (select max(Col3Name) from @rt) where id > 0
+ update @rt set Col4Name = (select max(Col4Name) from @rt) where id > 0
+ update @rt set Col5Name = (select max(Col5Name) from @rt) where id > 0
+ update @rt set Col6Name = (select max(Col6Name) from @rt) where id > 0
+ update @rt set Col7Name = (select max(Col7Name) from @rt) where id > 0
+ update @rt set Col8Name = (select max(Col8Name) from @rt) where id > 0
+ update @rt set Col9Name = (select max(Col9Name) from @rt) where id > 0
+ update @rt set Col10Name = (select max(Col10Name) from @rt) where id > 0
+  
+ return
+end 
