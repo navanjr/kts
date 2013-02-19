@@ -127,17 +127,21 @@ begin
    postCheck,
    expenseAcct
 
+ update @rt set fiscalyear = cast(cast('20'+right(fiscalyear,2) as int)-1 as varchar(4))+'-'+'20'+right(fiscalyear,2) where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
+
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
- update r set postcheck = 2 from @rt r where postcheck = 0 and warrantNumber in (select WarNo from warrants where debitcode=r.debitAcct and fiscalYear=r.fiscalYear)
+ update r set postcheck = 2, registerNumber=w.RegNo from @rt r, warrants w where r.postcheck = 0 and r.warrantNumber=w.WarNo and w.debitcode=r.debitAcct and w.fiscalYear=r.fiscalYear
 
  update r set fundCode = f.accountCode, fundDesc = f.accountDesc from @rt r, glaccounts a, glaccounts f where r.debitacct = a.accountCode and f.accountCode = a.targetAccountCode
+
   
 -- set the potential register numbers
  select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Warrant' order by key2 desc, key1 desc
  declare @reg table(regSeed int identity(1,1), id int)
  insert @reg select id from @rt where postCheck = 0 order by clerksFund,warrantNumber
  update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+
 
 
  return 

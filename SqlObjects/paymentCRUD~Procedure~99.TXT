@@ -230,7 +230,7 @@ begin
    exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher')
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant')
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -238,6 +238,17 @@ begin
     '@officialBankCode', @officialBankCode,
     '@officialDepositCode', @officialDepositCode
     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+   return
+  end
+
+-- bail if we don't have all the accounts we need for a warrant...
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0') and @paymentType in ('Warrant')
+  begin
+   exec dbo.logit @@procid,
+    'Oops, Missing one of the following...  @debitAcct', @debitAcct,
+    '@creditAcct', @creditAcct,
+    '@officialBankCode', @officialBankCode
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant);'
    return
   end
 
@@ -275,8 +286,8 @@ begin
    @creditAcct,isnull((select accountDesc from glAccounts where accountCode=@creditAcct),''),
    dbo.proper(@paymentType),
    @officialName,
-   @officialDepositCode,
-   @officialBankCode,
+   isnull(@officialDepositCode,''),
+   isnull(@officialBankCode,''),
    @fiscalYear,
    @importStamp,
    @comments
