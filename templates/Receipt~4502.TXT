@@ -34,8 +34,10 @@ case(gcretval+0=1,abandonreceipt=,gcretval+0=2,saveReceipt=);
 @saveReceipt=
 set(040,'Saved'),close('ok');
 
-@abandonreceipt=sql('exec dbo.receiptCRUD 3, '&obj:id+0),
-set(040,'Abandoned'),close('ok');
+@abandonreceipt=sql('exec dbo.receiptCRUD 6, '&obj:id+0),
+set(040,kp('select a17 from object where id='&obj:id)),
+update,
+close('ok');
 
 @insertSelections=
  lcMethod=readstring(kp('select dbo.whoami()'),'@suspenseMethod='),
@@ -657,6 +659,8 @@ set(040,'Abandoned'),close('ok');
  d1select('dbo.glPost '&obj:id&',''o'''),
  gcposted=kp('select a17 from object where id='&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
+ set(040,kp('select a17 from object where id='&obj:id)),
+ update,
  if(gcposted='Posted',close('ok'),m('Receipt Failed to Post, please try again.'));
 
 @checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0,0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 

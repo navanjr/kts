@@ -156,7 +156,7 @@ begin
 
 
 -- Delete
- if @mode = 3
+ if @mode = 3 or @mode = 6
  begin
 -- bail if posted and @deletePosted = 'False'
   if dbo.isPosted(@slink) = 'TRUE' and @deletePosted = 'False'
@@ -279,6 +279,11 @@ begin
 
   if @receiptType in ('TAX')
     exec dbo.apiDeletedProc @receiptId,'receipts'
+
+  if @mode = 6
+  begin
+    update object set a17='Abandoned' where id = @receiptId
+  end
 
   exec dbo.logit @@procid, 'Commit Transaction...'
   commit transaction
