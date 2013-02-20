@@ -7,11 +7,15 @@ create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20))
 		rowString varchar (2000),
 		taxYear varchar(10),
 		invoiceType varchar(5),
+		taxAmt varchar(50),
 		taxDue varchar(50),
 		penalty varchar(50),
 		fees varchar(50),
 		certFees varchar(50),
 		Total varchar(50),
+		taxrollId int,
+		parcel varchar(50),
+		perTyp varchar(5),
 		ord varchar(1000))
 	as 
 	begin						
@@ -34,6 +38,7 @@ declare @wt table(
                 taxrollId int,
 		taxYear varchar(4),
 		parcel varchar(50),
+		invoiceAmount money,
 		invoiceDue money,
 		fees money,
 		penalty money,
@@ -46,19 +51,22 @@ insert @wt
 		taxrollId,
 		taxYear,
 		parcel,
+		invoiceAmount,
 		invoiceDue,
 		0,
 		0,
 		interestDate,
 		TYP,
 	        ''   					
-			from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
-			
+		from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
+
+
 insert @wt
 	select	id,
 		taxrollId,
 		taxYear,
 		parcel,
+		invoiceAmount,
 		invoiceDue,
 		0, 
 		0,
@@ -101,11 +109,15 @@ insert @rt
 		+ dbo.padLeft(dbo.formatcurr(invoiceDue+penalty+fees),' ',14),
 		taxYear,
 		invoiceType,
+		dbo.formatcurr(invoiceAmount),
 		dbo.formatcurr(invoiceDue),
 		dbo.formatcurr(penalty),
 		dbo.formatcurr(fees),
 		dbo.formatcurr(0),
 		dbo.formatcurr(invoiceDue+penalty+fees),
+		taxrollId,
+		@parcel,
+		perTyp,		
 		@parcel+''+taxyear+''+invoiceType+'c' 
 		from @wt order by taxYear
 

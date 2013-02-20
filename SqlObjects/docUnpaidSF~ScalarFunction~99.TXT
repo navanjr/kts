@@ -24,36 +24,18 @@ declare @wt table(invoiceId int,
 		  invoiceType varchar(10),
                   perTyp varchar(10))
 	
-insert @wt
-	select	id,taxrollId,
-			taxYear,
-			parcel,
-			isnull(invoiceDue,0),
-			0,
-			0,
-			interestDate,
-			TYP,
-	                ''   					
-			from invoices where /*taxYear >= @taxYear and*/ (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
-
-insert @wt
-	select	id,taxrollId,
-			taxYear,
-			parcel,
-			isnull(invoiceDue,0),
-			0,
-			0,
-			interestDate,
-			TYP,
-	                ''   					
-			from invoices where statementId = @invoiceId and id not in (select invoiceId from @wt)
-
-update w set w.perTyp = a.perTyp from adtax a, @wt w where w.taxrollId = a.id
-			
-update a set			
-	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
-	 a.penalty = isnull(round((cast(a.invoiceDue as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2),0)
-    from @wt a
+insert into @wt
+ select invoiceId,
+	taxrollId,
+	taxYear,
+	parcel,
+	taxDue,
+	fees,
+	penalty,
+	@interestDate,
+	invoiceType,
+	perTyp 
+	from docUnpaidTF(@invoiceid,@interestDate) where RIGHT(ord,1)='c'
 
 declare @ret varchar(max) = ''
 
