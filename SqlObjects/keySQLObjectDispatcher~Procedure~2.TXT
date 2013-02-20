@@ -10,16 +10,19 @@ create procedure dbo.keySQLObjectDispatcher(
 begin
 
  declare
+  @objectFileName nvarchar(500),
   @objectName nvarchar(50),
   @objectType nvarchar(50),
   @objectDropType nvarchar(50),
   @sqlMax nvarchar(max),
   @sysObjMax nvarchar(max) = '',
   @sysObjId int,
-  @legacyLog varchar(max)
+  @legacyLog varchar(max),
+  @dropCommand nvarchar(1000)
 
 -- Gather information about this Object
  select
+  @objectFileName = key1 + '~' + Key2 + '~' + a17 + '.TXT',
   @objectName=Key1,
   @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
   @objectDropType=Key2,
@@ -35,6 +38,19 @@ begin
 
  if @logDebug = 'TRUE'
   exec dbo.logit @@procid, @log
+
+ if @dropFlag = 'TRUE'
+ begin
+  set @dropCommand = 'drop '+ @objectType +' [dbo].['+ @objectName +']'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid, 'Dropping Object and removing from Object... @id', @id, @dropCommand
+  if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   exec(@dropCommand)
+  update object set typ = typ * -1 where id = @id
+  select @dropCommand = 'del ' + path + '\SQLObjects\' + @objectFileName from paths() where name = 'gitRepo'
+  exec xp_cmdShell @dropCommand
+  return
+ end
 
 if @alter = 'TRUE'
 begin
