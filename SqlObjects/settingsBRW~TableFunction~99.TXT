@@ -1,0 +1,21 @@
+create function dbo.settingsBRW(
+ @parentName varchar(50)
+) returns @rt table(
+ id int,
+ display varchar(max),
+ rowType int,
+ ord varchar(50)
+) as
+begin
+
+ insert @rt
+ select
+  id * -1,
+  dbo.splitF(settingName,'.',2) + ':' + settingValue,
+  0,
+  settingName
+ from settings
+ where dbo.splitF(settingName,'.',1) = @parentName
+
+ return
+end

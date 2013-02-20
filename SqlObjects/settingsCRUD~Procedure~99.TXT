@@ -1,5 +1,6 @@
 create proc dbo.settingsCRUD(
  @settingName varchar(50) = null,
+ @settingDescription varchar(500) = null,
  @settingValue varchar(150) = null,
  @settingId int = null,
  @method varchar(20) = 'POST',
@@ -38,9 +39,10 @@ begin
 
  if @method = 'TOGGLE'
  begin
-  update settings set
-   settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue)
-  where settingName = @settingName
+  if @settingId is not null
+   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where id = @settingId
+  else
+   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where settingName = @settingName
  end
 
  if @method = 'GET'
@@ -54,7 +56,7 @@ begin
   end
   else
   begin
-   select @valueOut ='@name=' + settingName + ';@value=' + isnull(settingValue,'') + ';'  from dbo.settings where id = @settingId
+   select @valueOut ='@name=' + settingName + ';@value=' + isnull(settingValue,'') + ';@description=' + isnull(description,'') +  ';'  from dbo.settings where id = @settingId
    if @verbose = 'TRUE'
     select @valueOut as settingValue
    return
