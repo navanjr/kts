@@ -264,6 +264,13 @@ begin
    return
   end
 
+  declare @registerDateOverride varchar(20) = 'FALSE'
+
+  if @paymentType = 'official Voucher'
+  begin
+   exec dbo.settingsCRUD 'site.voucherPostDateEqualsVoucherDate', @method='GET', @valueOut = @registerDateOverride output 
+  end
+
 
   exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
@@ -277,7 +284,7 @@ begin
   select 
    4771,
    @nextVoucherNumber,
-   dbo.clarionDate(getDate()),
+   case when @registerDateOverride = 'TRUE' and isnull(@voucherDate,'') > ' 0' then isnull(@voucherDate,'') else dbo.clarionDate(getDate()) end,
    @voucherNumber,
    isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
