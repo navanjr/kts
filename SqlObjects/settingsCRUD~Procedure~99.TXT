@@ -9,12 +9,38 @@ create proc dbo.settingsCRUD(
 ) as
 begin
  set nocount on
-  if @method = 'POST'
+
+ if @method = 'POST'
  begin
+
+-- setup default settings Here
+  declare @defaultSettings table(
+   name varchar(50),
+   value varchar(50),
+   description varchar(500),
+   parentId varchar(15)
+  )
+
+  insert @defaultSettings 
+  select 'site.voucherPostDateEqualsVoucherDate', 'FALSE', 'Default the Vouchers postdate to the VoucherDate',
+   'o' + cast((select top 1 id from object where typ = 40 order by id) as varchar)
+
+  insert settings (settingName,settingValue,description,parentId)
+  select * from @defaultSettings where name not in (select settingName from settings)
+
+-- back to the real POST
   if exists(select * from settings where settingName = @settingName)
    update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
   else
    insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
+
+ end
+
+ if @method = 'TOGGLE'
+ begin
+  update settings set
+   settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue)
+  where settingName = @settingName
  end
 
  if @method = 'GET'
@@ -46,7 +72,7 @@ begin
    update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))) where parentId = @parentId
  end
 
-if @method = 'DELETEALL' 
+ if @method = 'DELETEALL' 
  begin
   if exists(select * from settings where parentId = @parentId)
    delete from settings where parentId = @parentId
