@@ -163,12 +163,16 @@
  refreshBRW=;
 
 @moreOptions=
- m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections|&Cancel'),
+ if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
+ m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections'&lcdel&'|&Cancel'),
  if(gcretval=1,showFeePenalty=),
  if(gcretval=2,Attach=),
  if(gcretval=3,UnAttach=),
  if(gcretval=4,collections=),
+ if(gcretval=5 and cur:securitylevel=100,delInvoice=),
  refreshBRW=;
+
+@delInvoice=sql('exec dbo.invoiceCRUD @mode=3, @invoiceId='&kpbrwid(1)*-1&', @postcheckoverride=0');
 
 @collections=
  d1select('exec dbo.dtypeCommentCRUD @mode=''CREATEBYINVOICE'', @invoiceId='&kpbrwid(1)*-1),
