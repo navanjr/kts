@@ -2,65 +2,108 @@
 @bbproc7= 
  gcBeginDate=77449,
  gcEndDate=77466,
- glJournalReport=;
+ journalReportAll=;
 
 
 
-@glJournalReport=
- do(452,getSiteInfo=),
- lcLm=500,
- lcTm=1200,
- 
- lcsql='select accountDesc, journalDate, debit, credit, journalDesc, journalType from journalDetail where journalDate between '&gcBeginDate&' and '&gcEndDate&' order by journalType, sourceKey1, id ',
+@journalReportAll=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=1200,
+  lcBold=700,
+  lcItalics=4600,
+  lcLgFont=12,
+  lcRegular=400,
+  lcRegFont=10,
 
+  lcJournalTot=0,
+  lcJournalDebitTot=0,
+  lcJournalCreditTot=0,
+  lcJournalTot=0,
+
+  lcsql='select accountDesc, journalDate, debit, credit, journalDesc, journalType, DetailType from journalDetail where journalDate between '''&gcBeginDate&''' and '''&gcEndDate&''' order by journalType, sourceKey1, id ',
 
   tr(
-    lcLm=600,
-    lcTm=1100,
-    lcRecCnt=0,
-    lcCnt=0,
     prn(printed),
     prn(page),
     prn('Journal Report (All)',t1),
     prn(gcCounty&' County',t2), 
     prn(gcCity&', '&gcState,t3),    
     prn('Journals between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
-    
     prn(,lcLm,lcTm+300),
-    bnd('HU',
-     'Accnt Desc',1000,
-     'Journal Date',750,
-     'Debit',1000,
-     'Credit',1000,
-     'Description',2000
-      ),
+       
+    grp(1,obj5:a6, do(
+    bnd('HOU','Type: '&obj5:a6,7500),
     nl,
-    grp(1,obj5:a6,
-    do(
-    bnd('H','Fund: '&obj5:a6,5000),
-    nl,
-      ),do(
-   nl,
-   bnd('H','Total:',1550R,format(lcJournalTot,@n$14.2),1000R,),
-   lcWarrantTot=0,
-   nl,) ),
-   bnd('H','',7500),  
-
-   det(lcsql),
+    bnd('H','Accnt Desc',2200,'Journal Date',750,'Debit',1000,'Credit',1000,'Description',2000),
+    ),do(
+    bnd('H','Totals:',2800R,format(lcJournalDebitTot,@n$-14.2),1000,format(lcJournalCreditTot,@n$-14.2),1000),
+    lcJournalDebitTot=0,
+    lcJournalCreditTot=0,
+    nl,)
+    ),
+  
+    det(lcsql),
      bnd('D',
-     format(obj5:a2,@d1),750C,
-     format(obj5:a1,@n05),700C,
-     format(obj5:a3,@n$14.2),1000R,
-     format(obj5:a4,@n05),700C,
-     format(obj5:a5,@d1),750C,
-     format(obj5:a6,@s70),2800 ),
-     lcJournalDebitTot=lcWarrantDebitTot+obj5:a3,
+     format(obj5:a1,@s30),2200,
+     format(obj5:a2,@d2),750,
+     obj5:a3,1000,
+     obj5:a4,1000,
+     format(obj5:a5,@s28),2000),
+     lcJournalDebitTot=lcJournalDebitTot+obj5:a3,
      lcJournalCreditTot=lcJournalCreditTot+obj5:a4,
-   edt,
-
-
+    edt,
 );
 
+
+@journalReportGL=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=1200,
+  lcBold=700,
+  lcItalics=4600,
+  lcLgFont=12,
+  lcRegular=400,
+  lcRegFont=10,
+
+  lcJournalTot=0,
+  lcJournalDebitTot=0,
+  lcJournalCreditTot=0,
+  lcJournalTot=0,
+
+  lcsql='select accountDesc, journalDate, debit, credit, journalDesc, journalType, DetailType from journalDetail where DetailType = ''GL'' and journalDate between '''&gcBeginDate&''' and '''&gcEndDate&''' order by journalType, sourceKey1, id ',
+
+  tr(
+    prn(printed),
+    prn(page),
+    prn('Journal Report (All)',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),    
+    prn('Journals between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
+    prn(,lcLm,lcTm+300),
+       
+    grp(1,obj5:a6, do(
+    bnd('HOU','Type: '&obj5:a6,7500),
+    nl,
+    bnd('H','Accnt Desc',2200,'Journal Date',750,'Debit',1000,'Credit',1000,'Description',2000),
+    ),do(
+    bnd('H','Totals:',2800R,format(lcJournalDebitTot,@n$-14.2),1000,format(lcJournalCreditTot,@n$-14.2),1000),
+    lcJournalDebitTot=0,
+    lcJournalCreditTot=0,
+    nl,)
+    ),
+  
+    det(lcsql),
+     bnd('D',
+     format(obj5:a1,@s30),2200,
+     format(obj5:a2,@d2),750,
+     obj5:a3,1000,
+     obj5:a4,1000,
+     format(obj5:a5,@s28),2000),
+     lcJournalDebitTot=lcJournalDebitTot+obj5:a3,
+     lcJournalCreditTot=lcJournalCreditTot+obj5:a4,
+    edt,
+);
 
 
 

@@ -82,6 +82,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 \t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r
 \t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
 \t120Process; \h120obj:c1<>1; \y120305;
+
 @acc120=
  lctally=kp('select count(*) from dbo.journalEntryBRW('&obj:id&','&readstring(cur:options,'@showgl=')&') where importFlag = 1'),
  break(lcTally+0<1),
@@ -95,6 +96,32 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
   gcJEReportWhere='where slink=''o'&obj:id&'''',
   gcJournalComment=obj:e1,
   trreport('JournalEntry',4790,'glJournalEntryReport=');
+
+@bb7=Journal Report;
+@bbproc7=
+ iw(
+   \t000Please Enter Date Range...;
+   \t001Begin Date;
+   \t002@d2;
+   \w00250;
+   \t003End Date;
+   \t004@d2;
+   \w00450;
+   @loadwindow=create(150,12,3,30,'G/L Type Only',80);
+ ),
+  break(gcretval = 'esc'),
+  gcBeginDate=obj7:key1,
+  gcEndDate=obj7:key2,
+  if(gcBeginDate+0<1,gcBeginDate=10 ),
+  if(gcEndDate+0<1,gcEndDate=today() ),
+  if(obj7:c2+0=1,printJournalAll=,printJournalGL=) ;
+
+@printJournalAll=
+  trreport('JournalReportAll',4790,'journalReportAll=');
+
+@printJournalGL=
+  trreport('JournalReportGL',4790,'journalReportGL=');
+
 
 \t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0; \h110obj:a17='Posted';
 
@@ -119,8 +146,6 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
   acc110=, 
   update,
   if(obj:a17='Posted',gccontinue='');
-
-
 
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
@@ -210,8 +235,6 @@ iw('@afterloadwindow=set(-03,'&gccontraId&');
  if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=),
  refreshbrw=,
  blankEm=;
-
-
 
 @removeRow=
  break(kpbrwid(1)=0),
