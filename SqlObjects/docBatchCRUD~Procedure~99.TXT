@@ -70,12 +70,21 @@ begin
    set @processCode = @initials + '.001'
 
   insert dbo.documentProcessing 
-   select top (@batchSize) id, @documentName, @documentDate, @processCode, name + cast(item as varchar), 0.0
+   select top (@batchSize) id, @documentName, @documentDate, @processCode, name + cast(item as varchar), isnull(ownerNumber,0.0), name
    from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
     order by name, item
 
   exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
+  exec dbo.docBatchPBStuff
+   @documentName,
+   @processCode,
+   @documentDate,
+   @invTypeString,
+   @taxyear,
+   @paidRatio,
+   @switches,
+   @dTypesBlob
 
   return
  end 

@@ -22,7 +22,8 @@ create function dbo.docReceivablesBRW(
  typ varchar(5),
 -- pertyp varchar(5),
  paidRatio money,
- rowType int
+ rowType int,
+ ownerNumber numeric(14,1)
 ) as
 begin
 
@@ -73,8 +74,9 @@ begin
   pertyp varchar(5),
   paidRatio money,
   statementId int,
-  mortgageCode varchar(50)
-)
+  mortgageCode varchar(50),
+  ownerNumber numeric(14,1)
+ )
 
 -- Deal with Mortgagecodes, delete everything that is not the selected mortcodes
  declare @selectedMortgageCodes table(code varchar(50))
@@ -101,7 +103,8 @@ begin
    0
   end,
   i.statementId,
-  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) 
+  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)),
+  adtax.ownerNumber 
  from invoices i
  left outer join adtax on taxrollId = adtax.id
  where (invoiceDue + taxRuleDue) != 0
@@ -129,7 +132,8 @@ begin
    0
   end,
   i.statementId,
-  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) 
+  coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)), 
+  adtax.ownerNumber 
  from invoices i
  left outer join adtax on taxrollId = adtax.id
  where (invoiceDue + taxRuleDue) != 0
@@ -202,7 +206,8 @@ begin
   taxyear,
   typ + case when pertyp > '  0' then '.' + pertyp else '' end,
   paidRatio,
-  1
+  1,
+  null--max(ownerNumber)
  from @wt
  group by 
   taxyear, typ, perTyp,
@@ -275,10 +280,10 @@ begin
  else
  begin
   insert @rt (
-   id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType
+   id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType, ownerNumber
   )
   select
-   id, name, parcel, item, amount, due, fees, taxyear, typ, paidRatio, 1
+   id, name, parcel, item, amount, due, fees, taxyear, typ, paidRatio, 1, ownerNumber
  from @wt
  end
  return 
