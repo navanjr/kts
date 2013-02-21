@@ -29,6 +29,9 @@ begin
   insert settings (settingName,settingValue,description,parentId)
   select * from @defaultSettings where name not in (select settingName from settings)
 
+  if @@rowcount > 0
+   exec dbo.logit @@procid, 'inserted default settings... @@rowCount', @@rowcount
+
 -- back to the real POST
   if exists(select * from settings where settingName = @settingName)
    update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
