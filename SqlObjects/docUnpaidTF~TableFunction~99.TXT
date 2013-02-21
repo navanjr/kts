@@ -16,6 +16,9 @@ create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(20))
 		taxrollId int,
 		parcel varchar(50),
 		perTyp varchar(5),
+		sec varchar(10),
+                twp varchar(10),
+                rng varchar(10),
 		ord varchar(1000))
 	as 
 	begin						
@@ -44,7 +47,11 @@ declare @wt table(
 		penalty money,
 		interestDate varchar(10),
 		invoiceType varchar(10),
-                perTyp varchar(10))
+                perTyp varchar(10),
+                sec varchar(10),
+                twp varchar(10),
+                rng varchar(10)
+)
 	
 insert @wt
 	select	id,
@@ -57,7 +64,10 @@ insert @wt
 		0,
 		interestDate,
 		TYP,
-	        ''   					
+	        '',
+                '',
+                '',
+                ''   					
 		from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
 
 
@@ -72,10 +82,19 @@ insert @wt
 		0,
 		interestDate,
 		TYP,
-	        ''   					
+	        '',
+                '',
+                '',
+                ''   					
 		from invoices where statementId = @invoiceId and id not in (select invoiceId from @wt)
 
-update w set w.perTyp = a.perTyp from adtax a, @wt w where w.taxrollId = a.id
+update w set 
+		w.perTyp = a.perTyp, 
+		w.sec = sectionNumber,
+		w.twp = townshipblock,
+		w.rng = rangelot
+		from adtax a, @wt w where w.taxrollId = a.id
+
 			
 update a set			
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
@@ -117,7 +136,10 @@ insert @rt
 		dbo.formatcurr(invoiceDue+penalty+fees),
 		taxrollId,
 		@parcel,
-		perTyp,		
+		perTyp,
+		sec,
+		twp,
+		rng,	
 		@parcel+''+taxyear+''+invoiceType+'c' 
 		from @wt order by taxYear
 
