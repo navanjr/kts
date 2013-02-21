@@ -47,7 +47,24 @@ begin
 
 -- insert all raw receipt data
  insert @wtRaw
- select
+  select
+   accountId,
+   accountType,
+   accountcode,
+   accountdesc,
+   sourcekey1,
+   amount,
+   slink,
+   case when isnumeric(sourceType)=1 then cast(sourceType as int) else 0 end
+  from dbo.gldetailreports
+  where sourcetype='4512'
+   and sourcea18 <> 'Miscellaneous Deposit' 
+   and left(sourcea18,13) <> 'Apportionment'
+   and sourcedate >= cast(@theDate as varchar)
+   and sourcedate <= cast(@theDate + @days as varchar)
+
+
+/* select
   b.accountId,
   a.collectionDescription,
   b.accountCode,
@@ -62,7 +79,7 @@ begin
   and dbo.slinkType(b.slink) = 'o'
   and dbo.slinkId(b.slink) = c.id
   and case when isnumeric(c.key2)=1 then cast(c.key2 as int) else 0 end between @theDate and @theDate + @days
-
+*/
 -- this will get just the account
  insert @wt
  select
