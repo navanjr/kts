@@ -42,8 +42,8 @@ taxStatmentHalfGr=;
   lcTickX=100,
   lcTickY=6100,
   d1select('exec dbo.settingsCRUD @parentId=''o'&gcDocumentId&''', @method=''GET'', @verbose=''TRUE'''),
-  lcSettingsBlob=obj7:d1,
-  lcStatementTitleSuffix=choose(readstring(lcSettingsBlob,'@lc2ndHalfFlag=')='TRUE','Second Half Tax Statement','Tax Statement'),
+  lcDocVarBlob=obj7:d1,
+  lcStatementTitleSuffix=choose(readstring(lcDocVarBlob,'@2ndHalfFlag=')='TRUE','Second Half Tax Statement','Tax Statement'),
  tr(
    lcMil=0,
    lcTot=0,
@@ -104,6 +104,7 @@ taxStatmentHalfGr=;
   prn(,lcx+4850,lcy,,bold,),
    box(lcx+4850,lcy-175,lcx+7600,lcy+325,,),
    bnd(,'Total '&readstring(lcInvoiceBlob,'@TAXYEAR=')&' Tax Due',1500C,format(lcgrandtotal,@n$-14.2),1100R),
+   if(readstring(lcDocVarBlob,'@2ndHalfFlag=')='TRUE'),do(prn(,lcx+2000),nl,nl,bnd(,'Second Half Payment Due By '&readstring(lcDocVarBlob,'@interestTo='),1500),prn(,lcx+4850)),
    lcy=lcTm+6075,
   lcy=lcy+100,
   prn(,lcx-350,lcy),
@@ -153,6 +154,7 @@ taxStatmentHalfGr=;
   bnd(,'Half',600,'Half Tax',1200,format(lcHalf,@n$-14.2b),1500R),
   prn(,,lcy+765),
   bnd(,'All',600,'Total '&readstring(lcInvoiceBlob,'@TAXYEAR=')&' Tax Due',1200,format(lcgrandtotal,@n$-14.2b),1500R),
+  if(readstring(lcDocVarBlob,'@2ndHalfFlag=')='TRUE'),do(nl,bnd(,,700,'Due By '&readstring(lcDocVarBlob,'@interestTo='),1200)),
   if(lcTickInt=1),do(
    lin(lcTickX,lcTickY,lcTickX+lcTickW,lcTickY,lcTickPen),lcTickY=lcTickY+lcTickGap,
    lcTickY=lcTickY+lcTickGap,
