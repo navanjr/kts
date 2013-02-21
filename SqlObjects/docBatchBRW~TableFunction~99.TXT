@@ -28,7 +28,8 @@ create function dbo.docBatchBRW(
  origin int,
  documentDate int,
  feesProcessed money,
- display varchar(250)
+ display varchar(250),
+ ownerNumber numeric(14,2)
 ) as
 begin
 
@@ -43,8 +44,9 @@ begin
   from dbo.docBRWDecoder(@batchBRWId)
 
 -- document processing 
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate, i.taxRuleDue --(select sum(invoiceDue) from invoices where statementId = i.id)
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount, ownerNumber)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue,
+  coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate, i.taxRuleDue, d.ownerNumber
  from documentProcessing d
  join invoices i on d.invoiceId = i.id
  left outer join adtax a on i.taxrollId = a.id
@@ -55,9 +57,12 @@ begin
 -- insert @rt (ord, display, count1) select 'c' + processCode, '   ' + processCode, count(*)
 
 -- completed batches
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount, feesProcessed)
- select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue, coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime), i.taxRuleDue,
-  (select SUM(x.invoiceAmount) from invoices x where x.invoiceId = i.ID and x.queue = @processCode and x.printed = @documentName)
+ insert @rt
+  (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed,
+  printOrder, taxrollId, origin, documentDate, otherAmount, feesProcessed, ownerNumber)
+ select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue,
+  coalesce(a.treamort,cast(a.mortgageCode as varchar)), d.documentDateTime, d.printOrder, i.taxrollId, 2, dbo.clarionDate(d.documentDateTime), i.taxRuleDue,
+  (select SUM(x.invoiceAmount) from invoices x where x.invoiceId = i.ID and x.queue = @processCode and x.printed = @documentName), 0.0
  from taxrollDetail d
  join invoices i on d.invoiceLinkId = i.id
  left outer join adtax a on i.taxrollId = a.id

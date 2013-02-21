@@ -26,7 +26,9 @@ begin
   invoiceId int,
   printOrder varchar(50),
   taxrollId int,
-  origin int
+  origin int,
+  ownerNumber numeric(14,2),
+  name varchar(50)
  )
 
  select
@@ -77,7 +79,7 @@ begin
   else -- markAll
   begin
 
-   insert @wt select invoiceId, printOrder, taxrollId, origin
+   insert @wt select invoiceId, printOrder, taxrollId, origin, ownerNumber, name
    from dbo.docBatchBRW(@batchBRWId,null,null,'')
    where printOrder <= @printOrder
 
@@ -102,7 +104,7 @@ begin
 
  if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
  begin
-  insert @wt select invoiceId, printOrder, taxrollId, origin from dbo.docBatchBRW(@batchBRWId,null,null,'') where printOrder >= @printOrder
+  insert @wt select invoiceId, printOrder, taxrollId, origin, ownerNumber, name from dbo.docBatchBRW(@batchBRWId,null,null,'') where printOrder >= @printOrder
   select @tally = count(*) from @wt
   select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
   exec dbo.logit @@procid, @log
@@ -116,7 +118,7 @@ begin
    exec dbo.logit @@procid, '@documentName', @documentName, '@processCode', @processCode, '@printOrder', @printOrder
    update taxrollDetail set invoiceLinkId = invoiceLinkId * -1
    where documentName = @documentName and stamp = @processCode and invoicelinkId in (select invoiceId from @wt where origin = 2)
-   insert documentProcessing select invoiceId, @documentName, dbo.clariondate(getdate()), @processCode, printOrder from @wt where origin = 2
+   insert documentProcessing select invoiceId, @documentName, dbo.clariondate(getdate()), @processCode, printOrder, ownerNumber, name from @wt where origin = 2
   end
   return
  end
