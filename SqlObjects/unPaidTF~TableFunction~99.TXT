@@ -1,6 +1,6 @@
 create function [dbo].[unpaidTF](
- @invoiceId int
-) returns @rt table(
+ @invoiceId int,
+ @documentId int) returns @rt table(
  invoiceid int,
  origin varchar(50),
  year varchar(4),
@@ -96,7 +96,13 @@ begin
  from invoices 
  where invoiceId in (select invoiceId from @rt) and typ not in ('A','P')
 
- set @asof = '01/15/' + cast(@year + 1 as varchar)
+
+---set InterestTo Date
+if @documentId>0
+   select top 1 @asof = settingValue from settings where parentId = 'o'+@documentId and dbo.splitF(settingName,'.',2) = 'interestTo'
+  else
+   set @asof = '01/15/' + cast(@year + 1 as varchar)
+ 
 
  update @rt set
   interestAsOfDate = @asof,
