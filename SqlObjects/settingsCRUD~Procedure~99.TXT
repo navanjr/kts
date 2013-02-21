@@ -5,16 +5,17 @@ create proc dbo.settingsCRUD(
  @settingId int = null,
  @method varchar(20) = 'POST',
  @verbose varchar(5) = 'FALSE',
+ @logit varchar(5) = 'FALSE',
  @parentId varchar(50) = '',
  @valueOut varchar(max) = null output
 ) as
 begin
  set nocount on
 
- if @method = 'POST'
- begin
-
 -- setup default settings Here
+ if @method = 'INITIALIZE'
+ begin
+  exec dbo.logit @@procid, 'Initializing Settings...'
   declare @defaultSettings table(
    name varchar(50),
    value varchar(50),
@@ -22,17 +23,23 @@ begin
    parentId varchar(15)
   )
 
+  declare @siteId int
+  select top 1 @siteId = id from object where typ = 40 order by id
+
   insert @defaultSettings 
-  select 'site.voucherPostDateEqualsVoucherDate', 'FALSE', 'Default the Vouchers postdate to the VoucherDate',
-   'o' + cast((select top 1 id from object where typ = 40 order by id) as varchar)
+  select 'site.voucherPostDateEqualsVoucherDate', 'FALSE', 'Default the Vouchers postdate to the VoucherDate', 'o' + cast(@siteId as varchar)
+  union
+  select 'site.pbStuffer', 'FALSE', 'Use ownerNumber for sorting of tax Statements. PitneyBowes', 'o' + cast(@siteId as varchar)
 
   insert settings (settingName,settingValue,description,parentId)
-  select * from @defaultSettings where name not in (select settingName from settings)
+  select * from @defaultSettings where name not in (select settingName from settings where settingName is not null)
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'inserted default settings... @@rowCount', @@rowcount
+ end
 
--- back to the real POST
+ if @method = 'POST' and @settingValue is not null
+ begin
   if exists(select * from settings where settingName = @settingName)
    update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
   else
@@ -55,6 +62,8 @@ begin
    select @valueOut = settingValue from dbo.settings where settingName = @settingName
    if @verbose = 'TRUE'
     select @valueOut as settingValue
+   if @logit = 'TRUE'
+    exec dbo.logit @@procid, '@settingName', @settingName, '@settingValue', @valueOut
    return
   end
   else
