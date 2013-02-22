@@ -272,6 +272,7 @@ begin
   end
 
 
+
   exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
  begin try
@@ -356,6 +357,15 @@ begin
    where typ = 4771 and id = @id
 
   end
+
+  declare @checkStyleWarrants varchar(20) = 'FALSE'
+
+  if @paymentType = 'Treasurers Check'
+  begin
+   exec dbo.settingsCRUD 'site.checkStyleWarrants', @method='GET', @valueOut = @checkStyleWarrants output 
+  end
+
+
  
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
@@ -375,6 +385,11 @@ begin
   -- post gl
   exec dbo.glPost @newId, 'o', @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
+
+  if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
+  begin
+    update gldetail set bsId = @bankStatementId where slink = @newslink and accountcode=@officialbankcode
+  end
 
  end
 
