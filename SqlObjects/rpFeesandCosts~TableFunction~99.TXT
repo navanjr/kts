@@ -1,5 +1,27 @@
 create function dbo.rpFeesandCosts(@begindate varchar(20),@enddate varchar(20))
 returns @rt table(id int identity(1,1),
+                   taxyear varchar(50),
+                   taxrate varchar(60),
+                   sourceDate varchar(50),
+                   itemNo varchar(50),
+                   ReceiptNo varchar(50),
+                   Name varchar(60),
+                   Col1 varchar(60),
+                   Col2 varchar(60),
+                   Col3 varchar(60),
+                   Col4 varchar(60),
+                   Col5 varchar(60),
+                   Col6 varchar(60),
+                   Col7 varchar(60),
+                   Col8 varchar(60),
+                   Col9 varchar(60),
+                   Col10 varchar(60),
+                   Other varchar(60),
+                   ord varchar(2000))
+as
+begin
+
+declare	@wt3 table(id int identity(1,1),
                    taxyear varchar(4),
                    taxrate varchar(60),
                    sourceDate varchar(20),
@@ -7,30 +29,28 @@ returns @rt table(id int identity(1,1),
                    ReceiptNo varchar(20),
                    Name varchar(60),
                    Col1Name varchar(60),
-                   Col1Amt money,
+                   Col1Amt money default 0,
                    Col2Name varchar(60),
-                   Col2Amt money,
+                   Col2Amt money default 0,
                    Col3Name varchar(60),
-                   Col3Amt money,
+                   Col3Amt money default 0,
                    Col4Name varchar(60),
-                   Col4Amt money,
+                   Col4Amt money default 0,
                    Col5Name varchar(60),
-                   Col5Amt money,
+                   Col5Amt money default 0,
                    Col6Name varchar(60),
-                   Col6Amt money,
+                   Col6Amt money default 0,
                    Col7Name varchar(60),
-                   Col7Amt money,
+                   Col7Amt money default 0,
                    Col8Name varchar(60),
-                   Col8Amt money,
+                   Col8Amt money default 0,
                    Col9Name varchar(60),
-                   Col9Amt money,
+                   Col9Amt money default 0,
                    Col10Name varchar(60),
-                   Col10Amt money,
-                   Other varchar(60),
-                   OtherAmt money
+                   Col10Amt money default 0,
+                   OtherAmt money default 0
 )
-as
-begin
+
 
 declare @wt table(id int identity(1,1),
                    gldetailid int,
@@ -68,7 +88,7 @@ select
  i.invoiceId,
  g.sourcea1,
  rd.[description],
- g.amount,
+ isnull(g.amount,0),
  g.sourceDate
  from gldetailreports g, invoices i, receiptdetail rd
  where g.invoiceid=i.id
@@ -97,15 +117,15 @@ update w set taxrate = case when aprate > ' 0' then aprate else accountCode end 
 insert @headers select distinct [description] from @wt
 
 insert @wt2 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],amount)
-select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],sum(amount) from @wt
+select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],sum(isnull(amount,0)) from @wt
  group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description]
  
-insert @rt (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name)
+insert @wt3 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name)
 select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name from @wt
  group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
 
-update a set col1Amt=c.amount, Col1Name=b.[description]
- from @rt a, 
+update a set col1Amt=isnull(c.amount,0), Col1Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -117,8 +137,8 @@ update a set col1Amt=c.amount, Col1Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 1
      
-update a set col2Amt=c.amount, Col2Name=b.[description]
- from @rt a, 
+update a set col2Amt=isnull(c.amount,0), Col2Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -130,8 +150,8 @@ update a set col2Amt=c.amount, Col2Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 2
 
-update a set col3Amt=c.amount, Col3Name=b.[description]
- from @rt a, 
+update a set col3Amt=isnull(c.amount,0), Col3Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -143,8 +163,8 @@ update a set col3Amt=c.amount, Col3Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 3
      
-update a set col4Amt=c.amount, Col4Name=b.[description]
- from @rt a, 
+update a set col4Amt=isnull(c.amount,0), Col4Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -156,8 +176,8 @@ update a set col4Amt=c.amount, Col4Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 4
      
-update a set col5Amt=c.amount, Col5Name=b.[description]
- from @rt a, 
+update a set col5Amt=isnull(c.amount,0), Col5Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -169,8 +189,8 @@ update a set col5Amt=c.amount, Col5Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 5
      
-update a set col6Amt=c.amount, Col6Name=b.[description]
- from @rt a, 
+update a set col6Amt=isnull(c.amount,0), Col6Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -182,8 +202,8 @@ update a set col6Amt=c.amount, Col6Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 6
      
-update a set col7Amt=c.amount, Col7Name=b.[description]
- from @rt a, 
+update a set col7Amt=isnull(c.amount,0), Col7Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -195,8 +215,8 @@ update a set col7Amt=c.amount, Col7Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 7
      
-update a set col8Amt=c.amount, Col8Name=b.[description]
- from @rt a, 
+update a set col8Amt=isnull(c.amount,0), Col8Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -208,8 +228,8 @@ update a set col8Amt=c.amount, Col8Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 8
      
-update a set col9Amt=c.amount, Col9Name=b.[description]
- from @rt a, 
+update a set col9Amt=isnull(c.amount,0), Col9Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -221,8 +241,8 @@ update a set col9Amt=c.amount, Col9Name=b.[description]
   and b.[description]=c.[description]
   and b.id = 9
      
-update a set col10Amt=c.amount, Col10Name=b.[description]
- from @rt a, 
+update a set col10Amt=isnull(c.amount,0), Col10Name=b.[description]
+ from @wt3 a, 
  @headers b, 
  @wt2 c
  where a.taxyear = c.taxyear
@@ -236,9 +256,9 @@ update a set col10Amt=c.amount, Col10Name=b.[description]
  
  delete from @wt2 where [description] in (select [description] from @headers)    
  
-update a set OtherAmt=c.amount
- from @rt a, 
- (select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,sum(amount) as amount from @wt2
+update a set OtherAmt=isnull(c.amount,0)
+ from @wt3 a, 
+ (select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,sum(isnull(amount,0)) as amount from @wt2
  group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
 ) c
  where a.taxyear = c.taxyear
@@ -248,16 +268,36 @@ update a set OtherAmt=c.amount
   and a.receiptNo=c.receiptNo
   and a.name=c.name
  
- update @rt set Col1Name = (select max(Col1Name) from @rt) where id > 0
- update @rt set Col2Name = (select max(Col2Name) from @rt) where id > 0
- update @rt set Col3Name = (select max(Col3Name) from @rt) where id > 0
- update @rt set Col4Name = (select max(Col4Name) from @rt) where id > 0
- update @rt set Col5Name = (select max(Col5Name) from @rt) where id > 0
- update @rt set Col6Name = (select max(Col6Name) from @rt) where id > 0
- update @rt set Col7Name = (select max(Col7Name) from @rt) where id > 0
- update @rt set Col8Name = (select max(Col8Name) from @rt) where id > 0
- update @rt set Col9Name = (select max(Col9Name) from @rt) where id > 0
- update @rt set Col10Name = (select max(Col10Name) from @rt) where id > 0
+ update @wt3 set Col1Name = isnull((select max(Col1Name) from @wt3),'') where id > 0
+ update @wt3 set Col2Name = isnull((select max(Col2Name) from @wt3),'') where id > 0
+ update @wt3 set Col3Name = isnull((select max(Col3Name) from @wt3),'') where id > 0
+ update @wt3 set Col4Name = isnull((select max(Col4Name) from @wt3),'') where id > 0
+ update @wt3 set Col5Name = isnull((select max(Col5Name) from @wt3),'') where id > 0
+ update @wt3 set Col6Name = isnull((select max(Col6Name) from @wt3),'') where id > 0
+ update @wt3 set Col7Name = isnull((select max(Col7Name) from @wt3),'') where id > 0
+ update @wt3 set Col8Name = isnull((select max(Col8Name) from @wt3),'') where id > 0
+ update @wt3 set Col9Name = isnull((select max(Col9Name) from @wt3),'') where id > 0
+ update @wt3 set Col10Name = isnull((select max(Col10Name) from @wt3),'') where id > 0
+
+insert @rt  
+ select taxYear,taxrate,dbo.date2(sourceDate),itemNo,ReceiptNo,Name,dbo.formatCurr(Col1Amt),dbo.formatCurr(Col2Amt),dbo.formatCurr(Col3Amt),dbo.formatCurr(Col4Amt),dbo.formatCurr(Col5Amt),dbo.formatCurr(Col6Amt),dbo.formatCurr(Col7Amt),dbo.formatCurr(Col8Amt),dbo.formatCurr(Col9Amt),dbo.formatCurr(Col10Amt),dbo.formatCurr(OtherAmt),taxyear+''+taxrate+'d' from @wt3
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','',taxrate+' Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),taxyear+''+taxrate+'e' 
+ from @wt3 group by taxyear,taxrate
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','',taxYear+' Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),taxyear+'zzzzzf' 
+ from @wt3 group by taxyear
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','','Grand Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),'zzzzzzg' 
+ from @wt3 
+
+insert @rt 
+  select 'Tax Year','Tax Rate','Source Date','Item No','Receipt No','Name',max(Col1Name),max(Col2Name),max(Col3Name),max(Col4Name),max(Col5Name),max(Col6Name),max(Col7Name),max(Col8Name),max(Col9Name),max(Col10Name),'Other',min(taxyear)+''+min(taxrate)+'a' from @wt3
+
+
   
  return
 end 
