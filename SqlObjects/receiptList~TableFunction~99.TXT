@@ -204,7 +204,9 @@ update w set
    and isnull(d.taxYear,'NULL')<>'NULL'
  
 update w set
-  w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortgage fee',Description)>0)
+  w.fee = (select sum(amount)*-1 from gldetail 
+  where slink=w.slink 
+   and accountcode = (select key2 from object where typ=4504 and a1='MTG' and key1 like '%Fee%'))
   from @wt w where w.recType='MTG'
 
 delete from @wt where parentInvoiceId>0
