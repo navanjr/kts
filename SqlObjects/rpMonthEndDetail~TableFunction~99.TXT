@@ -5,7 +5,8 @@ create function dbo.rpMonthEndDetail(@beginDate int, @endDate int, @includeUnapp
 insert @rt 
 select b.accountType,a.accountId, a.accountCode, a.accountDesc, comment, a.comment2, a.sourceCode, sum(amount) as amount, c.journalType, '' as sourceDesc, '' as sourceSECA, o.key3 as journalDesc
 from gldetail a, glAccounts b, (select * from dbo.rpMonthEndSLinks(@beginDate,@endDate)) c, object o  
-where o.typ=4512 and slink='o'+cast(o.id as varchar)
+where o.typ=4512
+ and left(slink,1)='o' and dbo.slinkId(slink)=o.id
  and a.accountCode=b.accountCode 
  and slink = c.journalSlink
  and accountType not in ('EXPENSE')

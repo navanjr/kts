@@ -103,7 +103,9 @@ begin
                    case when @refundAmount > 0.00 then @refundAmount else amount end,
                    'o'+cast(@newId as varchar),@receiptSLink 
                    from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId
+                            and left(g.slink,1)='l' and dbo.slinkid(g.slink)=r.id
+                            and g.amount>0.00
 
          end
          else
@@ -127,7 +129,8 @@ begin
          -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
                   select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and j.receiptId=r.receiptId and g.slink = 'l'+CAST(r.id as varchar)
+                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and j.receiptId=r.receiptId 
+                            and left(g.slink,1)='l' and dbo.slinkid(g.slink)=r.id
          end
          select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
         end
@@ -141,7 +144,8 @@ begin
                     (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP = 'p')
 
         select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode from glDetail g ,receiptlink r,journalLink j
-               where j.jeId = @newId and j.invoiceId = r.invoiceId and g.slink = 'l'+CAST(r.id as varchar)
+               where j.jeId = @newId and j.invoiceId = r.invoiceId 
+                 and left(g.slink,1)='l' and dbo.slinkid(g.slink)=r.id
 
        select * from glDetail 
                where slink in (select slink from receiptSLinks(@receiptId)) and left(slink,1) not in ('o','t')

@@ -119,7 +119,8 @@ declare @idToken int
  insert @rt  
  select postDate, postDate1,mr.receiptNo,f.accountDesc,ReceivedOf,g.amount*-1,g.amount*-1,mr.slink,g.accountCode,isnull((select max(comment) from gldetail where slink=g.slink),''),s.accountDesc,0,mr.recId,0 ,0 
  from @mr mr, gldetail g, glaccounts f, glaccounts s 
-  where 'o'+cast(mr.bsId as varchar(15))=g.slink 
+  where 
+   left(g.slink,1)='o' and dbo.slinkId(g.slink)=mr.bsId
    and g.accountCode=f.accountCode
    and g.sourceCode=s.accountCode
    and f.accountType in (select accountType from dbo.glBankFundTypes('FUND'))
