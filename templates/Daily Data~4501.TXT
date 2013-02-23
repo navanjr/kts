@@ -63,7 +63,9 @@ t120Refresh BRW
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9 or lcTyp=8,menu9=),
- if(lcTyp=7,menu7=);
+ if(lcTyp=7,menu7=),
+ if(lcTyp=6,menu6=),
+ if(lcTyp=5,menu5=);
 
 @menu9=
  m('Accounts|    Please choose one of the following options...','Right Click Menu...','question.ico','Open &Account|&Stage Apportionment|Stage All Apportionment|sho&w|&Cancel'),
@@ -159,9 +161,7 @@ t120Refresh BRW
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9,openType=),
- if(lcTyp=8,openGLAccount=),
- if(lcTyp=7,openDeposit=),
- if(lcTyp=6,openGLDetail=);
+ if(lcTyp=8,openGLAccount=);
 
 @openType=
  break(lcid<1),
@@ -184,9 +184,16 @@ t120Refresh BRW
 
 @openDeposit=;
 
-from dbo.depositPaidUnPosted() a, object b
- where a.receiptType = b.key1 and b.typ = 4503
+@menu5=
+ lcExistingDepositId=kp('select existingDepositId from dbo.dailyDataPendingDeposits() where id = '&kpbrwid(1)),
+ lcButtons=choose(lcExistingDepositId>0,'Edit Existing|','')&'Create New by Type|Create New by Bank|Balance Report|Receipt List|Cancel',
+ m('Please choose one of the following options...','Right Click Menu...','question.ico','Create New Deposit|&Cancel');
+ lcPicked=gcretval+choose(lcExistingDepositId>0,0,1),
+m(lcPicked);
+ if(lcPicked=2,m(lcPicked));
 
+@menu6=
+ change(lcid);
 
 @menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),

@@ -12,7 +12,9 @@ returns @rt table (
  depositAccountCode varchar(50),
  depositAccountDesc varchar(50),
  receiptType varchar(50),
- amount money
+ amount money,
+ actionId int,
+ existingDepositId int
 ) as 
 begin
 
@@ -34,7 +36,7 @@ begin
    case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,
    '',
    dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
-   null,null,null,null,null
+   null,null,null,null,null,null,null
   from dbo.depositPaidUnPosted() a, object b
   where a.receiptType = b.key1 and b.typ = 4503
   group by receiptType, b.id
@@ -46,55 +48,67 @@ begin
  else
  begin
 -- get the raw data
-  insert @rt (id,recordCnt,sourceAmt,depositAccountCode,depositAccountDesc,receiptType,amount,brwBGColor)
+ insert @rt (id,recordCnt,sourceAmt,depositAccountCode,depositAccountDesc,receiptType,amount,brwBGColor,actionId,existingDepositId)
   select
-   cast('7'+cast(0 as varchar) as int) * -1, 
+   -6,
    count(a.id),
    sum(a.amount),
    coalesce(d.a4,b.key2,'AAATRUST'),
-   coalesce(d.b3,b.a18,'Create an Official Deposit for Trust'),
+   coalesce(d.b3,b.a18,'--> Create an Official Deposit for Trust'),
    a.receiptType,
    sum(a.amount),
-   0
+   0,
+   min(b.id),
+   min(a.depositId)
   from dbo.depositPaidUnPosted() a
   left join object b on a.receiptType = b.key1 and b.typ = 4503 and b.Key1 != 'TRUST'
   left join Object c on a.objLinkId = c.ID and c.Typ = 4522
   left join Object d on c.Link2 = d.ID and d.Typ = 4601
   group by
    coalesce(d.a4,b.key2,'AAATRUST'),
-   coalesce(d.b3,b.a18,'Create an Official Deposit for Trust'),
+   coalesce(d.b3,b.a18,'--> Create an Official Deposit for Trust'),
    a.receiptType
 
   update @rt set
    ord = @seedString + 'C' + depositAccountCode + receiptType, 
-   rowString = '      ' + dbo.padRight(receiptType + ' ('+cast(recordCnt as varchar)+')',' ',45) + dbo.padLeft(convert(varchar,amount,1),' ',16)
+   rowString = '      ' + dbo.padRight(receiptType + ' ('+cast(recordCnt as varchar)+')',' ',34) + dbo.padLeft(convert(varchar,amount,1),' ',20)
 
--- add grouping 
-  insert @rt (ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor)
+-- add grouping  
+  insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,actionId)
   select 
-   @seedString + 'C' + depositAccountCode + '  a',
-   '   ' + dbo.padRight(depositAccountDesc,' ',48) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
+   -5,
+   @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + '  a',
+   case when depositAccountCode = 'AAATRUST' then
+    '   ' + dbo.padRight(depositAccountDesc,' ',57) + dbo.padLeft(convert(varchar,sum(amount),1),' ',20)
+   else
+    '   ' + dbo.padRight(depositAccountDesc,' ',37) + dbo.padLeft(convert(varchar,sum(amount),1),' ',20)
+   end,
    COUNT(*),
    SUM(amount),
    SUM(amount),
    depositAccountCode,depositAccountDesc,
-   2
+   2,
+   object.id
   from @rt
-  group by depositAccountCode, depositAccountDesc
-
+  left join Object on depositAccountCode = Key1 and Typ = 4701
+  group by depositAccountCode, depositAccountDesc, object.id
+  
   insert @rt (ord)
   select 
-   @seedString + 'C' + depositAccountCode + 'z'
+   @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + 'z'
   from @rt
   group by depositAccountCode, depositAccountDesc
 
-  delete @rt where brwBGColor = 0 and receiptType = 'TRUST'
+  delete @rt where brwBGColor = 0 and receiptType = 'TRUST'  
+  update @rt set brwBGColor = 0, ord = @seedString + 'A' where depositAccountCode = 'AAATRUST' 
+  update @rt set id = cast(id as varchar) + CAST(actionId as varchar) 
 
  end
 
  insert @rt (id,ord,rowstring,glBalanceString) select 0,@seedString + ' ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,@seedString + 'A','  Un-Posted Deposits','','  Un-Posted Deposits', 1
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,@seedString + 'B',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,@seedString + 'BA','  Un-Posted Deposits','','  Un-Posted Deposits', 1
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
   
  return
-end
+end  --  select * from dbo.dailyDataPendingDeposits() order by ord
+
