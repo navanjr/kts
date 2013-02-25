@@ -1,16 +1,49 @@
 create proc dbo.depositCRUD( 
  @mode int,
- @depositId int
+ @depositId int = null,
+ @dailyDataBRWId int = null,
+ @verbose varchar(5) = 'TRUE',
+ @newObjectId int = null output
 ) as
 begin
  
  declare 
   @slink varchar(15) = 'o' + cast(@depositId as varchar),
-  @fpStatus varchar(10)
+  @fpStatus varchar(10),
+  @bankBlob varchar(200)
 
  select @fpStatus = fpStatus from glStatus(@slink)
 
  exec dbo.logit @@procid, '@mode', @mode, '@depositId', @depositId, '@fpStatus', @fpStatus
+
+ if @mode = 0 and isnull(@dailyDataBRWId,0) < 0
+ begin
+
+  select
+   @bankBlob = isnull(receiptType,'')
+    + '|' + isnull(depositAccountCode,'')
+    + '|' + isnull(depositAccountDesc,'')
+  from dbo.dailyDataPendingDeposits()
+  where id = @dailyDataBRWId
+
+  exec dbo.logit @@procid, '@dailyDataBRWId', @dailyDataBRWId, '@bankBlob', @bankBlob
+
+-- create object record
+  insert object (typ,key3,a1,a2)
+  select 4513, dbo.splitF(@bankBlob,'|',1), dbo.splitF(@bankBlob,'|',2), dbo.splitF(@bankBlob,'|',3)
+
+  set @newObjectId = @@Identity
+  exec dbo.logit @@procid, '@newObjectId', @newObjectId
+
+-- link payments maybe
+
+-- return the id for futher KTS processing
+  if @verbose = 'TRUE'
+   select '@code=0;@newObjectId=' + cast(@newObjectId as varchar) + ';'
+
+  return
+ end
+
 
  if @mode = 3
  begin

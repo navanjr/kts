@@ -57,6 +57,7 @@ t119Apportionment
 
 t120Refresh BRW
 @acc12=refreshBRW=;
+@gfwindow=refreshBRW=;
 
 @lbrwclick150=
  lcid=kpbrwid(1)*-1,
@@ -65,7 +66,8 @@ t120Refresh BRW
  if(lcTyp=9 or lcTyp=8,menu9=),
  if(lcTyp=7,menu7=),
  if(lcTyp=6,menu6=),
- if(lcTyp=5,menu5=);
+ if(lcTyp=5,menu6=),
+ if(lcTyp=4,menu4=);
 
 @menu9=
  m('Accounts|    Please choose one of the following options...','Right Click Menu...','question.ico','Open &Account|&Stage Apportionment|Stage All Apportionment|sho&w|&Cancel'),
@@ -161,7 +163,9 @@ t120Refresh BRW
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp=9,openType=),
- if(lcTyp=8,openGLAccount=);
+ if(lcTyp=8,openGLAccount=),
+ if(lcTyp=6,click6=),
+ if(lcTyp=5,click6=);
 
 @openType=
  break(lcid<1),
@@ -184,8 +188,12 @@ t120Refresh BRW
 
 @openDeposit=;
 
+@menu4=
+ m('Official Deposit||Choose one of the following options...','Right Click Menu...','question.ico','New Deposit|&Cancel');
+
 @menu5=
- lcExistingDepositId=kp('select existingDepositId from dbo.dailyDataPendingDeposits() where id = '&kpbrwid(1)),
+ getBlob,
+ m(lcBlob);
  lcButtons=choose(lcExistingDepositId>0,'Edit Existing|','')&'Create New by Type|Create New by Bank|Balance Report|Receipt List|Cancel',
  m('Please choose one of the following options...','Right Click Menu...','question.ico','Create New Deposit|&Cancel');
  lcPicked=gcretval+choose(lcExistingDepositId>0,0,1),
@@ -193,7 +201,28 @@ m(lcPicked);
  if(lcPicked=2,m(lcPicked));
 
 @menu6=
- change(lcid);
+ getBlob=,
+ lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&'&New|&Cancel',
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico',lcMessageOptions),
+ lcChoice=gcretval+0-choose(lcDepCount+0=1,1,0),
+ if(lcChoice+0=0,change(lcDepChangeId)),
+ if(lcChoice+0=1,newDeposit=);
+
+@newDeposit=
+ d1select('exec dbo.depositCRUD 0, @dailyDataBRWId='&kpbrwid(1)),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'New Deposit...')),
+ if(readstring(obj7:d1,'@newObjectId=')>0,change(readstring(obj7:d1,'@newObjectId='))),
+ refreshbrw=;
+
+@click6=
+ getBlob=,
+ if(readstring(lcBlob,'@changeId=')+0>0,change(readstring(lcBlob,'@changeId=')));
+
+@getBlob=
+ lcBlob=kp('select blob from dbo.dailyDataPendingDeposits() where id = '&kpbrwid(1)),
+ lcDepChangeId=readstring(lcBlob,'@changeId='),
+ lcDepCount=readstring(lcBlob,'@depositCount=');
+ 
 
 @menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),
