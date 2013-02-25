@@ -2,11 +2,12 @@ create function dbo.collectionsDetailBRW(
  @taxrollDetailId int
 ) returns @rt table(
  id int identity(-1,-1),
- display varchar(250),
+ display varchar(max),
  date int,
  dtype varchar(50),
  keyCode varchar(50),
  documentName varchar(50),
+ color int,
  ord int
 ) as
 begin
@@ -15,7 +16,8 @@ begin
   @dtype varchar(50),
   @parcel varchar(50),
   @item numeric(7,1),
-  @keyCode varchar(50)
+  @keyCode varchar(50),
+  @invoiceId int
 
  select
   @dtype = dtype,
@@ -28,11 +30,12 @@ begin
  begin
   insert @rt
   select
-   comments,
+   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
    dbo.clarionDate(documentDateTime),
    @dtype,
    @keyCode,
    documentName,
+   0,
    999999 - dbo.clarionDate(documentDateTime)
   from taxrollDetail where itemNumber = @item
    and dtype in ('print','resale','taxwarrant')
@@ -40,12 +43,20 @@ begin
 -- manually entered comments
   insert @rt (display, date, ord)
   select --id,a2,a3,
-   cast(e1 as varchar(250)),
+   dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
    a2,
    999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
   from dbo.object
   where typ=4002 
   and key1 = @item
+
+-- Unpaid
+  select top 1 @invoiceId = ID from invoices where item = @item order by taxYear desc
+
+  insert @rt (display,ord, color)
+   select case when len(data)<28 then '        '+data else dbo.padleft(data,' ',66) end,99999,1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,'03/15/2013'),char(13)+char(10))
+
 
  end
 
@@ -53,11 +64,12 @@ begin
  begin
   insert @rt
   select
-   comments,
+   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
    dbo.clarionDate(documentDateTime),
    @dtype,
    @keyCode,
    documentName,
+   0,
    999999 - dbo.clarionDate(documentDateTime)
   from taxrollDetail where parcelNumber = @parcel
    and dtype in ('print','resale','taxwarrant','Abstract')
@@ -65,12 +77,20 @@ begin
 -- manually entered comments
   insert @rt (display, date, ord)
   select --id,a2,a3,
-   cast(e1 as varchar(250)),
+   dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
    a2,
    999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
   from dbo.object
   where typ=4002 
   and key2 = @parcel
+
+-- Unpaid
+  select top 1 @invoiceId = ID from invoices where PARCEL = @parcel order by taxYear desc
+
+  insert @rt (display,ord, color)
+   select case when len(data)<28 then '        '+data else dbo.padleft(data,' ',66) end,99999,1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,'03/15/2013'),char(13)+char(10))
+
 
  end
 
