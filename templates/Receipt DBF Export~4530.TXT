@@ -168,3 +168,17 @@ group by accountCode,accountDesc','apportn.csv',4),
  filecopy('apportn.csv','c:\kps\apportn.csv'),
  m('APPORTIONMENT Exported')
 ;
+
+\t116Abstract Exp;
+ @acc116=sqlloop2('select key1 from object where typ=4000 order by key1',doabstract=),m('ABSTRACT Exported');
+
+@doabstract=
+ sqlexport('select apdistrict,aprate,accounttype,sourcetype,sourcekey3,isnull(origin,'''') as origin,sum(amount) as amount
+ from gldetailreports
+ where apyear='''&left(sl2:a1,4)&'''
+  and left(sourcea18,13) <> ''Apportionment''
+  and sourcekey3 not in (''MISC'',''MTG'')
+ group by apdistrict,aprate,accounttype,sourcetype,sourcekey3,origin
+ order by apdistrict,aprate','abst'&left(sl2:a1,4)&'.csv',4),
+ filecopy('abst'&left(sl2:a1,4)&'.csv','c:\kps\abst'&left(sl2:a1,4)&'.csv'),
+;
