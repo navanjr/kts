@@ -21,7 +21,9 @@ create function dbo.bankStatementBRW(
  crAmount money,
  rowType int,
  selectedFlag char(1),
- ord varchar(150)
+ ord varchar(150),
+ comment varchar(50),
+ comment2 varchar(50)
 )
 begin
 
@@ -31,13 +33,13 @@ begin
   insert @showTable select @id
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
- insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType)
+ insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2)
  select id* -1, fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
   case when amount < 0 then amount else 0 end,
   slink,
   case when isnull(bsId,0) = 0 then '' else 'X' end,
-  0
+  0,comment,comment2
  from dbo.glDetail 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
@@ -59,7 +61,8 @@ begin
 
 -- deposit Fixes
  update @rt set
-  paymentType = 'z' + template
+  paymentType = 'z' + template,
+  subdescription = case when comment>' 0' then left(comment+' - '+comment2,100) else subdescription end
  where template = 'Deposits' and rowType = 0
 
 -- je Fixes
