@@ -1,7 +1,7 @@
 create function dbo.collectionsDetailBRW(
  @taxrollDetailId int
 ) returns @rt table(
- id int identity(-1,-1),
+ id int,
  display varchar(max),
  date int,
  dtype varchar(50),
@@ -17,7 +17,8 @@ begin
   @parcel varchar(50),
   @item numeric(7,1),
   @keyCode varchar(50),
-  @invoiceId int
+  @invoiceId int,
+  @interestTo varchar(50) = convert(char,GETDATE(),101)
 
  select
   @dtype = dtype,
@@ -25,11 +26,12 @@ begin
   @item = item,
   @keyCode = keyCode
  from dbo.collectionsItem(@taxrollDetailId)
-
+ 
  if @dtype = 'TAXWARRANT'
  begin
   insert @rt
   select
+   '7'+cast(id as varchar),
    dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
    dbo.clarionDate(documentDateTime),
    @dtype,
@@ -41,8 +43,9 @@ begin
    and dtype in ('print','resale','taxwarrant')
 
 -- manually entered comments
-  insert @rt (display, date, ord)
+  insert @rt (id,display, date, ord)
   select --id,a2,a3,
+   '8'+cast(id as varchar),
    dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
    a2,
    999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
@@ -53,9 +56,13 @@ begin
 -- Unpaid
   select top 1 @invoiceId = ID from invoices where item = @item order by taxYear desc
 
-  insert @rt (display,ord, color)
-   select case when len(data)<28 then '        '+data else dbo.padleft(data,' ',66) end,99999,1
-    from dbo.split(dbo.docCollectionDesc(@invoiceId,'03/15/2013'),char(13)+char(10))
+  insert @rt (id,display,ord, color)
+   select 
+    case when dbo.readstring('@invoiceId=',data) > 0 then '9' else '' end+dbo.readstring('@invoiceId=',data),
+    case when len(left(data,66))<28 then '        '+left(data,66) else dbo.padleft(left(data,66),' ',66) end,
+    99999,
+    1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10))
 
 
  end
@@ -64,6 +71,7 @@ begin
  begin
   insert @rt
   select
+   '7'+cast(id as varchar),
    dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
    dbo.clarionDate(documentDateTime),
    @dtype,
@@ -75,8 +83,9 @@ begin
    and dtype in ('print','resale','taxwarrant','Abstract')
 
 -- manually entered comments
-  insert @rt (display, date, ord)
+  insert @rt (id,display, date, ord)
   select --id,a2,a3,
+   '8'+cast(id as varchar),
    dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
    a2,
    999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
@@ -87,9 +96,13 @@ begin
 -- Unpaid
   select top 1 @invoiceId = ID from invoices where PARCEL = @parcel order by taxYear desc
 
-  insert @rt (display,ord, color)
-   select case when len(data)<28 then '        '+data else dbo.padleft(data,' ',66) end,99999,1
-    from dbo.split(dbo.docCollectionDesc(@invoiceId,'03/15/2013'),char(13)+char(10))
+  insert @rt (id,display,ord, color)
+   select 
+    case when dbo.readstring('@invoiceId=',data) > 0 then '9' else '' end+dbo.readstring('@invoiceId=',data),
+    case when len(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';',''))<28 then '        '+replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','') else dbo.padleft(rtrim(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','')),' ',66) end,
+    99999,
+    1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10)) where len(data)>0
 
 
  end

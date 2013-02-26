@@ -24,7 +24,7 @@
  gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&') where rowType = 0 order by '&choose(gcColOrder='PARCEL','ordB','ord'),
  gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&') order by '&choose(gcColOrder='PARCEL','ordB','ord'),
  gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M200L(2)~Doc Status~#5#M200L(5)~~#6#M',
- gcbrw2sql4026='select id,display, date,color from dbo.collectionsDetailBRW(0) order by ord',
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW(0) order by ord',
  gcbrw2Format4026='200L(5)~~#2#M';
 
 @brwstuff=
@@ -42,15 +42,14 @@
  brwreload(1,gcbrwsql4026,gcbrwFormat4026),
  refreshbrw2=,
  kpmc();
-gfwindow=
- refreshbrw=;
+
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 @lbrw2color=obj7:c10=1,13499135;
 
 
 @newselbrw150=refreshbrw2=;
 @refreshbrw2=
- gcbrw2sql4026='select id,display, date,color from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&') order by ord',
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&') order by ord',
  gcbrw2Format4026='200L(5)~~#2#M',
  brwreload(2,gcbrw2sql4026,gcbrw2Format4026);
 
@@ -91,13 +90,13 @@ gfwindow=
  trreport(delinquentTaxList,5041,delinquentTaxList=);
 
 
-
 @invoiceOptions=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|Print UnPaid Summary|&Cancel'),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|Print UnPaid Summary|Attach Personal|&Cancel'),
  if(gcretval=1,manageAddress=),
  if(gcretval=2,removeFromCollection=),
  if(gcretval=3,flagforAbstracter=),
- if(gcretval=4,printUnpaidSum=);
+ if(gcretval=4,printUnpaidSum=),
+ if(gcretval=5,attachPersonal=);
 
 @manageAddress=
  gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&') where id = '&kpbrwid(1)*-1),
@@ -122,6 +121,29 @@ gfwindow=
  lcid=kpbrwid(1)*-1,
  gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId+0&','&obj:key1&','&obj:a17&') where id = '&kpbrwid(1)*-1),
  trreport(printUnpaidSum,5040,printUnpaidSum=);
+
+@attachPersonal=
+ lcid=kpbrwid(1)*-1,
+ gcCollectParcel=kp('select parcelNumber from taxrollDetail where id='&lcid),
+ gcMethod='Attach',
+ do(4031,menuprocess=);
+
+@lbrwclick151=
+ lc151id=kpbrwid(2)*-1,
+ lc151Typ=left(lc151id,1),
+ lc151id=sub(lc151id,2,25),
+ if(lc151Typ=9,menu9=);
+
+@menu9=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Remove|&Cancel'),
+ if(gcretval=1,removeIt=);
+
+@removeIt=
+ lcInvoiceInfo=kp('select name+'' Item:''+cast(item as varchar)+'' Tax Year:''+cast(taxyear as varchar) from invoices where id='&lc151id),
+ m('Remove '&lcInvoiceInfo&' from resale?','Are you sure?.....',,6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.dtypeCommentCRUD @mode=''Exclude'',@dtype=''RESALE'', @invoiceId='&lc151id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Resale...')),
  
 
 \t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;

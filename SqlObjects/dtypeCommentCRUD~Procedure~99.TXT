@@ -20,8 +20,8 @@ begin
 
  if @mode = 'REMOVE'
  begin
-  exec dbo.logit @@procid, 'deleting @taxrollDetailId', @taxRollDetailId
-  delete taxrollDetail where id = @taxrollDetailId
+    exec dbo.logit @@procid, 'deleting @taxrollDetailId', @taxRollDetailId
+    delete taxrollDetail where id = @taxrollDetailId
  end
 
  if @mode = 'CREATEBYINVOICE'
@@ -80,8 +80,24 @@ begin
   select @parcel = parcelNumber from taxrollDetail where id = @taxRollDetailId
   if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype) and @parcel>'  0'
    insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, 'Sent to Abstracter: ' + @mode
+  return
+ end
+ 
 
- return
+ if @mode = 'Attach' and @parcel>'  0'
+   begin
+   if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
+    insert taxRollDetail (parcelNumber, dtype, comments,invoiceLinkId) select @parcel, @dtype, 'initiated: ' + @dtype, @invoiceId
+   exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
+   return
+   end
+
+ if @mode = 'EXCLUDE'
+ begin
+   exec dbo.logit @@procid, 'EXCLUDING @invoiceId', @invoiceId
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
+    delete taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId
+   return
  end
 
 end

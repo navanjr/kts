@@ -1,0 +1,102 @@
+@select=078;
+
+@menuprocess=
+ lcHostName=kp('select host_name()'),
+ lcinquiry=kp('select top 1 id from object where typ=4031 and key2='''&lcHostName&''''),
+ if(lcinquiry+0>0,change(lcinquiry),new(4031,,004=lcHostName));
+
+@loadwindow=
+ create(151,10,220,3,'Order By:'),
+ create(152,12,260,3,'Name',32),
+ create(153,12,300,3,'Parcel',34),
+ create(155,12,460,3,'Adv Srch',36), 
+ createbrw=;
+
+@afterloadwindow=
+ if(gcMethod='Attach' and gcCollectParcel>'  0' and gcDType='RESALE',prop(000,'TEXT','Attaching to parcel: '&gcCollectParcel));
+
+@lbrw1color=obj7:c10=2,13428479,obj7:c10=1,13499135;
+
+@dk1;
+@createbrw=
+  kpmo('Selecting Taxroll Data...'),
+  gcsql='select top 1 0,'''','''','''','''','''',0,0,'''',0,0,0,'',0,'' from object',
+  lcbrw1Filter=obj:c1,
+  brw(160,1,gcsql,3,15,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~#7#|M45R(2)~Unpaid~#8#|M35R(2)~Fees~@n-14.2b@#10#|M35R(2)~Penalty~@n-14.2b@#11#|M18C(2)~Sel~#9#|M35R(2)~Tot Pay~@n-14.2b@#15#|M45R(2)~Queue~#13#|M35C(2)~Printed~#14#|M',7,1),
+  prop(171,'FontSize',10),
+  prop(171,'FontStyle',700),
+  prop(171,'Font','Arial'),
+  prop(172,'FontSize',10),
+  prop(172,'FontStyle',700),
+  prop(172,'Font','Arial'),
+  prop(160,'SelectedFillColor',65535),
+  prop(160,'SelectedColor',0),
+  kpmc();
+
+@brw1=
+ lbrwclick160=;
+
+@lbrwclick160=
+ lcId=kpbrwid(1)*-1,
+ break(lcId<1),
+ if(gcMethod='Attach' and gcCollectParcel>'  0' and gcDType='RESALE',attachOptions=);
+
+@attachOptions=
+ m('options...','Tax Search options...',,'Attach|&Cancel'),
+ if(gcretval=1,Attach=),
+ refreshBRW=;
+
+@collections=
+ d1select('exec dbo.dtypeCommentCRUD @mode=''CREATEBYINVOICE'', @invoiceId='&kpbrwid(1)*-1),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collections...')),
+ refreshBRW=;
+
+@Attach=
+ m('Attach this Tax Item to parcel: '&gcCollectParcel,'Are you sure?....',,6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.dTypeCommentCRUD @mode='''&gcMethod&''',@dType='''&gcDtype&''',@invoiceId='&lcId&',@parcel='''&gcCollectParcel&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message=')));
+
+@gfwindow=
+ refreshBRW=;
+ 
+@acc152=if(obj:a13+0>0,set(34,0),set(34,1)),tsc,refreshBRW=;
+@acc153=if(obj:a14+0>0,set(32,0),set(32,1)),tsc,refreshBRW=;
+@acc155=tsc,refreshBRW=;
+
+@refreshBRW=
+  kpmo('Selecting Taxroll Data...'),
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort,queue,printed,topay,colorFlag from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') order by ord',
+  brwreload(1,gcsql),
+  kpmc();
+
+\t001&Year; \w00230; \x002-40; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
+\t003InitialsHostname; \h003004;r
+
+\t031OrderName;\f0321;
+\t033OrderParcel;
+\t035AdvanceSearch;
+\t037InterestTo;
+\h031038;r
+
+\t077&Filter;
+ \x077-30;
+ \x078-71;
+ \w078+40;
+
+@sel078=
+ if(lcClearFilter='1',set(078,''));
+
+ @acc078=
+   lcbrw1Filter=str_replace(obj:c1,'''','~{'),
+   if(readstring(gcSiteBlob,'@barcodeScanner=')=1,barcodeit=),
+   refreshBRW=,
+   if(lcFocus=078,focusit78=,focus(160));
+
+@focusit78=
+ set(078,'',1),
+ focus(078),
+ lcFocus='';
+
+
+
