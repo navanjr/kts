@@ -12,36 +12,50 @@ begin
   @slink varchar(15) = 'o' + cast(@depositId as varchar),
   @fpStatus varchar(10),
   @receiptType varchar(50),
-  @bankBlob varchar(200)
+  @bankAccountCode varchar(50),
+  @bankAccountDesc varchar(50)
 
  select @fpStatus = fpStatus from glStatus(@slink)
 
  exec dbo.logit @@procid, '@mode', @mode, '@depositId', @depositId, '@fpStatus', @fpStatus
 
+-- create a new deposit
  if @mode = 0 and isnull(@dailyDataBRWId,0) < 0
  begin
 
-  set @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate()))
+  set
+   @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate()))
 
   select
    @receiptType = isnull(receiptType,''),
-   @bankBlob = 
-    '|' + isnull(depositAccountCode,'')
-    + '|' + isnull(depositAccountDesc,'')
+   @bankAccountCode = isnull(depositAccountCode,''),
+   @bankAccountDesc = isnull(depositAccountDesc,'')
   from dbo.dailyDataPendingDeposits()
   where id = @dailyDataBRWId
 
-  exec dbo.logit @@procid, '@dailyDataBRWId', @dailyDataBRWId, '@bankBlob', @bankBlob
+  exec dbo.logit @@procid, '@dailyDataBRWId', @dailyDataBRWId, '@receiptType', @receiptType, '@bankAccountCode', @bankAccountCode, '@bankAccountDesc', @bankAccountDesc
+  
+-- fork here for Depositing Trust into an Official Deposit
+  if @bankAccountCode = 'AAATRUST'
+  begin
+
+   exec dbo.officialDepositCRUD @mode = 0,  @depositDate = @depositDate, @linkTrust = 'TRUE', @newObjectId = @newObjectId output
+
+  end
+  else
+  begin
 
 -- create object record
-  insert object (typ,key2,key3,a1,a2)
-  select 4513, isnull(@depositDate,''), @receiptType, dbo.splitF(@bankBlob,'|',1), dbo.splitF(@bankBlob,'|',2)
+   insert object (typ,key2,key3,a1,a2)
+   select 4513, isnull(@depositDate,''), @receiptType, @bankAccountCode, @bankAccountDesc
 
-  set @newObjectId = @@Identity
-  exec dbo.logit @@procid, '@newObjectId', @newObjectId
+   set @newObjectId = @@Identity
+   exec dbo.logit @@procid, '@newObjectId', @newObjectId
 
 -- link payments maybe
-  exec dbo.depositLinkManyPayments @depositId = @newObjectId, @receiptType = @receiptType
+   exec dbo.depositLinkManyPayments @depositId = @newObjectId, @receiptType = @receiptType
+
+  end
 
 -- return the id for futher KTS processing
   if @verbose = 'TRUE'
@@ -51,6 +65,7 @@ begin
  end
 
 
+-- delete a deposit
  if @mode = 3
  begin
 

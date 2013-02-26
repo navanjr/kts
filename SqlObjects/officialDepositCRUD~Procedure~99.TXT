@@ -2,15 +2,46 @@ create procedure dbo.officialDepositCRUD(
  @mode int,
  @depositId int = 0,
  @deletePosted varchar(10) = 'FALSE',
- @debugMode varchar(5) = 'FALSE'
+ @debugMode varchar(5) = 'FALSE',
+ @depositDate int = null,
+ @linkTrust varchar(5) = 'TRUE',
+ @newObjectId int = null output
 ) as
 begin
  
- exec dbo.logit @@procid, '@mode',@mode
+ exec dbo.logit @@procid, '@mode', @mode, '@depositDate', @depositDate, '@linkTrust', @linkTrust
 
  declare 
-  @slink varchar(15) = 'o' + cast(@depositId as varchar)
+  @slink varchar(15) = 'o' + cast(@depositId as varchar),
+  @officialId int,
+  @officialName varchar(50),
+  @accountCode varchar(50),
+  @accountDesc varchar(50)
 
+-- Create Treasurers Official Deposit only!
+ if @mode = 0 and @linkTrust = 'TRUE'
+ begin
+
+  select top 1
+   @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate())),
+   @officialId = b.id,
+   @officialName = b.key2,
+   @accountCode = a.Key1,
+   @accountDesc = a.key2
+  from Object a
+  join Object b on b.A3 = a.Key1 and b.typ = 4601
+  where a.TYP = 4701 and a.Key3 = 'TRUST'
+
+  insert object (typ, key2, Key3, link2, a1, a2, b1, b10)
+  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate 
+  
+  set @newObjectId = @@identity
+
+  exec dbo.officialDepositLinkTrust @newObjectId, 'LINK ALL' 
+
+  return
+
+ end
 
 -- Delete
  if @mode = 3

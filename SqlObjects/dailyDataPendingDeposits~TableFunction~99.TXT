@@ -13,6 +13,7 @@ returns @rt table (
  depositAccountDesc varchar(50),
  receiptType varchar(50),
  amount money,
+ depositAmount money,
  actionId int,
  existingDepositId int,
  minId int,
@@ -38,14 +39,15 @@ begin
    case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,
    '',
    dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
-   null,null,null,null,null,null,null,null,null
+   null,null,null,null,null,null,null,null,null,null
   from dbo.depositPaidUnPosted() a, object b
   where a.receiptType = b.key1 and b.typ = 4503
   group by receiptType, b.id
 
   insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt) 
-      select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'',dbo.padLeft('Total',' ',50),dbo.padLeft(convert(varchar,sum (amount),1),' ',16)
-      from dbo.depositPaidUnPosted()
+  select 0,'DD',dbo.padLeft('Total',' ',51)
+   + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'',dbo.padLeft('Total',' ',50),dbo.padLeft(convert(varchar,sum (amount),1),' ',16)
+  from dbo.depositPaidUnPosted()
  end
  else
  begin
