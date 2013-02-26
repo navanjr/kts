@@ -1,10 +1,14 @@
 
 @bb7=&Print;
+
 @bbproc7=
-gcBeginDate=77466,
+gcBeginDate=77460,
 gcEndDate=77466,
 gcReceiptType='MTG',
-printReceiptListGr=;
+lcSusMethod='U',
+gcPrintDetail='Y',
+BookReceiptList=;
+
 
 
 @keyReportMaintenance;
@@ -204,7 +208,7 @@ printReceiptListGr=;
  lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where 1=1 '&lcWhere&' '&lcStation&' order by station,rectype,recnum',
  d1select('select a17 from object where typ=40'),
  lcSusMethod=obj7:d1, 
-lcDetFont='Arial',
+ lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
  taxReceiptListStation=;
@@ -255,7 +259,10 @@ lcDetFont='Arial',
      ),
   prn(,lcx,,lcFontSize,,lcFont),
   box(lcx,pagey-25,lcx+8200,pagey+175,0,lcBoxColor),
-  bnd('H9',,600,'Date',700,'Received From',2000,'Tax Paid',700R,'Penalty',700R,'Fees',700R,'Total Paid',700R,'Station',700R),
+ 
+ bnd('H9',,600,'Date',700,'Received From',2000,'Tax Paid',700R,'Penalty',700R,'Fees',700R,'Total Paid',700R,'Station',700R),
+
+
   nl,
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
@@ -270,6 +277,172 @@ lcDetFont='Arial',
    lcgPenalty=lcgPenalty+obj5:a8,
    lcgFee=lcgFee+obj5:a9,
    lcgrpToken=obj5:a1,
+  edt,
+  nl,
+  bnd('H',,600,'Report Total',700,,2000,format(lcPaid,@n14.2),700R,format(lcPenalty,@n14.2),700R,format(lcFee,@n14.2),700R,format(lcTotPaid,@n14.2),700R),
+ );
+
+
+/**Bookkeepers Receipt Report - shows receipt type based on type passed via gcReceiptType from Daily Data; user will pass date range; tax receipts with detail based on status of PrintDetail(Y,N)**/
+/**Report listed by suspense method (lcSusMethod)**/
+/*** d1select('select a17 from object where typ=40'),lcSusMethod=obj7:d1,****/
+
+@BookReceiptList=
+  do(452,getSiteInfo=),
+  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
+  lcReportType=choose(lcSusMethod='S','Station','Deputy'),
+  lcReportSort=choose(lcSusMethod='S',1,0),
+  lcBsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where recType='''&gcReceiptType&''' order by '''&lcReportType&''', recNum',
+  if(gcReceiptType='TAX',BookTax=,BookOther=);
+
+
+
+@BookOther=
+  lcDetFont='Arial',
+  lcFont='Arial',
+  lcFontSize=11,
+  lcAmtPaid=0,
+  lcFees=0,
+  lcTotAmt=0,
+  lcgAmtPaid=0,
+  lcgFees=0,
+  lcgTotAmt=0,
+  lcBoxColor=14539482,
+  lcgrpToken='',
+ 
+tr(
+  lcx=400,
+  lcTm=500,
+  prn(printed),
+  prn(page),
+  prn(gcOfficial,lcx+10000,lcy),
+  prn('Receipt Report by '&lcReportType,t1),
+  prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
+  prn('Receipt Type: '&lcReportSort&' '&lcReportType,t4),
+  
+  prn(,lcx+150,,lcFontSize,,lcFont),
+  prn(,,pagey),
+  box(lcx,pagey-25,pagex+7000,pagey+175,0,lcBoxColor),
+
+  if(lcReportSort=1),do(
+    bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Amt Paid',800R,'Fees',800R,'Total Amt',800R,'Station',700),
+    if(curpag=1),
+     grp(1,obj5:a14,
+      do(bnd('H',obj5:a14,1000)),
+      do(bnd('H',,600,'',700,'Total',2000,format(lcgAmtPaid,@n14.2),800R,format(lcgFees,@n14.2),800R,format(lcgTotAmt,@n14.2),800R),
+      nl,
+      lcgAmtPaid=0,
+      lcgFees=0,
+      lcgTotAmt=0))),
+
+  if(lcReportSort=0),do(
+    bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Amt Paid',800R,'Fees',800R,'Total Amt',800R),
+    if(curpag=1),
+     grp(1,obj5:a15,
+     do(bnd('HOU','Deputy: '&obj5:a15,6200)),
+     do(bnd('H','',600,'',700,'Total',2000R,format(lcgAmtPaid,@n14.2),800R,format(lcgFees,@n14.2),800R,format(lcgTotAmt,@n14.2),800R),
+      nl,
+      lcgAmtPaid=0,
+      lcgFees=0,
+      lcgTotAmt=0))),
+  nl,
+  det(lcBsql),
+     if(lcReportSort=1),do(
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2000,format(obj5:a6,@n14.2),800R,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a14,@s20),1000)),
+     if(lcReportSort=0),do(
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2000,format(obj5:a6,@n14.2),800R,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R)),
+     lcAmtPaid=lcAmtPaid+obj5:a6,
+     lcFees=lcFees+obj5:a7,
+     lcTotAmt=lcTotAmt+obj5:a9,
+     lcgAmtPaid=lcAmtPaid+obj5:a6,
+     lcgFees=lcFees+obj5:a7,
+     lcgTotAmt=lcTotAmt+obj5:a9,
+  edt,
+  nl,
+  bnd('H','',600,'',700,''Report Totals'',2000R,format(lcAmtPaid,@n14.2),800R,format(lcFees,@n14.2),800R,format(lcTotAmt,@n14.2),800R)
+
+);
+
+
+
+  
+
+
+
+
+
+
+@BookTax=
+  lcDetFont='Arial',
+  lcFont='Arial',
+  lcFontSize=11,
+  lcTotPaid=0,
+  lcPaid=0,
+  lcPenalty=0,
+  lcFee=0,
+  lcgTotPaid=0,
+  lcgPaid=0,
+  lcgPenalty=0,
+  lcgFee=0,
+  lcBoxColor=14539482,
+ 
+tr(
+  lcx=250,
+  lcTm=400,
+  box(lcx,lcTm,lcx+2800,lcTm+550,0,lcBoxColor),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+1000,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),
+  prn('Receipt Report by '&lcReportType,t1),
+  prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
+  prn(,lcx),
+  prn('Receipt Type: '&upper(gcReceiptType),t4),
+  prn(,lcx,,lcFontSize,,lcFont),
+
+  box(lcx,pagey-25,lcx+8200,pagey+175,0,lcBoxColor),
+  if(lcReportSort>0),do(
+ --station method      
+     bnd('H9','',600,'Date',700,'Received From',2000,'Tax Paid',700R,'Penalty',700R,'Fees',700R,'Total Paid',700R,'Station',700R),
+     bnd('H9','',600,'Date',700,'Received From',2000,'Tax Paid',700R,'Penalty',700R,'Fees',700R,'Total Paid',700R,'Station',700R),
+
+
+---user method
+
+
+  nl,
+
+  det(lcBsql),
+    prn(,,,lcFontSize-2,,lcDetFont),
+    if(gcReceiptType='TAX',
+    bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,30),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,700R),
+    if(gcPrintDetail='Y',if(gcReceiptType='TAX'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),))),
+    lcTotPaid=lcTotPaid+obj5:a5,
+    lcPaid=lcPaid+obj5:a7,
+    lcPenalty=lcPenalty+obj5:a8,
+    lcFee=lcFee+obj5:a9,
+    lcgTotPaid=lcgTotPaid+obj5:a5,
+    lcgPaid=lcgPaid+obj5:a7,
+    lcgPenalty=lcgPenalty+obj5:a8,
+    lcgFee=lcgFee+obj5:a9,
+    lcgrpToken=obj5:a1,),
+
+   if(gcReceiptType<>'TAX',
+    bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,30),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,700R),
+    lcTotPaid=lcTotPaid+obj5:a5,
+    lcPaid=lcPaid+obj5:a7,
+    lcPenalty=lcPenalty+obj5:a8,
+    lcFee=lcFee+obj5:a9,
+    lcgTotPaid=lcgTotPaid+obj5:a5,
+    lcgPaid=lcgPaid+obj5:a7,
+    lcgPenalty=lcgPenalty+obj5:a8,
+    lcgFee=lcgFee+obj5:a9,
+    lcgrpToken=obj5:a1,),
+
   edt,
   nl,
   bnd('H',,600,'Report Total',700,,2000,format(lcPaid,@n14.2),700R,format(lcPenalty,@n14.2),700R,format(lcFee,@n14.2),700R,format(lcTotPaid,@n14.2),700R),
