@@ -204,9 +204,9 @@ update w set
    and isnull(d.taxYear,'NULL')<>'NULL'
  
 update w set
-  w.fee = w.paid-(select sum(amount) from gldetail 
+  w.fee = isnull(w.paid,0)-isnull((select sum(amount) from gldetail 
   where slink=w.slink 
-   and accountcode = (select key3 from object where typ=4504 and a1='MTG' and key1 not like '%Fee%'))
+   and accountcode = (select key3 from object where typ=4504 and a1='MTG' and key1 not like '%Fee%')),0)
   from @wt w where w.recType='MTG'
 
 delete from @wt where parentInvoiceId>0
