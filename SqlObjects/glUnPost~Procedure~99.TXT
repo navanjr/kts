@@ -40,23 +40,31 @@ begin
  begin
   select
    @code = 1,
-   @message = 'Unposting can only be done on a deposit... Sorry.'
+   @message = 'Unposting can not be done on this slink... Sorry.'
    GOTO bail
  end
 
  select @objTyp = typ from object where id = dbo.slinkId(@slink)
- if isnull(@objTyp,0) not in (4513, 4522)
+ if isnull(@objTyp,0) not in (4513, 4522, 4502)
  begin
   select
    @code = 1,
-   @message = 'Unposting can only be done on a deposit... Sorry.'
+   @message = 'Unposting can not be done on this object.typ... Sorry.  @typ:' + cast(@objTyp as varchar) + ';'
    GOTO bail
  end 
 
+ exec dbo.logit @@procId, '@slink', @slink, '@objTyp', @objTyp, '@postDate', @postDate
+
+ declare @slinksToRemove table(slink varchar(15))
+ if @objTyp in (4513,4522)
+  insert @slinksToRemove select @slink
+ if @objTyp = 4502
+  insert @slinksToRemove select slink from receiptSLinks(dbo.slinkId(@slink)) where dbo.slinkType(slink) in ('o','l')
+
 -- we are good so lets delete glDetail and leave it to the calling proc to re-stage
  begin transaction
- exec dbo.logit @@procId, '@slink', @slink, 'begin transaction'
- delete glDetail where slink = @slink
+ exec dbo.logit @@procId, 'begin transaction', '@slink', @slink, '@objTyp', @objTyp
+ delete glDetail where slink in (select slink from @slinksToRemove)
 
 -- flag source record as Unposted if your not a receiptlink
  if dbo.slinkType(@slink) not in ('l','j')

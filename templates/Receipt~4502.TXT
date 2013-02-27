@@ -24,7 +24,7 @@ key7=apiUpdate
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=cancelRoutine=;
-
+	
 @noc=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @nocancel=cancelRoutine=;
 
@@ -476,10 +476,14 @@ close('ok');
   if(obj:a17='Posted',gccontinue='');
 
 
-\t120TestCheck=; @acc120=testCheck=; \h120gcadmin=0;
-@testCheck=
- m('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''',''''');
- m('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0');
+\t120&Undo G/L Posting; \h120gcadmin=0;
+@acc120=
+ m('Are you sure you wish to unPost this Receipt?','UnPosting Receipt...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
+ sql('exec dbo.receiptStageGL '&obj:id),
+ close('ok');
 
 @miscDetail= if(obj:key3='TRUST',set(12,obj:b2)),
  update,
