@@ -4,7 +4,7 @@
 @bbproc7=
 gcBeginDate=77466,
 gcEndDate=77466,
-gcReceiptType='TAX',
+gcReceiptType='TAX 2012',
 gcPrintDetail='Y',
 BookReceiptList=;
 
@@ -21,8 +21,6 @@ BookReceiptList=;
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
  lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
- d1select('select a17 from object where typ=40'),
- lcSusMethod=obj7:d1,
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -289,11 +287,11 @@ BookReceiptList=;
   do(452,getSiteInfo=),
   d1select('select a17 from object where typ=40'),
   lcSusMethod=obj7:d1,
-  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
+  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
   lcReportType=choose(lcSusMethod='S','Station','Deputy'),
   lcReportSort=choose(lcSusMethod='S',1,0),
   lcBsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where recType='''&gcReceiptType&''' order by '''&lcReportType&''', recNum',
-  if(gcReceiptType='TAX',BookTax=,BookOther=);
+  if(lcReceiptType='TAX',BookTax=,BookOther=);
 
 @BookOther=
   lcDetFont='Arial',
@@ -306,7 +304,6 @@ BookReceiptList=;
   lcgFees=0,
   lcgTotAmt=0,
   lcBoxColor=14539482,
-  lcgrpToken='',
  
 tr(
   lcx=400,
@@ -381,7 +378,6 @@ tr(
   lcgFees=0,
   lcgTotAmt=0,
   lcBoxColor=14539482,
-  lcgrpToken='',
  
 tr(
   lcx=400,
@@ -398,7 +394,7 @@ tr(
   prn('Receipt Report by '&lcReportType,t1),
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
-  prn('Receipt Type: '&gcReceiptType,t4),
+  prn('Receipt Type: '&lcReceiptType,t4),
   
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
@@ -446,6 +442,4 @@ tr(
   bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n14.2),800R,format(lcFees,@n14.2),800R,format(lcPenalty,@n14.2),800R,format(lcTotAmt,@n14.2),800R)
 
 );
-
-
 
