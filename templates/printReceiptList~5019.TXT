@@ -2,10 +2,9 @@
 @bb7=&Print;
 
 @bbproc7=
-gcBeginDate=77450,
+gcBeginDate=77440,
 gcEndDate=77466,
 gcReceiptType='MTG',
-lcSusMethod='U',
 gcPrintDetail='Y',
 BookReceiptList=;
 
@@ -285,10 +284,11 @@ BookReceiptList=;
 
 /**Bookkeepers Receipt Report - shows receipt type based on type passed via gcReceiptType from Daily Data; user will pass date range; tax receipts with detail based on status of PrintDetail(Y,N)**/
 /**Report listed by suspense method (lcSusMethod)**/
-/*** d1select('select a17 from object where typ=40'),lcSusMethod=obj7:d1,****/
 
 @BookReceiptList=
   do(452,getSiteInfo=),
+  d1select('select a17 from object where typ=40'),
+  lcSusMethod=obj7:d1,
   if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
   lcReportType=choose(lcSusMethod='S','Station','Deputy'),
   lcReportSort=choose(lcSusMethod='S',1,0),
@@ -311,31 +311,37 @@ BookReceiptList=;
 tr(
   lcx=400,
   lcTm=500,
+  box(lcx,lcTm,lcx+2500,lcTm+550,0,lcBoxColor),
   prn(printed),
   prn(page),
-  prn(gcOfficial,lcx+10000,lcy),
+ 
+  lcy=lcTm+100,
+  prn(gcCounty&' County Treasurer',lcx+950,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1200,lcy),
+
   prn('Receipt Report by '&lcReportType,t1),
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
-  prn('Receipt Type: '&lcReportSort&' '&lcReportType,t4),
+  prn('Receipt Type: '&gcReceiptType,t4),
   
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
 
   if(lcReportSort=1),do(
-    bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Amt Paid',800R,'Fees',800R,'Total Amt',800R,'Station',700),
+    bnd('H','Rec No',600,'Post Date',700,'Received From',2500,'Amt Paid',1000R,'Fees',1000R,'Total Amt Pd',1000R),
     if(curpag=1),
      grp(1,obj5:a14,
-      do(bnd('H',obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Total',2000,format(lcgAmtPaid,@n14.2),800R,format(lcgFees,@n14.2),800R,format(lcgTotAmt,@n14.2),800R),
+      do(bnd('H','Station: '&obj5:a14,1000)),
+      do(bnd('H',,600,'',700,'Station Total',2500R,format(lcgAmtPaid,@n14.2),1000R,format(lcgFees,@n14.2),1000R,format(lcgTotAmt,@n14.2),1000R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
 
   if(lcReportSort=0),do(
-     bnd('H','Rec No',600,'Post Date',700,'Received From',2500,'Amt Paid',1000R,'Fees',1000R,'Total Amt',1000R),
+     bnd('H','Rec No',600,'Post Date',700,'Received From',2500,'Amt Paid',1000R,'Fees',1000R,'Total Amt Pd',1000R),
      if(curpag=1),
      grp(1,obj5:a15,
       do(bnd('H','Deputy: '&obj5:a15,1000)),
@@ -344,28 +350,30 @@ tr(
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
-
   nl,
   det(lcBsql),
      if(lcReportSort=1),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2500,format(obj5:a6,@n14.2),800R,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a14,@s20),1000)),
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2500,format(obj5:a7,@n14.2),1000R,format(obj5:a9,@n14.2),1000R,format(obj5:a6,@n14.2),1000R)),
      if(lcReportSort=0),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2500,format(obj5:a6,@n14.2),1000R,format(obj5:a7,@n14.2),1000R,format(obj5:a9,@n14.2),1000R)),
-     lcAmtPaid=lcAmtPaid+obj5:a6,
-     lcFees=lcFees+obj5:a7,
-     lcTotAmt=lcTotAmt+obj5:a9,
-     lcgAmtPaid=lcgAmtPaid+obj5:a6,
-     lcgFees=lcgFees+obj5:a7,
-     lcgTotAmt=lcgTotAmt+obj5:a9,
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2500,format(obj5:a7,@n14.2),1000R,format(obj5:a9,@n14.2),1000R,format(obj5:a6,@n14.2),1000R)),
+     lcAmtPaid=lcAmtPaid+obj5:a7,
+     lcFees=lcFees+obj5:a9,
+     lcTotAmt=lcTotAmt+obj5:a6,
+     lcgAmtPaid=lcgAmtPaid+obj5:a7,
+     lcgFees=lcgFees+obj5:a9,
+     lcgTotAmt=lcgTotAmt+obj5:a6,
   edt,
   nl,
-  bnd('H','',600,'',700,''Report Totals'',2500R,format(lcAmtPaid,@n14.2),1000R,format(lcFees,@n14.2),1000R,format(lcTotAmt,@n14.2),1000R)
+  bnd('H','',600,'',700,'Report Totals',2500R,format(lcAmtPaid,@n14.2),1000R,format(lcFees,@n14.2),1000R,format(lcTotAmt,@n14.2),1000R)
 
 );
 
 
 
-  
+
+
+
+
 
 
 
