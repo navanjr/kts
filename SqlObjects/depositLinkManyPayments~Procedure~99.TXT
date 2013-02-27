@@ -11,6 +11,18 @@ begin
 
  exec dbo.logit @@procId, '@depositId', @depositId, '@receiptType', @receiptType, '@receiptDepositDate', @receiptDepositDate, '@mode', @mode
 
+ declare @receiptTypes table(receiptType varchar(50))
+
+-- reset receiptType when passed an array of types
+ if charindex('|',@receiptType) > 0
+ begin
+  insert @receiptTypes select data from dbo.split(@receiptType,'|')
+  set @receiptType = ''
+ end
+ else
+ begin
+  insert @receiptTypes select @receiptType
+ end
  declare @token table(
   paymentId int
  )
@@ -28,17 +40,25 @@ begin
  if @mode = 'link'
  begin
   if @receiptDepositDate is null
-   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType = @receiptType
+   insert @token 
+   select id from dbo.depositPaidAndPosted()
+    where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType in (select receiptType from @receiptTypes)
   else
-   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType = @receiptType
+   insert @token
+   select id from dbo.depositPaidAndPosted()
+    where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType in (select receiptType from @receiptTypes)
  end
 
  if @mode = 'unlink'
  begin
   if @receiptDepositDate is null
-   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptType = @receiptType 
+   insert @token
+   select id from dbo.depositAvailablePayments
+    where isnull(depositId,0) = @depositId and receiptType in (select receiptType from @receiptTypes)
   else
-   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType = @receiptType
+   insert @token
+   select id from dbo.depositAvailablePayments
+    where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType in (select receiptType from @receiptTypes)
  end
 
 -- process em

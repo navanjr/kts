@@ -84,7 +84,7 @@ begin
     case when isnull(existingDepositId,0) > 0 then '@changeId=' + cast(existingDepositId as varchar)+';@depositCount=1;' else '@depositCount=0;' end
 
 -- add grouping  
-  insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob)
+  insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob,receiptType)
   select 
    cast('-5' + cast(min(a.minId) as varchar) as int),
    @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + '  a',
@@ -102,7 +102,8 @@ begin
    2,
    case when COUNT(distinct existingDepositId) > 1 then '@deposits=' else '@changeId=' end
    +stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,'')+';'
-   + '@depositCount=' + cast(COUNT(distinct existingDepositId) as varchar) + ';'
+   + '@depositCount=' + cast(COUNT(distinct existingDepositId) as varchar) + ';',
+   stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,'')
   from @rt a
   group by depositAccountCode, depositAccountDesc
   

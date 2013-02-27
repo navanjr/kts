@@ -12,10 +12,19 @@ begin
   @slink varchar(15) = 'o' + cast(@depositId as varchar),
   @fpStatus varchar(10),
   @receiptType varchar(50),
+  @bankAccountId int,
   @bankAccountCode varchar(50),
-  @bankAccountDesc varchar(50)
+  @bankAccountDesc varchar(50),
+  @bankAccountNumber varchar(50),
+  @receiptTypeCanidate varchar(50)
 
- select @fpStatus = fpStatus from glStatus(@slink)
+ select
+  @fpStatus = fpStatus from glStatus(@slink)
+
+ if charindex('|',isnull(@receiptType,'')) > 0
+  set @receiptTypeCanidate = ''
+ else 
+  set @receiptTypeCanidate = isnull(@receiptType,'')
 
  exec dbo.logit @@procid, '@mode', @mode, '@depositId', @depositId, '@fpStatus', @fpStatus
 
@@ -33,6 +42,11 @@ begin
   from dbo.dailyDataPendingDeposits()
   where id = @dailyDataBRWId
 
+  select
+   @bankAccountId = accountId,
+   @bankAccountNumber = bankAccount
+  from dbo.glaccounts where accountCode = @bankAccountCode
+
   exec dbo.logit @@procid, '@dailyDataBRWId', @dailyDataBRWId, '@receiptType', @receiptType, '@bankAccountCode', @bankAccountCode, '@bankAccountDesc', @bankAccountDesc
   
 -- fork here for Depositing Trust into an Official Deposit
@@ -45,15 +59,24 @@ begin
   else
   begin
 
-   select @newObjectId = id
+   select top 1 @newObjectId = id
    from Object
    where typ = 4513
     and A17 != 'Posted'
-    and Key3 = @receiptType
+    and Key3 = @receiptTypeCanidate
     and ID not in (select isnull(depositId,0) from paid)
+   order by id
 
    if isnull(@newObjectId,0) > 0
    begin   
+
+    update object set
+     key2 = isnull(@depositDate,''), 
+     key3 = @receiptTypeCanidate,
+     a1 = @bankAccountDesc,
+     a2 = @bankAccountNumber,
+     link1 = @bankAccountId
+    where typ = 4513 and id = @newObjectId
 
     exec dbo.logit @@procid, '@existingObjectId', @newObjectId
 
@@ -62,11 +85,11 @@ begin
    begin
 
 -- create object record
-    insert object (typ,key2,key3,a1,a2)
-    select 4513, isnull(@depositDate,''), @receiptType, @bankAccountCode, @bankAccountDesc
+    insert object (typ,key2,key3,a1,a2,link1)
+    select 4513, isnull(@depositDate,''), @receiptTypeCanidate, @bankAccountDesc, @bankAccountNumber, @bankAccountId
 
     set @newObjectId = @@Identity
-    exec dbo.logit @@procid, '@newObjectId', @newObjectId
+    exec dbo.logit @@procid, '@newObjectId', @newObjectId, '@receiptTypeCanidate', @receiptTypeCanidate
 
    end
 
