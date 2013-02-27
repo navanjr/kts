@@ -45,12 +45,30 @@ begin
   else
   begin
 
--- create object record
-   insert object (typ,key2,key3,a1,a2)
-   select 4513, isnull(@depositDate,''), @receiptType, @bankAccountCode, @bankAccountDesc
+   select @newObjectId = id
+   from Object
+   where typ = 4513
+    and A17 != 'Posted'
+    and Key3 = @receiptType
+    and ID not in (select isnull(depositId,0) from paid)
 
-   set @newObjectId = @@Identity
-   exec dbo.logit @@procid, '@newObjectId', @newObjectId
+   if isnull(@newObjectId,0) > 0
+   begin   
+
+    exec dbo.logit @@procid, '@existingObjectId', @newObjectId
+
+   end
+   else
+   begin
+
+-- create object record
+    insert object (typ,key2,key3,a1,a2)
+    select 4513, isnull(@depositDate,''), @receiptType, @bankAccountCode, @bankAccountDesc
+
+    set @newObjectId = @@Identity
+    exec dbo.logit @@procid, '@newObjectId', @newObjectId
+
+   end
 
 -- link payments maybe
    exec dbo.depositLinkManyPayments @depositId = @newObjectId, @receiptType = @receiptType
