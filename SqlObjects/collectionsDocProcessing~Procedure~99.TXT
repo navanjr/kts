@@ -3,7 +3,8 @@ create proc dbo.collectionsDocProcessing(
  @documentId int,
  @method varchar(50),
  @date int = null,
- @days int = null
+ @days int = null,
+ @order varchar(50) = 'Parcel'
 ) as
 begin
 
@@ -44,9 +45,9 @@ begin
  if @method = 'printThru'
  begin
 
-  select @ordToken = ord from dbo.collectionsBRW(@dtype, @documentId, null, null) where id = @taxrollDetailId
+  select @ordToken = case when @order = 'Parcel' then ordB else ord end from dbo.collectionsBRW(@dtype, @documentId, null, null,@taxrollDetailId)
 
-  exec dbo.logit @@procId, '@ordToken', @ordToken, '@documentName', @documentName
+  exec dbo.logit @@procId, '@ordToken', @ordToken, '@documentName', @documentName, '@taxrollDetailId', @taxrollDetailId
 
   insert taxrollDetail (parcelNumber,itemNumber,dtype,comments,documentName)
   select
@@ -55,8 +56,8 @@ begin
    'print',
    'Printed ' + @documentName,
    @documentName
-  from dbo.collectionsBRW(@dtype, @documentId, null, null) 
-  where ord <= @ordToken
+  from dbo.collectionsBRW(@dtype, @documentId, null, null,0) 
+  where case when @order = 'Parcel' then ordB else ord end <= @ordToken
    and keyCode not in (select keyCode from dbo.collectionsPrintedTF(@dtype, @documentId, @date, @days))
 
   return
@@ -76,8 +77,8 @@ begin
  if @method in ('resetStage','resetThru')
  begin
 
-  select @ordToken = ord from dbo.collectionsBRW(@dtype, @documentId, null, null) where id = @taxrollDetailId
-  select @tally = count(*) from dbo.collectionsBRW(@dtype, @documentId, null, null) where ord >= @ordToken
+  select @ordToken = case when @order = 'Parcel' then ordB else ord end from dbo.collectionsBRW(@dtype, @documentId, null, null,@taxrollDetailId)
+  select @tally = count(*) from dbo.collectionsBRW(@dtype, @documentId, null, null,0) where case when @order = 'Parcel' then ordB else ord end >= @ordToken
 
   exec dbo.logit @@procId, '@ordToken', @ordToken, '@documentName', @documentName
 
@@ -92,7 +93,7 @@ begin
    where dtype = 'print'
     and documentName = @documentName
     and dbo.clarionDate(documentDateTime) between @date and @date + @days
-    and dbo.collectionsKeyCode(@dtype,parcelNumber,itemNumber) in (select keyCode from dbo.collectionsBRW(@dtype, @documentId, null, null) where ord >= @ordToken)
+    and dbo.collectionsKeyCode(@dtype,parcelNumber,itemNumber) in (select keyCode from dbo.collectionsBRW(@dtype, @documentId, null, null,0) where case when @order = 'Parcel' then ordB else ord end >= @ordToken)
  
    exec dbo.logit @@procId, 'just Deleted... @@rowCount', @@rowCount
    

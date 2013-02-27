@@ -2,7 +2,8 @@ create function dbo.collectionsBRW(
  @dtype varchar(50),
  @documentId int,
  @date int,
- @days int
+ @days int,
+ @taxrollDetailId int
 ) returns @rt table(
  id int,
  invoiceIdMain int,
@@ -48,7 +49,7 @@ declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNew
   a.invoiceBlob,
   a.rowType,
   case when b.keyCode is null then '' else 'Printed' end 
- from dbo.collectionsDtypeToggleTF(@dtype) a
+ from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId) a
  left outer join @printed b on a.keyCode = b.keyCode
 
  update @rt set
@@ -62,7 +63,7 @@ declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNew
 
  --insert @rt (display, ord)
  -- select '   -', display + 'b' from @rt 
-
+if @taxrollDetailId = 0
  insert @rt (keyCode, totalDue, ord, rowType)
  select cast(count(*) as varchar) + ' - ' + case when @dtype = 'RESALE' then 'Parcels' else 'Items' end, sum(totalDue), ' ', 2  from @rt where rowType = 0
 

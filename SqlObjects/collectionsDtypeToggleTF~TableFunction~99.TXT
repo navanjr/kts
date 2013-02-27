@@ -1,5 +1,6 @@
 create function dbo.collectionsDtypeToggleTF(
- @dtype varchar(50)
+ @dtype varchar(50),
+ @taxrollDetailId int
 ) returns @rt table(
  id int,
  invoiceIdMain int,
@@ -47,7 +48,7 @@ begin
    0   
   from taxrollDetail d
   left outer join invoices i on d.parcelNumber = i.parcel and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
-  where d.dtype = @dtype
+  where d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.parcelNumber
  
  else
@@ -76,7 +77,7 @@ begin
    0 
   from taxrollDetail d
   left outer join invoices i on d.itemNumber = i.item and i.invoiceDue + i.subInvoiceDue + i.taxRuleDue != 0
-  where d.dtype = @dtype
+  where d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.itemNumber
 
  return

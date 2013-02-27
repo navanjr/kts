@@ -59,11 +59,12 @@ begin
   insert @rt (id,display,ord, color)
    select 
     case when dbo.readstring('@invoiceId=',data) > 0 then '9' else '' end+dbo.readstring('@invoiceId=',data),
-    case when len(left(data,66))<28 then '        '+left(data,66) else dbo.padleft(left(data,66),' ',66) end,
+    case when len(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';',''))<28 then '        '+replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','') else dbo.padleft(rtrim(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','')),' ',66) end,
     99999,
     1
     from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10))
 
+   update r set r.display = r.display+'*' from @rt r, dbo.collectionsBRW(@dtype,null,null,null,@taxrollDetailId) c where '9'+cast(addFeeToInvoiceId as varchar) = r.id
 
  end
 
@@ -103,7 +104,8 @@ begin
     99999,
     1
     from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10)) where len(data)>0
-
+  
+   update r set r.display = r.display+'*' from @rt r, dbo.collectionsBRW(@dtype,null,null,null,@taxrollDetailId) c where '9'+cast(addFeeToInvoiceId as varchar) = r.id
 
  end
 

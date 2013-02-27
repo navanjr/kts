@@ -1,16 +1,20 @@
 create proc dbo.docFeeProcessingCRUD(
- @batchId int,
- @invoiceId int,
+ @batchId int = 0,
+ @invoiceId int = 0,
  @status varchar(50),
  @lcContinue varchar(50) = '' output,
  @invoiceDate int = null,
- @debugMode varchar(5) = 'FALSE'
+ @debugMode varchar(5) = 'FALSE',
+ @dType varchar(50) = '',
+ @documentId int = 0
+ 
 ) as
 begin
 
  set nocount on
 
  declare @invoicesToProcess table(id int)
+
  declare @wt table(
   id int identity(1,1),
   invoiceId int,
@@ -22,7 +26,6 @@ begin
 
  declare
   @tally int,
-  @documentId int,
   @documentDate int,
   @documentName varchar(50),
   @processCode varchar(50),
@@ -34,19 +37,38 @@ begin
   @tokenFund varchar(50),
   @tokenAmount money
 
- select 
-  @documentId = documentId,
-  @documentDate = documentDate,
-  @documentName = documentName,
-  @processCode = processCode
- from dbo.docBRWDecoder(@batchId)
  
  if @status in ('ALL','STAGEALL')
  begin
 -- get all the invoices that are printed but not processed for fees
 
-  insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null)
-   where printed > '  0' and invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+ if @batchid > 0 and @invoiceId > 0
+  begin
+   select 
+    @documentId = documentId,
+    @documentDate = documentDate,
+    @documentName = documentName,
+    @processCode = processCode
+   from dbo.docBRWDecoder(@batchId)
+   insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
+    where printed > '  0' and invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+   end
+ if @dtype > '  0' 
+  begin
+  if @documentId = 0
+   begin
+    select '@code=1;@message=Missing document!||Please select a document and then process fees.;'
+    return 
+   end
+    
+   select 
+    @documentDate = dbo.clariondate(getdate()),
+    @documentName = key1,
+    @processCode = key1+'.'+dbo.date1(coalesce(@invoiceDate, @documentDate))
+   from object where id = @documentId
+   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, null, null,0)
+    where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+   end
 
   select @tally = @@rowcount
 
@@ -54,7 +76,7 @@ begin
 
   if @status = 'STAGEALL'
   begin
-   select '@code=1;@message=Stage Message;@tally=' + cast(@tally as varchar) + ';'
+   select '@code=0;@message=Stage Message;@tally=' + cast(@tally as varchar) + ';'
    return
   end
 
