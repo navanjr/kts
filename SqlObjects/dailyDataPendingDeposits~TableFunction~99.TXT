@@ -64,9 +64,9 @@ begin
    0,
    min(b.id),
    case when receiptType = 'AAATRUST' then
-    max(coalesce(nullif(isnull(a.officialDepositId,0),0),nullif(isnull(a.depositId,0),0)))
+    max(isnull(a.officialDepositId,0))
    else
-    max(coalesce(nullif(isnull(a.depositId,0),0),nullif(isnull(a.officialDepositId,0),0)))
+    max(isnull(a.depositId,0))
    end,
    min(a.id)
   from dbo.depositPaidUnPosted() a
@@ -81,7 +81,8 @@ begin
    rowString = '      ' + dbo.padRight(receiptType + ' ('+cast(recordCnt as varchar)+')',' ',34) + dbo.padLeft(convert(varchar,amount,1),' ',20) 
     + case when existingDepositId > 0 then ' *' else '' end,
    blob = 
-    case when isnull(existingDepositId,0) > 0 then '@changeId=' + cast(existingDepositId as varchar)+';@depositCount=1;' else '@depositCount=0;' end
+    case when isnull(existingDepositId,0) > 0 then '@changeId=' + cast(existingDepositId as varchar)+';@depositCount=1;' else '@depositCount=0;' end,
+   receiptType = REPLACE(receiptType,'TRUST','OFFICIAL')
 
 -- add grouping  
   insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob,receiptType)
