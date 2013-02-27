@@ -1,5 +1,4 @@
-CREATE function dbo.dailyDataPayments(
- @paymentTypePassed varchar(50),
+CREATE function dbo.dailyDataMiscDeposit(
  @accountType varchar(50),
  @theDate int,
  @days int,
@@ -25,8 +24,8 @@ begin
   @sectionTitle varchar(50)
 
  select
-  @paymentType = dbo.splitF(@paymentTypePassed,'|',1),
-  @sectionTitle = dbo.proper(case when charindex('|',@paymentTypePassed) > 0 then dbo.splitF(@paymentTypePassed,'|',2) else @paymentTypePassed end) + 's'
+  @paymentType = 'Miscellaneous',
+  @sectionTitle = 'Miscellaneous Deposit'
 
  declare @wt table(
   accountId int,
@@ -48,19 +47,22 @@ begin
  )
 
 -- insert all raw payment data
- insert @wtRaw
- select
-  a.accountId,
-  left(rtrim(a.accountDesc) + case when @paymentType='Miscellaneous' then ' '+a.bsSummary else '' end,50),
-  dbo.nextObjectAutoNumberControl(4771,p.paymentType),
-  case when @accountType <> 'Official' then p.treasurersNumber else p.clerksNumber end,
-  g.amount
- from dbo.glDetail g
- join payments p on g.slink = p.slink 
- join dbo.glaccounts a on g.accountId = a.accountId 
- where case when isnumeric(p.dateRegistered)=1 then cast(p.dateRegistered as int) else 0 end between @theDate and @theDate + @days
-  and dbo.nextObjectAutoNumberControl(4771,p.paymentType) = @paymentType
-  and accountType  in  (select accountType from dbo.glBankFundTypes(@accountType) union select @accountType)
+   insert @wtRaw
+   select
+    b.accountId,
+    left(rtrim(a.accountDesc)+' '+a.bsSummary,50),
+    'Miscellaneous Deposit',
+    c.key1,
+    b.amount*-1
+   from glaccounts a, glDetail b, object c
+   where a.accountId = b.accountId
+    and c.typ in (4512) 
+    and b.slink='o'+cast(c.id as varchar)
+    and c.a18 = 'Miscellaneous Deposit'
+    and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+    and case when isnumeric(c.key2)=1 then cast(c.key2 as int) else 0 end between @theDate and @theDate + @days
+--    and dbo.slinkType(b.slink) = 'o'
+--    and substring(b.slink,2,14) = c.id
 
 -- summarize the detail 
  insert @wt 
@@ -106,38 +108,6 @@ begin
  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),
   replicate(' ',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
-/*
--- insert subtotals
- insert @rt
- select
-  0,
-  @ordSeed + reportOrder + 'c',
-  ' ' + replicate('-',79),
-  replicate('-',16),
-  ' ' + replicate('-',79),
-  replicate('-',22),
-  replicate('-',10),
-  replicate('-',16),
-  'line',0
- from @wt 
- group by reportOrder,description
-
- insert @rt
- select
-  0,
-  @ordSeed + reportOrder + 'd',
-  dbo.padRight('      Total ' + description, ' ', 60)
-  + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-  '',
-  dbo.padRight('      Total ' + description, ' ', 60),
-  '',
-  dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
-  dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-  'gFooter',0
- from @wt 
- group by reportOrder,description
-*/
 
  insert @rt
  select
