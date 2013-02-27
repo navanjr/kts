@@ -179,6 +179,7 @@ sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables" >> %l
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep '@code='
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import" >> %logFile%
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createIndexes" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createGroups" >> %logFile%
 echo "Imported" %date% %time%
 if DEFINED dropdll goto dodropdll
 call:sendLog
