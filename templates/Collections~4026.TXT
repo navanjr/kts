@@ -240,6 +240,20 @@
  d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetThru'', @date='&obj:key1&', @days='&obj:a17),
  refreshbrw=;
 
+\t116Process Fees;
+@acc116=
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''StageAll'''),
+ lcTally=readstring(obj7:d1,'@tally='),
+ break(lcTally+0<1),
+ m('Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Creating Fee Invoices...','Please Wait...'),
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''all'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ kpmc(),
+ refreshTheBrw=;
+
+
 \t119Mana&ge Docs;
 @acc119=browse(1,4900);
 \t120&List;

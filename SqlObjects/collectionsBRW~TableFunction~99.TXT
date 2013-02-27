@@ -6,6 +6,7 @@ create function dbo.collectionsBRW(
 ) returns @rt table(
  id int,
  invoiceIdMain int,
+ AddFeeToinvoiceId int,
  taxrollDetailId int,
  display varchar(250),
  keyCode varchar(50),
@@ -25,6 +26,8 @@ create function dbo.collectionsBRW(
  documentStatus varchar(50)
 ) as
 begin
+
+declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNewest','FALSE')
 
  declare @printed table(keyCode varchar(50))
  insert @printed select keyCode from dbo.collectionsPrintedTF(@dtype,@documentId,@date, @days)
@@ -50,6 +53,7 @@ begin
 
  update @rt set
   invoiceIdMain = left(invoiceBlob,9),
+  AddFeeToinvoiceId = (select top 1 left(data,9) from  dbo.split(invoiceBlob,'|') order by case when @AddFeeNewest = 'FALSE' then id  else 10000-id end desc),
   display = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
   ord = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&') + keyCode,
   ordB = keyCode + replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
