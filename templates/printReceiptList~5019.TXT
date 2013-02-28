@@ -5,13 +5,13 @@
 gcBeginDate=77466,
 gcEndDate=77466,
 gcReceiptType='',
-printReceiptListGr=;
+printReceiptListStation=;
 
 
 @keyReportMaintenance;
 
 /**Honors Dates, Receipt Type, and Suspense Method. Deputy, Station and Print Detail are ignored**/
-/**Receipt Type = Tax prints parcel detail; Receipt Type = blank prints all types and Tax w/o parcel detail**/
+/**Receipt Type = Tax prints parcel detail; Receipt Type = blank prints all types including Tax w/o parcel detail**/
 @printReceiptListGr=
  do(452,getSiteInfo=),
  d1select('select a17 from object where typ=40'),
@@ -37,7 +37,6 @@ printReceiptListGr=;
   lcgFee=0,
   lcBoxColor=14539482,
   lcgrpToken='',
-
  tr(
   lcx=250,
   lcTm=400,
@@ -52,7 +51,7 @@ printReceiptListGr=;
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
   prn('Receipt Type: TAX',t4),
-  
+  lcx=lcx+200,
   if(curpag=1),
   grp(1,obj5:a1&' '&obj5:a12,
    do(
@@ -74,15 +73,12 @@ printReceiptListGr=;
   nl,
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
-   
    if(lcReportSort=0),do(
-   bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a6,800),
-   bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
-   
+     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a6,800),
+     if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
    if(lcReportSort=1),do(
-   bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,800),
-   bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
-   
+     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,800),
+     if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
    lcPenalty=lcPenalty+obj5:a8,
@@ -108,7 +104,6 @@ printReceiptListGr=;
   lcgFee=0,
   lcBoxColor=14539482,
   lcgrpToken='',
-
  tr(
   lcx=250,
   lcTm=400,
@@ -124,7 +119,6 @@ printReceiptListGr=;
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
   lcTypeMessage=choose(gcReceiptType>'  0','Receipt Type: '&upper(gcReceiptType),'Receipt Type: ALL'),
   prn(lcTypeMessage,t4),
- 
   if(curpag=1),
   grp(1,obj5:a1,
    do(bnd('H',obj5:a1,1000)),
@@ -140,11 +134,9 @@ printReceiptListGr=;
   nl,
   det(lcsql),
    if(lcReportSort=0),do(
-   bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a6,800)),
-
+     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a6,800)),
    if(lcReportSort=1),do(
-   bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a14,800)),
-
+     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a14,800)),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
    lcPenalty=lcPenalty+obj5:a8,
@@ -193,20 +185,21 @@ printReceiptListGr=;
  );
 
 
+/**replaced with printReceiptListGr= **/
 @printReceiptListType=
  do(452,getSiteInfo=),
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
  lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by taxType,rectype,recnum',
- d1select('select a17 from object where typ=40'),
- lcSusMethod=obj7:d1, 
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
  if(gcReceiptType='TAX',taxReceiptList=,receiptList=);
 
 
+/**Honors Dates, Receipt Type, Station / Deputy. Print Detail is ignored**/
+/**Receipt Type = blank prints all types including Tax w/o parcel detail**/
 @printReceiptListStation=
  do(452,getSiteInfo=),
  lcgrpToken='',
@@ -214,16 +207,11 @@ printReceiptListGr=;
  if(gcReceiptType>'  0',lcWhere='and left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
  if(gcStation>' 0',lcStation=' and left(station,len('''&gcStation&'''))='''&gcStation&''' ',lcStation=''),
  lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where 1=1 '&lcWhere&' '&lcStation&' order by station,rectype,recnum',
- d1select('select a17 from object where typ=40'),
- lcSusMethod=obj7:d1, 
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
  taxReceiptListStation=;
 
-
-/**called from printReceiptListStation**/
-/*item and parcel will print based on gcPrintDetail setting*/
 @taxReceiptListStation=
   lcTotPaid=0,
   lcPaid=0,
@@ -269,8 +257,6 @@ printReceiptListGr=;
   box(lcx,pagey-25,lcx+8200,pagey+175,0,lcBoxColor),
  
  bnd('H9',,600,'Date',700,'Received From',2000,'Tax Paid',700R,'Penalty',700R,'Fees',700R,'Total Paid',700R,'Station',700R),
-
-
   nl,
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
