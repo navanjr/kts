@@ -21,7 +21,11 @@ CREATE function dbo.dailyDataSuspense(
  dptno varchar(50)
 )
 begin
- declare @title varchar(250) = '  Un-Deposited Transactions   (Un-Linked)'
+
+ declare
+  @title varchar(250) = '  Un-Deposited Transactions   (Un-Linked)',
+  @suspenseMethod varchar(5) = dbo.readString('@suspenseMethod=',dbo.whoami())
+
  declare @wt table(
   accountId int,
   accountCode varchar(50),
@@ -52,11 +56,20 @@ begin
  group by a.accountId, a.accountCode
  having SUM(gl.amount) != 0 
 
- update @wt set
-  paycode = dbo.splitF(accountCode,'.',3),
-  suspenseCode = dbo.splitF(accountCode,'.',1),
-  receiptType = dbo.splitF(accountCode,'.',2)
- where CHARINDEX('.',accountCode) > 0
+ if @suspenseMethod = 'U'
+  update a set
+   paycode = dbo.splitF(accountCode,'.',3),
+   suspenseCode = u.FullName, -- dbo.splitF(accountCode,'.',1),
+   receiptType = dbo.splitF(accountCode,'.',2)
+  from @wt a
+  left join Users u on u.Ini = dbo.splitF(accountCode,'.',1)
+  where CHARINDEX('.',accountCode) > 0
+ else
+  update @wt set
+   paycode = dbo.splitF(accountCode,'.',3),
+   suspenseCode = dbo.splitF(accountCode,'.',1),
+   receiptType = dbo.splitF(accountCode,'.',2)
+  where CHARINDEX('.',accountCode) > 0
 
  update @wt set
   paycode = accountCode,
