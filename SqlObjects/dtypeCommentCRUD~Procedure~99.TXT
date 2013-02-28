@@ -86,6 +86,11 @@ begin
  
  if @mode = 'Attach' and @parcel>'  0'
    begin
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId)
+    begin 
+     delete taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId
+     return
+    end
    if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
     insert taxRollDetail (parcelNumber, dtype, comments,invoiceLinkId) select @parcel, @dtype, 'initiated: ' + @dtype, @invoiceId
    exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
@@ -94,9 +99,16 @@ begin
 
  if @mode = 'EXCLUDE'
  begin
+   select
+     @parcel = parcel,
+     @item = item 
+    from invoices where id = @invoiceId 
+
    exec dbo.logit @@procid, 'EXCLUDING @invoiceId', @invoiceId
-   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
-    delete taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and itemNumber = @item and dtype = @dtype and invoiceLinkId = @invoiceId)
+     delete taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId
+    else
+     insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, comments) select @invoiceId, @parcel, @item, 'Exclude',  'Exclude from '+@dtype
    return
  end
 
