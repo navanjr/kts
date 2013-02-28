@@ -104,6 +104,9 @@ echo creating keyUpdateAll...
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -iSqlObjects\keyUpdateAll~Procedure~9999.TXT
 echo calling keyUpdateAll...
 sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll 'NewMethod'"
+
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createIndexes" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createGroups" >> %logFile%
 GOTO:EOF
 
 :gitPush
