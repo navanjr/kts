@@ -5,9 +5,7 @@
 gcBeginDate=77466,
 gcEndDate=77466,
 gcReceiptType='TAX 2012',
-gcPrintDetail='Y',
 BookReceiptList=;
-
 
 
 @keyReportMaintenance;
@@ -280,11 +278,12 @@ BookReceiptList=;
  );
 
 
-/**Bookkeepers Receipt Report - shows receipt type based on type passed via gcReceiptType from Daily Data; user will pass date range; tax receipts with detail based on status of PrintDetail(Y,N)**/
-/**Report listed by suspense method (lcSusMethod)**/
-
-@BookReceiptList=
+/**Bookkeepers Receipt Report - from Daily Data brw, right-click on pending deposit, click on button**/
+/**system provides dates from brw, system provides type, returns list of receipts sorted by suspense method**/
+/**gcBeginDate, gcEndDate,gcReceiptType (tax type set to detail = Yes)**/
+@bookReceiptList=
   do(452,getSiteInfo=),
+  gcPrintDetail='Y',
   d1select('select a17 from object where typ=40'),
   lcSusMethod=obj7:d1,
   if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
@@ -311,21 +310,17 @@ tr(
   box(lcx,lcTm,lcx+2500,lcTm+550,0,lcBoxColor),
   prn(printed),
   prn(page),
- 
   lcy=lcTm+100,
   prn(gcCounty&' County Treasurer',lcx+950,lcy,lcHeaderFontSize-2,,lcFont),
   lcy=lcy+200,
   prn(gcOfficial,lcx+1200,lcy),
-
   prn('Receipt Report by '&lcReportType,t1),
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
   prn('Receipt Type: '&gcReceiptType,t4),
-  
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
-
   if(lcReportSort=1),do(
     bnd('H','Rec No',600,'Post Date',700,'Received From',2500,'Amt Paid',1000R,'Fees',1000R,'Total Amt Pd',1000R),
     if(curpag=1),
@@ -336,7 +331,6 @@ tr(
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
-
   if(lcReportSort=0),do(
      bnd('H','Rec No',600,'Post Date',700,'Received From',2500,'Amt Paid',1000R,'Fees',1000R,'Total Amt Pd',1000R),
      if(curpag=1),
@@ -346,7 +340,7 @@ tr(
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
-      lcgTotAmt=0))),
+      lcgTotAmt=0))    ),
   nl,
   det(lcBsql),
      if(lcReportSort=1),do(
@@ -385,21 +379,17 @@ tr(
   box(lcx,lcTm,lcx+2500,lcTm+550,0,lcBoxColor),
   prn(printed),
   prn(page),
- 
   lcy=lcTm+100,
   prn(gcCounty&' County Treasurer',lcx+950,lcy,lcHeaderFontSize-2,,lcFont),
   lcy=lcy+200,
   prn(gcOfficial,lcx+1200,lcy),
-
   prn('Receipt Report by '&lcReportType,t1),
   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
   prn('Receipt Type: '&lcReceiptType,t4),
-  
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
-
   if(lcReportSort=1),do(
     bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Amt Paid',800R,'Fees',800R,'Penalties',800R,'Total Amt Pd',800R),
     if(curpag=1),
@@ -411,7 +401,6 @@ tr(
       lcgFees=0,
       lcgPenalty=0,
       lcgTotAmt=0))),
-
   if(lcReportSort=0),do(
      bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Amt Paid',800R,'Fees',800R,'Penalties',800R,'Total Amt Pd',800R),
      if(curpag=1),
@@ -432,8 +421,8 @@ tr(
          if(lcReportSort=0),do(
        bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a8,@n14.2),800R,format(obj5:a6,@n14.2),800R)
        if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
-                          ),
-         lcAmtPaid=lcAmtPaid+obj5:a7,
+                              ),
+     lcAmtPaid=lcAmtPaid+obj5:a7,
      lcFees=lcFees+obj5:a9,
      lcPenalty=lcPenalty+obj5:a8,
      lcTotAmt=lcTotAmt+obj5:a6,
@@ -444,6 +433,4 @@ tr(
   edt,
   nl,
   bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n14.2),800R,format(lcFees,@n14.2),800R,format(lcPenalty,@n14.2),800R,format(lcTotAmt,@n14.2),800R)
-
 );
-
