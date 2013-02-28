@@ -1,9 +1,13 @@
 \t109&Flag for Collection;
 @acc109=
  m('This process will flag the filtered receviables for collections.||Choose one of the following options...','Collections...','question.ico','&Resale|&Tax Warrant|&Cancel'),
- lcFCBlob=lcInvType&'^'&lcTaxYear&'^'&choose(lcPaidRatio='null','0',lcPaidRatio)&'^'&lcSwitches&'^'&lcBlob,
+ if(obj:a3+0=1,lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),lcPaidRatio='null'),
+ lcFCBlob=lcInvType&'^'&lcTaxYear&'^'&lcPaidRatio&'^'&lcSwitches&'^'&lcBlob,
+ gcDType=choose(gcretval=2,'TAXWARRANT','RESALE'),
  if(gcretval=1,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''RESALE'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
- if(gcretval=2,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''TAXWARRANT'', @docReceivablesBRWBlob='''&lcFCBlob&''''));
+ if(gcretval=2,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''TAXWARRANT'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
+ m('Open Collections?','options...',,6,2),
+ if(gcretval=2,do(4026,menuprocess=));
 
 @dup;@lmode=2;@nolock;
 @loadbrowse=menuprocess=;

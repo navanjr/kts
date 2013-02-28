@@ -14,7 +14,7 @@ begin
  declare
   @invTypeString varchar(50),
   @taxYear varchar(5) = '',
-  @paidRatio money = 0.00,
+  @paidRatio money = null,
   @switches varchar(10),
   @dtypesBlob varchar(max),
   @dtype varchar(50)
@@ -22,7 +22,7 @@ begin
  select 
   @invTypeString = dbo.splitF(@blob, '^', 1),
   @taxYear = dbo.splitF(@blob, '^', 2),
-  @paidRatio = dbo.splitF(@blob, '^', 3),
+  @paidRatio = case when dbo.splitF(@blob, '^', 3)='null' then @paidRatio else dbo.splitF(@blob, '^', 3) end ,
   @switches = dbo.splitF(@blob, '^', 4),
   @dtypesBlob = dbo.splitF(@blob, '^', 5)
 
@@ -34,7 +34,7 @@ begin
    'DETAIL', 
    @invTypeString,
    @taxYear,
-   @paidRatio,
+   null,
    @switches,
    @dtypesBlob
   )
