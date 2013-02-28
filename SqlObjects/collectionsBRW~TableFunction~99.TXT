@@ -33,6 +33,9 @@ declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNew
  declare @printed table(keyCode varchar(50))
  insert @printed select keyCode from dbo.collectionsPrintedTF(@dtype,@documentId,@date, @days)
 
+ declare @fees table(keyCode varchar(50))
+ insert @fees select keyCode from dbo.collectionsAddFeesTF(@dtype,@documentId,@date, @days)
+
  insert @rt( id, taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, documentStatus )
  select
   a.id,
@@ -48,9 +51,10 @@ declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNew
   a.taxRuleDue,
   a.invoiceBlob,
   a.rowType,
-  case when b.keyCode is null then '' else 'Printed' end 
+  case when c.keyCode is null then '' else 'Fees Added' end + case when b.keyCode is null then '' else case when c.keyCode is null then '' else ',' end + 'Printed' end 
  from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId) a
  left outer join @printed b on a.keyCode = b.keyCode
+ left outer join @fees c on a.keyCode = c.keyCode
 
  update @rt set
   invoiceIdMain = left(invoiceBlob,9),

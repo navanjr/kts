@@ -1,0 +1,22 @@
+create function dbo.collectionsAddFeesTF(
+ @dtype varchar(50),
+ @documentId int,
+ @date int,
+ @days int
+)returns @rt table(
+ keyCode varchar(50)
+) as 
+begin
+
+ declare @documentName varchar(50)
+ select @documentName = documentName from dbo.documents where documentId = @documentId
+ 
+ insert @rt
+ select distinct case when @dtype = 'RESALE' then parcelNumber else cast(itemNumber as varchar) end
+ from taxrollDetail
+ where dtype = 'ADDFEE'
+  and documentName = @documentName
+  and dbo.clarionDate(documentDateTime) between @date and @date + @days
+
+ return
+end

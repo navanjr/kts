@@ -35,7 +35,10 @@ begin
   @tokenFeeDescription varchar(50),
   @tokenSource varchar(50),
   @tokenFund varchar(50),
-  @tokenAmount money
+  @tokenAmount money,
+  @parcel varchar(50),
+  @Item numeric(7,1),
+  @blob varchar(max)
 
  
  if @status in ('ALL','STAGEALL')
@@ -120,7 +123,15 @@ begin
     @printed = @documentName,
     @queue = @processCode,
     @tallyEcho = @tally
-   
+ 
+ 
+  if @dtype>'  0' and @documentId>0
+    begin
+     select @parcel = parcel, @item = item,@blob = 'Add Fee:' + @tokenFeeDescription + ': '+dbo.formatCurr(@tokenAmount) from invoices where id = @tokenInvoiceId
+     exec dbo.logit @@procId, '@mode:ADDFEE',@documentName , '@parcel', @parcel, '@item', @item, '@blob', @blob
+     exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @tokenInvoiceId ,@docReceivablesBRWBlob = @documentName , @blob = @blob
+    end   
+
    delete @wt where id = @tokenId
    set @tally = @tally - 1
   end   

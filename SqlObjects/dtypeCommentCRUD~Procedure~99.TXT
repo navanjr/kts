@@ -5,7 +5,8 @@
  @item numeric(7,1) = null,
  @docReceivablesBRWBlob varchar(max) = null,
  @taxRollDetailId int = null,
- @invoiceId int = null
+ @invoiceId int = null,
+ @blob varchar(max) = null
 ) as 
 begin
 
@@ -83,7 +84,6 @@ begin
   return
  end
  
-
  if @mode = 'Attach' and @parcel>'  0'
    begin
    if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
@@ -99,5 +99,13 @@ begin
     delete taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId
    return
  end
+
+ if @mode = 'ADDFEE' 
+ begin
+   exec dbo.logit @@procid, 'Adding Fee @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
+       insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, documentName, comments) select @invoiceId,@parcel, @item, @mode, @docReceivablesBRWBlob, @blob
+   return
+ end
+
 
 end
