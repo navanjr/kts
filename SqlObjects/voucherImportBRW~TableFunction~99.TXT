@@ -8,7 +8,9 @@ create function dbo.voucherImportBRW( @id int ) returns @rt table(
  debitAcct varchar(50),
  creditAcct varchar(50),
  postCheck int,
- registerNumber varchar(50)
+ registerNumber varchar(50),
+ rowtype int,
+ ord varchar(50)
 )
 begin
 
@@ -58,7 +60,9 @@ begin
     @debitAcct,
     @creditAcct,
     0,
-    '*'
+    '*',
+    0,
+    'b' + (select data from dbo.split(@dataToken,',') where id = 1)
 
   delete @rows where id = @idToken
  end
@@ -82,6 +86,9 @@ begin
  insert @reg select id from @rt where postCheck = 0 order by voucherNumber
  update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
 
+-- lets add a total of amount to the top of the BRW
+ insert @rt (rowType, amount, ord)
+ select -1, sum(cast(amount as money)), 'a' from @rt where postCheck = 0
 
  return 
 end
