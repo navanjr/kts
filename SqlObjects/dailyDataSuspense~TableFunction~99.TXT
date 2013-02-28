@@ -18,7 +18,8 @@ CREATE function dbo.dailyDataSuspense(
  maxControlNumber varchar(50),
  minTicketNumber varchar(50),
  maxTicketNumber varchar(50),
- dptno varchar(50)
+ dptno varchar(50),
+ blob varchar(max)
 )
 begin
 
@@ -34,16 +35,19 @@ begin
   amountYesterday money,
   paycode varchar(50),
   receiptType varchar(50),
-  suspenseCode varchar(50)
+  suspenseCode varchar(50),
+  actionId int,
+  blob varchar(max)
  )
 
- insert @wt (accountId, accountCode, amountYesterday, amountToday, amountTomorrow)
+ insert @wt (accountId, accountCode, amountYesterday, amountToday, amountTomorrow, actionId)
  select
   a.accountId,
   a.accountCode,
   SUM(case when o.key2 < @theDate then gl.amount else 0 end),
   SUM(case when o.key2 = @theDate then gl.amount else 0 end),
-  SUM(case when o.key2 > @theDate then gl.amount else 0 end)
+  SUM(case when o.key2 > @theDate then gl.amount else 0 end),
+  a.accountId
  from
   dbo.gldetail gl
  join dbo.glaccounts a on gl.accountId = a.accountId
@@ -60,7 +64,8 @@ begin
   update a set
    paycode = dbo.splitF(accountCode,'.',3),
    suspenseCode = u.FullName, -- dbo.splitF(accountCode,'.',1),
-   receiptType = dbo.splitF(accountCode,'.',2)
+   receiptType = dbo.splitF(accountCode,'.',2),
+   blob = '@deputy=' + u.FullName + ';'
   from @wt a
   left join Users u on u.Ini = dbo.splitF(accountCode,'.',1)
   where CHARINDEX('.',accountCode) > 0
@@ -91,12 +96,15 @@ begin
  from @wt group by suspenseCode, receiptType
 
 -- Group Header
- insert @rt (id,ord,rowstring,brwBGColor)
- select 0, @ordSeed + 'D' + suspenseCode, '   ' + dbo.padRight(suspenseCode,' ',17)
+ insert @rt (id,ord,rowstring,brwBGColor,blob)
+ select cast('-1' + CAST(min(actionId) as varchar) as int),
+  @ordSeed + 'D' + suspenseCode,
+  '   ' + dbo.padRight(suspenseCode,' ',17)
   + dbo.padLeft(convert(varchar,sum(amountYesterday),1),' ',20)
   + dbo.padLeft(convert(varchar,sum(amountToday),1),' ',20)
   + dbo.padLeft(convert(varchar,sum(amountTomorrow),1),' ',20),
-  2
+  2,
+  max(blob)
  from @wt group by suspenseCode
 
 -- Group Footer
