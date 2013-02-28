@@ -1,0 +1,43 @@
+create procedure dbo.docImport(
+ @id int,
+ @mode varchar(25) = 'SHOW'
+)
+ as
+begin
+
+set nocount on
+
+declare 
+  @path varchar(1000),
+  @name varchar(50),
+  @documentBody varchar(max),
+  @documentId int
+
+select @name = name, @path = path from dbo.docImportbrw(0) where id = @id
+
+select @documentId = id from object where typ=4900 and key1=@name
+
+exec dbo.logit @@procid, '@id', @id,'@path', @path, '@documentId', @documentId, '@mode', @mode
+
+exec dbo.spReadTextFile @fullPath = @path, @fileContents = @documentBody output
+
+if @mode != 'SHOW'
+ begin
+ if @documentId > 0 and @mode != 'FORCE'
+  begin
+   select '@code=1;@message=Document already exists with the same name.||Do you want to overwrite it?;'
+   return
+  end
+
+ if @documentId>0 and @mode='FORCE'
+   update object set e1 = @documentBody where id = @documentId
+  else
+   begin
+    insert object (typ, key1,e1) select 4900,@name,@documentBody
+    select @documentId = id from object where typ = 4900 and key1 = @name
+   end
+
+ exec dbo.docFormLetter @documentId = @documentId, @method = 'VERIFY'
+ end
+  select @documentBody
+end

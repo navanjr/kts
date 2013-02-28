@@ -145,19 +145,16 @@ iw('@loadwindow=brw(150,1,'SELECT  id,Result  from DBO.docAvailableVariables()',
   txt(obj7:e1,500,300,6000,1000,1,500),
  );
 
-\t105Import; \h105obj:key2<>'1';
-@acc105=
+@bb5=Import; 
+@bbproc5=
  iw('@loadwindow=brw(150,1,'select id,name from dbo.docImportBRW(0)',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
  break(gcretval='esc' or gcDocImportId+0=0),
- lcFile=kp('select path from dbo.docImportBRW(0) where id='&gcDocImportId),
- lcName=kp('select name from dbo.docImportBRW(0) where id='&gcDocImportId),
- if(obj:key1='',set(002,lcName)),
- readdos(lcFile),
- if(len(clip(obj:e1))>0,m('Are you sure you want to overwrite the existing document?','Overwrite Document?','',6,4)),
- gcDocImportId=0,
- break(gcretval=4),
- set(102,workmemo),
- acc102=;
+ d1select('exec  dbo.docImport '&gcDocImportId&', @mode=''IMPORT'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Import Options',,6,4)),
+ break(readstring(obj7:d1,'@code=')=0 or gcretval<>2),
+ d1select('exec  dbo.docImport '&gcDocImportId&',@mode=''FORCE''');
+ 
+ 
 
 \t108Export; \h108obj:key2<>'1' or instring('@group=developer',cur:options,1,1)=0;
 @acc108=
