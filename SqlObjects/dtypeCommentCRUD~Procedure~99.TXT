@@ -67,7 +67,7 @@ begin
   from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
   where taxRollDetailId is null
  else
-  insert taxRollDetail (itemNumber, dtype, comments)
+  insert taxRollDetail (itemNumber, dtype, comments) 
   select cast(code as numeric(7,1)), @dtype, 'initiated: ' + @dtype
   from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
   where taxRollDetailId is null
@@ -85,15 +85,15 @@ begin
   return
  end
  
- if @mode = 'Attach' and @parcel>'  0'
+ if @mode = 'ATTACH' and @parcel>'  0'
    begin
    if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId)
     begin 
-     delete taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId
+     delete taxrollDetail where dtype = 'Exclude' and invoiceLinkId = @invoiceId
      return
     end
    if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
-    insert taxRollDetail (parcelNumber, dtype, comments,invoiceLinkId) select @parcel, @dtype, 'initiated: ' + @dtype, @invoiceId
+    insert taxRollDetail (parcelNumber, dtype, comments,invoiceLinkId) select @parcel, @mode, 'Initiated: ' + @dtype + ' Attached to Parcel: '+@parcel, @invoiceId
    exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
    return
    end
@@ -106,10 +106,10 @@ begin
     from invoices where id = @invoiceId 
 
    exec dbo.logit @@procid, 'EXCLUDING @invoiceId', @invoiceId
-   if exists(select * from taxrollDetail where parcelNumber = @parcel and itemNumber = @item and dtype = @dtype and invoiceLinkId = @invoiceId)
-     delete taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId
+   if exists(select * from taxrollDetail where dtype = 'ATTACH' and invoiceLinkId = @invoiceId)
+     delete taxrollDetail where dtype = 'ATTACH' and invoiceLinkId = @invoiceId
     else
-     insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, comments) select @invoiceId, @parcel, @item, 'Exclude',  'Exclude from '+@dtype
+     insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, comments) select @invoiceId, @parcel, @item, @mode,  'Exclude from '+@dtype
    return
  end
 
