@@ -81,7 +81,8 @@ begin
    rowString = '      ' + dbo.padRight(receiptType + ' ('+cast(recordCnt as varchar)+')',' ',34) + dbo.padLeft(convert(varchar,amount,1),' ',20) 
     + case when existingDepositId > 0 then ' *' else '' end,
    blob = 
-    case when isnull(existingDepositId,0) > 0 then '@changeId=' + cast(existingDepositId as varchar)+';@depositCount=1;' else '@depositCount=0;' end,
+    case when isnull(existingDepositId,0) > 0 then '@changeId=' + cast(existingDepositId as varchar)+';@depositCount=1;' else '@depositCount=0;' end 
+    + '@bankAccountCode=' + rtrim(depositAccountCode) + ';',
    receiptType = case when receiptType = 'TRUST' then 'OFFICIAL' else receiptType end
 
 -- add grouping  
@@ -102,8 +103,9 @@ begin
    depositAccountCode,depositAccountDesc,
    2,
    case when COUNT(distinct existingDepositId) > 1 then '@deposits=' else '@changeId=' end
-   +stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,'')+';'
-   + '@depositCount=' + cast(COUNT(distinct existingDepositId) as varchar) + ';',
+    + stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,'')+';'
+    + '@depositCount=' + cast(COUNT(distinct existingDepositId) as varchar) + ';'
+    + '@bankAccountCode=' + rtrim(depositAccountCode) + ';',
    stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,'')
   from @rt a
   group by depositAccountCode, depositAccountDesc
