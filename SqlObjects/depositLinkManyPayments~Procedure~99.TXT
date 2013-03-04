@@ -3,7 +3,8 @@ create proc dbo.depositLinkManyPayments(
  @receiptType varchar(50),
  @receiptDepositDate int = null,
  @mode varchar(10) = 'link',
- @debugMode varchar(5) = 'FALSE'
+ @debugMode varchar(5) = 'FALSE',
+ @bankAccountCode varchar(50) = null
 ) as 
 begin
  --  either link all the payments within the given type or limit it by the receipts deposit date
@@ -12,6 +13,7 @@ begin
  exec dbo.logit @@procId, '@depositId', @depositId, '@receiptType', @receiptType, '@receiptDepositDate', @receiptDepositDate, '@mode', @mode
 
  declare @receiptTypes table(receiptType varchar(50))
+ declare @bankAccountCodes table(bankAccountCode varchar(50))
 
 -- reset receiptType when passed an array of types
  if charindex('|',@receiptType) > 0
@@ -36,17 +38,28 @@ begin
   where id = @depositId
 
 -- TODO: figure out how to link or unlink
+
+ if isnull(@bankAccountCode,'') > '  0'
+  insert @bankAccountCodes select @bankAccountCode
+ else
+  insert @bankAccountCodes select distinct depositAccountCode from dbo.depositPaidAndPosted()
   
  if @mode = 'link'
  begin
   if @receiptDepositDate is null
    insert @token 
    select id from dbo.depositPaidAndPosted()
-    where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType in (select receiptType from @receiptTypes)
+    where isnull(depositId,0) = 0
+     and depositDate <= @depositDate
+     and receiptType in (select receiptType from @receiptTypes)
+     and depositAccountCode in (select bankAccountCode from @bankAccountCodes)
   else
    insert @token
    select id from dbo.depositPaidAndPosted()
-    where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType in (select receiptType from @receiptTypes)
+    where isnull(depositId,0) = 0
+     and depositDate = @receiptDepositDate
+     and receiptType in (select receiptType from @receiptTypes)
+     and depositAccountCode in (select bankAccountCode from @bankAccountCodes)
  end
 
  if @mode = 'unlink'

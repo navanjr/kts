@@ -9,7 +9,10 @@ create function dbo.depositPaidAndPosted() returns @rt table(
  amount money,
  depositId int,
  depositDate int,
- parentControlNumber varchar(50)
+ parentControlNumber varchar(50),
+ officialDepositId int,
+ depositAccountCode varchar(50),
+ origin int
 )
 begin
 
@@ -18,16 +21,16 @@ begin
  insert @unpostedPaid select id from paid where dbo.slinkId(slink) not in (select id from object where typ in (4502,4522) and a17 = 'Posted')
 
 -- get paid records that are not linked to a deposit
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
-  select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId 
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, officialDepositId, origin)
+  select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, officialDepositId, 1
    from paid 
    where isnull(depositId,0) = 0
     and slink is not null
     and id not in (select id from @unpostedPaid)
     and officialDepositId = 0
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
-  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId 
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, officialDepositId, origin)
+  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, officialDepositId, 2 
    from paid 
    where isnull(depositId,0) = 0
     and slink is not null
@@ -35,16 +38,16 @@ begin
     and officialDepositId > 0
 
 -- get paid records that are linked to a deposit that is not yet posted
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
-  select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, officialDepositId, origin)
+  select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, officialDepositId, 3
    from paid
    where depositId in (select id from object where typ=4513 and a17 != 'Posted')
     and slink is not null
     and id not in (select id from @unpostedPaid)
     and officialDepositId = 0
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId)
-  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, officialDepositId, origin)
+  select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, officialDepositId, 4
    from paid
    where depositId in (select id from object where typ=4513 and a17 != 'Posted')
     and slink is not null
@@ -58,9 +61,17 @@ begin
  from @rt a, object b
  where a.objLinkId = b.id
 
- update a set a.receiptTypeId = b.id
+ update a set
+  a.receiptTypeId = b.id,
+  a.depositAccountCode = b.key2
  from @rt a, object b
  where b.typ = 4503 and a.receiptType = b.key1
+
+ update a set
+  a.depositAccountCode = d.a4
+ from @rt a
+  join Object c on c.ID = dbo.slinkId(a.slink) and c.Typ = 4522
+  join Object d on d.ID = c.Link2 and d.Typ = 4601
 
  return
 end
