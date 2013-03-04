@@ -13,7 +13,6 @@ create procedure dbo.receiptPaymentAdd(
 as
 begin
 
- 
  set nocount on
  
  if  @paycode = '' or isnull(@amount,0) = 0
@@ -51,7 +50,7 @@ begin
   @receiptBalanceDue = balanceDue
  from dbo.receiptCheck(@receiptId,@paycode)
 
-select 
+ select 
   @checkReq = isnull(a16,0),
   @bankReq = isnull(a15,0)
   from object where typ=4505 and key1 = @paycode	
@@ -105,10 +104,7 @@ select
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
-   if @receiptType = 'TRUST'
-    exec dbo.receiptTrustStageGL @receiptId
-   else
-    exec dbo.receiptStageGL @receiptId
+   exec dbo.receiptStageGL @receiptId
 
  if @checkNumber<>'CASH RETURNED'
  begin
@@ -132,12 +128,7 @@ select
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
-   begin
-   if @receiptType = 'TRUST'
-    exec dbo.receiptTrustStageGL @receiptId
-   else
-    exec dbo.receiptStageGL @receiptId
-   end
+   exec dbo.receiptStageGL @receiptId
   end
 
 

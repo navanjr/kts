@@ -12,11 +12,10 @@ create function dbo.posBRW() returns @rt table(
 ) as 
 begin
 
- declare @whoAmI varchar(500)
-
- select @whoAmI = dbo.whoAmI()
+ declare @whoAmI varchar(500) = dbo.whoAmI()
 
  insert @rt (depositDate,receiptType,amount,accountId,ord,rowType,blob,postDate)
+/*
  select
   depositDate, 
   receiptType,
@@ -27,7 +26,30 @@ begin
   @whoamI+'@receiptType='+receiptType+';@receiptMaxDate='+cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';'+'@Date='+cast(depositDate as varchar)+';',
   postDate
  from dbo.posTF()
- group by id, depositDate, receiptType, postdate
+ group by
+  id, 
+  depositDate,
+  receiptType,
+  postdate
+ having sum(amount) != 0
+*/
+ select
+  max(depositDate), 
+  receiptType,
+  sum(amount),
+  min(accountId),
+  cast(max(depositDate) as varchar) + 'b',
+  0,
+  @whoamI
+   + '@receiptType='+receiptType+';@receiptMaxDate='
+   + cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';@Date='
+   + cast(max(depositDate) as varchar)+';',
+  max(postDate)
+ from dbo.posTF()
+ group by
+  id, 
+  receiptType
+ having sum(amount) != 0
 
 -- depositDate grouping
  insert @rt (depositDate,amount,accountId,ord,blob,rowType)
