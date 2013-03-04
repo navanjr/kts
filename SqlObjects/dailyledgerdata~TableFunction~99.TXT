@@ -9,6 +9,7 @@ create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50))
  tranout money,
  tranin money,
  deposits money,
+ elecdeposits money,
  endbalance money,
  accountType varchar(50),
  ledgerGroup varchar(50),
@@ -16,9 +17,9 @@ create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50))
 )
 as 
 begin 
-declare @wt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
+declare @wt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
 
-declare @wt2 table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
+declare @wt2 table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
 
 insert @wt (accountCode, accountDesc, beginbalance, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
@@ -44,6 +45,15 @@ select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup 
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
 and (sourceType in ('4502','4513','4522') or (sourceType='4512' and sourcea18='Miscellaneous Deposit'))
+and isnull(comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C'))
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, elecdeposits, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
+and (sourceType in ('4502','4513','4522') or (sourceType='4512' and sourcea18='Miscellaneous Deposit'))
+and isnull(comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C'))
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, tranout, accountType, ledgerGroup)
@@ -105,10 +115,10 @@ group by accountCode, accountDesc, accountType, ledgerGroup
 
 
 insert @wt2
-select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)), sum(isnull(appout,0)), sum(isnull(appin,0)), sum(isnull(tranout,0)), sum(isnull(tranin,0)), sum(isnull(deposits,0)), sum(isnull(endbalance,0)), accountType, ledgerGroup from @wt
+select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)), sum(isnull(appout,0)), sum(isnull(appin,0)), sum(isnull(tranout,0)), sum(isnull(tranin,0)), sum(isnull(deposits,0)), sum(isnull(elecdeposits,0)), sum(isnull(endbalance,0)), accountType, ledgerGroup from @wt
  group by accountCode, accountDesc, accountType, ledgerGroup
  
-update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, endbalance=endbalance*-1 where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, elecdeposits=elecdeposits*-1, endbalance=endbalance*-1 where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 update @wt2 set paid=paid*-1 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
 declare @currentTaxYear varchar(4),
@@ -124,7 +134,7 @@ insert @rt
  select *,'' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
 
 insert @rt
-select accountType+' '+rtrim(ledgerGroup), accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(tranout), sum(tranin), sum(deposits), sum(endbalance), accountType, ledgerGroup,'' from @wt2
+select accountType+' '+rtrim(ledgerGroup), accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(tranout), sum(tranin), sum(deposits), sum(elecdeposits), sum(endbalance), accountType, ledgerGroup,'' from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
  group by accountType, ledgerGroup
 

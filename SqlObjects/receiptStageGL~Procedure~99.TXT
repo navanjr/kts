@@ -111,10 +111,18 @@ begin
    comment varchar(100),
    sourceCode varchar(60)
   )
-  declare @paidTotal money
+  declare @paidTotal money, @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
 
 -- credit AR
-  select @paidTotal = sum(amount)*-1 from paid where slink = @slink
+  select @otherPaid = sum(amount)*-1 from paid where slink = @slink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @etrPaid = sum(amount)*-1 from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
+  select top 1 @etrCode = paycode from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+
+  select @etrPercent = @etrPaid/@paidTotal
+  select @otherPercent = @otherPaid/@paidTotal
+
+
   if @receiptType<>'OFFICIAL'
   begin
    insert @accountsWorking select @arAccountId, null, @paidTotal,'','','',0
@@ -141,12 +149,18 @@ begin
 if @tokenAmount*-1=@paidTotal
  begin
   insert @accountsWorking
-  select altContraId,null, sum(amount),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
+  select altContraId,null, round(sum(amount)*@etrPercent,2),@etrCode,'','',0 from @accountsWorking where altContraId>0 group by altContraId
+
+  insert @accountsWorking
+  select altContraId,null, sum(amount)-round(sum(amount)*@etrPercent,2),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
+
  end
 else
  begin
   insert @accountsWorking
-  select @contraId, null, @paidTotal,'','','',0  
+  select @contraId, null, @otherpaid,'','','',0  
+  insert @accountsWorking
+  select @contraId, null, @etrpaid,@etrCode,'','',0  
  end
 
 
