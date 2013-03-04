@@ -35,7 +35,7 @@ begin
    GOTO bail
  end
 
--- currently we only allow unposting of deposits
+-- currently we only allow unposting of deposits and receipts
  if dbo.slinkType(@slink) != 'o'
  begin
   select
@@ -52,6 +52,18 @@ begin
    @message = 'Unposting can not be done on this object.typ... Sorry.  @typ:' + cast(@objTyp as varchar) + ';'
    GOTO bail
  end 
+
+-- bail if we are a receipt and paid records are already linked to depost or officialDeposit
+ if isnull(@objTyp,0) = 4502
+ begin
+  if exists (select * from paid where slink = @slink and coalesce(nullif(depositId,0),nullif(officialDepositId,0)) is not null)
+  begin
+   select
+    @code = 1,
+    @message = 'Unposting can not be done on this receipt as it is already linked to a deposit... Sorry.;'
+    GOTO bail
+  end
+ end
 
  exec dbo.logit @@procId, '@slink', @slink, '@objTyp', @objTyp, '@postDate', @postDate
 
