@@ -37,17 +37,19 @@ begin
    BankStatementGroup varchar(60),
    checkno varchar(50),
    drawnon varchar(50),
-   location varchar(50)
+   location varchar(50),
+   amount money,
+   origin int
 )
 
- insert @slinks (slink,paycode,paidid,checkno,drawnon,location)
-  select slink,paycode,id,checkno,drawnon,location from paid a where a.depositId = @depositId   
+ insert @slinks (slink,paycode,paidid,checkno,drawnon,location,amount,origin)
+  select slink,paycode,id,checkno,drawnon,location,amount,1 from paid a where a.depositId = @depositId   
 
- insert @slinks (slink,paycode,paidid,checkno,drawnon,location)
+ insert @slinks (slink,paycode,paidid,checkno,drawnon,location,amount,origin)
   select 
-   'o'+cast(officialDepositId as varchar(15)),paycode,id,checkno,drawnon,location from paid a where a.depositId = @depositId and a.officialdepositId > 0
+   'o'+cast(officialDepositId as varchar(15)),paycode,id,checkno,drawnon,location,amount,2 from paid a where a.depositId = @depositId and a.officialdepositId > 0
 
- update s set BankStatementGroup=rtrim(s.paycode)+cast(paidid as varchar)
+ update s set BankStatementGroup = rtrim(s.paycode) + cast(paidid as varchar)
   from @slinks s, object o 
   where o.typ=4505 
   and s.paycode=o.key1
@@ -65,10 +67,11 @@ begin
   and s.paycode=o.key1
   and o.a2 not in ('E','C')
 
+ if @debugMode = 'TRUE'
+  select * from @slinks
 
  -- get the credits
  insert @accounts (accountId, amount)
-
  select
   accountId,
   SUM(amount) * -1
