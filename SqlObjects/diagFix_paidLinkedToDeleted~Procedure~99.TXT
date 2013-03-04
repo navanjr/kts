@@ -13,7 +13,7 @@ begin
  begin 
  
   select
-   @guide = 'GET|SHOW',
+   @guide = 'GET|SHOW|FIX',
    @code = case when count(*) > 0 then 1 else 0 end,
    @tally = count(p.id),
    @message = 'Paid records linked to a deleted receipt' 
@@ -40,6 +40,18 @@ begin
  begin  
  
   exec dbo.logit @@procId, 'Ok ill fix it...'
+
+  delete paid where id in 
+  (select p.id 
+  from paid p
+  left join Object o on cast(o.id as varchar) = dbo.slinkId(p.slink)
+  where
+   left(p.slink,1) = 'o'
+   and o.typ < 0
+   and isnull(p.depositId,0) = 0
+   and isnull(p.officialDepositId,0) = 0)
+  
+  exec dbo.logit @@procid, 'Just deleted paid records... @@rowCount', @@rowCount 
 
  end
 
