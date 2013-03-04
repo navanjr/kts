@@ -65,6 +65,18 @@ begin
   end
  end
 
+-- bail if we are an officialDeposit and paid records are already linked to depost
+ if isnull(@objTyp,0) = 4522
+ begin
+  if exists (select * from paid where officialDepositId = dbo.slinkId(@slink) and isnull(depositId,0) > 0)
+  begin
+   select
+    @code = 1,
+    @message = 'Unposting can not be done on this Official Deposit as it is already linked to a Bank Deposit... Sorry.;'
+    GOTO bail
+  end
+ end
+
  exec dbo.logit @@procId, '@slink', @slink, '@objTyp', @objTyp, '@postDate', @postDate
 
  declare @slinksToRemove table(slink varchar(15))
