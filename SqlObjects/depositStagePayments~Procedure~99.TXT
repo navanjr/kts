@@ -9,6 +9,7 @@ begin
  declare @accounts table(id int identity(1,1),
   accountId int,
   amount money,
+  accountCode varchar(50),
   BankStatementGroup varchar(60),
   paycode varchar(60),
   checkno varchar(50),
@@ -35,6 +36,7 @@ begin
  declare @slinks table(slink varchar(16),
    paycode varchar(60),
    paidid int,
+   objTyp int,
    BankStatementGroup varchar(60),
    checkno varchar(50),
    drawnon varchar(50),
@@ -56,6 +58,11 @@ begin
   and s.paycode=o.key1
   and o.a2 in ('E','C')
 
+ update s set s.objTyp = o.typ
+  from @slinks s, object o 
+  where left(s.slink,1) = 'o'
+   and dbo.slinkId(s.slink) = o.id
+
  update s set 
   paycode = '',
   paidid = 0,
@@ -72,23 +79,32 @@ begin
   select * from @slinks
 
  -- get the credits
- insert @accounts (accountId, amount, origin)
- select
-  accountId,
-  SUM(amount) * -1,
-  1
- from gldetail where slink in (select slink from @slinks) 
-   and accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
-   and amount > 0 -- we are not sure if this is the best way to remove the trust reversal on the official
- group by accountId
+ if 1=1
+-- ok so this new method only gets the suspense debits if they are not on an official deposit and for a trust suspense reversal
+  insert @accounts (accountId, amount, origin, accountCode)
+  select
+   g.accountId,
+   SUM(case when s.objTyp = 4522 and g.amount < 0 then 0 else g.amount end) * -1,
+   1,
+   g.accountCode
+  from gldetail g
+   join @slinks s on g.slink = s.slink 
+    and g.accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
+    --and amount > 0 -- we are not sure if this is the best way to remove the trust reversal on the official
+  group by g.accountId, g.accountCode
+ else
+-- old method
+  insert @accounts (accountId, amount, origin, accountCode)
+  select
+   accountId,
+   SUM(amount) * -1,
+   1,
+   accountCode
+  from gldetail where slink in (select slink from @slinks) 
+    and accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
+    and amount > 0 -- we are not sure if this is the best way to remove the trust reversal on the official
+  group by accountId, accountCode
 
-/*
- select
-  b.link1, sum(a.amount) * -1
- from paid a, object b 
- where a.paycode = b.key1 and b.typ = 4505 and a.depositId = @depositId 
- group by b.link1
-*/
 
  -- get the debits
  if exists(select * from paid where depositId = @depositId)
@@ -112,6 +128,7 @@ begin
   select * from @accounts
  
  -- remove 
+ delete @accounts where isnull(amount,0) = 0
  delete glDetailStage where slink = @slink --and accountId not in (select accountId from @accounts)
 
 /* -- update
