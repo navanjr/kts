@@ -4,8 +4,8 @@
 @bbproc7=
 gcBeginDate=77436,
 gcEndDate=77440,
-gcStation='WINDOW3',
-gcDeputy='',
+gcStation='',
+gcDeputy='Steve Skinner',
 gcReceiptType='',
 gcPrintDetail='Y',
 printReceiptListStation=;
@@ -207,8 +207,7 @@ printReceiptListStation=;
 /**returns receipts for specified user sorted by receipt type**/
 @printReceiptListStation=
   do(452,getSiteInfo=),
-  d1select('select dbo.whoami()'),
-  if(readstring(lcWhoAmI,'@suspenseMethod=')='U',lcReportType='Deputy',lcReportType='Station'),
+  lcReportType=choose(gcDeputy='','Station','Deputy'),
   lcUser=choose(lcReportType='Station','Station: '&gcStation,'Deputy: '&gcDeputy),
   lcFilter=choose(lcReportType='Station','station='&''gcStation'','deputy='&''gcDeputy''),
   lcsql='select recType,recnum,postdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0)+isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where '&lcFilter&' order by recType,recnum',
@@ -220,8 +219,6 @@ printReceiptListStation=;
   lcgPenFees=0,
   lcBoxColor=14539482,
   lcgrpToken='',
-message(lcReportType&'-'&lcUser&'-'&lcFilter),
-
  tr(
   lcx=250,
   lcTm=400,
