@@ -14,7 +14,9 @@ CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varch
  maxControlNumber varchar(50),
  minTicketNumber varchar(50),
  maxTicketNumber varchar(50),
- dptno varchar(50)
+ dptno varchar(50),
+ electronicAmount varchar(50),
+ otherAmount varchar(50)
 )
 begin
 
@@ -30,7 +32,9 @@ begin
   glBalance money,
   minTicketNumber varchar(50),
   maxTicketNumber varchar(50),
-  dptno varchar(50)
+  dptno varchar(50),
+  electronicAmount money,
+  otherAmount money
  )
  declare @wtRaw table(
   id int,
@@ -43,7 +47,9 @@ begin
   ticketNumber varchar(50),
   dptno varchar(50),
   receiptId int,
-  countit int
+  countit int,
+  electronicAmount money,
+  otherAmount money
  )
   declare @accounts table(
   accountId int,
@@ -79,7 +85,9 @@ begin
   case when c.typ=4522 then c.b2 else '' end,
   a.dptno,
   c.id,
-  1
+  1,
+  case when b.comment in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as electronicAmount,
+  case when b.comment not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4502,4522) --,4512,4522
@@ -87,27 +95,6 @@ begin
   and substring(b.slink,2,14) = c.id
   and case when isnumeric(c.key2)=1 then cast(c.key2 as int) else 0 end between @theDate and @theDate + @days
 
-/* insert @wtRaw
- select
-  b.accountId,
-  a.reportOrder,
-  a.collectionDescription,
-  b.accountDesc,
-  case when c.key3 = 'TAX' then null else c.key1 end,
-  b.amount,
-  b.slink,
-  case when c.typ=4522 then c.b2 else '' end,
-  a.dptno,
-  c.id,
-  1
- from @accounts a, glDetail b, object c
- where a.accountId = b.accountId
-  and c.typ in (4512) 
-  and c.a18 = 'Miscellaneous Deposit'
-  and dbo.slinkType(b.slink) = 'o'
-  and substring(b.slink,2,14) = c.id
-  and case when isnumeric(c.key2)=1 then cast(c.key2 as int) else 0 end between @theDate and @theDate + @days
-*/
 
 -- insert all raw receipt data Tax
  insert @wtRaw (receiptNumber,subDescription,receiptId) 
@@ -133,7 +120,9 @@ insert @wt
   0,
   min(ticketNumber),
   max(ticketNumber),
-  max(dptno)
+  max(dptno),
+  abs(SUM(electronicAmount)),
+  abs(SUM(otherAmount))
  from @wtRaw --where  slink2 = 'o29091'
  group by
   subDescription
@@ -168,8 +157,9 @@ insert @wt
   maxControlNumber,
   minTicketNumber,
   maxTicketNumber,
-  dptno
-
+  dptno,
+  dbo.padLeft(convert(varchar,electronicAmount,1),' ',16),
+  dbo.padLeft(convert(varchar,otherAmount,1),' ',16)
  from @wt
 
 -- insert subtotals
@@ -183,7 +173,7 @@ insert @wt
   replicate('-',22),
   replicate('-',10),
   replicate('-',16),
-  'line',0,'','','','',''
+  'line',0,'','','','','','',''
  from @wt 
  group by ord,description
 
@@ -199,7 +189,9 @@ insert @wt
   '',
   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-  'gFooter',0,'','','','',''
+  'gFooter',0,'','','','','',
+  dbo.padLeft(convert(varchar,sum(electronicAmount),1), ' ', 16),
+  dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16)
  from @wt 
  group by ord,description
 
@@ -213,28 +205,28 @@ insert @wt
   '',
   '',
   '',
-  'lineFeed',0,'','','','',''
+  'lineFeed',0,'','','','','','',''
  from @wt 
  group by ord,description
 
  -- headers
- insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','','','',''
- insert @rt select 0,@ordSeed+'00aa','  Collections','','  Collections','','','','sHeader',1,'','','','',''
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','',''
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','','','','','',''
+ insert @rt select 0,@ordSeed+'00aa','  Collections','','  Collections','','','','sHeader',1,'','','','','','Electronic','Regular'
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
 
  if exists(select * from @wt where description = 'Depository')
  begin
   declare @reportSub varchar(50)
   select @reportSub = max(ord) from @wt where description = 'Depository'
-  insert @rt select 0,@ordSeed+@reportSub+'a','','','','','','','lineFeed',0,'','','','',''
-  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers','','  Deposits by Officers','','','','sHeader',1,'','','','',''
-  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','',''
+  insert @rt select 0,@ordSeed+@reportSub+'a','','','','','','','lineFeed',0,'','','','','','',''
+  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers','','  Deposits by Officers','','','','sHeader',1,'','','','','','',''
+  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
  end
 
 -- insert grand total
  if exists(select * from @wt)
  begin
-  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','',''
+  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
 
   insert @rt
   select
@@ -248,7 +240,9 @@ insert @wt
    '',
    dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
-   'grandTotal',0,'','','','',''
+   'grandTotal',0,'','','','','',
+   dbo.padLeft(convert(varchar,sum(electronicAmount),1), ' ', 16),
+   dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16)
   from @wt 
  end
  return
