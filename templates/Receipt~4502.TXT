@@ -1,6 +1,7 @@
 @gobot=1;
 @dk1;
 @wbgcolor=12701121;
+@save;
 lmode=2;
 @format=50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M;
 @filtername=All,All Un-Posted,All Query,Miscellaneous,Mortgage,Tax,Trust,Individual Redemption;
@@ -331,7 +332,7 @@ close('ok');
 \t059In Trust; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
 \t061Year; \t062@n4; \w06230;
 \t063Item; \w06460;
-\t067Decal#; \y067068-13;r
+\t067Decal#; \y067068-13;r \l0684301;r068002056006058012054008;
 \*TODO: when writing a trust voucher for receipts tied to year and item pull the tax items identified onto the tax inquiry screen.*\
 \h101102obj:key3<>'TRUST' and obj:key3<>'MISC';r
 \t101Other;
@@ -455,6 +456,9 @@ close('ok');
  gcApportionToDate=obj:key2,
  trreport(Test Report,5008,testreportSLS=,,,,);
 
+\h118obj:key3<>'TAX' and obj:key3<>'TRUST';
+\t118Decal;
+@acc118=dodecal2=;
 
 \t119Special Apportion;
 @acc119=gccontinue='',
@@ -630,7 +634,15 @@ close('ok');
  if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
  checkCert=,
- gccertId=0;
+ gccertId=0,
+ lccheck=kp('select count(*) from receiptlink rl, invoices i, adtax a where rl.receiptid='&obj:id&' and rl.invoiceid=i.id and i.taxrollid=a.id and i.typ<>''S'' and isnull(i.taxrollid,0)>0 and isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],a.id,''056''),0)>0 '),
+ if(lccheck+0 > 0,dodecal=),
+
+@dodecal=m('There appears to be at least one mobile home related to this receipt would you like to record decal(s)?','Record Decals?',,6),
+ break(gcretval+0<>2),
+ dodecal2=;
+
+@dodecal2=browse(1,4301,'link1='&obj:id,1,obj:id);
 
 @getRecNum=
  if(obj:key3='TAX',sql('exec dbo.taxReceiptNumber '&obj:id)),
