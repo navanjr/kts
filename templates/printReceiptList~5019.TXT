@@ -2,11 +2,11 @@
 @bb7=&Print;
 
 @bbproc7=
-gcBeginDate=77436,
-gcEndDate=77440,
+gcBeginDate=77460,
+gcEndDate=77466,
 gcStation='WINDOW3',
 gcDeputy='Steve Skinner',
-gcReceiptType='',
+gcReceiptType='TAX',
 gcPrintDetail='Y',
 printBookReceiptList=;
 
@@ -272,17 +272,18 @@ printBookReceiptList=;
 /**Receipt Type = Tax prints parcel detail; Receipt Type = blank returns all rec types**/
 /**returns receipts for all users sorted by user based on suspense method. Default sus method is Deputy**/
 @printBookReceiptList=
-  do(452,getSiteInfo=),
-  gcPrintDetail='Y',
-  d1select('select a17 from object where typ=40'),
-  lcSusMethod=obj7:d1,
-  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
-  lcReportType=choose(lcSusMethod='S','Station','Deputy'),
-  lcReportSort=choose(lcSusMethod='S',1,0),
-  lcSQL=choose(left(gcReceiptType,3)='  ',,'where recType='''&gcReceiptType&''''),
-  lcBsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcSQL&' order by '''&lcReportType&''', recType, recNum',
-  if(lcReceiptType='TAX',BookTax=,BookOther=);
-
+ do(452,getSiteInfo=),
+ gcPrintDetail='Y',
+ d1select('select a17 from object where typ=40'),
+ lcSusMethod=obj7:d1,
+ lcReportType=choose(lcSusMethod='S','Station','Deputy'),
+ lcReportSort=choose(lcSusMethod='S',1,0),
+ if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
+ if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
+ if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
+  lcsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by '''&lcReportType&''', recType, recNum  ',
+ if(lcReceiptType='TAX',BookTax=,BookOther=);
+  
 @BookOther=
   lcDetFont='Arial',
   lcFont='Arial',
@@ -331,7 +332,7 @@ printBookReceiptList=;
       lcgFees=0,
       lcgTotAmt=0))),
   nl,
-  det(lcBsql),
+  det(lcsql),
      if(lcReportSort=1),do(
      bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n14.2),900R,format(obj5:a9,@n14.2),800R,format(obj5:a6,@n14.2),900R,obj5:a1,400)),
      if(lcReportSort=0),do(
@@ -399,7 +400,7 @@ printBookReceiptList=;
       lcgPenalty=0,
       lcgTotAmt=0))),
   nl,
-  det(lcBsql),
+  det(lcsql),
      if(lcReportSort=1),do(
         bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a6,@n14.2),800R,obj5:a1,400),
         if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
