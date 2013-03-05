@@ -1,7 +1,7 @@
 @gfbnr=1;
 @dk1;
 @format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
-
+\00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -34,7 +34,9 @@
 @cancelRoutine=
  m('Are you sure you wish to Cancel this '&lcPaymentType&'?','Cancel '&lcPaymentType&'...','Question.ico',6,4),
  break(gcretval<>2),
- d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id),
+ iw('\t097Comment; \y097098=001;r \x097=001; \x098=002; \w098200;'),
+ gccomment=obj7:d1,
+ d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id&', @comments='''&gccomment&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
 
 bb4=&Print Item;  
@@ -166,7 +168,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 
 @seriesField=a18;
 
-\t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002obj:a18<>'Miscellaneous'; \00020500;
+\t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002obj:a18<>'Miscellaneous'; 
 \t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17>'  0' and cur:securitylevel<81;
 \t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; \h005008obj:a18='Miscellaneous';r \00060600;
 \t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
