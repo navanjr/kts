@@ -1,4 +1,4 @@
- create procedure dbo.dtypeCommentCRUD(
+create procedure dbo.dtypeCommentCRUD(
  @mode varchar(50),
  @dtype varchar(50) = null,
  @parcel varchar(50) = null,
@@ -14,7 +14,8 @@ begin
 
  declare 
   @keyFieldName varchar(50),
-  @invoiceTyp varchar(10)
+  @invoiceTyp varchar(10),
+  @taxYear varchar(10)
 
  select
   @keyFieldName = case when @dtype = 'RESALE' then 'parcel' else 'item' end
@@ -120,5 +121,34 @@ begin
    return
  end
 
-
+ if @mode = 'REDEEMED' and @invoiceId > 0
+  begin
+   declare @resaleTaxyear varchar(5) = ''
+   select @resaleTaxyear = MAX(realTaxYear) from AdTax 
+   
+   select
+    @dType = case when typ in ('R','O','S') then 'RESALE' when typ in ('I','B','P') then 'TAXWARRANT' else '' end,
+    @parcel = parcel,
+    @item = item,
+    @taxYear = taxYear 
+   from invoices where id = @invoiceId 
+   
+   
+  if @dtype = 'RESALE' and @parcel > '  0' and @taxYear <= (@resaleTaxyear-3)
+   begin
+   exec dbo.logit @@procid, 'REDEEMED @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@dType', @dType
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and actionDate = 0)
+    if not exists(select * from invoices where taxYear <= (@resaleTaxyear-3) and invoiceDue>0 and parcel = @parcel)
+     update taxrollDetail set actionDate = dbo.clariondate(getdate()), comments = 'Redeemed: ' + dbo.date1(dbo.clarionDate(getdate())) + '  ' + char(13) + char(10) + cast(comments as varchar(max)) 
+       where parcelNumber = @parcel and dtype = @dtype and actionDate = 0 
+   end
+   if @dtype = 'TAXWARRANT' and @item > '  0'
+    begin
+    exec dbo.logit @@procid, 'REDEEMED @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@dType', @dType
+    if exists(select * from taxrollDetail where itemNumber = @item and dtype = @dtype and actionDate = 0)
+     if not exists(select * from invoices where taxYear<=@resaleTaxyear and invoiceDue>0 and item = @item)
+      update taxrollDetail set actionDate = dbo.clariondate(getdate()), comments = 'Redeemed: ' + dbo.date1(dbo.clarionDate(getdate())) + '  ' + char(13) + char(10) + cast(comments as varchar(max)) 
+       where parcelNumber = @parcel and dtype = @dtype and actionDate = 0
+    end
+  end
 end
