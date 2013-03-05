@@ -27,10 +27,26 @@ begin
   @eBalance = isnull(sum(amount),0)
  from glDetail where accountId = @accountId and bsId in (select id from @priorBS union all select @id)
 
+/*
  select 
   @deposits = isnull(sum(case when amount > 0 then amount else 0 end),0),
   @credits = isnull(sum(case when amount < 0 then amount else 0 end),0)
  from glDetail where accountId = @accountId and bsId = @id
+*/
+ select @deposits = isnull(sum(amount),0) 
+ from gldetail 
+ where 
+  accountId = @accountId 
+   and bsId = @id
+   and ((amount > 0) and slink not in (select 'o'+cast(id as varchar) from object where typ=4771))
+ 
+ select @credits = isnull(sum(amount),0) 
+ from gldetail 
+ where 
+  accountId = @accountId 
+   and bsId = @id
+   and ((amount < 0) or slink in (select 'o'+cast(id as varchar) from object where typ=4771))
+
 
  select @variance = case when isnumeric(a3)=1 then cast(a3 as money) else 0 end-@eBalance from object where typ = 4780 and id = @id
 
