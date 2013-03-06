@@ -109,16 +109,19 @@
  lcName='',lcValue='',
  editVariableCore=;
 
+
 @editVariableCore=
- iw('\t001Tag Name;\f002'&lcName&';\t003Value;\f004'&lcValue&';'&choose(lcName>'  0','\n002;','')),
+ iw('@loadwindow=set(004,'''&lcValue&''');\t001Tag Name;\f002'&lcName&';\t003Value;'&choose(lower(lcName)='interestto','\t004@d2;','')&choose(lcName>'  0','\n002;','')),
  break(gcretval<>'OK'),
- d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&obj7:key2&''',@parentId=''o'&obj:id&''''),
+ lcValue=choose(lower(lcName)='interestto',format(obj7:key2,@d2),obj7:key2),
+ d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&lcValue&''',@parentId=''o'&obj:id&''''),
  brwreload(1);
 
 @editVariable=
  d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
  lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
- lcValue=readstring(obj7:d1,'@value='),
+ lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ lcValue=choose(lower(lcName)='interestto',deformat(lcValue,@d2),lcValue),
  editVariableCore=;
 
 @removeVariable=
