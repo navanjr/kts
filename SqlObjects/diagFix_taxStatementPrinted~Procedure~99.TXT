@@ -1,0 +1,39 @@
+create proc dbo.diagFix_taxStatementPrinted(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+  select 
+   @guide = 'GET|SHOW',
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(*),
+   @message = 'missing tax statement printed comment'
+  from invoices
+  where printed > '  0'
+   and id not in (select invoiceLinkId from taxrollDetail)
+ 
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert taxrollDetail (invoiceLinkId, dtype, documentName, documentDateTime, Stamp, Comments, adtaxId)
+  select id, 'print', 'Tax Statement', case when isdate(printed) = 1 then cast(printed as datetime) else '' end, queue, 'Printed Tax Statement - ' + queue, taxrollId
+  from invoices
+  where printed > '  0'
+   and id not in (select invoiceLinkId from taxrollDetail)
+  order by name 
+ 
+  return
+ end
+
+
+end

@@ -5,6 +5,7 @@ begin
 
  declare 
   @idToken int,
+  @fundCodeToken varchar(50),
   @invoiceDate varchar(10),
   @description varchar(50),
   @sourceCode varchar(50),
@@ -30,10 +31,12 @@ exec dbo.logit @@procid, '@receiptId', @receiptId
   end
 
  select top 1 @invoiceDate = dbo.clariondate(getdate()),
-  @description = b2,
-  @sourceCode = b3,
-  @fundCode = b4
- from object where typ=40 order by id 
+  @description = key1,
+  @sourceCode = key2,
+  @fundCode = key3
+ from object where typ=4504 and a1='PENALTY' and a3<' 0' and a4<' 0'
+
+
 
 
  declare @pttemp table(invoiceId int, amount money, dueDate varchar(50))
@@ -46,18 +49,92 @@ exec dbo.logit @@procid, '@receiptId', @receiptId
 
  delete from @pttemp where dueDate > @penaltyDate
 
- declare @pt table(invoiceId int, amount money)
+ declare @pt table(invoiceId int, amount money,description varchar(50),sourceCode varchar(50),fundCode varchar(50))
 
  insert @pt
   select a.invoiceId,
-         dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(@penaltyDate))/100
+         dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(@penaltyDate))/100,
+         '',
+         '',
+         ''
    from @pttemp a
-   
+
+-- Set penalty description source and fund for records having an override for the fund that matches invoice typ and pertyp 
+ if exists(select * from invoices i, object td, adtax a, @pt p where p.invoiceId=i.id and i.taxrollId=a.id and i.typ <> 'S' and td.typ=4504 and td.a1='PENALTY'
+  and i.typ=td.a3 and a.pertyp=td.a4 and p.description < ' 0' and p.sourceCode < ' 0')
+ begin 
+  update p 
+   set description = td.key1,
+    sourceCode = td.key2,
+    fundCode = td.key3
+   from @pt p, invoices i, object td, adtax a 
+   where p.invoiceId=i.id and
+    i.taxrollId=a.id and
+    i.typ <> 'S' and
+    td.typ=4504 and
+    p.description < ' 0' and
+    p.sourceCode < ' 0' and 
+    td.a1='PENALTY' and
+    i.typ=td.a3 and
+    a.pertyp=td.a4
+ end
+
+-- Set penalty description source and fund for records having an override for the fund that matches invoice typ
+ if exists(select * from invoices i, object td, @pt p where p.invoiceId=i.id and td.typ=4504 and td.a1='PENALTY'
+  and i.typ=td.a3 and p.description < ' 0' and p.sourceCode < ' 0')
+ begin 
+  update p 
+   set description = td.key1,
+    sourceCode = td.key2,
+    fundCode = td.key3
+   from @pt p, invoices i, object td
+   where p.invoiceId=i.id and
+    td.typ=4504 and
+    p.description < ' 0' and
+    p.sourceCode < ' 0' and 
+    td.a1='PENALTY' and
+    i.typ=td.a3
+ end
+
+ update @pt
+   set description = @description,
+    sourceCode = @sourceCode,
+    fundCode = @fundCode
+ where 
+    description < ' 0' and
+    sourceCode < ' 0'
+
+
+ --Set penalty fundCode for records not specifying a fundCode
+ while exists(select * from @pt where fundCode < ' 0')
+ begin
+  select top 1 
+   @idToken = invoiceId
+   from @pt where fundCode<' 0'
+  
+  select top 1 @fundCodeToken=accountCode from dbo.targetFundInvoice(@idToken)
+  if exists(select * from glaccounts where accountCode=@fundCodeToken and accountType in (select accountType from glbankFundTypes('FUND')))
+   begin
+    update @pt set fundCode=@fundCodeToken where invoiceId=@idToken
+   end
+  else
+   begin
+    update @pt set fundCode=@fundCode where invoiceId=@idToken
+   end
+ end
+
+
 
 
  while exists(select * from @pt)
  begin
-  select top 1 @idToken = invoiceId, @amount = amount from @pt
+  select top 1 
+   @idToken = invoiceId, 
+   @amount = amount, 
+   @description = description,
+   @sourceCode = sourceCode,
+   @fundCode = fundCode
+   from @pt
   exec dbo.logit @@procid,  '@idToken', @idToken, '@amount', @amount
   
   -- Issue penalty invoice for this tax item or update an existing one

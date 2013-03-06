@@ -1,0 +1,20 @@
+create function dbo.targetFund(@accountcode varchar(60))
+returns @rt table(accountCode varchar(50),apportionPercent money)
+as
+begin
+
+declare @accountType varchar(60),@accountId int
+
+select @accountType=accountType,@accountId=accountId from dbo.glaccounts where accountCode=@accountcode
+
+if @accountType in (select accountType from dbo.glbankfundtypes('FUND'))
+select @accountType=accountType,@accountId=accountId from dbo.glaccounts where targetaccountCode=@accountcode and accounttype='ACCRUED RECEIVABLE'
+
+
+if @accountType='ACCRUED RECEIVABLE'
+begin
+insert @rt
+select creditcode,amount from dbo.apportionCollectionsWT( @accountId, 0, 'TRUE', null, null) where creditcode in (select accountcode from glaccounts where accountType in (select accountType from dbo.glbankfundtypes('FUND')))
+end
+return
+end

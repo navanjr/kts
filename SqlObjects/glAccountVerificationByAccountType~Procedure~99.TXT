@@ -1,0 +1,25 @@
+create proc dbo.glAccountVerificationByAccountType (
+ @glAccountType varchar(50),
+ @accountType varchar(50),
+ @suffix varchar(50)
+) as
+begin
+
+ exec dbo.logit @@procId, 'Running Account Verification on G/L Acct Type', @glAccountType
+
+ declare @accounts table(accountCode varchar(50))
+ declare
+  @acctToken varchar(50),
+  @acctsuffix varchar(50)
+
+ insert @accounts select ltrim(rtrim(accountCode)) from dbo.glAccounts where accountType = @glAccountType
+
+ while exists(select * from @accounts)
+ begin
+  select top 1 @acctToken = accountCode, @acctsuffix = accountCode + @suffix from @accounts order by accountCode
+  exec dbo.logit @@procId, '@acctSuffix', @acctSuffix, '@accountType', @accountType, '@targetAccountCode', @acctToken
+  exec dbo.glAccountVerification @acctsuffix, @accountType, 'CREATE', @targetAccountCode = @acctToken
+  delete @accounts where accountCode = @acctToken
+ end
+
+end

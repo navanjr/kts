@@ -1,0 +1,25 @@
+create function dbo.dailyJeDetail(@beginDate varchar(10), @endDate varchar(10)) returns @wt table(
+  jeNumber varchar(50),
+  accountCode varchar(50), 
+  accountDesc varchar(50),
+  accountType varchar(50), 
+  amount money)
+as 
+begin
+
+ insert @wt
+ select sourceKey1,accountCode,accountDesc,accountType,amount from gldetailreports where left(slink,1) = 'o' 
+  and substring(slink,2,15) in 
+  (select id from object where typ=4512 and a17='Posted' and left(a18,5)<>'APPOR')
+  and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
+  and sourceDate >= @beginDate 
+  and sourceDate <= @endDate
+  
+  update @wt set accountCode = accountType+case when accountType <> 'BACK TAX' then 'S' else '' end, 
+                 accountDesc=accountType+case when accountType <> 'BACK TAX' then 'S' else '' end,
+                 accountType='FUND'
+   where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+    and accountType <> 'FUND'
+  
+ return
+end

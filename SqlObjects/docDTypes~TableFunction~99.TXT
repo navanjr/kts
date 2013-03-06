@@ -1,0 +1,41 @@
+create function dbo.docDTypes(
+ @blob varchar(max)
+) 
+returns @rt table(
+ id int,
+ code varchar(50),
+ switch int
+) as
+begin
+
+ insert @rt select
+  dbo.splitF(data,':',1),
+  null,
+  dbo.splitF(data,':',2)
+ from dbo.split(@blob,'|')
+ where dbo.splitF(data,':',1) > 0
+
+-- check to see if we dont have the default options
+ if not exists(select * from @rt where id = 1)
+  insert @rt(id, switch) select 1,0
+ if not exists(select * from @rt where id = 2)
+  insert @rt(id, switch) select 2,0
+ if not exists(select * from @rt where id = 3)
+  insert @rt(id, switch) select 3,0
+
+ update @rt set
+  code = case id 
+   when 1 then 'All Others'
+   when 2 then 'BANKRUPT'
+   when 3 then 'PROBATE'
+  end
+ where id < 4
+
+-- get mortgage company name
+ update a set
+  a.code = b.key1
+ from @rt a
+ join object b on a.id = b.id and b.typ = 4030
+
+ return
+end

@@ -1,0 +1,305 @@
+@fastinsert;
+@nolock;
+
+@loadwindow=
+ gcPBStuffer=kp('select pbStuffer from dbo.site'),
+ create(3,9),
+ create(7,9),
+ create(9,9),
+ create(13,9),
+ create(37,9),
+ create(43,9),
+ create(49,9),
+ create(51,9),
+ brwstuff=,
+ updateMikeMort=;
+
+@brwstuff=
+ gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord,code',
+ brw(150,1,gcbrwsql4000,65,95,240,175,'140L(2)~~#2#|M40R(4)~~#3#|M48R(4)~~#5#|M100L(2)~~#6#|M',7,1),
+ prop(150,7CFAH,13499135);
+
+@lbrw1forecolor=obj7:c10<0,255;
+@brw1=
+ gcTaxYear=obj:key1,
+ lcId=kpbrwid(1),
+ lcBlob=kp('select blob from dbo.taxYearPrintBRW('''&obj:key1&''') where brwid = '&lcId),
+ break(lcBlob<'  0'),
+ lcMode=readstring(lcBlob,'@mode='),
+ if(lcMode='invoice',invoicebatchRoutine=),
+ if(lcMode='batch',batchRoutine=),
+ if(lcMode='queue',queueRoutine=),
+ if(lcMode='pass',passRoutine=),
+ refreshbrw=;
+
+@refreshbrw=
+ brwreload(1),
+ calcfld(008),
+ calcfld(010),
+ calcfld(012),
+ calcfld(014),
+ calcfld(046),
+ calcfld(048);
+
+@updateMikeMort=
+ d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1&''''),
+ lcMortImp=readstring(obj7:d1,'@tally='),
+ set(44,lcMortImp);
+
+@gfwindow=refreshbrw=,updateMikeMort=;
+
+@passRoutine=
+ lcCmd=readstring(lcBlob,'@code='), 
+ m('Are you sure you wish to run: '&lcCmd,'Pass Routine...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select(lcCmd),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Pass Routine...')),
+ refreshbrw=;
+ 
+@invoicebatchRoutine=
+ gcTaxYear=obj:key1,
+ gcBatchName=readstring(lcBlob,'@code='),
+ m('Choose one of the following options...','Invoice Batch: '&gcBatchName,'question.ico','&Blow it up!|&Process Remaining Invoices|&Cancel'),
+ if(gcretval=1,sql('delete taxrollinvoiceprocessing where processcode='''&gcBatchName&'''')),
+ if(gcretval=2,sql('exec dbo.taxrollInvoiceBatch '''&gcTaxYear&''',0,'''&cur:ini&''''));
+
+@queueRoutine=
+ m('Please choose one of the following Batch Printing Options:','Batch Print Options...','question.ico','Print Un-Printed Tax Statements|&Open Print Batch|&Remove Print Batch|&Cancel'),
+ break(gcretval=4),
+ gcTaxYear=obj:key1,
+ gcBatchName=readstring(lcBlob,'@code='),
+ gcSwitch='p',
+ lcUnPrinted=readstring(lcBlob,'@unPrinted='),
+ if(gcretval=1,printBatch=),
+ if(gcretval=2,openBatch=),
+ if(gcretval=3,removeBatch=);
+
+@removeBatch=
+ m('Are you sure you wish to remove this Batch?','Print Batch...','question.ico',6,2),
+ break(gcretval<>2),
+ gcIni=cur:ini,
+ sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''',0,'''', @removeBatch='''&gcBatchName&'''');
+ refreshbrw=;
+
+@printBatch=
+ iw(',.t000Print Loop..., ,.t001Print Count., ,.f002='&lcUnPrinted&'., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ printIt=,
+ refreshbrw=;
+
+@openBatch=
+ lcId=kp('select top 1 id from object where typ=4019'),if(lcId+0>0,change(lcId),new(4019));
+
+@batchRoutine=
+ lcScope=readstring(lcBlob,'@scope='),
+ lcCode=readstring(lcBlob,'@code='),
+ gcIni=cur:ini,
+ iw(',.t000Create Batch...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ sql('exec dbo.taxStatementQueueGrab '''&gcTaxYear&''','''&gcIni&''','&lcCount&','''&lcCode&'''');
+
+acc049=
+ gcTaxYear=obj:key1,
+ gcIni=cur:ini,
+ gcSwitch='q',
+ lcId=kp('select top 1 id from object where typ=4019'),if(lcId+0>0,change(lcId),new(4019)); 
+
+@bb5=SetUpTaxYrs; 
+ @bbproc5=
+   d1select('exec dbo.taxYearImport'),
+   recalc('tem:id=4000');
+
+@bb6=&Abstract;
+ @bbproc6=
+  gcTaxYear=obj:key1,
+  do(4021,menuprocess=);
+
+@bb7=&Trio Report; 
+@bbproc7=acc115=;
+
+\t001Tax Year; \t002@p####p;
+
+\t003adtx_(TaxYear); \s004-'select count(*) from adtx_'&obj:key1&' where balanceDue !=0';
+\t005mike_taxroll; \s006-'select count(*) from mike_taxroll where realtaxyear = '&obj:key1;
+
+\t007adtax Count; \s008+'select count(id) from adtax where [REALTAXYEAR]='''&obj:key1&'''';
+ @acc007=
+ m(obj:key1&' AdTax options...','AdTax','question.ico','&Import mike_taxroll|&Delete All|&Cancel'),
+ if(gcretval=1,importadtax=),
+ if(gcretval=2,deleteadtax=);
+@importadtax=
+ lcCode='mike_taxroll',specialsClick=;
+@deleteadtax=
+ d1select('exec dbo.adTaxCrud @mode=3, @taxyear='''&obj:key1&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'AdTax...')),
+ refreshbrw=;
+
+\t009Invoiced;  \s010+'select dbo.taxYearInvoiced('''&obj:key1&''',''I'')';
+ @acc009=
+ m(obj:key1&' Invoice options...','Invoice','question.ico','Create Invoice Batch|&Delete All|&Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,createInvoiceBatch=),
+ if(gcretval=2,deleteInvoices=),
+ refreshbrw=;
+
+@createInvoiceBatch=
+ iw(',.t000Create Invoices...('&lcCode&'), ,.t001Process Count., ,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ sql('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount&','''&cur:ini&''',''TRUE''');
+
+@deleteInvoices=
+ sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&'''');
+
+\t011Mike_Fee; \s012-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''mike_fee''';
+\t013SubInvoice; \s014-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''subInvoice''';
+\p0120147c10h,'Courier New';r2 \p0120147c11h,8;r2 \w012014100;r2
+@acc013=
+ m('Choose one of the following options...','Import Fees...','question.ico','&Import from mike_fees|&Delete Imported Fees|&Cancel'),
+ if(gcretval=1,importMikeFees=),
+ if(gcretval=2,deleteMikeFees=);
+
+@importMikeFees=
+ d1select('exec dbo.mike_taxFeeImport @taxyear='''&obj:key1&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import mike_fee...')),
+ refreshbrw=;
+
+@deleteMikeFees=
+ sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&''', @origin=''mike_fee''');
+
+
+\e002010;r2
+
+\t037Lo&gging; \y037298; \y038298; \d038; \w038242; \s038-'select dbo.settingsF(''Logging'')';
+ @acc037=
+ m('Choose one of the logging options...','Logging Options...','question.ico','&Disable|&Enable|&Cancel'),
+ break(gcretval=3),
+ if(gcretval=1,sql('exec dbo.logit @control=''stop''')),
+ if(gcretval=2,sql('exec dbo.logit @control=''start|1''')),
+ calcfld(038);
+
+\t039Last Receipt#; \t040@n05; \w04050;
+
+\t043Mike Mort; \w04460; \d044; 
+@acc043=
+ m('Choose one of the following Mortgage Code Options...','Mortgage Code Options...','question.ico','&Update from mike_taxroll|&Cancel'),
+ break(gcretval=2),
+ d1select('exec dbo.mike_mortImport @mode=''updateThem'',@taxyear='''&obj:key1&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1,'Mike Mort Import...')),
+ refreshbrw=,updateMikeMort=;
+
+\t045Total Due; \s046+'select sum(balanceDue) from adtax where [REALTAXYEAR]='''&obj:key1&''''; \w04660; \t046@n$14,2;
+\p0467cfah,13499135; \p0467c13h,700; \p0467c0ch,1;
+
+\t047Total Invoiced; \s048+'select sum(invoiceAmount) from invoices where [TAXYEAR]='''&obj:key1&''' and taxrollId > 0'; \w04860; \t048@n$14,2;
+\p0487cfah,13499135; \p0487c13h,700; \p0487c0ch,1;
+
+\t049FireDist; \s050-'select value from dbo.taxrollSAImportTF('''&obj:key1&''') where code = ''mike_taxroll_fire''';  'select value from dbo.fireImportTF('''&obj:key1&''') where code = ''firt''';
+\t051Special; \s052-'select value from dbo.taxrollSAImportTF('''&obj:key1&''') where code = ''mike_taxroll_special''';
+\x049051-20;r2 \x050052-40;r2 \w04905140;r2 \w050052100;r2
+
+@acc049=lcCode='mike_taxroll_fire',specialsClick=;
+@acc051=lcCode='mike_taxroll_special',specialsClick=;
+
+@specialsClick=
+ lcimportcmd='exec dbo.mike_specialsImport @taxyear='''&obj:key1&''', @code='''&lcCode&'''',
+ m('Choose one of the '&lcCode&' import options...||'&lcimportcmd,'Import Specials...','question.ico','&Import|&Delete|&Cancel'),
+ if(gcretval=1,importSpecials=);
+
+@importSpecials=
+ d1select(lcimportcmd),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import mike Specials...')),
+ refreshbrw=;
+
+@invoiceit=
+ kpmo('Creating Invoices...'),
+ d1select('exec dbo.taxrollInvoiceBatch '''&obj:key1&''','&lcCount&','''&cur:ini&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Taxroll Invoicing...')),
+ calcfld(010),
+ kpmc();
+
+\t108&Print;  \y108+9; \h108;
+
+@printIt=
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ do(452,getSiteInfo=),
+ sqlloop('select top '&lcCount&' id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by printOrder',printIt1=),
+ calcfld(012),
+ calcfld(050),
+ kpmc();
+
+@printIt1=
+ lcCnt=lcCnt+1,
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcCount),
+ gcInvoiceId=obj5:a1,
+ printItCore=;
+
+@printItCore=
+ sql('dbo.taxRolladdressCheck '&gcInvoiceId),
+ trreport('TaxStatement'),
+ d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''Success''');
+
+\t113Invoice Exempt;
+@acc113=
+ gcTaxYear4000=obj:key1,
+ sql('exec dbo.taxyearAddExemptAdtax '&gcTaxYear4000),
+ refreshbrw=;
+
+
+\t114Mortgage Codes;
+@acc114=
+ gcTaxYear4000=obj:key1,
+ trreport('mortgageCodeReport',4000,'mortgageCodeReport=');
+
+\t115AdTax Dist/Rates;
+@acc115=
+ gcTaxYear4000=obj:key1,
+ trreport('adtaxdistrates',4000,'ratetrioreport=');
+
+\t117PDF Combinator;
+@acc117=do(83,menuprocess=);
+
+@ratetrioreport=
+ do(452,getSiteInfo=),
+ lcA1=0,lcA6=0,lcA8=0,
+ tr(
+  landscape,
+  prn(printed),
+  prn(pages),
+  prn('Adtax District/RateName Summary',t1),
+  prn(gcCounty&' County',t2),
+  prn(gcCity&', '&gcState,t3),
+  prn('realtaxyear: '&gcTaxYear4000,t4),
+  bnd('HU','Count',500,'District',1500,'RateName',1500,'Mill Total (count)',800R,'adtx Due',800R,'Invoiced',800R),
+  det('select * from dbo.taxyearTrioBRW('''&gcTaxYear4000&''') order by district, rateName'),
+   bnd('D',format(obj5:a1,@n12.0),500R,obj5:a2,1500,obj5:a3,1500,format(obj5:a5,@n-14.4b)&choose(obj5:a4>0,' ('&obj5:a4&')',''),800R,format(obj5:a6,@n14.2),800R,format(obj5:a8,@n14.2),800R,format(obj5:a8-obj5:a6,@n14.2b),800R),
+   lcA1=lcA1+0+obj5:a1,
+   lcA6=lcA6+obj5:a6,
+   lcA8=lcA8+obj5:a8,
+  edt,
+  nl,
+  bnd('H',format(lcA1,@n12.0),500,,1500,,1500,,800R,format(lcA6,@n$14.2),800R,format(lcA8,@n$14.2),800R,format(lcA8-lcA6,@n$14.2),800R)
+ );
+
+@mortgageCodeReport=
+ do(452,getSiteInfo=),
+ lctot=0,
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Adtax District/RateName Summary',t1),
+  prn(gcCounty&' County',t2),
+  prn(gcCity&', '&gcState,t3),
+  prn('Tax Year: '&gcTaxYear4000,t4),
+  prn(,1500),
+  bnd('HU','Count',500C,'Code',500,'Name',1000),
+  det('select cast(count(*) as varchar), mortgageCode, (select key3 from Object where typ=4030 and Key1 = mortgageCode) from adtax where realtaxyear = '''&gcTaxYear4000&''' group by mortgageCode'),
+   bnd('D',format(obj5:a1,@n12.0b),500C,obj5:a2,500,obj5:a3,1000),
+   lctot=lctot+0+obj5:a1+0,
+  edt,
+  nl,
+  bnd('D',format(lctot,@n12.0b),500C),
+ );

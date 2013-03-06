@@ -12,7 +12,7 @@ create procedure dbo.receiptPaymentAdd(
 )
 as
 begin
- 
+
  set nocount on
  
  if  @paycode = '' or isnull(@amount,0) = 0
@@ -37,6 +37,8 @@ begin
   @receiptBalanceDue money,
   @changeAmount money
 
+ delete from paid where paycode='CASH' and slink=@slink and checkno='CASH RETURNED' and @checkNumber<>'CASH RETURNED'
+
  select
   @code = code,
   @message = message,
@@ -48,7 +50,7 @@ begin
   @receiptBalanceDue = balanceDue
  from dbo.receiptCheck(@receiptId,@paycode)
 
-select 
+ select 
   @checkReq = isnull(a16,0),
   @bankReq = isnull(a15,0)
   from object where typ=4505 and key1 = @paycode	
@@ -81,7 +83,6 @@ select
   return
  end
 
-
  -- Add Returned for negative cash totals
  if @paycode = 'CASH' and @amount < 0 and @checkNumber < '  0'
  begin
@@ -98,24 +99,39 @@ select
   else
    update paid set paycode=@paycode,slink=@slink,amount=@amount,checkno=@checkNumber,bankId=@bankId,drawnon=@drawnon,location=@location where id=@paymentId
 
--- add or update CASH RETURNED
-  set @changeAmount = isnull(@receiptBalanceDue,0) - isnull(@amount,0)
-  if @changeAmount < 0
-  begin
-   exec dbo.logit @@procid, 'Hang on, we are making change...'
-   if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
-    update paid set amount = @changeAmount where checkno = 'CASH RETURNED' and slink = @slink
-   else
-    insert paid (paycode,slink,amount,checkno)
-     select 'CASH', @slink, @changeAmount, 'CASH RETURNED'
-  end
-
 
 -- add to the gl stage
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, @mode
   else
    exec dbo.receiptStageGL @receiptId
+
+ if @checkNumber<>'CASH RETURNED'
+ begin
+  declare @overpayment money
+  select @overpayment = sum(amount) from gldetailstage where slink=@slink and accountId=0
+  select @receiptBalanceDue = round(dbo.receiptBalanceDue(@receiptId)+.001,2)
+
+-- add or update CASH RETURNED
+  set @changeAmount = case when isnull(@receiptBalanceDue,0) < isnull(@overpayment,0) then isnull(@receiptBalanceDue,0) else isnull(@overpayment,0) end
+  if @changeAmount < -.006
+  begin
+   exec dbo.logit @@procid, 'Hang on, we are making change...'
+   if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
+    update paid set amount = round(@changeAmount,2) where checkno = 'CASH RETURNED' and slink = @slink
+   else
+    insert paid (paycode,slink,amount,checkno)
+     select 'CASH', @slink, round(@changeAmount,2), 'CASH RETURNED'
+  end
+
+-- add to the gl stage
+  if @receiptType = 'TAX'
+   exec dbo.receiptTaxStageGL @receiptId, @mode
+  else
+   exec dbo.receiptStageGL @receiptId
+  end
+
+
 
 -- get the balance of the glStage to check your work
   if @receiptType = 'TAX'

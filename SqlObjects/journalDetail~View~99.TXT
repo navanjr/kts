@@ -1,0 +1,10 @@
+create view journalDetail as
+select sourcea18 as journalType,sourcekey1 as jounalNo,sourcekey3 as journalDesc,sourcedate as journalDate,
+   case when amount > 0 then amount else 0.00 end as debitamt,
+   case when amount < 0 then amount*-1 else 0 end as creditamt,
+   sourcee1 as journalComment,
+   case when accounttype in (select accounttype from dbo.glbankfundtypes('BOTH')) then 'GL' else 'Detail' end as DetailType,
+   *
+ from gldetailreports 
+ where sourcetype='4512'
+   and left(sourcea18,13) <> 'APPORTIONMENT'

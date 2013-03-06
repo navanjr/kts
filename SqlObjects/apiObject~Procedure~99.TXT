@@ -2,7 +2,8 @@ create procedure dbo.apiObject(
  @objectId int = null,
  @controlId int = null,
  @method varchar(10) = 'GET',
- @insertIntoObject varchar(10) = 'false'
+ @insertIntoObject varchar(10) = 'false',
+ @debugMode varchar(5) = 'FALSE' 
 ) as
 begin
  set nocount on
@@ -23,7 +24,7 @@ begin
  declare @wt table(
   objField varchar(50),
   apiField varchar(50),
-  value varchar(500)
+  value varchar(max)
  )
 
  if isnull(@objectId,0) > 0
@@ -258,6 +259,9 @@ begin
   if len(@dump) > 10
   begin
 
+   if @debugMode = 'TRUE'
+    select @dump
+
    begin try
     insert into @apiwt
     select * from dbo.parseJSON(@dump) where name is not null
@@ -269,10 +273,16 @@ begin
     where typ = @typ and id = @objectId
     return
    end catch
+
+   if @debugMode = 'TRUE'
+    select * from @apiwt
    
    update a set a.value = case when b.stringValue = 'null' then '' else b.stringValue end
    from @wt a, @apiwt b
    where a.apiField = b.name
+
+   if @debugMode = 'TRUE'
+    select * from @wt
 
    declare @apiControlId varchar(50)
     set @apiControlId = isnull((select value from @wt where objField = 'key1'),'')
@@ -282,6 +292,11 @@ begin
 
    if not exists(select * from object where typ = 4 and key1 = @apiControlId)
     insert object (typ,key1) select @typ, @apiControlId
+
+
+   declare @testx varchar(max)
+   select @testx = isnull((select replace(value,'|',char(13)+char(10)) from @wt where objField = 'e1'),'')
+   exec dbo.logit @@procId, 'Testing', @testx
 
    update object set 
     key2 = isnull((select value from @wt where objField = 'key2'),''),

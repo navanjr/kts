@@ -17,9 +17,11 @@ begin
   protestAmount money,
   protestId int,
   sourceCode varchar(60),
+  fundCode varchar(60),
   invoiceTyp varchar(1),
   pertyp varchar(1),
-  payord int
+  payord int,
+  parentInvoiceId int
  )
  declare @glFundDebits table(
   slink varchar(15),
@@ -39,7 +41,8 @@ begin
   slink varchar(15),
   accountId int,
   amount money,
-  contraId int
+  contraId int,
+  comment varchar(50)
  )
  declare @glSuspense table(
   slink varchar(15),
@@ -54,7 +57,8 @@ begin
   contraId int,
   processType varchar(50),
   slink2 varchar(15),
-  sourceCode varchar(60)
+  sourceCode varchar(60),
+  comment varchar(50)
  )
 
  declare
@@ -76,8 +80,10 @@ begin
   @slink2 varchar(15),
   @applyTotal money,
   @prorate decimal(19,18),
-  @processCount int
+  @processCount int,
+  @suspenseMethod varchar(50)
 
+ select @suspenseMethod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
 
 --TODO: bail if there is already gldetail for these receiptLinks 
 --TODO: bail if we are offered too much money
@@ -88,7 +94,9 @@ begin
   set @protestCodeSuffix='_PROTEST'
 
 -- get the invoices linked to this receipt
- insert @wt (linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, pertyp, payord)
+ insert @wt (
+  linkId, invoiceId, slink, invoiceSLink, methodRate, taxyear, protestAmount, protestId,
+  sourceCode, invoiceTyp, pertyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -101,13 +109,14 @@ begin
    case when b.invoiceId>0 then 'GETSOURCE' else '' end,
    b.typ,
    case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end,
-   case when b.invoiceId > 0 then 1 else 2 end
+   case when b.invoiceId > 0 then 1 else 2 end,
+   b.invoiceId
   from receiptLink a, invoices b 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
-    and b.typ <> 'S'
+    and b.typ not in  ('S','A')
 
- insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, invoiceTyp, payord)
+ insert @wt (linkId, invoiceId, slink, invoiceSLink, due, methodRate, taxyear, protestAmount, protestId, sourceCode, fundCode, invoiceTyp, payord, parentInvoiceId)
   select
    a.id,
    a.invoiceId,
@@ -119,8 +128,10 @@ begin
    a.protestAmount,
    0,
    r.sourceCode,
+   r.fundCode,
    b.typ,
-   case when b.invoiceId > 0 then 1 else 2 end
+   case when b.invoiceId > 0 then 1 else 2 end,
+   b.invoiceId
   from receiptLink a, invoices b, receiptDetail r 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
@@ -202,9 +213,13 @@ begin
      and isnull(w.protestId,0) = 0
      and w.protestAmount > 0
 
+ update w set contraAccountId = pi.contraAccountId, protestId=pi.protestId 
+   from @wt w, @wt pi
+   where w.parentInvoiceId=pi.invoiceId
+
 
  update @wt set
-  due = case when invoiceTyp<>'S' then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
+  due = case when invoiceTyp not in ('S','A') then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
   arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
   contraAccountId = case when isnull(contraAccountId,0) = 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
      else contraAccountId end,
@@ -214,20 +229,48 @@ begin
 
 -- populate Suspense
 -- get all the payments linked to this receipt
- insert @glSuspense
+ if @suspenseMethod in ('U','S')
+ begin
+  insert @glSuspense
+  select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
+   from paid a, dbo.posAccounts() b 
+   where a.paycode = b.paycode and b.receiptType = 'TAX' and a.slink = @receiptSlink group by b.accountId, a.id
+ end
+ else
+ begin
+  insert @glSuspense
+  select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
+   from paid a, paycodes b 
+   where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId, a.id
+ end
 
- select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
-  from paid a, paycodes b 
-  where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId, a.id
 
- select @paidTotal = round(sum(amount),2) from @glSuspense
+
+
+-- select @paidTotal = round(sum(amount),2) from @glSuspense
+
+ select @paidTotal
+
+-- Determine ETR Payments
+  declare @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
+
+  select @otherPaid = sum(amount) from paid where slink = @receiptSlink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @etrPaid = sum(amount) from paid where slink = @receiptSlink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
+  select top 1 @etrCode = paycode from paid where slink = @receiptSlink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @etrPercent = case when @paidTotal>0 then isnull(@etrPaid,0)/@paidTotal else 0 end
+  select @otherPercent = case when @paidTotal > 0 then isnull(@otherPaid,0)/@paidTotal else 0 end
 
 
  exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
+ exec dbo.logit @@procid, '@OtherPaid = ', @OtherPaid, @level = 2 
+ exec dbo.logit @@procid, '@ETRPaid = ', @ETRPaid, @level = 2 
+ exec dbo.logit @@procid, '@OtherPercent = ', @OtherPercent, @level = 2 
+ exec dbo.logit @@procid, '@ETRPercent = ', @ETRPercent, @level = 2 
 
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin
-  select top 1 @idToken = id, @dueToken = due * methodRate from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, payord, linkId
+  select top 1 @idToken = id, @dueToken = round(due * methodRate,2) from @wt where processFlag = 0 and methodRate = 1.0 order by methodRate desc, payord, linkId
 
   exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
 
@@ -251,7 +294,7 @@ begin
  end
 
 
-  select @applyTotal = sum(due*methodRate) from @wt where processFlag = 0
+  select @applyTotal = sum(round(due*methodRate,2)) from @wt where processFlag = 0
    exec dbo.logit @@procid, '@applyTotal = ', @applyTotal, @level = 2 
 
   if @paidTotal > @applyTotal and @paidTotal > 0.00
@@ -299,11 +342,8 @@ begin
   update @wt set processFlag = 1 where id = @idToken
  end
 
-
 -- Set source code on worktable for subinvoices
  update b set sourceCode = isnull((select top 1 a.sourceCode from receiptDetail a where a.slink=b.invoiceSLink),'') from @wt b where b.sourceCode='GETSOURCE'
-
-
 
 -- populate fundDebits
 -- add the debit to funds accounts from the invoice detail
@@ -316,10 +356,16 @@ begin
 
  insert @glFundDebits
  select
-  c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
- from receiptDetail a, @wt c 
- where a.slink = c.invoiceSLink and c.due<>0.00 and c.invoiceTyp = 'S' and a.sourceCode=c.sourceCode
- group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due, c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
+  c.slink, c.fundCode, 0, round(sum(c.due),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId,
+  c.due,
+  c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
+ from @wt c 
+ where
+   c.due <> 0.00 and c.invoiceTyp = 'S' 
+ group by
+  c.slink, c.fundCode, c.contraAccountId,
+  c.due, 
+  c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
 
  update @glFundDebits set amount=due where abs(amount)>abs(due)
  update @glFundDebits set payamount=due where abs(payamount)>abs(due)
@@ -335,73 +381,179 @@ begin
 -- update the fundDebits with the proper accountId
  update a set a.accountId = b.accountId
   from @glFundDebits a, glAccounts b
-  where a.fundCode = b.targetAccountCode and b.accountType='ACCRUED RECEIVABLE'
+  where a.fundCode>' 0' and a.fundCode = b.targetAccountCode and b.accountType='ACCRUED RECEIVABLE'
  update a set a.accountId = b.accountId 
   from @glFundDebits a, glAccounts b
-  where a.fundCode = b.accountCode and a.accountId = 0
+  where a.fundCode >' 0' and a.fundCode = b.accountCode and a.accountId = 0
+
+ if exists(select * from @glFundDebits where fundCode<' 0')
+  begin
+   select '@code=1;@message=Fund Code Information Missing;'
+   return
+  end
+  
+-- begin test code here
+if @mode = 1
+begin
+-- select * from receiptlink where receiptId = @receiptId
+-- select * from receiptDetail where slink in (select slink from dbo.receiptSlinks(@receiptId))
+-- select * from @wt
+
+ select
+  c.slink, c.fundCode, 0, round(sum(c.due),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId,
+  c.due,
+  c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
+ from @wt c 
+ where
+   c.due <> 0.00 and c.invoiceTyp = 'S' 
+ group by
+  c.slink, c.fundCode, c.contraAccountId,
+  c.due, 
+  c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
+
+
+ select * from @glFundDebits
+ 
+ select @receiptSlink, b.contraId, sum(b.payAmount), null, COUNT(*)
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink 
+  and a.invoiceTyp='S' 
+  and a.sourceCode=b.sourceCode
+  and a.fundCode=b.fundCode
+ group by b.slink, b.contraId, a.slink, a.id
+
+ select *
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink
+  and a.fundCode=b.fundCode
+
+ select *
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink 
+  and a.invoiceTyp<>'S'
+
+
+end
+-- end test code here
 
 -- add the credit to the Treasures collection Account and include the contraId to the receiptLink parent
  insert @glSalesCredits 
- select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2), null
+ select @receiptSlink, b.contraId, round(sum(round(b.payAmount,2))*-1*@otherPercent,2), null,''
  from @wt a, @glFundDebits b
  where a.slink = b.slink 
   and a.invoiceTyp<>'S'
- group by b.slink, b.contraId, a.slink
+ group by b.contraId--,b.slink,  a.slink--, a.id
 
  insert @glSalesCredits 
- select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2), null
+ select @receiptSlink, b.contraId, round(sum(round(b.payAmount,2))*-1*@otherPercent,2), null,''
  from @wt a, @glFundDebits b
  where a.slink = b.slink 
   and a.invoiceTyp='S' 
   and a.sourceCode=b.sourceCode
- group by b.slink, b.contraId, a.slink
+  and a.fundCode=b.fundCode
+ group by b.contraId--,b.slink,  a.slink--, a.id
+
+ insert @glSalesCredits 
+ select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2)-round(sum(round(b.payAmount,2))*-1*@otherPercent,2), null, @etrCode
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink 
+  and a.invoiceTyp<>'S'
+ group by b.contraId--,b.slink,  a.slink--, a.id
+
+ insert @glSalesCredits 
+ select @receiptSlink, b.contraId, round(sum(b.payAmount)*-1,2)-round(sum(round(b.payAmount,2))*-1*@otherPercent,2), null, @etrCode
+ from @wt a, @glFundDebits b
+ where a.slink = b.slink 
+  and a.invoiceTyp='S' 
+  and a.sourceCode=b.sourceCode
+  and a.fundCode=b.fundCode
+ group by b.contraId--,b.slink,  a.slink--, a.id
+
+-- Check to be sure the ETR total matches the payment records
+ declare @salesContraETRTotals money, 
+         @ETRDifference money,
+         @tokenSlink varchar(16),
+         @tokenAccountId int
+
+ select @salesContraETRTotals = sum(amount)*-1 from @glSalesCredits where comment=@etrCode
+
+ if @salesContraETRTotals<>@etrPaid
+ begin
+  select @ETRDifference = @salesContraETRTotals-@etrPaid
+  select top 1 @tokenSlink = slink,
+               @tokenAccountId = accountId 
+     from @glSalesCredits where comment=@etrCode
+
+  update @glSalesCredits set amount=amount+@ETRDifference 
+    where slink=@tokenSlink
+     and accountId=@tokenAccountId
+     and comment=@etrCode
+
+  update @glSalesCredits set amount=amount-@ETRDifference 
+    where slink=@tokenSlink
+     and accountId=@tokenAccountId
+     and comment<>@etrCode
+ end
+
 
 -- add the credit to AR Accounts
  insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null 
+ select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null, ''
  from @wt a, @glFundDebits b
  where a.slink = b.slink
   and a.invoiceTyp<>'S'
- group by b.slink, a.arAccountId
+ group by b.slink, a.arAccountId, a.id
 
  insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null 
+ select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null, '' 
  from @wt a, @glFundDebits b
  where a.slink = b.slink
   and a.invoiceTyp='S' 
   and a.sourceCode=b.sourceCode
- group by b.slink, a.arAccountId
-
-
- insert @glStage
-  select slink,accountId,sum(round(payAmount,2)) as payAmount,contraId,'fundDebit',slink2,sourceCode from @glFundDebits group by slink,accountId,contraId,slink2,sourceCode
- union all
-  select *,'salesCredit','','' from @glSalesCredits
- union all
-  select slink,accountId,amount,null,'suspense',slink2,'' from @glSuspense
-
-
- declare
-  @balance money,
-  @tally int
- select @balance = sum(amount), @tally = count(*) from @glStage
- if @balance != 0
- exec dbo.logit @@procid, 'oops we have a problem... @glStage.@balance', @balance, '@tally', @tally
-
+  and a.fundCode=b.fundCode
+ group by b.slink, a.arAccountId, a.id
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1
  begin
---  select a.*,b.accountDesc,b.accountType from @glStage a, glAccounts b where a.accountId = b.accountId order by a.processType
+  select * from @glSalesCredits
+--  return
+ end
+
+
+ insert @glStage
+  select slink,accountId,round(sum(payAmount),2) as payAmount,contraId,'fundDebit',slink2,sourceCode,'' from @glFundDebits group by slink,accountId,contraId,slink2,sourceCode
+ union all
+  select slink,accountId,round(SUM(amount),2),contraId,'salesCredit','','',comment from @glSalesCredits group by slink, accountId, contraId, comment
+ union all
+  select slink,accountId,amount,null,'suspense',slink2,'','' from @glSuspense
+
+ declare
+  @balance money,
+  @tally int,
+  @log varchar(max)
+ select @balance = sum(amount), @tally = count(*) from @glStage
+ if @balance != 0
+ begin
+  select @log = 'Count:' + cast(count(*) as varchar) + ';Balance:' + cast(sum(amount) as varchar) + ';' from @glStage
+  exec dbo.logit @@procId, '@glStage table is out of balance', @log
+
+  insert @glStage
+  select @receiptSlink, 0, @balance * -1,0, 'Temporarly Suspend Balance', '', '',''
+ end
+
+-- echo the guts of this proc and bail if you are in test mode
+ if @mode = 1
+ begin
   select * from @glStage
   return
  end
 
 -- remove any existing stage records
- delete glDetailStage where slink in (select slink from @glStage)
+ delete glDetailStage where slink in (select slink from @glStage union select slink from dbo.receiptSLinks(@receiptId) where left(slink,1)<>'t')
 
 -- insert
- insert gldetailstage (slink,accountId,amount,contraId,slink2,sourceCode) select slink, accountId, round(amount,2), contraId, slink2, sourceCode from @glStage where amount != 0
+ insert gldetailstage (slink,accountId,amount,contraId,slink2,sourceCode,comment) select slink, accountId, round(amount,2), contraId, slink2, sourceCode, comment from @glStage where amount != 0
  
  update a set
   a.accountCode = b.accountCode,

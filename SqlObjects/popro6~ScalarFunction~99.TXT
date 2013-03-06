@@ -1,0 +1,34 @@
+Create function dbo.popro6 (@num varchar(10),@totlen int, @suffixes int) returns varchar (10) 
+as
+begin 
+declare @zeroes varchar(10), @spaces varchar(10), @return varchar(10)
+set @zeroes='0000000000'
+set @zeroes=left(@zeroes,@totlen-@suffixes)
+set @spaces='          '
+set @spaces=left(@spaces,@suffixes)
+set @num = rtrim(@num)
+if len(@num)=0
+begin
+ set @num='0'
+end
+
+
+
+set @return=case when isnumeric(left(@num,1))=0 then right(@zeroes+@num,@totlen-@suffixes)+@spaces  
+when isnumeric(@num)=1 then right(@zeroes+@num,@totlen-@suffixes)+@spaces  
+when isnumeric(@num)=0 and 
+isnumeric(left(@num,len(@num)-1))=1 
+then right(@zeroes+left(@num,len(@num)-1),@totlen-@suffixes)+
+  case when @suffixes>0 then right(@num,1)+left(@spaces,len(@suffixes)-1) else '' end 
+when isnumeric(@num)=0 and 
+isnumeric(left(@num,len(@num)-2))=1 
+then right(@zeroes+left(@num,len(@num)-2),@totlen-@suffixes)+
+  case when @suffixes>1 then right(@num,2) when @suffixes=1 then left(right(@num,2),1) end 
+when isnumeric(@num)=0 and 
+isnumeric(left(@num,len(@num)-3))=1 
+then right(@zeroes+left(@num,len(@num)-3),@totlen-@suffixes)+
+  case when @suffixes>2 then right(@num,3) when @suffixes=2 then left(right(@num,3),2) when @suffixes=1 then left(right(@num,3),1) end 
+else @zeroes+@spaces
+end
+return @return
+end

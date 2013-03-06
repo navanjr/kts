@@ -1,0 +1,104 @@
+create function dbo.rpTrustReport(@begindate varchar(20),@enddate varchar(20))
+
+returns  @rt table(AccountCode varchar(60),
+AccountDesc varchar(60),
+BeginBalance money,
+Deposits money,
+JournalIn money,
+CancelVoid money,
+Vouchers money,
+JournalOut money,
+EndBalance money
+)
+as
+begin
+
+declare  @wt table(AccountCode varchar(60),
+AccountDesc varchar(60),
+BeginBalance money,
+Deposits money,
+JournalIn money,
+CancelVoid money,
+Vouchers money,
+JournalOut money,
+EndBalance money
+)
+
+
+insert @wt (accountcode,accountdesc, beginbalance)
+select accountCode,accountdesc,sum(amount) 
+from dbo.gldetailreports 
+where sourceDate<@begindate 
+ and accounttype='PURPOSE'
+group by accountCode,accountdesc
+
+insert @wt (accountcode,accountdesc, endbalance)
+select accountCode,accountdesc,sum(amount) 
+from dbo.gldetailreports 
+where sourceDate<=@enddate 
+ and accounttype='PURPOSE'
+group by accountCode,accountdesc
+
+insert @wt (accountcode,accountdesc,deposits)
+select accountcode,accountdesc,sum(amount)
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+     and sourceType in ('4502','4522')
+group by accountCode,accountdesc
+     
+insert @wt (accountcode,accountdesc,JournalIn)
+select accountcode,accountdesc,sum(amount)
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+     and sourceType not in ('4502','4522','4771')
+     and amount > 0
+group by accountCode,accountdesc
+     
+insert @wt (accountcode,accountdesc,JournalOut)
+select accountcode,accountdesc,sum(amount)*-1
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+     and sourceType not in ('4502','4522','4771')
+     and amount < 0
+group by accountCode,accountdesc
+     
+insert @wt (accountcode,accountdesc,cancelvoid)
+select accountcode,accountdesc,sum(amount)
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+     and sourceType in ('4771')
+     and amount > 0
+group by accountCode,accountdesc
+     
+insert @wt (accountcode,accountdesc,vouchers)
+select accountcode,accountdesc,sum(amount)*-1
+   from dbo.gldetailreports g
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and accountType = 'PURPOSE'
+     and sourceType in ('4771')
+     and amount < 0
+group by accountCode,accountdesc
+     
+insert @rt 
+ select accountcode,accountdesc,
+ sum(isnull(BeginBalance,0.00)),
+ sum(isnull(Deposits,0.00)),
+ sum(isnull(JournalIn,0.00)),
+ sum(isnull(CancelVoid,0.00)),
+ sum(isnull(Vouchers,0.00)),
+ sum(isnull(JournalOut,0.00)),
+ sum(isnull(EndBalance,0.00))
+from @wt
+group by accountcode,accountdesc
+
+return
+end

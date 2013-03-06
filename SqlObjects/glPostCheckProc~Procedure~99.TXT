@@ -1,8 +1,17 @@
 create procedure dbo.glPostCheckProc(
  @slink varchar(15),
- @result int = null output
+ @result int = null output,
+ @message varchar(max) = '' output
 ) as
 begin
+
+/*   Post Check items
+ - more than one row
+ - sum of absolute value is at least $.02
+ - db equal cr
+ - has a valid period
+ - has a valid account
+*/
 
  declare
   @rowCount int,
@@ -18,19 +27,32 @@ begin
    
   if @rowCount < 2
   begin
-   set @result = 1
+   select @result = 1, @message = 'Not enough rows'
    return
   end
 
   if @absValue < .02
   begin
-   set @result = 1
+   select @result = 1, @message = 'Sum of absolute value is less then $.02'
    return
   end
 
   if @balance != 0 
   begin
-   set @result = 1
+   select @result = 1, @message = 'debits do not equal credits'
+   return
+  end
+
+ 
+  if exists (select * from glDetail where slink = @slink and isnull(fpId,0) = 0)
+  begin
+   select @result = 1, @message = 'invalid fiscal period'
+   return
+  end
+
+  if exists (select * from glDetail where slink = @slink and isnull(accountId,0) = 0)
+  begin
+   select @result = 1, @message = 'missing accountId'
    return
   end
 

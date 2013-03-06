@@ -1,10 +1,10 @@
-create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate int) returns @rt table(id int identity(1,1),
-	[reportOrder] [varchar](60) NULL,
-	[accountCode] [varchar](60) NULL,
-	[accountDesc] [varchar](50) NULL,
-	[district] varchar(50) NULL,
-	[accountType] [varchar](50) NULL,
-	[comment2] [varchar](50) NULL,
+create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate int, @includeUnapportioned varchar(10)) returns @rt table(id int identity(1,1),
+	[reportOrder] [varchar](60) NOT NULL default '',
+	[accountCode] [varchar](60) NOT NULL default '',
+	[accountDesc] [varchar](50) NOT NULL default '',
+	[district] varchar(50) NOT NULL default '',
+	[accountType] [varchar](50) NOT NULL default '',
+	[comment2] [varchar](50) NOT NULL default '',
 	[currentTax] [money] NOT NULL default 0,
 	[priorTax] [money] NOT NULL default 0,
 	[backTax] [money] NOT NULL default 0,
@@ -21,18 +21,18 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[amount11] [money] NOT NULL default 0,
 	[amount12] [money] NOT NULL default 0,
 	[total] [money] NOT NULL default 0,
-	[heading1] varchar(50) NULL,
-	[heading2] varchar(50) NULL,
-	[heading3] varchar(50) NULL,
-	[heading4] varchar(50) NULL,
-	[heading5] varchar(50) NULL,
-	[heading6] varchar(50)NULL,
-	[heading7] varchar(50) NULL,
-	[heading8] varchar(50) NULL,
-	[heading9] varchar(50) NULL,
-	[heading10] varchar(50) NULL,
-	[heading11] varchar(50) NULL,
-	[heading12] varchar(50) NULL
+	[heading1] varchar(50) NOT NULL default '',
+	[heading2] varchar(50) NOT NULL default '',
+	[heading3] varchar(50) NOT NULL default '',
+	[heading4] varchar(50)  NOT NULL default '',
+	[heading5] varchar(50) NOT NULL default '',
+	[heading6] varchar(50) NOT NULL default '',
+	[heading7] varchar(50) NOT NULL default '',
+	[heading8] varchar(50) NOT NULL default '',
+	[heading9] varchar(50) NOT NULL default '',
+	[heading10] varchar(50) NOT NULL default '',
+	[heading11] varchar(50) NOT NULL default '',
+	[heading12] varchar(50) NOT NULL default ''
 )
 
 as
@@ -40,34 +40,73 @@ begin
 
 declare @det table(
     id int identity(1,1),
-	[accountType] [varchar](50) NULL,
-	[accountId] [int] NULL,
-	[accountCode] [varchar](60) NULL,
-	[accountDesc] [varchar](50) NULL,
-	[comment] [varchar](50) NULL,
-	[comment2] [varchar](50) NULL,
-	[sourceCode] [varchar](60) NULL,
+	[accountType] [varchar](50) NOT NULL default '',
+	[accountId] [int] NOT NULL default 0,
+	[accountCode] [varchar](60) NOT NULL default '',
+	[accountDesc] [varchar](50) NOT NULL default '',
+	[comment] [varchar](50) NOT NULL default '',
+	[comment2] [varchar](50) NOT NULL default '',
+	[sourceCode] [varchar](60) NOT NULL default '',
 	[amount] [money] NOT NULL default 0,
-	[journalType] [varchar](50) NULL,
-	[sourceDesc] [varchar](50) NULL,
-	[sourceSECA] [varchar](50) NULL,
-	[journalDesc] [varchar](50) NULL
+	[journalType] [varchar](50) NOT NULL default '',
+	[sourceDesc] [varchar](50) NOT NULL default '',
+	[sourceSECA] [varchar](50) NOT NULL default '',
+	[journalDesc] [varchar](50) NOT NULL default ''
 )
 
 insert @det
-select * from rpMonthEndDetail(@beginDate,@endDate) 
+select isnull(accountType,''),
+	isnull(accountId,0),
+	isnull(accountCode,''),
+	isnull(accountDesc,''),
+	isnull(comment,''),
+	isnull(comment2,''),
+	isnull(sourceCode,''),
+	isnull(amount,0),
+	isnull(journalType,''),
+	isnull(sourceDesc,''),
+	isnull(sourceSECA,''),
+	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+  and journalType = 'APPORTIONMENT'
 
-update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 not like '%JOINT%' 
+if @includeUnapportioned='SPECIAL'
+begin
+insert @det
+select isnull(accountType,''),
+	isnull(accountId,0),
+	isnull(accountCode,''),
+	isnull(accountDesc,''),
+	isnull(comment,''),
+	isnull(comment2,''),
+	isnull(sourceCode,''),
+	isnull(amount,0),
+	isnull(journalType,''),
+	isnull(sourceDesc,''),
+	isnull(sourceSECA,''),
+	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+ where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
+  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+  and journalType = 'APPORTIONMENT SPECIAL'
+end
+update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 like '%4%' and comment2 not like '%JOINT%' 
+
+update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' and sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M')
+
+--
+update @det set comment2='GENERAL' where accountType in ('SCHOOL','VOTECH','CITY') and comment2 like '%GEN%' 
+update @det set comment2=substring(comment2,8,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,7) in ('SCHDIST')
+update @det set comment2=substring(comment2,7,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,6) in ('VOTECH')
+
+
 
 update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
-and accountCode in (select accountCode from @det where comment2 like '%MILL%' and comment2 not like '%JOINT%' )
+and accountCode in (select accountCode from @det where comment2 like '%4 MILL%' and comment2 not like '%JOINT%' )
 
 update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL'
 
 update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%'
-
 
 
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50))
@@ -75,7 +114,7 @@ declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varch
 insert @years
 select top 1 'Current',journalDesc from @det where sourceCode='ADVALOREM' order by journalDesc desc
 insert @years
-select top 1 'Prior',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years)
+select top 1 'Prior',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years) order by journalDesc desc
 insert @years
 select distinct 'Back',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years)
 
@@ -90,37 +129,54 @@ declare @det2 table(id int identity(1,1),
 
 insert @det2
 select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1 from @det a, @years b 
- where a.journalDesc=b.journalDesc
+ where a.journalDesc=b.journalDesc and a.accountType<>'FUND'
 group by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 
+insert @det2
+select a.accountCode,a.accountDesc,a.accountType,'',b.yearCode, sum(amount)*-1 from @det a, @years b 
+ where a.journalDesc=b.journalDesc and a.accountType='FUND'
+group by a.accountType,a.accountCode,a.accountDesc,b.yearCode
+order by a.accountType,a.accountCode,a.accountDesc,b.yearCode
+
 delete from @det where journalDesc in (select journalDesc from @years)
 
-update d set comment2 = case when monthEndCategory > ' 0' then monthEndCategory else 'GENERAL' end from @det d, glaccounts a where d.sourceCode=a.accountCode 
+update d set comment2 = case when monthEndCategory = 'MILLAGE' then d.comment2 when monthEndCategory > ' 0' then monthEndCategory else 'GENERAL' end from @det d, glaccounts a where d.sourceCode=a.accountCode 
+
+--
+update @det set comment2='GENERAL' where accountType in ('COUNTY SCHOOL','JOINT SCHOOL','VOTECH','CITY') and comment2 like '%GEN%' 
+update @det set comment2=substring(comment2,8,20) where accountType in ('COUNTY SCHOOL','JOINT SCHOOL','VOTECH','CITY') and left(comment2,7) in ('SCHDIST')
+update @det set comment2=substring(comment2,7,20) where accountType in ('COUNTY SCHOOL','JOINT SCHOOL','VOTECH','CITY') and left(comment2,6) in ('VOTECH')
+
+
 
 insert @rt (accountType,accountCode,accountDesc,comment2)
-select distinct accountType,accountCode,accountDesc,comment2 from @det2 order by  accountCode,accountDesc,comment2
+select distinct accountType,accountCode,accountDesc,comment2 from @det2 where accountType<>'FUND' order by  accountCode,accountDesc,comment2
+
+insert @rt (accountType,accountCode,accountDesc)
+select distinct accountType,accountCode,accountDesc from @det2 where accountType='FUND' order by  accountCode,accountDesc
 
 update r set currentTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Current'
 
 update r set priorTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Prior'
 
 update r set backTax=b.amount from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
-     and r.comment2=b.comment2
+     and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Back'
+
 
 delete from @det2 where accountCode > ' 0'
 
@@ -399,7 +455,7 @@ update @rt set comment2 = accountDesc, district='CNTY' where accountType = 'FUND
 insert @det2
  select a.accountCode,a.accountDesc,a.accountType,a.accountDesc,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end, sum(amount)*-1 from @det a, glaccounts b 
   where a.sourceCode=b.accountCode and a.accountType='FUND'
- group by a.accountType,a.accountCode,a.accountDesc,a.comment2,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end
+ group by a.accountType,a.accountCode,a.accountDesc,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end
 
 
 declare @fundHeadings table(id int identity(1,1),heading varchar(50),processFlag int)
@@ -528,13 +584,14 @@ from @rt r where r.accountType='FUND'
 
 
 update @rt set district = left(rtrim(accountCode)+' '+rtrim(accountDesc),50) where accountType like '%SCHOOL%' or accountType = 'VOTECH'
-update @rt set district = left(rtrim(accountDesc),50) where district < ' 0'
+update @rt set district = left(rtrim(accountDesc),50) where isnull(district,'') < ' 0'
 
 update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'
                                   when accountType = 'COUNTY SCHOOL' then '2000'
                                   when accountType = 'VOTECH' then '3000'
                                   when accountType = 'CITY' then '4000' 
-                                  else '5000' end
+                                  when accountType = 'SCHOOL TOTAL' then '5000' 
+                                  else '6000' end
 
 
 

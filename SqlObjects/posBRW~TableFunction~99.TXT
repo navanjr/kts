@@ -1,32 +1,84 @@
 create function dbo.posBRW() returns @rt table(
- id int,
+ id int identity(-1,-1),
+ display varchar(500),
+ depositDate int,
  receiptType varchar(50),
- paycode varchar(50),
- accountCode varchar(50),
  amount money,
- accountId int
+ accountId int,
+ blob varchar(1000) default '',
+ postDate int,
+ ord varchar(50),
+ rowType int
 ) as 
 begin
 
- declare
-  @posName varchar(50)
+ declare @whoAmI varchar(500) = dbo.whoAmI()
 
- select @posName = dbo.readString('@posName=',dbo.whoAmI())
+ insert @rt (depositDate,receiptType,amount,accountId,ord,rowType,blob,postDate)
+/*
+ select
+  depositDate, 
+  receiptType,
+  sum(amount),
+  min(accountId),
+  cast(depositDate as varchar) + 'b',
+  0,
+  @whoamI+'@receiptType='+receiptType+';@receiptMaxDate='+cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';'+'@Date='+cast(depositDate as varchar)+';',
+  postDate
+ from dbo.posTF()
+ group by
+  id, 
+  depositDate,
+  receiptType,
+  postdate
+ having sum(amount) != 0
+*/
+ select
+  max(depositDate), 
+  receiptType,
+  sum(amount),
+  min(accountId),
+  cast(max(depositDate) as varchar) + 'b',
+  0,
+  @whoamI
+   + '@receiptType='+receiptType+';@receiptMaxDate='
+   + cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';@Date='
+   + cast(max(depositDate) as varchar)+';',
+  max(postDate)
+ from dbo.posTF()
+ group by
+  id, 
+  receiptType
+ having sum(amount) != 0
 
- insert @rt
- select 0,a.key1,b.key1,@posName + '.' + a.key1 + '.' + b.key1, 0, 0
- from object a, object b
- where a.typ = 4503 and b.typ = 4505
-  and a.key1 > '  0'
-  and b.key1 > '  0'
+-- depositDate grouping
+ insert @rt (depositDate,amount,accountId,ord,blob,rowType)
+ select
+  depositdate,
+  sum(amount),
+  1, 
+  cast(depositDate as varchar) + 'a',
+  @whoamI+'@Date='+cast(depositDate as varchar)+';'+'@receiptType=ALL;',
+  1 
+ from @rt
+ where depositDate is not null
+ group by depositDate
 
- update a set a.accountId = o.accountId from @rt a, dbo.glAccounts o where a.accountCode = o.accountCode
+ update @rt set display = 
+  dbo.padRight(dbo.date1(depositDate),' ',21) + dbo.padLeft('$ ' + convert(varchar,isnull(amount,0),1),' ',20)
+ where rowType = 1
 
- update a set amount = (select sum(g.amount) from dbo.glDetail g where g.accountCode = a.accountcode) 
- from @rt a
- where
---  a.accountCode in (select accountCode from dbo.glDetail)
-  a.accountid > 0
+
+ update @rt set display = 
+    dbo.padRight('  ' + receiptType,' ',9) 
+  + dbo.padright(case when isnull(postdate,0) > isnull(depositDate,0) and  dbo.readstring('@receiptMaxDate=',blob) = isnull(depositDate,0) then '  '+dbo.date1(postdate) else '' end,' ',12) 
+  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20) else '' end
+ where rowType = 0
+
+-- update @rt set displayAmount = convert(varchar,amount,1) where rowType = 0
+--  '   ' + dbo.padRight(receiptType,' ',10) + dbo.padLeft('$ ' + convert(varchar,sum(amount),1),' ',20),
+
+
 
  return
 end

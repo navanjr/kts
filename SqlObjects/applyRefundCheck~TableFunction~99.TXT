@@ -1,0 +1,71 @@
+create function dbo.applyRefundCheck(@invoiceId int)
+returns @wt table(id int identity(1,1),
+  invoiceId int,
+  invoiceSLink varchar(15),
+  taxYear varchar(10),
+  arAccountId int,
+  contraAccountId int,
+  processFlag int default 0,
+  sourceCode varchar(60),
+  fundCode varchar(60),
+  invoiceTyp varchar(1),
+  pertyp varchar(1)
+ )
+as 
+begin
+ declare
+  @idToken int,
+  @currTaxCode varchar(50),
+  @contraCodeSuffix varchar(50)
+
+  set @contraCodeSuffix='_ADVALOREM'
+
+-- get the invoices linked to this receipt
+ insert @wt (invoiceId, invoiceSLink, taxyear, sourceCode, fundCode, invoiceTyp, pertyp)
+  select
+   b.id,
+   't'+cast(b.id as varchar),
+   b.taxYear,
+   isnull((select top 1 sourceCode from receiptdetail where left(slink,1)='t' and dbo.slinkId(slink)=b.id order by amount desc),''),
+   isnull((select top 1 fundCode from receiptdetail where left(slink,1)='t' and dbo.slinkId(slink)=b.id order by amount desc),''),
+   b.typ,
+   case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end
+  from invoices b 
+  where b.id = @invoiceId
+
+  declare @caccts table(id int identity(1,1),
+ accountId int,
+ accountCode varchar(60),
+ processflag int,
+ invoiceTyp varchar(1),
+ pertyp varchar(1)
+)
+
+  insert @caccts 
+   select distinct 0,rtrim(taxyear)+@contraCodeSuffix,0,'','' from @wt
+
+ update c set accountId = a.accountId from @caccts c, glaccounts a where c.accountCode=a.accountCode 
+
+ update @wt set processflag=0 where processflag=1
+
+ update w set contraAccountId = c.accountId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp>'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and w.pertyp=c.pertyp
+     and isnull(contraAccountId,0) = 0
+
+ update w set contraAccountId = c.accountId from @wt w, @caccts c 
+    where c.invoicetyp > '0' 
+     and c.pertyp<'0' 
+     and w.invoicetyp=c.invoicetyp 
+     and isnull(contraAccountId,0) = 0
+
+ update @wt set
+  arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
+  contraAccountId = case when isnull(contraAccountId,0) = 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
+     else contraAccountId end
+   where invoiceId > 0
+return
+end
+

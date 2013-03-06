@@ -1,0 +1,167 @@
+\t112Available Fields; \h112obj:key2<>'1'; 
+@acc112=
+ lcUser=getini('git','user','',kp('path')&'\keygit.ini'),
+ lcPass=getini('git','pass','',kp('path')&'\keygit.ini'),
+ lcServer=kp('select @@servername'),
+ lcDb=kp('select db_name()'),
+ d1select('If Object_Id(''docAvailableVariables'') Is Not Null Drop Function docAvailableVariables'),
+ d1select('Create Function dbo.docAvailableVariables() Returns @Result Table
+ (id int identity(-1,-1), Result Varchar(max))
+ As Begin	
+ Insert @Result
+ SELECT * from OPENROWSET(''SQLNCLI10'', ''Server='&lcServer&';UID='&lcUser&';Pwd='&lcPass&';'',''SET FMTONLY OFF exec '&lcDb&'.dbo.docFormLetter @documentId = '&obj:id&', @method = ''''verify'''''') 
+ Return
+ end'),
+ iw('@loadwindow=brw(150,1,'SELECT  id,Result  from DBO.docAvailableVariables()',3,3,220,58,'200L(2)~~#2#M',,1); '),
+
+@format=100L(2)~Document Title~#1#|M100L(2)~Report Control~#3#|M;
+@commentboxe1;
+@save;
+@dk1;
+@loadwindow=
+ create(550,12,65,16,'&Form Letter',4),
+ create(33,9,415,3,'&Add Fee',4),
+ create(35,9,415,16,'Add &Variable',4),
+ create(5,9),
+ brwstuff=,
+ lccodeh=mh-110,
+ prop(102,height,lccodeh);
+
+@acc550=
+ tsc,
+ if(obj:key2=1 and obj:key3='',setReportControl=);
+
+@setReportControl=
+ lcid=kp('select id from object where typ=452 and key1=''formLetter'''),
+ if(lcId+0=0,missingReportControl=),
+ set(006,'formLetter');
+
+@missingReportControl=
+ insert(-02=452,002='formLetter',004='4900',006='formLetter='),
+ insert(-02=453,002='4900',004='formLetter=');
+
+
+@afterloadwindow=
+ prop(102,7c10h,'Courier New');
+
+@deleted=
+ d1select('exec dbo.settingsCRUD @parentId=''o'&obj:id&''',@method = ''DELETEALL''');
+
+@brwstuff=
+ gcbrw1sql='select id,display,rowType from dbo.docFeesBRW('&obj:id&') order by ord',
+ brw(150,1,gcbrw1sql,190,3,220,58,'200L(2)~~#2#M',,1),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0);
+
+@lbrw1color=obj7:c10='1',13499135; 13499135; 2157055; 2350115; 7467519
+
+\t001Title; 
+@acc002=
+ d1select('exec dbo.settingsCRUD '''&obj:key1&''',@parentId=''o'&obj:id&''',@method = ''POSTNAME'''),
+ brwreload(1);
+\t003FormLetterFlag; \h003004;r
+\t005Report Control; \l006452; 
+
+@acc005=
+ lcid=kp('select id from object where typ=452 and key1='''&obj:key3&''''),
+ break(lcid<1),
+ change(lcid);
+
+\t101Text; \w102390;  \h101102obj:key2+0<>1;r
+@acc102=
+ update,
+ d1select('exec dbo.docFormLetter @documentId = '&obj:id&', @method = ''VERIFY'''),
+ brwreload(1);
+
+\t033Add Fee; \h034;
+@acc033=
+ update,
+ neww(4902,,-03=obj:id,002=obj:key1),
+ brwreload(1);
+
+@brw1=
+ bustItUp=,
+ break(lcMode+0<8),
+ if(lcMode+0=9,editFee=),
+ if(lcMode+0=8,editVariable=);
+
+@editFee= 
+ change(lcId,0,1),
+ brwreload(1);
+
+@lbrwclick150=
+ bustItUp=,
+ break(lcMode+0<8),
+ m('Choose from the following options...','Right Click Options...','question.ico','&Remove Item|&Cancel'),
+ break(gcretval<>1),
+ if(lcMode+0=9,removeFee=),
+ if(lcMode+0=8,removeVariable=);
+
+@bustItUp=
+ break(kpbrwid(1)=0),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+
+@acc035=
+ update,
+ lcName='',lcValue='',
+ editVariableCore=;
+
+
+@editVariableCore=
+ iw('@loadwindow=set(004,'''&lcValue&''');\t001Tag Name;\f002'&lcName&';\t003Value;'&choose(lower(lcName)='interestto','\t004@d2;','')&choose(lcName>'  0','\n002;','')),
+ break(gcretval<>'OK'),
+ lcValue=choose(lower(lcName)='interestto',format(obj7:key2,@d2),obj7:key2),
+ d1select('exec dbo.settingsCRUD '''&obj:key1&'.'&obj7:key1&''','''&lcValue&''',@parentId=''o'&obj:id&''''),
+ brwreload(1);
+
+@editVariable=
+ d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
+ lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
+ lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ lcValue=choose(lower(lcName)='interestto',deformat(lcValue,@d2),lcValue),
+ editVariableCore=;
+
+@removeVariable=
+ m('Are you sure that you want to remove this variable?','Are you sure?',,6),
+ break(gcretval+0<>2),
+ sql('exec dbo.settingsCRUD @settingId = '&lcId+0&', @method = ''DELETE'''),
+ brwreload(1);
+
+@removeFee=
+ break(lcId+0<1),
+ gcfee=kp('select key2 from object where typ=4902 and id='&lcId+0),
+ m('Are you sure that you want to remove the '&gcfee&' fee?','Are you sure?',,6),
+ break(gcretval+0<>2),
+ sql('update object set typ=-4902 where typ=4902 and id='&lcId+0),
+ brwreload(1);
+
+@bb1=Print; 
+
+@bbproc1=formLetter=;
+
+@formLetter=
+ lcE1='exec dbo.docFormLetter '&gcDocumentId&', '&gcInvoiceId&', '&gcTaxRollDetailId&','&gcBatchId+0,
+ e1select(lcE1),
+ tr(
+  prn(,,,11,,'courier new'),
+  txt(obj7:e1,500,300,6000,1000,1,500),
+ );
+
+@bb5=Import; 
+@bbproc5=
+ iw('@loadwindow=brw(150,1,'select id,name from dbo.docImportBRW(0)',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
+ break(gcretval='esc' or gcDocImportId+0=0),
+ d1select('exec  dbo.docImport '&gcDocImportId&', @mode=''IMPORT'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Import Options',,6,4)),
+ break(readstring(obj7:d1,'@code=')=0 or gcretval<>2),
+ d1select('exec  dbo.docImport '&gcDocImportId&',@mode=''FORCE''');
+
+
+\t108Export; \h108obj:key2<>'1' or instring('@group=developer',cur:options,1,1)=0;
+@acc108=
+update,
+d1select('exec dbo.docExport '&obj:id&',@method=''EXPORT'''),
+if(readstring(obj7:d1,'@code='),m(readstring(obj7:d1,'@message=')));

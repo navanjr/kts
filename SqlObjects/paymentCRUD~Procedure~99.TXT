@@ -15,7 +15,10 @@ create proc dbo.paymentCRUD(
  @postResult varchar(100) = null output,
  @postOverride varchar(5) = 'FALSE',
  @deleteObject varchar(5) = 'FALSE',
- @fiscalYear varchar(50) = ''
+ @fiscalYear varchar(50) = '',
+ @importStamp varchar(50) = '',
+ @comments varchar(250) = '',
+ @voidBatch varchar(5) = 'FALSE'
 ) as 
 begin
 
@@ -31,6 +34,8 @@ begin
 
  if @mode = 4
  begin
+  exec dbo.logit @@procId, '@paymentType', @paymentType
+
    select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher') then 
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
@@ -57,6 +62,24 @@ begin
     + '@key3FieldLabel=Treasurers #;'
     + '@a1FieldLabel=Check Date;'
 
+  when @paymentType = 'Miscellaneous'
+   then
+    '@debitFieldLabel=Fund Account;'
+    + '@creditFieldLabel=Bank Account;'
+    + '@key1FieldLabel=Voucher #;'
+    + '@key2FieldLabel=Date Created;'
+    + '@key3FieldLabel=Hidden Key3;'
+    + '@a1FieldLabel=Hidden A1;'
+
+  when @paymentType = 'TRANSFER'
+   then
+    '@debitFieldLabel=To Bank Acct;'
+    + '@creditFieldLabel=From Bank Acct;'
+    + '@key1FieldLabel=Voucher #;'
+    + '@key2FieldLabel=Date Created;'
+    + '@key3FieldLabel=Hidden Key3;'
+    + '@a1FieldLabel=Hidden A1;'
+
    else
     '@debitFieldLabel=Deposit Account;'
     + '@creditFieldLabel=Bank Account;'
@@ -72,7 +95,7 @@ begin
 
  if @mode = 3
  begin
-  exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride
+  exec dbo.logit @@procid, 'start mode 3 - @paymentType', @paymentType, '@postOverride', @postOverride, '@voidBatch', @voidBatch
 
   if @paymentType = 'VOIDMAINTENANCE'
   begin
@@ -99,6 +122,23 @@ begin
   -- bail if id is not greater than 0
   if @id < 1
    return
+
+-- if you want to roll back an entire import batch we just delete everything and cleanup object.
+  if @voidBatch = 'TRUE'
+  begin
+   select @importStamp = a16 from object where typ = 4771 and id = @id
+   declare @toRemove table(id int, slink varchar(15))
+   insert @toRemove select id, 'o' + cast(id as varchar) from object where typ = 4771 and a16 = @importStamp
+   exec dbo.logit @@procid, 'Begin transaction...'
+   begin transaction
+    delete dbo.glDetailStage where slink in (select slink from @toRemove)
+    delete dbo.glDetail where slink in (select slink from @toRemove)
+    update object set typ = -4771 where typ = 4771 and id in (select id from @toRemove)
+    update object set link1 = 0 where typ = 4771 and link1 in (select id from @toRemove)
+   commit transaction
+   exec dbo.logit @@procid, 'Commited transaction.'
+   return
+  end
 
   if (select a17 from object where id = @id) = '' and not exists(select * from glDetail where slink = @slink)
    set @deleteObject = 'TRUE'
@@ -128,14 +168,14 @@ begin
 
 -- TODO: add gl check here
 
-  declare @nextVoucherNumber varchar(50)
+  declare @nextVoucherNumber varchar(50) = ''
 
  -- Issued from Trust or Protest Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
   if @paymentType = 'Trust Voucher'
   begin
    select
     @voucherDate = dbo.clarionDate(getDate()),
-   -- @debitAcct = key3,
+    @debitAcct = key3,
     @creditAcct = key2
    from object where typ = 4503 and key1 = 'TRUST'
 
@@ -171,7 +211,7 @@ begin
 
   end
 
-  if @paymentType = 'Cancel Voucher'
+  if left(@paymentType,6) = 'Cancel'
   begin
    select
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
@@ -186,10 +226,11 @@ begin
    from object a where a.typ = 4771 and a.id = @id
   end
 
-  exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
+  if @paymentType not in ('Miscellaneous','Transfer')
+   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if @debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0'
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant')
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -200,6 +241,39 @@ begin
    return
   end
 
+-- bail if we don't have all the accounts we need for a warrant...
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0') and @paymentType in ('Warrant')
+  begin
+   exec dbo.logit @@procid,
+    'Oops, Missing one of the following...  @debitAcct', @debitAcct,
+    '@creditAcct', @creditAcct,
+    '@officialBankCode', @officialBankCode
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant);'
+   return
+  end
+
+-- bail if we don't have all the accounts we need for a Trust Voucher...
+  if (@debitAcct < '  0' or @creditAcct < '  0') and @paymentType in ('Trust Voucher')
+  begin
+   exec dbo.logit @@procid,
+    'Oops, Missing one of the following...  @debitAcct', @debitAcct,
+    '@creditAcct', @creditAcct,
+    '@officialBankCode', @officialBankCode,
+    '@officialDepositCode', @officialDepositCode
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+   return
+  end
+
+  declare @registerDateOverride varchar(20) = 'FALSE'
+
+  if @paymentType = 'official Voucher'
+  begin
+   exec dbo.settingsCRUD 'site.voucherPostDateEqualsVoucherDate', @method='GET', @valueOut = @registerDateOverride output 
+  end
+
+  exec dbo.logit @@procid, '@nextVoucherNumber=',@nextVoucherNumber
+
+
   exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
  begin try
@@ -207,12 +281,12 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10
+   a7, a8, a9, c10, a16, e1
   )
   select 
    4771,
    @nextVoucherNumber,
-   dbo.clarionDate(getDate()),
+   case when @registerDateOverride = 'TRUE' and isnull(@voucherDate,'') > ' 0' then isnull(@voucherDate,'') else dbo.clarionDate(getDate()) end,
    @voucherNumber,
    isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
@@ -221,9 +295,11 @@ begin
    @creditAcct,isnull((select accountDesc from glAccounts where accountCode=@creditAcct),''),
    dbo.proper(@paymentType),
    @officialName,
-   @officialDepositCode,
-   @officialBankCode,
-   @fiscalYear
+   isnull(@officialDepositCode,''),
+   isnull(@officialBankCode,''),
+   @fiscalYear,
+   @importStamp,
+   @comments
  end try
  begin catch
   set @log = error_message()
@@ -237,18 +313,19 @@ begin
 
  end
 
- if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher')
+ if @mode=0 and @paymentType in ('Trust Voucher','Protest Voucher','MISCELLANEOUS','Transfer')
  begin
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
+  select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
   return
  end
 
+  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
 
- if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher')
+ if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher','MISCELLANEOUS','Transfer')
  begin
 
-  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
   insert @stageRows 
     select @debitAcct, @amount, 'debitAcct'
    union all
@@ -270,6 +347,26 @@ begin
    where typ = 4771 and id = @id
 
   end
+
+  if @paymentType in ('Cancel Voucher','Cancel Warrant')
+  begin
+
+-- and mark the original warrant as bought!
+   update object set 
+    a19 = @nextVoucherNumber,
+    link1 = @newId
+   where typ = 4771 and id = @id
+
+  end
+
+  declare @checkStyleWarrants varchar(20) = 'FALSE'
+
+  if @paymentType = 'Treasurers Check'
+  begin
+   exec dbo.settingsCRUD 'site.checkStyleWarrants', @method='GET', @valueOut = @checkStyleWarrants output 
+  end
+
+
  
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
@@ -290,7 +387,44 @@ begin
   exec dbo.glPost @newId, 'o', @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
+  if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
+  begin
+    update gldetail set bsId = @bankStatementId where slink = @newslink and accountcode=@officialbankcode
+  end
+
  end
+
+ if @mode = 2 and @paymentType in ('MISCELLANEOUS','Transfer')
+ begin
+
+  insert @stageRows 
+    select @debitAcct, @amount, 'debitAcct'
+   union all
+    select @creditAcct, @amount * -1, 'creditAcct'
+
+ 
+  select @log = cast(count(*) as varchar) from @stageRows
+  exec dbo.logit @@procid, '@stageRows record count', @log
+
+  set @log = '@stageRows Table' + char(13) + char(10) + dbo.padRight('acctCode',' ',15) + dbo.padLeft('amount',' ',15) + ' ' + 'glType' + char(13) + char(10)
+  select @log = @log + dbo.padRight(acctCode,' ',15) + dbo.padLeft(cast(amount as varchar),' ',15) + glType + char(13) + char(10) from @stageRows
+  exec dbo.logit @@procid, @log
+  
+  delete from glDetailStage where slink=@slink
+  
+  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
+  select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @slink
+   from @stageRows a, glAccounts b 
+   where a.acctCode = b.accountCode
+
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+
+  -- post gl
+  exec dbo.glPost @id, 'o', @resultString = @postResult output
+  exec dbo.logit @@procid, 'glPost - @postResult', @postResult
+
+ end
+
 
  return
 end

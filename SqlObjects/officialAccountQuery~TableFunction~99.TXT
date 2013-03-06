@@ -14,30 +14,114 @@ bankAccountCode varchar(50)
 )
 as 
 begin
+
+declare @wt table(AccountCode varchar(60),
+                  BeginBalance money,
+                  CancelVoid money,
+                  Journals money,
+                  Deposits money,
+                  Vouchers money,
+                  EndBalance money)
+
+declare @wt2 table(AccountCode varchar(60),
+                  BeginBalance money,
+                  CancelVoid money,
+                  Journals money,
+                  Deposits money,
+                  Vouchers money,
+                  EndBalance money)
+
+
+insert @wt (accountcode,BeginBalance)
+ select accountcode,sum(amount*-1) 
+ from dbo.glDetailReports 
+ where sourceDate<@beginDate
+  and accounttype = 'OFFICIAL'
+ group by accountcode
+
+insert @wt (accountcode,CancelVoid)
+ select accountcode,sum(amount*-1) 
+ from dbo.glDetailReports 
+ where 
+  sourceType='4771'
+   and sourceDate>=@beginDate 
+   and sourceDate<=@endDate
+   and accounttype = 'OFFICIAL'
+   and amount < 0.00
+ group by accountcode
+
+insert @wt (accountcode,Journals)
+ select accountcode,sum(amount*-1) 
+ from dbo.glDetailReports 
+ where 
+  sourceType in ('4512','4502')
+   and sourceDate>=@beginDate 
+   and sourceDate<=@endDate
+   and accounttype = 'OFFICIAL'
+ group by accountcode
+
+insert @wt (accountcode,Deposits)
+ select accountcode,sum(amount*-1) 
+ from dbo.glDetailReports 
+ where 
+  sourceType not in ('4771','4512','4502')
+   and sourceDate>=@beginDate 
+   and sourceDate<=@endDate
+   and accounttype = 'OFFICIAL'
+ group by accountcode
+
+insert @wt (accountcode,Vouchers)
+ select accountcode,sum(amount) 
+ from dbo.glDetailReports 
+ where 
+  sourceType='4771'
+   and sourceDate>=@beginDate 
+   and sourceDate<=@endDate
+   and accounttype = 'OFFICIAL'
+   and amount > 0
+ group by accountcode
+
+insert @wt (accountcode,EndBalance)
+ select accountcode,sum(amount*-1) 
+ from dbo.glDetailReports 
+ where sourceDate<=@endDate
+  and accounttype = 'OFFICIAL'
+ group by accountcode
+
+insert @wt2 
+ select accountcode,
+            sum(isnull(BeginBalance,0)),
+            sum(isnull(CancelVoid,0)),
+            sum(isnull(Journals,0)),
+            sum(isnull(Deposits,0)),
+            sum(isnull(Vouchers,0)),
+            sum(isnull(EndBalance,0))
+            from @wt
+            group by accountcode
+
 insert @rt
-select id,key2,key1,a1,a3,
- isnull((select sum(cast(credit as money)-cast(debit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceDate<@beginDate),0) as BeginBalance,
-
- isnull((select sum(cast(credit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceType='4771' and 
- sourceDate>=@beginDate and sourceDate<=@endDate),0) as CancelVoid,
-
- isnull((select sum(cast(credit as money)-cast(debit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceType in ('4512','4502') and 
- sourceDate>=@beginDate and sourceDate<=@endDate),0) as Journals,
-
- isnull((select sum(cast(credit as money)-cast(debit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceType not in ('4771','4512','4502') and 
- sourceDate>=@beginDate and sourceDate<=@endDate),0) as Deposits,
-
- isnull((select sum(cast(debit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceType='4771' and 
- sourceDate>=@beginDate and sourceDate<=@endDate),0) as Vouchers,
-
- (select sum(cast(credit as money)-cast(debit as money)) 
- from dbo.glDetailReports where accountCode=a3 and sourceDate<=@endDate) as EndBalance,
+ select id,key2,key1,a1,
+ AccountCode,
+ BeginBalance,
+ CancelVoid,
+ Journals,
+ Deposits,
+ Vouchers,
+ EndBalance,
  a4
- from object where typ=4601
+ from object o, @wt2 w where o.typ=4601 and o.a3=w.accountcode
+ 
+ union 
+ select id,key2,key1,a1,
+ a3 AccountCode,
+ 0.00 BeginBalance,
+ 0.00 CancelVoid,
+ 0.00 Journals,
+ 0.00 Deposits,
+ 0.00 Vouchers,
+ 0.00 EndBalance,
+ a4
+ from object
+ where typ=4601 and a3 not in (select accountcode from @wt2)
  return
  end

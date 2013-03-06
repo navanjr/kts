@@ -1,0 +1,56 @@
+create procedure dbo.miscDepositCRUD(
+ @bankCode varchar(60), 
+ @fundCode varchar(60), 
+ @amount money,
+ @postDate varchar(10),
+ @postOverride int = 1
+) as
+begin
+
+ declare
+  @accountDesc varchar(50),
+  @resultCode int,
+  @resultMessage varchar(50),
+  @newId int,
+  @slink varchar(15),
+  @accountType int,
+  @accountTypeDesc varchar(50),
+  @jeType varchar(50)
+
+ 
+  if isnull(@postDate,0)<5
+    select @postDate = dbo.clarionDate(getdate())
+
+-- create new JE
+  set @jeType = 'APPORTIONMENT'+case when (@accountType in (4502,4512) or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
+ exec dbo.journalEntryCRUD
+  @mode = 0,
+  @description = 'Miscellaneous Deposit',
+  @jeType = 'Miscellaneous Deposit',
+  @postDate=@postDate,
+  @resultCode = @resultCode output,
+  @resultMessage = @resultMessage output,
+  @newId = @newId output
+
+ select @slink = 'o' + cast(@newId as varchar)
+
+-- create stage 
+ insert glDetailStage (accountId, accountCode, accountDesc, amount, slink)
+  select accountId, accountCode, accountDesc, @amount, @slink from glaccounts where accountCode=@bankCode
+
+ insert glDetailStage (accountId, accountCode, accountDesc, amount, slink)
+  select accountId, accountCode, accountDesc, @amount*-1, @slink from glaccounts where accountCode=@fundCode
+
+ if @postOverride <> 1
+  begin 
+-- post to the gl
+   exec dbo.glPost @newId, 'o'
+   exec dbo.journalEntryUpdate @newId
+  end
+ else 
+  begin
+   select '@code=0;@jeId='+cast(@newId as varchar)+';'
+  end
+ 
+
+end

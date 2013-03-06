@@ -1,0 +1,154 @@
+create procedure dbo.dtypeCommentCRUD(
+ @mode varchar(50),
+ @dtype varchar(50) = null,
+ @parcel varchar(50) = null,
+ @item numeric(7,1) = null,
+ @docReceivablesBRWBlob varchar(max) = null,
+ @taxRollDetailId int = null,
+ @invoiceId int = null,
+ @blob varchar(max) = null
+) as 
+begin
+
+ exec dbo.logit @@procid, '@mode', @mode, '@dtype', @dtype, '@parcel', @parcel, '@item', @item
+
+ declare 
+  @keyFieldName varchar(50),
+  @invoiceTyp varchar(10),
+  @taxYear varchar(10)
+
+ select
+  @keyFieldName = case when @dtype = 'RESALE' then 'parcel' else 'item' end
+
+ if @mode = 'REMOVE'
+ begin
+    exec dbo.logit @@procid, 'deleting @taxrollDetailId', @taxRollDetailId
+    delete taxrollDetail where id = @taxrollDetailId
+ end
+
+ if @mode = 'CREATEBYINVOICE'
+ begin
+
+  select
+   @invoiceTyp = typ,
+   @parcel = parcel,
+   @item = item 
+  from invoices where id = @invoiceId 
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@invoiceTyp', @invoiceTyp, '@parcel', @parcel, '@item', @item
+
+  if @invoiceTyp in ('R','O','S') and isnull(@parcel,'') > '  0'
+  begin
+   set @dtype = 'RESALE'
+   if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype)
+    insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, 'initiated: ' + @dtype
+  end
+
+  if @invoiceTyp in ('I','B','P') and isnull(@item,0) > 0
+  begin
+   set @dtype = 'TAXWARRANT'
+   if not exists(select * from taxrollDetail where itemNumber = @item and dtype = @dtype)
+    insert taxRollDetail (itemNumber, dtype, comments) select @item, @dtype, 'initiated: ' + @dtype
+  end
+
+  return
+ end
+
+ if @mode = 'CREATE'
+ begin
+
+-- bail if we dont have our receivables blob
+  if isnull(@docReceivablesBRWBlob,'') < '  0'
+   return
+ exec dbo.logit @@procid,'@keyFieldName', @keyFieldName, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
+ 
+ if @dtype = 'RESALE'
+  insert taxRollDetail (parcelNumber, dtype, comments)
+  select code, @dtype, 'initiated: ' + @dtype
+  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+  where taxRollDetailId is null
+ else
+  insert taxRollDetail (itemNumber, dtype, comments) 
+  select cast(code as numeric(7,1)), @dtype, 'initiated: ' + @dtype
+  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+  where taxRollDetailId is null
+
+  exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
+
+  return
+ end
+
+ if @dtype = 'ABSTRACT'
+ begin
+  select @parcel = parcelNumber from taxrollDetail where id = @taxRollDetailId
+  if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype) and @parcel>'  0'
+   insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, 'Sent to Abstracter: ' + @mode
+  return
+ end
+ 
+ if @mode = 'ATTACH' and @parcel>'  0'
+   begin
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId)
+    begin 
+     delete taxrollDetail where dtype = 'Exclude' and invoiceLinkId = @invoiceId
+     return
+    end
+   if not exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and invoiceLinkId = @invoiceId)
+    insert taxRollDetail (parcelNumber, dtype, comments,invoiceLinkId) select @parcel, @mode, 'Initiated: ' + @dtype + ' Attached to Parcel: '+@parcel, @invoiceId
+   exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
+   return
+   end
+
+ if @mode = 'EXCLUDE'
+ begin
+   select
+     @parcel = parcel,
+     @item = item 
+    from invoices where id = @invoiceId 
+
+   exec dbo.logit @@procid, 'EXCLUDING @invoiceId', @invoiceId
+   if exists(select * from taxrollDetail where dtype = 'ATTACH' and invoiceLinkId = @invoiceId)
+     delete taxrollDetail where dtype = 'ATTACH' and invoiceLinkId = @invoiceId
+    else
+     insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, comments) select @invoiceId, @parcel, @item, @mode,  'Exclude from '+@dtype
+   return
+ end
+
+ if @mode = 'ADDFEE' 
+ begin
+   exec dbo.logit @@procid, 'Adding Fee @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
+       insert taxRollDetail (invoiceLinkId, parcelNumber, itemNumber, dtype, documentName, comments) select @invoiceId,@parcel, @item, @mode, @docReceivablesBRWBlob, @blob
+   return
+ end
+
+ if @mode = 'REDEEMED' and @invoiceId > 0
+  begin
+   declare @resaleTaxyear varchar(5) = ''
+   select @resaleTaxyear = MAX(realTaxYear) from AdTax 
+   
+   select
+    @dType = case when typ in ('R','O','S') then 'RESALE' when typ in ('I','B','P') then 'TAXWARRANT' else '' end,
+    @parcel = parcel,
+    @item = item,
+    @taxYear = taxYear 
+   from invoices where id = @invoiceId 
+   
+   
+  if @dtype = 'RESALE' and @parcel > '  0' and @taxYear <= (@resaleTaxyear-3)
+   begin
+   exec dbo.logit @@procid, 'REDEEMED @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@dType', @dType
+   if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = @dtype and actionDate = 0)
+    if not exists(select * from invoices where taxYear <= (@resaleTaxyear-3) and invoiceDue>0 and parcel = @parcel)
+     update taxrollDetail set actionDate = dbo.clariondate(getdate()), comments = 'Redeemed: ' + dbo.date1(dbo.clarionDate(getdate())) + '  ' + char(13) + char(10) + cast(comments as varchar(max)) 
+       where parcelNumber = @parcel and dtype = @dtype and actionDate = 0 
+   end
+   if @dtype = 'TAXWARRANT' and @item > '  0'
+    begin
+    exec dbo.logit @@procid, 'REDEEMED @invoiceId', @invoiceId, '@parcel', @parcel, '@item', @item, '@dType', @dType
+    if exists(select * from taxrollDetail where itemNumber = @item and dtype = @dtype and actionDate = 0)
+     if not exists(select * from invoices where taxYear<=@resaleTaxyear and invoiceDue>0 and item = @item)
+      update taxrollDetail set actionDate = dbo.clariondate(getdate()), comments = 'Redeemed: ' + dbo.date1(dbo.clarionDate(getdate())) + '  ' + char(13) + char(10) + cast(comments as varchar(max)) 
+       where parcelNumber = @parcel and dtype = @dtype and actionDate = 0
+    end
+  end
+end

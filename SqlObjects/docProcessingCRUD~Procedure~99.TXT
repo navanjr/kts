@@ -1,0 +1,133 @@
+create proc dbo.docProcessingCRUD(
+ @batchBRWId int = null,
+ @invoiceId int = null,
+ @status varchar(50) = null,
+ @taxrollDetailId int = null,
+ @lcContinue varchar(50) = '' output,
+ @theDateTime datetime = null,
+ @debugMode varchar(5) = 'FALSE'
+) as
+begin
+
+ set nocount on
+
+ declare
+  @InvoiceStatus varchar(50),
+  @name varchar(50),
+  @item varchar(50),
+  @printOrder varchar(50),
+  @tally int,
+  @log varchar(max),
+  @taxrollId int,
+  @documentName varchar(50),
+  @processCode varchar(50)
+
+ declare @wt table(
+  invoiceId int,
+  printOrder varchar(50),
+  taxrollId int,
+  origin int,
+  ownerNumber numeric(14,2),
+  name varchar(50)
+ )
+
+ select
+  @name = name,
+  @item = cast(item as varchar), 
+  @printOrder = printOrder,
+  @invoiceStatus = printed,
+  @taxrollId = taxrollId,
+  @printOrder = printOrder
+ from dbo.docBatchBRW(@batchBRWId,null,null,'') 
+ where invoiceId = @invoiceId
+
+ select 
+  @documentName = documentName,
+  @processCode = processCode
+ from dbo.docBRWDecoder(@batchBRWId)
+
+ select @theDateTime = coalesce(@theDateTime,getdate())
+
+ exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@status', @status, '@documentName', @documentName, '@processCode', @processCode
+
+ if @status = 'RemoveFromBatch'
+ begin
+  delete documentProcessing where documentName = @documentName and processCode = @processCode and invoiceId = @invoiceId
+  update taxRollDetail set invoiceLinkId = invoiceLinkId * -1 where invoiceLinkId = @invoiceId and documentName = @documentName and stamp = @processCode
+  
+  return
+ end
+
+ if @status in ( 'markOne', 'markAll' )
+ begin
+
+  if @status = 'markOne'
+  begin
+
+   if exists(select * from documentProcessing where documentName = @documentName and processCode = @processCode and invoiceID = @invoiceId)
+   begin
+    insert taxrollDetail (invoiceLinkId, dtype, documentName, documentDateTime, Stamp, Comments, adtaxId, printOrder)
+    select @invoiceId, 'print', @documentName, @theDateTime, @processCode, 'Printed ' + @documentName + ' - ' + @processCode, @taxrollId, @printOrder
+    delete documentProcessing where documentName = @documentName and processCode = @processCode and invoiceID = @invoiceId
+   end
+   else 
+   begin
+    update taxrollDetail set documentDateTime = @theDateTime where documentName = @documentName and stamp = @processCode and invoiceLinkId = @invoiceId
+   end
+
+  end
+  else -- markAll
+  begin
+
+   insert @wt select invoiceId, printOrder, taxrollId, origin, ownerNumber, name
+   from dbo.docBatchBRW(@batchBRWId,null,null,'')
+   where printOrder <= @printOrder
+
+   if @debugMode = 'TRUE'
+   begin
+    select * from @wt
+    return
+   end
+
+   -- insert taxrollDetail
+   insert taxrollDetail (invoiceLinkId, dtype, documentName, documentDateTime, Stamp, Comments, adtaxId, printOrder)
+   select invoiceId, 'print', @documentName, @theDateTime, @processCode, 'Printed ' + @documentName + ' - ' + @processCode, taxrollId, printOrder
+   from @wt where origin = 1
+
+   -- delete documentprocessing
+   delete documentProcessing
+   where documentName = @documentName and processCode = @processCode and invoiceId in (select invoiceId from @wt where origin = 1)
+
+  end
+  return
+ end
+
+ if @status in ( 'resetPrintedStage', 'resetPrintedCommit')
+ begin
+  insert @wt select invoiceId, printOrder, taxrollId, origin, ownerNumber, name from dbo.docBatchBRW(@batchBRWId,null,null,'') where printOrder >= @printOrder
+  select @tally = count(*) from @wt
+  select @log = '@name=' + @name + ';@item=' + @item + ';@tally=' + cast(@tally as varchar) + ';' 
+  exec dbo.logit @@procid, @log
+  if @status = 'resetPrintedStage'
+  begin
+   select @log 
+  end
+  if @status = 'resetPrintedCommit'
+  begin
+   -- we need to remove the taxrollDetail and put back the document proccessing record
+   exec dbo.logit @@procid, '@documentName', @documentName, '@processCode', @processCode, '@printOrder', @printOrder
+   update taxrollDetail set invoiceLinkId = invoiceLinkId * -1
+   where documentName = @documentName and stamp = @processCode and invoicelinkId in (select invoiceId from @wt where origin = 2)
+   insert documentProcessing select invoiceId, @documentName, dbo.clariondate(getdate()), @processCode, printOrder, ownerNumber, name from @wt where origin = 2
+  end
+  return
+ end
+
+ if @status = 'resetFailed'
+ begin
+--  update invoices set printed = '' where taxyear = @taxYear and queue = @queue and printed = 'Failed' 
+  exec dbo.logit @@procid, 'reset Complete'
+  return
+ end
+
+end

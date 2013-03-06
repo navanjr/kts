@@ -54,11 +54,12 @@ begin
   where a.accountId = b.AccountId and a.slink = @slink
 
 -- flag source record as posted if your not a receiptlink
- if not @styp = 'l'
+ if @styp not in ('l','j')
  begin
   select @sql = 'update ['+tableName+'] set ['+statusFieldName+'] = ''Posted'' where ['+idFieldName+'] = '+cast(@id as varchar) 
   from dbo.keyExternalTableReference(@styp)
   exec(@sql)
+  exec dbo.logit @@procId,'@sql',@sql
  end
 
 -- delete the staged records

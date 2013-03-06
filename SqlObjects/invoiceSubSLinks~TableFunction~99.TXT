@@ -1,4 +1,4 @@
-create function [dbo].[invoiceSubSLinks](@invoiceId int) returns @rt table(
+create function [dbo].[invoiceSubSLinks](@invoiceId int, @invoiceType varchar(10)) returns @rt table(
  slink varchar(15)
 )
 begin
@@ -6,7 +6,20 @@ begin
  declare @wt table(slink varchar(15),invoiceId int)
  declare @wt2 table(slink varchar(15))
 
- insert @wt select 't' + cast(Id as varchar), Id from invoices where invoiceId = @invoiceId and typ <> 'A'
+ if @invoiceType > ' 0'
+  begin
+   insert @wt select 't' + cast(Id as varchar), Id from invoices where invoiceId = @invoiceId and typ = @invoiceType 
+--   insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ = @invoiceType)
+--   insert @rt select 'j' + cast(id as varchar) from journalLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ = @invoiceType)
+--   insert @rt select 'o' + cast(receiptId as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ = @invoiceType)
+  end
+ else
+  begin
+   insert @wt select 't' + cast(Id as varchar), Id from invoices where invoiceId = @invoiceId and typ <> 'A' 
+--   insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ<>'A')
+--   insert @rt select 'j' + cast(id as varchar) from journalLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ<>'A')
+--   insert @rt select 'o' + cast(receiptId as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ<>'A')
+  end
  
 
  while exists (select * from @wt)
@@ -19,4 +32,9 @@ begin
   end
  insert @rt select distinct slink from @wt2 
  return
+
+
+
+
 end
+

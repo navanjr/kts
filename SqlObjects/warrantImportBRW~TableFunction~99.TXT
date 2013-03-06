@@ -11,26 +11,30 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  debitAcct varchar(50),
  creditAcct varchar(50),
  postCheck int,
- expenseAcct varchar(50)
+ expenseAcct varchar(50),
+ registerNumber varchar(50),
+ fundCode varchar(60),
+ fundDesc varchar(50),
+ rowType int,
+ ord varchar(50)
 )
 begin
 
-
  declare @wt table(
- id int identity(1,1),
- fiscalYear varchar(50),
- clerksFund varchar(50),
- warrantNumber varchar(50),
- warrantDate varchar(50),
- accountNumber varchar(50),
- amount varchar(50),
- vendorCode varchar(50),
- accountBlob varchar(1000),
- debitAcct varchar(50),
- creditAcct varchar(50),
- postCheck int,
- expenseAcct varchar(50)
-)
+  id int identity(1,1),
+  fiscalYear varchar(50),
+  clerksFund varchar(50),
+  warrantNumber varchar(50),
+  warrantDate varchar(50),
+  accountNumber varchar(50),
+  amount varchar(50),
+  vendorCode varchar(50),
+  accountBlob varchar(1000),
+  debitAcct varchar(50),
+  creditAcct varchar(50),
+  postCheck int,
+  expenseAcct varchar(50)
+ )
 
 -- TODO: ok at some point i want to add the officials bank account to the contraid on the Debit to the _WR account this will make the bankstatment work cooler!
 
@@ -40,7 +44,8 @@ begin
   @csv nvarchar(max),
   @debitAcct varchar(50),
   @creditAcct varchar(50),
-  @officalLink int
+  @officalLink int,
+  @lastNumber int
 
  select
   @officalLink = link2,
@@ -93,14 +98,11 @@ begin
     debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob),
     expenseAcct = dbo.readString('@expenseCode=',accountBlob) 
 
- update @wt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
- update @wt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
-
  insert @rt 
   select
    fiscalYear,
    clerksFund,
-   warrantNumber,
+   dbo.popro6(warrantNumber,6,0),
    warrantDate,
    ''/*accountNumber*/,
    cast(sum(cast(amount as money)) as varchar(50)),
@@ -108,8 +110,13 @@ begin
    accountBlob,
    debitAcct,
    creditAcct,
-   postCheck,
-   expenseAcct
+   0,
+   expenseAcct,
+   0,
+   '',
+   '',
+   0,
+   'b'
   from @wt 
   group by
    fiscalYear,
@@ -122,7 +129,27 @@ begin
    creditAcct,
    postCheck,
    expenseAcct
+
+ update @rt set fiscalyear = cast(cast('20'+right(fiscalyear,2) as int)-1 as varchar(4))+'-'+'20'+right(fiscalyear,2) where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
+
+ update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
+ update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
+ update r set postcheck = 2, registerNumber=w.RegNo from @rt r, warrants w where r.postcheck = 0 and r.warrantNumber=w.WarNo and w.debitcode=r.debitAcct and w.fiscalYear=r.fiscalYear
+
+ update r set fundCode = f.accountCode, fundDesc = f.accountDesc from @rt r, glaccounts a, glaccounts f where r.debitacct = a.accountCode and f.accountCode = a.targetAccountCode
   
+-- set the potential register numbers
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Warrant' order by key2 desc, key1 desc
+ declare @reg table(regSeed int identity(1,1), id int)
+ insert @reg select id from @rt where postCheck = 0 order by clerksFund,warrantNumber
+ update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+
+-- lets add a total of amount to the top of the BRW
+ insert @rt (rowType, amount, vendorCode, ord)
+ select
+  -1,
+  sum(cast(amount as money)),
+  cast(count(*) as varchar) + ' warrant(s)', 'a' from @rt where postCheck = 0-- registerNumber > '0'
 
  return 
 end

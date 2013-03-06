@@ -9,7 +9,8 @@ create procedure dbo.logit(
  @labeld varchar(max) = '',
  @valued varchar(max) = '',
  @control varchar(100) = null,
- @level int = 1
+ @level int = 1,
+ @override varchar(5) = 'FALSE'
 ) as
 begin
 
@@ -19,7 +20,8 @@ begin
   @logitId int,
   @txt varchar(max),
   @tailPath varchar(100),
-  @procName varchar(50) = isnull(object_name(@procId),'')
+  @procName varchar(50) = isnull(object_name(@procId),''),
+  @clipboard varchar(max) = ''
  declare @controlArray table( id int, data varchar(50) )
  
  insert @controlArray select * from dbo.split(@control,'|')
@@ -34,19 +36,22 @@ begin
   if isnull(@tailPath,'') < '  0'
    select @tailPath = path from dbo.paths() where name = 'log'
 
-  update object set
-   b15 = case when (select data from @controlArray where id = 1) = 'start' then 'logging on|'
+  select @clipboard = case when (select data from @controlArray where id = 1) = 'start' then 'logging on|'
     + cast(@level as varchar) + case when @tailPath > '  0' then '|' + @tailPath else '' end else 'logging off' end
-  where typ = 0 and link1 = -1
+
+  exec dbo.settingsCRUD 'logging', @clipboard
 
   insert keyLog (procName,message,level) select 'logit', 'Log Control:' + @control, @level
 
   return
  end
 
+-- get the logging setting
+ exec dbo.settingsCRUD 'Logging', @method = 'GET', @valueOut = @clipboard output
+
  if @control = 'status'
  begin
-  select b15 as logging_status from object where typ = 0 and link1 = -1
+  select @clipboard as logging_status
   return
  end
 
@@ -58,11 +63,12 @@ begin
 
 -- get the logging status and level
  declare @loggingStatusArray table( id int, data varchar(50) )
- insert into @loggingStatusArray select * from dbo.split((select b15 from object where typ = 0 and link1 = -1), '|')
+ insert into @loggingStatusArray select * from dbo.split(@clipboard, '|')
 
--- we bail if logging is not turned on
- if not (select data from @loggingStatusArray where id = 1) = 'logging on'
-  return
+-- we bail if logging is not turned on and we are not told to override
+ if @override != 'TRUE'
+  if not (select data from @loggingStatusArray where id = 1) = 'logging on'
+   return
 
 -- we bail if level is too low
  if @level < (select cast(data as int) from @loggingStatusArray where id = 2)

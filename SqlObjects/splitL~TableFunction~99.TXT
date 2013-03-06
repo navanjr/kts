@@ -1,0 +1,40 @@
+create function dbo.splitL(@String varchar(max),@length int)
+returns @rt table (id int identity(1,1),
+		rowData varchar(1000),
+		LengthOfText int)
+
+as
+
+begin
+
+	--Declare variables
+	declare @lineoftext varchar(1000),
+			@lastspace int,
+			@charsleft int,
+			@rownumber int
+
+
+--Initialise variables
+	select @charsleft=len(@String)
+	
+
+	--Loop through the sentence parameter
+	while @charsleft>0
+	begin
+		/*Retrieve the first 26 chars. If the 26th char is a space, we can just take the first 25 chars
+		of our string. If the 26th char is not a space, find the space nearest to the end*/
+		select @lineoftext=LEFT(@String,@length)
+
+		select @lastspace=charindex(' ',reverse(@lineoftext),1)
+		select @lineoftext=left(@lineoftext,@length-@lastspace)
+		select @String=ltrim(substring(@String,@length+1-@lastspace,1000))
+
+		select @charsleft=len(@String)	
+		
+		insert @rt
+		select @lineoftext,len(@lineoftext)
+	end
+
+	return
+
+end

@@ -1,0 +1,56 @@
+create proc diagFix_OFCRCOMM(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_OFCRCOMM]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   select
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = count(*),  
+    @message = 'mike_OFCRCOMM Records not Imported'
+   from mike_ofcrcomm
+   where ID not in (select CAST(a5 as int) from Object where TYP=4002)
+  else
+   select
+    @guide = 'GET|SHOW',
+    @code = 1,
+    @tally = 1,  
+    @message = 'mike_OFCRCOMM Table does not exist'
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_OFCRCOMM]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   select 
+    *
+   from mike_ofcrcomm
+   where ID not in (select CAST(a5 as int) from Object where TYP=4002)
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+   
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_OFCRCOMM]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   insert object (typ, a1, key1, a5, a6, e1)
+   select 4002, taxyear, itm_nbr, cast(id as varchar), 'KPS Import', isnull(comment,'') from mike_OFCRCOMM where id not in (select CAST(a5 as int) from Object where TYP=4002)
+
+  return  
+ end
+
+
+end

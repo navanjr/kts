@@ -1,0 +1,154 @@
+@dk1;
+@format=55R(2)~Statement Date~@d2@#5#|M150L(2)~Account~#2#|M70R(2)~Beginning Balance~@n-14.2@#32#|M70R(2)~Ending Balance~@n-14.2@#33#|M50R(2)~Bank Variance~@n-12.2@#22#|M;
+@key2=999999-obj:a1&obj:key1;
+@defaultbrowsekey=2;
+@save;
+
+\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=update,refreshBRW=;
+\t003Description;  \d004;
+
+\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=;
+\t009through;  \w01050;  \t010@d2;
+\t011Stated Ending Balance; @acc012=sums=; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
+
+\t037Fund; \h037038;r
+\t039Fund Desc; \l0404701;r038002040004; @lf040='typ=4701 and a1 in (select accountType from dbo.glBankFundTypes(''FUND'')) and b3!=1',2; \h039040obj:c2+0<>1;r
+ @acc040=if(obj:a17<' 0',set(038,'')),update,refreshBRW=;
+
+\x045050-45;r
+\t045Begin Balance; \w04660;
+\t047Ending Balance; \w04860;
+\t049Variance; \w05060; @calculate:050=obj:a3-obj:b1;
+ \p0460507cfah,13499135;r2 \p0460507c13h,700;r2 \d046050;r2 \p0460507c0ch,1;r2 \t046050@n-14.2;r2
+
+\t077ShowLinksFlag; \h077078;r
+\t079ShowWarrantsFlag; \h079080;r
+\t081OrderVoucherFlag; \h081082;r
+
+\x083089-100;r2
+\x084090-120;r2
+\t083Deposits; \w08460;
+\t085Withdrawals; \w08660;
+ \p0840867cfah,13499135;r2 \p0840867c13h,700;r2 \d084086;r2 \p0840867c0ch,1;r2 \t08486@n-14.2;r2
+
+\t087Collateral; \w08860; \t088@n-23.2;
+\t089FDIC; \w09060; \t090@n-23.2;
+@loadwindow=
+ create(550,12,500,88,'Show &Links',78),
+ create(551,12,500,100,'Show &Warrants',80),
+ create(552,2,380,3,'Variance Items'),
+ create(553,12,500,112,'Order By &Voucher',82),
+ create(33,9,380,18,'&Add Item',4),
+ create(35,9,440,18,'&Rem Item',4),
+ brwstuff=,
+ sums=;
+
+\w03350;
+\w03550;
+
+\t033Add Item; \h034;
+@acc033=neww(4781,,-03=obj:id),
+ brwreload(2);
+
+\t035Rem Item; \h036;
+@acc035=gcid=kpbrwid(2),
+ break(gcid+0<1),
+ gcfee=kp('select key1 from object where typ=4781 and id='&gcid+0),
+ m('Are you sure that you want to remove the '&gcfee&' item?','Are you sure?',,6),
+ break(gcretval+0<>2),
+ sql('update object set typ=-4781 where typ=4781 and id='&gcid+0),
+ brwreload(2);
+
+\t105Refresh;
+@acc105=sums=,tsc;
+
+\t108&Recon Report;
+@acc108=
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount=obj:key1,
+ trreport('bankrec',5039,'printBankReconciliation='),
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='';
+
+@bb5=&Recon All;
+@bbproc5=
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='',
+ trreport('bankrec',5039,'printBankReconciliation='),
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='';
+
+
+@acc550=refreshBRW=;
+@acc551=refreshBRW=;
+@acc553=refreshBRW=;
+@gfwindow=refreshBRW=;
+
+@sums=
+ lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
+ set(046,readstring(lcBlob,'@bBalance=')),
+ set(048,readstring(lcBlob,'@eBalance=')),
+ set(084,readstring(lcBlob,'@deposits=')),
+ set(086,readstring(lcBlob,'@credits=')),
+ update,
+ set(050,obj:a3-obj:b1);
+
+@gcvars=
+ lcShowFlag=obj:c1,
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&') order by ord';
+
+@brw1=
+ lcid=kpbrwid(1)*-1,
+ if(lcid+0>0,bsToggle=);
+
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ break(lcid+0>-1),
+ lcid=lcid*-1,
+ m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|&Cancel'),
+ if(gcretval=1,change(lcid)),
+ if(gcretval=2,buyWarrant=);
+
+@buyWarrant=
+ iw(\t000Please fill in the following...;\t001Date;\t002@d2;\f002=gcbuydate;\t003Check #;\f004=gcbuycheckno;\000405;\w00200450;r),
+ break(gcretval<>'OK'),
+ gcbuydate=obj7:key1,gcbuycheckno=obj7:key2,
+ d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id&', @voucherDate='&obj7:key1&', @voucherNumber='''&obj7:key2&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
+ refreshBRW=;
+
+@bsToggle=
+ sql('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id),
+ refreshBRW=;
+
+@brwstuff=
+ gcvars=,
+ brw(150,1,gcsql,65,94,425,200,'118L(2)~~#3#M158L(2)~~#4#M|50R(2)~debit~@n-14.2b@#5#M|50R(2)~credit~@n-14.2b@#6#M|50R(2)~~#7#M',7,1),
+ lccodeh=mh-200,
+ prop(150,height,lccodeh),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0),
+gcbrw2sql='select id,key1,key2 from object where typ=4781 and link1='&obj:id&' order by id',
+ brw(151,2,gcbrw2sql,380,33,110,58,
+'70L(2)~Item~#2#M|
+50R(2)~Amount~@n-19.2b@#3#M
+',7,1);;
+
+ rop(150,7CFAH,13499135);
+
+lbrw1forecolor=obj7:c10<0,255;
+lbrw1color=obj7:c9='X',1959605; 2350115;
+
+@lbrw1forecolor=obj7:c10=1,255,obj7:c9<0,255; 1959605, 32768
+@lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135,obj7:c10='3',8308990,obj7:c9='X',1959605; 2157055; 1959605; 2350115; 7467519
+
+
+@refreshBRW=
+ sums=,
+ gcvars=,
+ brwreload(1,gcsql),
+ tsc;

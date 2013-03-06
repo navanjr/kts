@@ -3,7 +3,7 @@ create view dbo.glDetailReports as
 select
  a.fpCode,a.fpDesc,
  a.accountCode,
- c.key2 as accountDesc,
+ c.accountDesc,
  amount,
  debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
  credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
@@ -13,43 +13,82 @@ select
  sourceDate = b.key2, 
  sourceKey3 = b.key3,
  sourceType = cast(b.typ as varchar(15)),
- accountType = c.a1,
+ sourcea1 = b.a1,
+ sourcea2 = b.a2,
+ sourcea18 = b.a18,
+ c.accountType,
  a.contraId,
- a.slink2
-from gldetail a, object b, object c
+ a.slink2,
+ a.id,
+ a.accountId,
+ a.sourceCode,
+ a.bsId,
+ c.auditReportGroup,
+ c.reportOrder,
+ c.ledgerGroup,
+ c.apdistrict,
+ c.aprate,
+ c.apyear,
+ a.[fpid],a.[creationdate],a.[creationtime],a.[comment],a.[comment2],a.dateCleared,
+ left(cast(b.e1 as varchar(100)),100) as sourcee1,
+ null as invoiceId,
+ null as origin
+from gldetail a, object b, glaccounts c
 where
- a.slink = 'o'+cast(b.id as varchar)
- and a.accountId = c.id
+  a.slink='o'+cast(b.id as varchar)
+-- left(a.slink,1)='o'
+-- and dbo.slinkid(a.slink) = b.id
+-- and b.typ in (4512,4513,4502,4522,4771)
+ and a.accountId = c.accountId
+ and b.typ > 0
 
 union all
 
 select
  a.fpCode,a.fpDesc,
  a.accountCode,
- c.key2 as accountDesc,
+ c.accountDesc,
  amount,
  debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
  credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
  date,
  slink,
- sourceKey1 = b.item,
+ sourceKey1 = cast(b.item as varchar),
  sourceDate = cast(b.postdate as varchar(50)), 
  sourceKey3 = b.typ,
  sourceType = 'Invoice',
- accountType = c.a1,
+ sourcea1 = '',
+ sourcea2 = '',
+ sourcea18 = c.a18,
+ c.accountType,
  a.contraId,
- a.slink2
-from gldetail a, invoices b, object c
+ a.slink2,
+ a.id,
+ a.accountId,
+ a.sourceCode,
+ a.bsId,
+ c.auditReportGroup,
+ c.reportOrder,
+ c.ledgerGroup,
+ c.apdistrict,
+ c.aprate,
+ c.apyear,
+ a.[fpid],a.[creationdate],a.[creationtime],a.[comment],a.[comment2],a.dateCleared,'',
+ null as invoiceId,
+ b.origin
+from gldetail a, invoices b, glaccounts c
 where
- a.slink = 't'+cast(b.id as varchar)
- and a.accountId = c.id
+ a.slink='t'+cast(b.id as varchar)
+-- left(a.slink,1)='t'
+-- and dbo.slinkid(a.slink) = b.id
+ and a.accountId = c.accountId
 
 union all
 
 select
  a.fpCode,a.fpDesc,
  a.accountCode,
- c.key2 as accountDesc,
+ c.accountDesc,
  amount,
  debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
  credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
@@ -59,11 +98,75 @@ select
  sourceDate = d.key2, 
  sourceKey3 = d.key3,
  sourceType = cast(d.typ as varchar(15)),
- accountType = c.a1,
+ sourcea1 = d.a1,
+ sourcea2 = d.a2,
+ sourcea18 = d.a18,
+ c.accountType,
  a.contraId,
- a.slink2
-from gldetail a, receiptLink b, object d, object c
+ a.slink2,
+ a.id,
+ a.accountId,
+ a.sourceCode,
+ a.bsId,
+ c.auditReportGroup,
+ c.reportOrder,
+ c.ledgerGroup,
+ c.apdistrict,
+ c.aprate,
+ c.apyear,
+ a.[fpid],a.[creationdate],a.[creationtime],a.[comment],a.[comment2],a.dateCleared,
+ left(cast(d.e1 as varchar(100)),100) as sourcee1,
+ b.invoiceId,
+ null as origin
+from gldetail a, receiptLink b, object d, glaccounts c
 where
- a.slink = 'l'+cast(b.id as varchar)
+ a.slink='l'+cast(b.id as varchar)
+-- left(a.slink,1)='l'
+-- and dbo.slinkid(a.slink) = b.id
  and d.id = b.receiptId
- and a.accountId = c.id
+ and a.accountId = c.accountId
+ and d.typ > 0
+
+union all
+
+select
+ a.fpCode,a.fpDesc,
+ a.accountCode,
+ c.accountDesc,
+ amount,
+ debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
+ credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
+ date,
+ slink,
+ sourceKey1 = d.key1,
+ sourceDate = d.key2, 
+ sourceKey3 = d.key3,
+ sourceType = cast(d.typ as varchar(15)),
+ sourcea1 = d.a1,
+ sourcea2 = d.a2,
+ sourcea18 = d.a18,
+ c.accountType,
+ a.contraId,
+ a.slink2,
+ a.id,
+ a.accountId,
+ a.sourceCode,
+ a.bsId,
+ c.auditReportGroup,
+ c.reportOrder,
+ c.ledgerGroup,
+ c.apdistrict,
+ c.aprate,
+ c.apyear,
+ a.[fpid],a.[creationdate],a.[creationtime],a.[comment],a.[comment2],a.dateCleared,
+ left(cast(d.e1 as varchar(100)),100) as sourcee1,
+ b.invoiceId,
+ null as origin
+from gldetail a, journalLink b, object d, glaccounts c
+where
+ a.slink='j'+cast(b.id as varchar)
+-- left(a.slink,1)='j'
+-- and dbo.slinkid(a.slink) = b.id
+ and d.id = b.jeId
+ and a.accountId = c.accountId
+ and d.typ > 0

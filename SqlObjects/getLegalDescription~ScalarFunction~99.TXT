@@ -2,11 +2,13 @@ create function dbo.getLegalDescription(@invoiceId int) returns varchar(max)
  as
  begin
   declare @r varchar(max),
-          @taxRollId int
+          @taxRollId int,
+          @goofychar varchar(100) = '13,10'
 
    select @taxRollId = taxrollId from invoices where id = @invoiceId
 
-   select @r = legaldescription from adtax where id = @taxRollId
+
+   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
   
 
  return @r

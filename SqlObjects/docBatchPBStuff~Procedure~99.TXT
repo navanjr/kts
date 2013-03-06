@@ -1,0 +1,98 @@
+create proc dbo.docBatchPBStuff(
+ @documentName varchar(50),
+ @processCode varchar(50),
+ @documentDate int,
+ @invTypeString varchar(50) = '',
+ @taxyear varchar(4) = null,
+ @paidRatio money = null,
+ @switches varchar(10) = null,
+ @dTypesBlob varchar(max) = null
+) as
+begin
+
+ declare 
+  @pbSetting varchar(50)
+
+-- check pbstuffer status
+ exec dbo.settingsCRUD
+  @method = 'GET',
+  @settingName = 'site.pbStuffer',
+  @logit = 'TRUE',
+  @valueOut = @pbSetting output 
+
+-- Bail if pbStuffer is not TRUE 
+ if not @pbSetting = 'TRUE'
+  return
+
+ exec dbo.logit @@procid, 'Configuring Print Batch for PB Stuffer...', '@documentName', @documentName, '@processCode', @processCode
+
+-- pull in any missing ownerNumbers we already have in the batch
+
+ insert dbo.documentProcessing 
+  select id, @documentName, @documentDate, @processCode, name + cast(item as varchar), isnull(ownerNumber,0.0), name
+  from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
+  where ownerNumber in (select distinct ownerNumber from documentProcessing where documentName = @documentName)
+   and id not in (select invoiceId from documentProcessing where documentName = @documentName)
+   order by name, item
+
+ exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
+
+-- add the suffixes
+   update documentProcessing set
+    printOrder = left(name,1) + dbo.padLeft(cast(ownerNumber as varchar),'0',11)
+   where documentName = @documentName and processCode = @processCode
+
+-- add the ticks
+  declare @singles table(x varchar(50), id int)
+  declare @doubles table(x varchar(50), firstId int, lastId int)
+  declare @bigns table(x varchar(50), firstId int, lastId int)
+
+-- get the singles
+  insert @singles select printOrder, min(id) 
+   from documentProcessing where documentName = @documentName and processCode = @processCode group by printOrder  having COUNT(*) % 4 = 1 
+  update documentProcessing set printOrder = printOrder + '.005'
+   where documentName = @documentName and processCode = @processCode and id in (select ID from @singles)
+
+  declare @loopn int = 0
+
+  while exists(select * from documentProcessing where documentName = @documentName and processCode = @processCode and LEN(printOrder) = 12)
+  begin
+   -- and the doubles
+   insert @doubles select printOrder, MIN(id), MAX(id)
+    from documentProcessing where documentName = @documentName and processCode = @processCode and LEN(printOrder) = 12 
+    group by printOrder having COUNT(*) in (2,3,4)
+ 
+   update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '1'
+    where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select firstId from @doubles)
+   update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '4'
+    where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select LastId from @doubles)
+   update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+    where documentName = @documentName and processCode = @processCode and len(printOrder) = 12
+     and id not in (select firstId from @doubles union select lastId from @doubles) and printOrder in (select x from @doubles)
+
+  -- and the bigns
+  insert @bigns select printOrder, MIN(id), MAX(id)
+   from documentProcessing where documentName = @documentName and processCode = @processCode and LEN(printOrder) = 12 group by printOrder having COUNT(*) > 4
+
+  update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '1'
+   where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select firstId from @bigns)
+  update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '4'
+   where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select LastId from @bigns)
+
+  delete @bigns
+  insert @bigns select printOrder, MIN(id), MAX(id)
+   from documentProcessing where documentName = @documentName and processCode = @processCode and LEN(printOrder) = 12 group by printOrder having COUNT(*) > 2
+
+  update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+   where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select firstId from @bigns)
+  update documentProcessing set printorder = printOrder + '.' + dbo.padLeft(CAST(@loopn as varCHAR(2)),'0',2) + '2'
+   where documentName = @documentName and processCode = @processCode and len(printOrder) = 12 and ID in (select LastId from @bigns)
+
+  select @loopn = @loopn + 1
+  if @loopn = 99
+   break
+  end 
+
+
+
+end

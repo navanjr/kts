@@ -1,0 +1,152 @@
+create proc dbo.docFormLetter(
+ @documentId int,
+ @invoiceId int = 0,
+ @taxRollDetailId int = 0,
+ @batchId int = 0,
+ @method varchar(10) = 'REPLACE',
+ @interestTo varchar(50) = '',
+ @rawText varchar(Max) = '' output
+ ) as
+begin
+ set nocount on
+ exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@method',@method
+
+/*
+ @documentId int,
+ @invoiceId int = 0,
+ @taxRollDetailId int = 0,
+ @batchId int = 0,
+ @method varchar(10) = 'REPLACE',
+ @interestTo varchar(50) = '',
+ @rawText varchar(Max) = '' output
+*/
+
+ declare
+  --@rawText varchar(max),
+  @sql nvarchar(max),
+  @fieldToken varchar(50),
+  @tag varchar(50),
+  @value varchar(max),
+  @tableId int,
+  @tableToken varchar(50),
+  @where varchar(200),
+  @documentName varchar(50),
+  @needInterestTo varchar(1) = ''
+  
+ 
+ declare @fields table(
+  tableName varchar(50),
+  fieldName varchar(50),
+  tag varchar(500),
+  value varchar(max)
+ )
+
+ select @documentName = key1, @rawText = e1 from object where id = @documentId
+
+
+if @method = 'VERIFY' and @invoiceId = 0
+ select	@invoiceId = (select top 1 ID from invoices)
+			 
+
+if @interestTo>'  0'
+ insert @fields select null,null,'<interestTo>',dbo.dateformal(dbo.clariondate(@interestTo))
+
+insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
+
+---check to see if interestTo is needed
+if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY' and not exists(select * from settings where settingName = @documentName+'.interestTo')
+  set @needInterestTo = '1'
+
+insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
+if @invoiceId>0
+ begin
+ insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
+ if isnull(@taxRollDetailId,0) < 1
+  insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+ else
+  insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
+ select @interestTo = value from @fields where tag = '<interestTo>'
+ if charindex('<docUnpaid>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<docUnpaid>',case when @method = 'VERIFY' then '' else dbo.docUnpaidSF(@invoiceId,@interestTo,0) end
+ if charindex('<docUnPaidSum>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<docUnPaidSum>',case when @method = 'VERIFY' then '' else dbo.docUnpaidSumSf(@invoiceId,@interestTo) end
+ if charindex('<totDue>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<totDue>',Total from dbo.docUnpaidTF(@invoiceId,@interestTo) where RIGHT(ord,1) ='e'
+ end 
+insert @fields select null,null,'<letterHead>',dbo.docLetterHeadSF(0)
+insert @fields select null,null,'<title>',dbo.padCenter(upper(key1),' ',80) from object where id = @documentId
+insert @fields select null,null,'<line>',dbo.padleft('','_',62)
+
+if charindex('<resaleLegal>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<resaleLegal>',case when @method = 'VERIFY' then '' else dbo.docCollectionDescResale(@interestTo) end
+
+
+ declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))
+ insert @tables
+ select 'invoices','id = ' + cast(@invoiceId as varchar)
+  union
+ select 'site','1 = 1'
+  union 
+ select 'Adtax','id = (select taxrollid from invoices where id = ' + cast(@invoiceId as varchar) + ' )'
+    
+ while exists(select * from @tables)
+ begin
+
+  select top 1 @tableId = id, @tableToken = tableToken,@where = wherefrom from @tables order by id desc
+
+  declare i cursor for select column_name from INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableToken
+  open i
+  fetch next from i into @fieldToken
+  while @@fetch_status = 0 
+  begin
+   set @sql = 'select ''' + @tableToken + ''',''' + @fieldToken + ''', ''<' + @fieldToken + '>'', ' + @fieldToken
+    + ' from '+@tableToken+' WHERE ' + @where
+   print(@fieldToken + ' | ' + @sql)
+   insert @fields exec(@sql)
+   fetch next from i into @fieldToken
+  end
+  close i
+  deallocate i
+
+  delete from @tables where id = @tableId
+
+ end
+
+
+ declare f cursor for select tag, value from @fields
+ open f
+ fetch next from f into @tag, @value
+ while @@fetch_status = 0 
+ begin
+  set @rawText = replace(@rawText,isnull(@tag,''),isnull(@value,''))
+  fetch next from f into @tag, @value 
+ end
+ close f
+ deallocate f
+
+ if @method = 'REPLACE'
+   select @rawText 
+
+ if @method = 'SHOW'
+  select * from @fields
+ if @method = 'VERIFY'
+  begin
+   declare @mv table(id int identity(1,1),missingVariable varchar(50))
+   insert @mv select data from dbo.splitBetween(@rawText,'<','>') where '<' + data + '>' not in (select tag from @fields) group by data
+  if @needInterestTo = '1'
+    begin
+     insert @mv select 'InterestTo'
+     exec dbo.logit @@procid, 'Missing InterestTo'
+    end    
+   declare @missingVariable varchar(50),@settingsTag varchar(50),@setParentId varchar(50) = 'o'+cast(@documentId as varchar)
+   while exists(select * from @mv)
+   begin
+    select @missingVariable = missingVariable,@settingsTag = @documentName + '.' + @missingVariable from @mv
+    exec dbo.settingsCRUD @settingName = @settingsTag, @settingValue='', @parentId = @setParentId, @method = 'POST'
+    exec dbo.logit @@procid, '@settingName',@settingsTag, '@method = POST'
+    delete from @mv where missingVariable = @missingVariable
+   end
+   select tag from @fields
+  end
+ return
+end

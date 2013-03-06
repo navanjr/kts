@@ -19,6 +19,7 @@ begin
   @idToken int,
   @updateTally int,
   @ImportTally int,
+  @deleteTally int,
   @totalRepoFiles int
 
  declare @wt table(
@@ -32,7 +33,7 @@ begin
  
  select @path = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
  
- if @id is null
+ if isnull(@id,0) = 0
   insert @wt
   select
    0,
@@ -48,16 +49,11 @@ begin
    objectPath,
    '',0,''
   from dbo.dir(@path + '\templates')
-  where objectName = 'T_' + cast(@id as varchar)
+  where objectName = '~' + cast(@id as varchar) + '.txt'
 
---TODO: we need to add the template name to the filename 
-  update @wt set template = replace(replace(reverse(left(reverse(fullpath),charindex('\',reverse(fullpath)))),'\T_',''),'.TXT','')
-  update @wt set id = (select data from dbo.split(template,'~') where id = 1)
-  update @wt set template = (select data from dbo.split(template,'~') where id = 2)
-
--- gather data from template
--- update a set a.id = b.id from @wt a, template b where cast(replace(replace(a.template,'T_',''),'.TXT','') as int) = b.id
--- update a set a.template = b.template from @wt a, template b where a.id = b.id
+  update @wt set template = replace(replace(replace(reverse(left(reverse(fullpath),charindex('\',reverse(fullpath)))),'\',''),'T_',''),'.TXT','')
+  update @wt set id = case when isnumeric(dbo.splitF(template,'~',2)) = 1 then dbo.splitF(template,'~',2) else dbo.splitF(template,'~',1) end
+  update @wt set template = (select data from dbo.split(template,'~') where id = 1)
 
  while exists(select * from @wt where processFlag = 0)
  begin
@@ -79,11 +75,12 @@ begin
  select @totalRepoFiles = count(*) from @wt
  select @updateTally = count(a.id) from template a, @wt b where a.id = b.id
 
- select @logBlob = 'updating ' + cast(@updateTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
- exec dbo.logit @@procid, @logBlob
 
  if not @debugMode = 'TRUE'
  begin
+  select @logBlob = 'updating ' + cast(@updateTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
+  exec dbo.logit @@procid, @logBlob
+
 -- turn off the trigger on template
   alter table template disable trigger keyTemplateWriteToRepoTR
 
@@ -92,16 +89,23 @@ begin
    a.template = b.template,
    a.options = b.data,
    a.security = 'Key',
-   a.securityLevel = 1
+   a.securityLevel = 1,
+   a.lastEdit = dbo.clarionKeyLastEditDateTime(getdate())
   from template a, @wt b
-  where a.id = b.id
+  where a.id = b.id and b.errors < '  0'
 
 -- add the Templates we dont have
   select @importTally = count(*) from @wt where id not in (select id from template)
   select @logBlob = 'importing ' + cast(@importTally as varchar) + ' of ' + cast(@totalRepoFiles as varchar) + ' Templates from Repo...'
   exec dbo.logit @@procid, @logBlob
-  insert template (id, template, options, security, securityLevel)
-  select id, template, data, 'Key', 1 from @wt where id not in (select id from template) 
+  insert template (id, template, options, security, securityLevel,lastEdit)
+  select id, template, data, 'Key', 1, dbo.clarionKeyLastEditDateTime(getdate()) from @wt where id not in (select id from template) 
+
+-- delete the templates that are not in the repo
+  select @deleteTally = count(*) from template where id not in (select id from @wt)
+  select @logBlob = 'deleting ' + cast(@deleteTally as varchar) +' Templates...'
+  exec dbo.logit @@procid, @logBlob
+  delete template where id not in (select id from @wt)
 
 -- turn the trigger back on
   alter table template enable trigger keyTemplateWriteToRepoTR

@@ -1,0 +1,90 @@
+create procedure dbo.diagnostics(
+ @method varchar(50) = 'all',
+ @mode varchar(50) = 'heavy',
+ @verbose varchar(10) = 'TRUE',
+ @storeResults varchar(5) = 'FALSE'
+) as 
+begin
+ set nocount on
+
+ exec dbo.logit @@procId, '@method', @method, '@mode', @mode, '@verbose', @verbose, '@storeResults', @storeResults   
+
+ declare @results table(
+  id int identity(1,1),
+  method varchar(50),
+  code int,
+  message varchar(max),
+  tally int,
+  fixProc varchar(100),
+  timeStamp datetime,
+  guideBlob varchar(250)
+ ) 
+
+ declare 
+  @methodUnit varchar(50),
+  @code int = 0,
+  @message varchar(max) = '',
+  @tally int = 0,
+  @fixProc varchar(max) = '',
+  @guide varchar(max) = ''
+
+ if @method = 'light'
+  select @method = 'all', @mode = 'light'
+
+ if @method != 'all'
+  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%' and name like '%' + @method
+ else
+  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%'
+
+ open routines
+ fetch next from routines into @methodUnit
+ while @@FETCH_STATUS = 0
+ begin
+
+  if @method in ('all', @methodUnit)
+  begin
+-- reset output vars
+   select
+    @code = 0,
+    @tally = 0,
+    @message = '',
+    @fixProc = '',
+    @guide = ''
+
+   exec @methodUnit
+    @mode = @mode,
+    @code = @code output,
+    @tally = @tally output,
+    @message = @message output,
+    @fixProc = @fixProc output,
+    @guide = @guide output
+
+   insert @results
+    select @methodUnit, @code, @message, @tally, 'none', getDate(), '@procName=' + @methodUnit + ';@guide=' + @guide + ';'  
+
+   exec dbo.logit @@procId, 'proc', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+
+  end
+
+  fetch next from routines into @methodUnit
+ end
+
+ close routines
+ deallocate routines
+
+ if @verbose = 'TRUE' and @storeResults != 'TRUE'
+ begin
+  select * from @results where code = 1 order by id
+  return
+ end
+
+ if @storeResults = 'TRUE'
+ begin
+  declare @trialId int
+  select @trialId = isnull(max(trialId),0) + 1 from dbo.diagnosticResults
+  insert dbo.diagnosticResults 
+  select @trialId, id, method, code, message, tally, fixProc, timeStamp, @mode, guideBlob from @results order by id
+  return
+ end
+
+end

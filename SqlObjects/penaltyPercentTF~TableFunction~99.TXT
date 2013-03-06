@@ -1,3 +1,6 @@
+--THIS IS NOT REFERENCED IN ANY SQL OBJECTS OR TEMPLATES AS OF 1:28PM 1/11/13: MAK
+
+
 Create Function penaltyPercentTF (
  @invoiceId int,
  @paydate varchar(10)
@@ -39,10 +42,16 @@ begin
   if @typ in ('P','R','B','I')
   begin
    declare @totalDue money, @balanceDue money
-   select @totalDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE' and amount > 0.00
-   select @balanceDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
+  select 
+       @totalDue = sum(case when accountType = 'SOURCE' then amount * -1 else 0 end),
+       @balanceDue = sum(case when accountType = 'RECEIVABLE' then amount else 0 end)
+       from dbo.invoiceGLTotalTF(@invoiceId)
+         where status='Posted'   
+
+--   select @totalDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE' and amount > 0.00
+--   select @balanceDue = sum(amount) from dbo.invoiceTotalTF(@invoiceId) where accountType = 'RECEIVABLE'
    
-   if @balanceDue <= @totalDue/2
+   if @balanceDue-.01 <= @totalDue/2
    begin
     select @begindate = '03/31/' + cast(taxyear+1 as varchar) from invoices where id = @invoiceId
    end

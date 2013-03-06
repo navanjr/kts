@@ -1,0 +1,85 @@
+create function dbo.docProcessingBRW(
+ @documentName varchar(50),
+ @date int,
+ @days int,
+ @invTypeString varchar(50),
+ @taxYear varchar(5) = '',
+ @paidRatio money = 0.00,
+ @switches varchar(10),
+ @dTypesBlob varchar(max)
+) returns @rt table(
+ id int default 0,
+ ord varchar(50) default '',
+ display varchar(max) default '',
+ count1 varchar(50) default '',
+ count2 varchar(50) default '',
+ blob varchar(max) default '',
+ rowType int default 0 
+) as
+begin
+ 
+ declare 
+  @taxRulesFlag int = dbo.splitF(@switches,null,1),
+  @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
+  @includePriorYears int = dbo.splitF(@switches,null,3),
+  @tally1 int,
+  @tally2 int,
+  @beginDateDT datetime = dbo.date1(@date) + ' 12:00:01 am',
+  @endDateDT datetime = dbo.date1(@date + @days ) + ' 11:59:59 pm',
+  @documentId int
+
+ declare @batches table(
+  id int,
+  processCode varchar(50),
+  count1 int,
+  count2 int
+ )
+
+ if @documentName < '  0'
+  return
+
+ if @taxYear = 'ALL'
+  set @taxYear = ''
+
+-- printed total
+ insert @rt (ord) select 'bz'
+ insert @rt (ord, display, count1, count2, rowType) select 'ca', 'Print Batch Tally', 'to Print', 'Printed', 5
+
+-- document processing 
+ insert @batches 
+ select cast('9' + cast(max(id) as varchar) as int), processCode + '.' + documentName, count(*), 0
+ from documentProcessing
+ where documentName = @documentName
+  and documentDate between @date and @date + @days
+ group by documentName,processCode 
+
+-- completed batches
+ insert @batches
+ select cast('8' + cast(max(id) as varchar) as int), stamp + '.' + documentName, 0, count(*)
+ from taxrollDetail
+ where documentName = @documentName
+  and documentDatetime between @beginDateDT and @endDateDT
+  and invoiceLinkId > 0
+ group by documentName,stamp
+
+ insert @rt (id, ord, display, count1, count2)
+ select max(id), 'd'+processCode, ' ' + processCode, sum(count1), sum(count2)
+ from @batches
+ group by processCode
+
+-- Document Tally
+ select @tally1 = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
+ select @tally2 = sum(count2) from @batches
+ insert @rt (ord, display, count1, count2, rowType) select 'aa', 'Document Tally', 'Matches', 'Printed', 5
+ insert @rt (ord, count1, count2) select 'ab', @tally1, @tally2
+
+/*-- Fee Information - include this section only if this document has fees
+ select @documentId = id from object where typ = 4900 and key1 = @documentName
+ if exists(select * from object where typ = 4902 and link1 = @documentId and cast(a2 as money) != 0)
+ begin
+  insert @rt (ord, display, count1, count2, rowType) select 'ea', 'Fee Stuff', 'to Process', 'Processed', 5
+ end*/
+ 
+ return
+
+end

@@ -24,6 +24,12 @@ returns @rt table
 as
 begin
 
+ declare @taxYears table(taxYear int)
+ if isnull(@taxYear,'') > '  0'
+  insert @taxYears select @taxYear
+ else
+  insert @taxYears select distinct taxyear from invoices
+
  if @switch='p'
  begin
   insert @rt
@@ -48,7 +54,8 @@ begin
    a.queue,
    a.printed
   from dbo.invoices a
-  where a.taxYear = @taxYear and a.queue=@batchName
+  where a.taxYear in (select taxYear from @taxYears)
+   and a.queue=@batchName
  end
 
 
@@ -76,7 +83,8 @@ begin
    a.queue,
    a.printed
   from dbo.invoices a
-  where a.taxYear = @taxYear and a.printed='' and a.queue=@batchName
+  where a.taxYear in (select taxYear from @taxYears)
+   and a.printed='' and a.queue=@batchName
  end
 
 
@@ -104,8 +112,8 @@ begin
    a.queue,
    a.printed
   from dbo.invoices a
-  where a.taxYear = @taxYear
-   and a.taxrollid in (select id from adtax where realtaxyear=@taxyear and (cast(mortgagecode as varchar) > '0' or cast(treamort as varchar) > '0'))
+  where a.taxYear in (select taxYear from @taxYears)
+   and a.taxrollid in (select id from adtax where realtaxyear in (select taxyear from @taxYears) and (cast(mortgagecode as varchar) > '0' or cast(treamort as varchar) > '0'))
  end
 
 

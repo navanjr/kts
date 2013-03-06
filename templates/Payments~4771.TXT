@@ -1,0 +1,274 @@
+@gfbnr=1;
+@dk1;
+@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
+\00020500;
+@filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
+@filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'') and a17 = ''Posted'' and isnull((select count(*) from gldetail where gldetail.slink = ''o''+cast(a.id as varchar) and isnull(gldetail.bsId,0)>0),0) < 1 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18=''Warrant'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and link1=0 and a18=''Warrant'' and a17 = ''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18=''Treasurers Check'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a17=''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a17<>''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18=''Cancel Voucher'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18=''Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
+
+
+@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''),'''') ';
+
+@seriesField=a18;
+@gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
+@gfbrowse=prop(21,'7ca0h','Print Un-Cleared Vouchers');
+
+@bb2=Ca&ncel;  
+@bbproc2=
+ lcPaymentType=obj:a18,
+ if(lcPaymentType='Warrant',cancelRoutine=),
+ if(lcPaymentType='Official Voucher',cancelRoutineV=);
+
+@cancelRoutineV=
+ lcPaymentType='Voucher',
+ cancelRoutine=;
+
+@cancelRoutine=
+ m('Are you sure you wish to Cancel this '&lcPaymentType&'?','Cancel '&lcPaymentType&'...','Question.ico',6,4),
+ break(gcretval<>2),
+ iw('\t097Comment; \y097098=001;r \x097=001; \x098=002; \w098200;'),
+ gccomment=obj7:d1,
+ d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id&', @comments='''&gccomment&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
+
+bb4=&Print Item;  
+bbproc4=
+ if(obj:a18<>'Treasurers Check',print=,printTreasurersCheck=);
+
+@printTreasurersCheck=
+ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
+ break(gcretval = 'esc'),
+ gcBeginDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ if(gcBeginDate+0<1,gcBeginDate=10 ),
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('Warrants Paid',5032,'printsum=');
+
+@bb7=Cleared Vouchr;
+@bbproc7=
+iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
+ break(gcretval = 'esc'),
+ gcBeginDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ if(gcBeginDate+0<1,gcBeginDate=10 ),
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('Cleared Vouchers',5027,'printClearedVoucherList=');
+
+@bb8=Open Warrants;
+@bbproc8=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval = 'esc'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ), 
+ trreport('Outstanding Warrants',5032,'printOpenWarrants=');
+
+@bb9=Open Vouchers;
+@bbproc9=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval = 'esc'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
+
+@bb10=Paid Warrants;
+@bbproc10=
+  neww(4772);
+
+
+ iw(
+   \t000Please Enter Date Range...;
+   \t001Begin Date;
+   \t002@d2;
+   \w00250;
+   \t003End Date;
+   \t004@d2;
+   \w00450;
+   \t009File Location;
+   @loadwindow=create(150,12,3,30,'Detailed Report',80),create(151,12,3,45,'Export File',82),create(9,9);
+   @afterloadwindow=gcfilelocation=d1select('exec dbo.settingsCRUD @settingName='''', @method=''GET'', @verbose=''TRUE'''),set(010,gcfilelocation);
+   @acc009=filedialog('Select Export Folder...',,,34),set(010,gcretval),tsc;
+ ),
+
+,
+  break(gcretval = 'esc'),
+  gcBeginDate=obj7:key1,
+  gcEndDate=obj7:key2,
+  gcExportFile=obj7:c3,
+  if(gcBeginDate+0<1,gcBeginDate=10 ),
+  if(gcEndDate+0<1,gcEndDate=today() ),
+  if(obj7:c2+0=1,printDetailed=,printSummary=),
+  if(gcExportFile+0=1,exportfile=)
+
+printDetailed=
+  trreport('Paid Warrants',5032,'printPaidWarrants=');
+
+printSummary=
+  trreport('Warrants Paid',5032,'printsum=');
+
+
+@bb11=Cancel Voucher;
+@bbproc11=
+iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
+ break(gcretval = 'esc'),
+ gcBeginDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ if(gcBeginDate+0<1,gcBeginDate=10 ),
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('Cancel Vouchers',5027,'printCancelVoucherList=');
+
+@browsedelete=
+ break(obj:a17<>'Posted'),
+ if(obj:a16<'  0',voidOne=),
+ if(obj:a16>'  0',voidMany=);
+
+@voidMany=
+ lcTally=kp('select count(*) from object where typ=4771 and a16='''&obj:a16&''''),
+ lcDeleteMessage='This record has been posted and can only be voided if the fiscal period is not locked.||Import Batch '&obj:a16&' contains '&lcTally&' '&obj:a18&'(s)... ||Are you sure you wish to void this/these '&obj:a18&'(s) ?|',
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Void Only This '&obj:a18&'|Void &Entire Batch|&Cancel'),
+ if(gcretval=1,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE''')),
+ if(gcretval=2,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE'',@voidBatch=''TRUE'''));
+
+@voidOne=
+ lcDeleteMessage='This record has been posted and can only be voided if the fiscal period is not locked.||Are you sure you wish to void this '&obj:a18&'?',
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Yes|&No|&Cancel'),
+ if(gcretval=3,sql('exec dbo.paymentCRUD 3,@paymentType=''VOIDMAINTENANCE''')),
+ if(gcretval=1,sql('exec dbo.paymentCRUD 3,@paymentType='''&obj:a18&''', @id='&obj:id&',@postOverride=''TRUE'''));
+
+@loadbrowse=prop(6,text,'&Void');
+
+@loadwindow=
+ create(45,9);
+
+@afterloadwindow=
+ d1select('exec dbo.paymentCRUD @mode=4,@paymentType='''&obj:a18&''''),
+ lcBlob=obj7:d1,
+ prop(1,text,readString(lcBlob,'@key1FieldLabel=')),
+ prop(3,text,readString(lcBlob,'@key2FieldLabel=')),
+ prop(5,text,readString(lcBlob,'@key3FieldLabel=')),
+ prop(7,text,readString(lcBlob,'@a1FieldLabel=')),
+ prop(13,text,readString(lcBlob,'@debitFieldLabel=')),
+ prop(15,text,readString(lcBlob,'@creditFieldLabel=')),
+ if(obj:a17<'  0' and obj:c9+0>0,set(012,obj:c9)),
+ if(obj:a18='Trust Voucher' or obj:a18='Protest Voucher',brwstuff=),
+ tsc;
+
+@closewindow=if(obj:a17<'  0' and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),tsc;
+
+@brwstuff=brw(150,1,'select id,a1,key3 from object where typ=4775 and link1='&obj:id,320,20,110,90,'50L(2)~Receipt~#2#|M50R(2)~Amount~@n-19.2@#3#|M');
+
+@refreshbrw=brwreload(1),calcfld(094),tsc;
+
+@seriesField=a18;
+
+\t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002obj:a18<>'Miscellaneous'; 
+\t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17>'  0' and cur:securitylevel<81;
+\t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; \h005008obj:a18='Miscellaneous';r \00060600;
+\t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
+ \w00200855;r2 \d006008obj:a17>'  0';r2
+
+\t009Payee;
+\t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
+\t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
+  \h013014obj:a18='Protest Voucher';r
+\t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
+\t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE'' and b3!=1',2;
+  \h017018obj:a18<>'Trust Voucher';r
+ \w01401870;r2 \d010018obj:a17>'  0';r2
+
+\t019Official;
+\t021DepositAccount;
+\t023BankAcct;
+\h019024;r
+
+\t037ImportStamp; \h037038;r
+
+\t051DebitAccountDesc; \h051; \h052obj:a18='Protest Voucher';
+\t053CreditAccountDesc; \h053;
+\t055PurposeAccountDesc; \h055;  \h056obj:a18<>'Trust Voucher';
+ \x052056136;r2 \w052056150;r2 \d052056;r2 \p0520567cfah,13499135;r2
+\t093Amount; \t094@n-19.2; \y0930943;r \x093320; \w09350; \x094370; \d094; \s094+'select sum(cast(key3 as money)) from object where typ=4775 and link1='&obj:id&' and key2='''&obj:a6&''''; \h093096obj:a18='Miscellaneous';r
+\t095Fiscal Year; \y09509616;r \x095320; \w09550; \x096370;
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Payment Type; \x042-10; \w04265; \p0427cfah,13499135; \p0427c13h,700; \p0427c06h,1; \p0427c10h,Arial; \p0427c11h,7; \d042;
+\t043Tres Warrant; \l0444771,1; @lf044='a18=''Treasurers Check'''; \h043044;r
+\t045&Printed; \h045046;r \d046; \w04655;
+
+@print=
+ gcVouchId=obj:id,
+ trreport(voucher,4506,voucher=,,,,,voucher);
+
+@postandprint=
+ lcContinue='TRUE',
+ update,
+ postGL=,
+ break(lcContinue<>'TRUE'),
+ if(a18<>'Miscellaneous',print=),
+ close('ok');
+
+@getVouNum=
+ break(obj:key1>'  0'),
+ d1select('exec dbo.paymentGetNextVoucherNumber '&obj:id&', '''&obj:a18&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Next Voucher Number...')),
+ break(readstring(obj7:d1,'@code=')>0),
+ set(2,readstring(obj7:d1,'@nextVoucherNumber='));
+
+@postGL=
+ break(obj:a17>'  0'),
+ d1select('exec dbo.paymentCheck '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Payment Post Check...')),
+ if(readstring(obj7:d1,'@code=')>0,lcContinue='FALSE'),
+ break(lcContinue<>'TRUE'),
+ getVouNum=,
+ if(obj:a18='Trust Voucher',postTrustVoucher=),
+ break(obj:a18='Trust Voucher'),
+ d1select('exec dbo.paymentCRUD @mode=2,@paymentType=''MISCELLANEOUS'',@id='&obj:id&',@debitAcct='''&obj:a4&''',@creditAcct='''&obj:a5&''',@voucherDate='&obj:key2+0&',@amount='&obj:a3+0&''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Posting to the G/L...')),
+ if(readstring(obj7:d1,'@code=')>0,lcContinue='FALSE');
+
+@postTrustVoucher=
+ d1select('dbo.trustVoucherStageGL '&obj:id&',0'),
+ break(obj:a17>'  0'),
+ update,
+ d1select('dbo.glPost '&obj:id&',''o'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+
+\t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855;
+
+\t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
+ \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''';
+
+
+\t101Comment;
+
+\t108Post and &Print; 
+@acc108=postandprint=;
+
+\t110&G/L Detail;
+@acc110=
+ gcSourceId='o'&obj:id,
+ lcid=kp('select top 1 id from object where typ=4793 order by id desc'),
+ if(lcid+0>0,change(lcid,,1),neww(4793));
+
+\h111112obj:a18<>'Trust Voucher' or obj:a17>'  0';r
+\t111Add Receipt;
+ @acc111=select(1,4502,'typ=4502 and id in (select receiptId from dbo.purposeDetail where purpose = '''&obj:a6&''' and amount > 0.00) and id not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
+   lcreceiptId=PIC:id,
+   break(lcreceiptId+0<1),
+   lcreceipt=kp('select key1 from object where typ=4502 and id='&lcreceiptId),
+   lcamount=kp('select dbo.receiptTrustBalance('&lcreceiptId&','''&clip(obj:a6)&''')'),
+   insert(-02=4775,-03=obj:id,-04=lcreceiptId,004=obj:a6,006=lcamount,008=lcreceipt),
+   refreshbrw=;
+\t112Add Purpose;
+ @acc112=m('Do you want to add all of the receipts for '&obj:a6&' to this receipt?','Are you sure?',,6)
+  break(gcretval<>2),
+  sql('insert object (typ,link1,link2,key1,key2,key3,a1) select 4775,'&obj:id&',receiptId,'''&obj:key1&''',purpose,amount,isnull((select key1 from object where typ=4502 and id=receiptId),'''') from purposedetail where amount > 0.00 and purpose='''&obj:a6&''' and receiptId not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
+  refreshbrw=;

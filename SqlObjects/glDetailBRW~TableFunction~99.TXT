@@ -4,21 +4,22 @@ create function dbo.glDetailBRW(@slink varchar(15), @showGL int) returns
  id int,
  description varchar(50), 
  subdescription varchar(50), 
- amount money 
+ amount money,
+ alternateDescription varchar(50)
 )
 begin
 
  insert @rt
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,dbo.glDetailReplaceDistrictWRateSF(sourceCode,description) from receiptDetail where slink = @slink
 
  if exists(select * from dbo.paid where slink = @slink)
  begin
   insert @rt
-  select 'ba',0,'','',0
+  select 'ba',0,'','',0,''
   insert @rt
-  select 'bb',0,'Payment(s)','',0
+  select 'bb',0,'Payment(s)','',0,''
   insert @rt
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1 from dbo.paid where slink = @slink
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1,'' from dbo.paid where slink = @slink
  end
 
  if @showGl = 1
@@ -26,22 +27,22 @@ begin
   if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
    insert @rt
-   select 'ca',0,'','',0
+   select 'ca',0,'','',0,''
    insert @rt
-   select 'cb',0,'GL Detail (staged)','',0
+   select 'cb',0,'GL Detail (staged)','',0,''
    insert @rt
-   select 'cc',0,'   '+a.accountDesc,lower(b.accountType),a.amount
+   select 'cc',0,'   '+a.accountDesc,lower(b.accountType),a.amount,''
    from dbo.glDetailStage a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
 
   if exists(select * from dbo.glDetail where slink = @slink)
   begin
    insert @rt
-   select 'ca',0,'','',0
+   select 'ca',0,'','',0,''
    insert @rt
-   select 'cb',0,'GL Detail (posted)','',0
+   select 'cb',0,'GL Detail (posted)','',0,''
    insert @rt
-   select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount
+   select 'cc'+b.subord,0,'   '+a.accountDesc,lower(b.accountType),a.amount,''
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId and a.slink = @slink
   end
 

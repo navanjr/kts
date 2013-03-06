@@ -1,0 +1,184 @@
+@menuprocess=new(4530);
+@dk1;
+\t001Begin Date; \t002@d2; \w00250;
+\t003End Date; \t004@d2; \w00450;
+\t108Receipt Export;
+ @acc108= gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcReceiptType=obj:key3,
+ gcDeputy='',
+ gcDepId=0,
+ gcPrintDetail='',
+ dbfopen('c:\kps\taxrece.dbf',0),
+ sqlloop2('select taxyear,itemnumber,cast(paid as varchar(30)),cast(penalty as varchar(30)),cast(fee as varchar(30)),RecId, recNum, recdate1, postdate1, school, rate, replace(recFrom,''"'',''''), ownername, invoiceType, pertyp from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''TAX'' ','exportreceipt='),
+ dbfclose,
+ m('Receipts Exported')
+;
+
+@exportreceipt=
+set(1001,sl2:a1),
+set(1002,format(sl2:a2,@n10.1)),
+set(1003,format(sl2:a3,@n-19.2)),
+set(1004,format(sl2:a4,@n-19.2)),
+set(1005,format(sl2:a5,@n-19.2)),
+set(1006,sl2:a6),
+set(1007,sl2:a7),
+set(1008,sl2:a8),
+set(1009,sl2:a9),
+set(1010,sl2:a10),
+set(1011,sl2:a11),
+set(1012,sl2:a12),
+set(1013,sl2:a13),
+set(1014,sl2:a14),
+set(1015,sl2:a15),
+dbfadd;
+
+
+\t109Export Vouchers;
+ @acc109= gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ dbfopen('c:\kps\offvouch.dbf',0),
+ lcCurDate=format(today(),@d2),
+ sqlloop2('select dbo.date1(dateRegistered) as vchDate,clerksNumber,treasurersNumber,
+  payee,
+  amount,
+  '''',
+  '''',
+  '''',
+  ''13'',
+  isnull((select a1 from object where typ=4601 and a3=debitAccountCode),''''),
+  '''',
+  official,
+  '''&lcCurDate&''',
+  '''',
+  ''''
+  from dbo.payments where paymenttype=''OFFICIAL VOUCHER''
+   and dateRegistered >= '''&gcBeginDate&'''
+   and dateRegistered <= '''&gcEndDate&'''','exportvoucher='),
+ dbfclose,
+ m('Vouchers Exported')
+;
+
+@exportvoucher=
+set(1001,sl2:a1),
+set(1002,sl2:a2),
+set(1003,sl2:a3),
+set(1004,sl2:a4),
+set(1005,format(sl2:a5,@n-14.2)),
+set(1006,sl2:a6),
+set(1007,sl2:a7),
+set(1008,sl2:a8),
+set(1009,sl2:a9),
+set(1010,sl2:a10),
+set(1011,sl2:a11),
+set(1012,sl2:a12),
+set(1013,sl2:a13),
+set(1014,sl2:a14),
+set(1015,sl2:a15),
+dbfadd;
+
+\t110Daily Report Export;
+ @acc110=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select rowstring1,minControlNumber,maxControlNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate+0&', '&gcTheDays+0&', '''', '''') where ord = ''01b''','DailyTax.csv',4),
+ sqlexport('select rowstring1,minControlNumber,maxControlNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate+0&', '&gcTheDays+0&', '''', '''') where ord = ''02b''','DailyOth.csv',4),
+ sqlexport('select dptno,rowstring1,minControlNumber,maxControlNumber,minTicketNumber,maxTicketNumber,sourceAmt from dbo.dailyDataCollections('&gcBeginDate+0&', '&gcTheDays+0&', '''', '''') where ord = ''03b''','DailyOff.csv',4),
+ sqlexport('select dptno,min(treasurersNumber),max(treasurersNumber),min(clerksNumber),max(clerksNumber),sum(cast(amount as money)) from payments p, dbo.glcollectionaccount a 
+ where p.debitaccountcode=a.accountcode  and collectionDescription=''Depository'' and dateRegistered between '&gcBeginDate+0&' and '&gcBeginDate+gcTheDays+0&' group by dptno','DailyVou.csv',4),
+ sqlexport('select clerksNumber,cast(amount as money)*-1 from payments 
+ where paymentType=''Cancel Voucher'' and dateRegistered between '&gcBeginDate+0&' and '&gcBeginDate+gcTheDays+0&'','DailyCan.csv',4),
+ sqlexport('select depositaccountcode,fiscalYear,min(treasurersNumber),max(treasurersNumber),sum(cast(amount as money)) from payments 
+where paymentType=''Treasurers Check'' and dateRegistered between '&gcBeginDate+0&' and '&gcBeginDate+gcTheDays+0&' group by depositaccountcode,fiscalYear','DailyWar.csv',4),
+ sqlexport('select * from dailyJeDetail('&gcBeginDate+0&', '&gcBeginDate+gcTheDays+0&')','DailyJE.csv',4),
+ filecopy('dailyTax.csv','c:\kps\dailyTax.csv'),
+ filecopy('dailyOth.csv','c:\kps\dailyOth.csv'),
+ filecopy('dailyOff.csv','c:\kps\dailyOff.csv'),
+ filecopy('dailyVou.csv','c:\kps\dailyVou.csv'),
+ filecopy('dailyCan.csv','c:\kps\dailyCan.csv'),
+ filecopy('dailyWar.csv','c:\kps\dailyWar.csv'),
+ filecopy('dailyJE.csv','c:\kps\dailyJE.csv'),
+ m('Daily Data Exported')
+;
+
+\t111Misc Receipt Exp;
+ @acc111=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted''','MISCHEAD.csv',4),
+ sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
+ source,
+ case when right(fund,4)=''_ACR'' then ''TOBEAPP'' else fund end,
+ total,
+ case when exists(select * from gldetail j where right(accountCode,4)=''_ACR'' and  j.slink in (select slink from dbo.receiptSLinks(r.recId) rsl) and isnull(bsId,0)>0) then ''Y'' else ''N'' end
+  from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted'') r where rd.reclink=r.slink','MISCDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MISC'' and recstatus=''Posted'') r where p.slink=r.slink','MISCPAID.csv',4),
+ filecopy('MISCHEAD.csv','c:\kps\MISCHEAD.csv'),
+ filecopy('MISCDET.csv','c:\kps\MISCDET.csv'),
+ filecopy('MISCPAID.csv','c:\kps\MISCPAID.csv'),
+ m('MISC Receipts Exported')
+;
+
+\t112Mort Receipt Exp;
+ @acc112=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy,mortgagedate1,maturitydate1,term,mortgageamount,taxrate,taxamount,feeamount,0.00 from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted''','MORTHEAD.csv',4),
+ sqlexport('select r.postDate1,r.recnum,key1,key2 from object md, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where md.typ=4507 and md.link1 = r.recId  ','MORTDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''MTG'' and recstatus=''Posted'') r where p.slink=r.slink','MORTPAID.csv',4),
+ filecopy('MORTHEAD.csv','c:\kps\MORTHEAD.csv'),
+ filecopy('MORTDET.csv','c:\kps\MORTDET.csv'),
+ filecopy('MORTPAID.csv','c:\kps\MORTPAID.csv'),
+ m('MORT Receipts Exported')
+;
+
+
+\t113Warrant Exp;
+ @acc113=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('SELECT fiscalYear,FundCode,WarNo,WarDate,RegDate,Payee,amount,PayDate,PayNo,'''' FROM dbo.warrants where (RegDateNo >= '&gcBeginDate&' and RegDateNo<= '&gcEndDate&') or (PayDateNo >= '&gcBeginDate&' and PayDateNo<= '&gcEndDate&')','WARRANT.csv',4),
+ filecopy('WARRANT.csv','c:\kps\WARRANT.csv'),
+ m('Warrants Exported')
+;
+
+\t114Trust Receipt Exp;
+ @acc114=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select postDate1,recnum,replace(recFrom,''"'',''''),deputy,parcel,vin,title from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted''','TRUSHEAD.csv',4),
+ sqlexport('select r.postDate1,r.recNum,left(rd.account,20),
+ total
+  from receiptDetailview rd, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted'') r where rd.reclink=r.slink','TRUSDET.csv',4),
+ sqlexport('select r.postDate1,r.recNum,paycode,checkno,amount from paid p, (select * from receipt where postDate >= '&gcBeginDate&' and postDate<= '&gcEndDate&' and recType=''TRUST'' and recstatus=''Posted'') r where p.slink=r.slink','TRUSPAID.csv',4),
+ filecopy('TRUSHEAD.csv','c:\kps\TRUSHEAD.csv'),
+ filecopy('TRUSDET.csv','c:\kps\TRUSDET.csv'),
+ filecopy('TRUSPAID.csv','c:\kps\TRUSPAID.csv'),
+ m('TRUST Receipts Exported')
+;
+
+\t115Apportionment Exp;
+ @acc115=gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcTheDays=gcEndDate-gcBeginDate,
+ sqlexport('select accountCode,accountDesc,sum(amount*-1) 
+from dbo.rpMonthEndDetail('&gcBeginDate&','&gcEndDate&',''FALSE'') 
+where journalType=''APPORTIONMENT'' and accountType in (select accountType from dbo.glBankFundTypes(''FUND''))
+group by accountCode,accountDesc','apportn.csv',4),
+ filecopy('apportn.csv','c:\kps\apportn.csv'),
+ m('APPORTIONMENT Exported')
+;
+
+\t116Abstract Exp;
+ @acc116=sqlloop2('select key1 from object where typ=4000 order by key1',doabstract=),m('ABSTRACT Exported');
+
+@doabstract=
+ sqlexport('select apdistrict,aprate,accounttype,sourcetype,sourcekey3,isnull(origin,'''') as origin,sum(amount) as amount
+ from gldetailreports
+ where apyear='''&left(sl2:a1,4)&'''
+  and left(sourcea18,13) <> ''Apportionment''
+  and sourcekey3 not in (''MISC'',''MTG'')
+ group by apdistrict,aprate,accounttype,sourcetype,sourcekey3,origin
+ order by apdistrict,aprate','abst'&left(sl2:a1,4)&'.csv',4),
+ filecopy('abst'&left(sl2:a1,4)&'.csv','c:\kps\abst'&left(sl2:a1,4)&'.csv'),
+;

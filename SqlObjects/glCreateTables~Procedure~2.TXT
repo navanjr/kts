@@ -2,6 +2,7 @@ create proc dbo.glCreateTables
 as
 begin
  set nocount on
+ exec dbo.logit @@procid, 'Running...'
 
 -- TAXROLLCORRECTIONS
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxrollCorrections]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -11,15 +12,12 @@ begin
    fieldNumber int,
    fieldName varchar(50),
    fieldData varchar(max),
+   invoiceId int,
+   originalData varchar(max),
+   correctionDate int,
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100))    
   )
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxrollCorrections' and COLUMN_NAME = 'invoiceId')
-  alter table taxrollCorrections add invoiceId int
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxrollCorrections' and COLUMN_NAME = 'originalData')
-  alter table taxrollCorrections add originalData varchar(max)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxrollCorrections' and COLUMN_NAME = 'correctionDate')
-  alter table taxrollCorrections add correctionDate int
 
 -- GLDETAIL
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -31,39 +29,24 @@ begin
    accountId int,
    accountCode varchar(50),
    accountDesc varchar(50),
-   sourceId int,
+   slink varchar(15),
    date int,
    amount money,
+   bsId int,
+   slink2 varchar(15),
+   contraId int,
+   comment varchar(50),
+   comment2 varchar(50),
+   sourcecode varchar(60),
+   targetAccountId int,
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
 
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourceId')
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'gldetail' and COLUMN_NAME = 'dateCleared')
  begin
-  begin transaction
-   alter table glDetail add slink varchar(15)
-   exec(N'update glDetail set slink = ''o''+cast(sourceId as varchar)')
-   alter table glDetail drop column sourceId
-   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourceId')
-    rollback transaction
-   else
-    commit transaction
+   alter table gldetail add dateCleared varchar(50) not null default ''
  end
-
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'bsId')
-  alter table glDetail add bsId int
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'slink2')
-  alter table glDetail add slink2 varchar(15)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'contraId')
-  alter table glDetail add contraId int
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'comment')
-  alter table glDetail add comment varchar(50)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'comment2')
-  alter table glDetail add comment2 varchar(50)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'sourcecode')
-  alter table glDetail add sourcecode varchar(60)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetail' and COLUMN_NAME = 'targetAccountId')
-  alter table glDetail add targetAccountId int
 
 -- GLDETAILSTAGE
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetailStage]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -79,31 +62,21 @@ begin
    sourceId int,
    date int,
    amount money,
+   slink varchar(15),
+   slink2 varchar(15),
+   comment varchar(50),
+   comment2 varchar(50),
+   targetAccountId int,
+   sourcecode varchar(60),
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
   )
 
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'sourceId')
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'gldetailStage' and COLUMN_NAME = 'accountType')
  begin
-  begin transaction
-   alter table glDetailStage add slink varchar(15)
-   exec(N'update glDetailStage set slink = ''o''+cast(sourceId as varchar)')
-   alter table glDetailStage drop column sourceId
-   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'sourceId')
-    rollback transaction
-   else
-    commit transaction
+   alter table gldetailStage add accountType varchar(50) not null default ''
  end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'slink2')
-  alter table glDetailStage add slink2 varchar(15)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'comment')
-  alter table glDetailStage add comment varchar(50)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'comment2')
-  alter table glDetailStage add comment2 varchar(50)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'targetAccountId')
-  alter table glDetailStage add targetAccountId int
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'glDetailStage' and COLUMN_NAME = 'sourcecode')
-  alter table glDetailStage add sourcecode varchar(60)
+
 
 -- PAID
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[paid]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -140,6 +113,11 @@ begin
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'paid' and COLUMN_NAME = 'location')
  begin
    alter table paid add location varchar(50) not null default ''
+ end
+
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'paid' and COLUMN_NAME = 'officialDepositId')
+ begin
+   alter table paid add officialDepositId int not null default 0
  end
 
 -- AUDIT
@@ -195,33 +173,24 @@ begin
 	[NAME] [nvarchar](30) NOT NULL,
 	[BUSINESSNAME] [nvarchar](30) NOT NULL,
 	[POSTDATE] [int] NOT NULL,
-	[STATUS] [nvarchar] (10) NOT NULL
+	[STATUS] [nvarchar] (10) NOT NULL,
+        invoiceAmount money not null default 0,
+        invoiceDue money not null default 0,
+        subInvoiceDue money not null default 0,
+        invoiceId int not null default 0,
+        interestDate int not null default 0,
+        printed varchar(50) not null default '',
+        queue varchar(50) not null default '',
+        printOrder varchar(50) not null default '',
+        origin varchar(50) not null default '',
+        originId int not null default 0,
+        modified datetime not null default getDate(),
+        apiUpdated datetime
    ) ON [PRIMARY]
-
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'invoiceId')
-   alter table invoices add invoiceId int not null default 0
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'invoiceAmount')
- begin
-   alter table invoices add invoiceAmount money not null default 0
-   alter table invoices add invoiceDue money not null default 0
-   alter table invoices add subInvoiceDue money not null default 0
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'interestDate')
-   alter table invoices add interestDate int not null default 0
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'printed')
-   alter table invoices add printed varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'queue')
-   alter table invoices add queue varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'printOrder')
-   alter table invoices add printOrder varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'origin')
-   alter table invoices add origin varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'originId')
-   alter table invoices add originId int not null default 0
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'modified')
-  alter table invoices add modified datetime not null default getDate()
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'apiUpdated')
-  alter table invoices add apiUpdated datetime
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'statementId')
+  alter table invoices add statementId int not null default 0
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'invoices' and COLUMN_NAME = 'taxRuleDue')
+  alter table invoices add taxRuleDue money not null default 0
 
 -- RECEIPTLINK
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[receiptlink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -229,16 +198,10 @@ begin
    id int identity(1,1),
    receiptId int,
    invoiceId int,
-   methodRate money not null default 1.0
+   methodRate money not null default 1.0,
+   receiptNumber varchar(50) not null default '',
+   protestAmount money not null default 0
   )        
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptLink' and COLUMN_NAME = 'receiptNumber')
- begin
-   alter table receiptLink add receiptNumber varchar(50) not null default ''
- end
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'receiptLink' and COLUMN_NAME = 'protestAmount')
- begin
-   alter table receiptLink add protestAmount money not null default 0
- end
 
 -- ADTAX
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -301,7 +264,24 @@ begin
 	[FLAG1] [nvarchar](1) NOT NULL,
 	[FLAG2] [nvarchar](1) NOT NULL,
 	[FLAG3] [nvarchar](1) NOT NULL,
-	[LEGALDESCRIPTION] [ntext] NOT NULL
+	[LEGALDESCRIPTION] [ntext] NOT NULL,
+    pertyp varchar(1) not null default '',
+    proploc varchar(51) not null default '',
+    mort_cd varchar(5) not null default '',
+    morleg varchar(1) not null default '',
+    bankrupt varchar(1) not null default '',
+    treamort varchar(5) not null default '',
+    chg_asmt varchar(1) not null default '',
+    cur_adr varchar(8) not null default '',
+    trcode varchar(51) not null default '',
+    kpsc_schn varchar(5) not null default '',
+    origin varchar(50) not null default '',
+    LandAssessed [numeric](9, 0) not null default 0,
+    ImprovedAssessed [numeric](9, 0) not null default 0,
+    MiscAssessed [numeric](9, 0) not null default 0,
+    modified datetime not null default getDate(),
+    apiUpdated datetime,
+    apiUpdatedLegal datetime
    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
  
   if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
@@ -311,42 +291,10 @@ begin
       DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS  = ON,        ALLOW_PAGE_LOCKS  = ON) ON [PRIMARY]
   end
 
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'pertyp')
-   alter table AdTax add pertyp varchar(1) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'proploc')
-   alter table AdTax add proploc varchar(51) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'mort_cd')
-   alter table AdTax add mort_cd varchar(5) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'morleg')
-   alter table AdTax add morleg varchar(1) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'bankrupt')
-   alter table AdTax add bankrupt varchar(1) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'treamort')
-   alter table AdTax add treamort varchar(5) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'chg_asmt')
-   alter table AdTax add chg_asmt varchar(1) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'cur_adr')
-   alter table AdTax add cur_adr varchar(8) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'trcode')
-   alter table AdTax add trcode varchar(51) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'kpsc_schn')
-   alter table AdTax add kpsc_schn varchar(5) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'origin')
-   alter table AdTax add origin varchar(50) not null default ''
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'LandAssessed')
-   alter table AdTax add LandAssessed [numeric](9, 0) not null default 0
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'ImprovedAssessed')
-   alter table AdTax add ImprovedAssessed [numeric](9, 0) not null default 0
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'MiscAssessed')
-   alter table AdTax add MiscAssessed [numeric](9, 0) not null default 0
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'modified')
-   alter table AdTax add modified datetime not null default getDate()
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'apiUpdated')
-   alter table AdTax add apiUpdated datetime
-  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'apiUpdatedLegal')
-   alter table AdTax add apiUpdatedLegal datetime
   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'CERTIFICATENUMBER' and character_maximum_length=6)
    alter table adtax alter column CERTIFICATENUMBER varchar(15)
+  if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'OWNERNUMBER' and NUMERIC_PRECISION=9)
+   alter table adtax alter column OWNERNUMBER numeric(14,2)
 
 -- TAXROLLInvoiceBatch
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxRollInvoiceProcessing]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -355,7 +303,6 @@ begin
         [taxyear] varchar(4) not null,
         [processCode] [varchar](50) not null
   )
-
 
 -- TAXROLLDETAIL
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxRollDetail]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -381,6 +328,44 @@ begin
 
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'dtype')
    alter table taxRollDetail add dtype varchar(10) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentName')
+   alter table taxRollDetail add documentName varchar(50) not null default ''
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentDate')
+   alter table taxRollDetail drop column documentDate
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentDateTime')
+   alter table taxRollDetail add documentDateTime datetime not null default getdate()
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'creationDateTime')
+   alter table taxRollDetail add creationDateTime datetime not null default getdate()
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'invoiceLinkId')
+   alter table taxRollDetail add invoiceLinkId int not null default 0
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'printOrder')
+   alter table taxRollDetail add printOrder varchar(50) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'enabled')
+   alter table taxRollDetail add enabled int not null default 0
+ if exists(select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = 'taxrollDetail' and COLUMN_NAME = 'adtaxid' and COLUMN_DEFAULT is null)
+ begin
+  alter table taxrollDetail add constraint default_adtaxId DEFAULT 0 for adtaxId
+  alter table taxrollDetail add constraint default_parcelNumber DEFAULT '' for parcelNumber
+  alter table taxrollDetail add constraint default_name DEFAULT '' for name
+  alter table taxrollDetail add constraint default_itemNumber DEFAULT 0 for itemNumber
+  alter table taxrollDetail add constraint default_taxYear DEFAULT 0 for taxYear
+  alter table taxrollDetail add constraint default_stamp DEFAULT '' for stamp
+  alter table taxrollDetail add constraint default_businessName DEFAULT '' for businessName
+  alter table taxrollDetail add constraint default_address1 DEFAULT '' for address1
+  alter table taxrollDetail add constraint default_address2 DEFAULT '' for address2
+  alter table taxrollDetail add constraint default_address3 DEFAULT '' for address3
+  alter table taxrollDetail add constraint default_city DEFAULT '' for city
+  alter table taxrollDetail add constraint default_state DEFAULT '' for state
+  alter table taxrollDetail add constraint default_zip1 DEFAULT '' for zip1
+  alter table taxrollDetail add constraint default_zip2 DEFAULT '' for zip2
+  alter table taxrollDetail add constraint default_zip3 DEFAULT '' for zip3
+  alter table taxrollDetail add constraint default_comments DEFAULT '' for comments
+ end
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'actionDate')
+   alter table taxRollDetail add actionDate int not null default 0
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'actionTime')
+   alter table taxRollDetail add actionTime int
+
 
 -- JOURNALLINK
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[journalLink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -737,9 +722,8 @@ begin
         [customerNumber] [varchar](50) NULL,
 	[taxrollId] [int] NULL,
 	[companyId] [varchar](50) NULL,
+        processFlag int not null default 0
    ) ON [PRIMARY]
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_mortgageLink' and COLUMN_NAME = 'processFlag')
-   alter table temp_mortgageLink add processFlag int not null default 0
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[login]') and OBJECTPROPERTY(id, N'IsTable') = 1)
    create table dbo.login(
@@ -747,9 +731,72 @@ begin
     ini varchar(5) not null,
     hostName varchar(50) default host_name(),
     hostId int not null default host_id(),
-    creationDateTime datetime not null default getDate()    
+    creationDateTime datetime not null default getDate(),    
+    station varchar(50) not null default 'unknown'
    )
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'login' and COLUMN_NAME = 'station')
-   alter table login add station varchar(50) not null default 'unknown'
+
+-- Populate the Payment Types Table
+   insert object (typ,key1,key2,key3)
+   select 1515,* from dbo.paymentTypes() where paymentType not in (select key1 from object where typ=1515)
+
+-- Populate the Journal Types Table
+   insert object (typ,key1,key2,key3)
+   select 1516,* from dbo.journalTypes() where journalType not in (select key1 from object where typ=1516)
+
+--apideleted
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[apiDeleted]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table dbo.apiDeleted (
+	id int identity(1,1),
+	link varchar(50),
+	apiResource varchar(50),
+	modified datetime not null default getDate(),
+	apiUpdated datetime 
+  )
+
+-- documentProcessing
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[documentProcessing]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table dbo.documentProcessing (
+   id int identity(1,1),
+   invoiceId int,
+   documentName varchar(50),
+   documentDate int,
+   processCode varchar(50)
+  ) 
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'printOrder')
+   alter table documentProcessing add printOrder varchar(50) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'ownerNumber')
+   alter table documentProcessing add ownerNumber numeric(14,2) not null default 0.0
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'name')
+   alter table documentProcessing add name varchar(50) not null default ''
+
+-- settings
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[settings]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table dbo.settings (
+   id int identity(1,1),
+   settingName varchar(50),
+   settingValue varchar(150),
+   modifiedDateTime datetime default getdate(),
+   modifiedBy varchar(150) default dbo.whoami()
+  ) 
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settings' and COLUMN_NAME = 'parentId')
+   alter table settings add parentId varchar(50) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settings' and COLUMN_NAME = 'description')
+   alter table settings add description varchar(500) not null default ''
+
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[diagnosticResults]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table dbo.diagnosticResults(
+   id int identity(1,1),
+   trialId int,
+   testId int,  
+   method varchar(max),
+   code int,
+   message varchar(max),
+   tally int,
+   fixProc varchar(max),
+   timeStamp datetime,
+   mode varchar(10)
+  )
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'diagnosticResults' and COLUMN_NAME = 'guideBlob')
+   alter table diagnosticResults add guideBlob varchar(250)
 
 end

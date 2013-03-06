@@ -3,6 +3,7 @@ create function dbo.taxrollSearchBRW(
  @selectedId int
 ) returns @rt table(
  invoiceId int,
+ display varchar(250),
  name nvarchar(30),
  parcel nvarchar(24),
  taxYear numeric(5,0),
@@ -11,7 +12,9 @@ create function dbo.taxrollSearchBRW(
  amount money,
  due money,
  slink varchar(15),
- selectedFlag char(1)
+ selectedFlag char(1),
+ colorFlag int,
+ ord varchar(100)
 )
 begin
 
@@ -25,20 +28,26 @@ begin
  from invoices where id = @selectedId
  
  if @name > '  0'
+ begin
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),''
+  select id*-1,'   ' + parcel,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',1,'b'+cast(taxYear as varchar)+parcel
   from dbo.invoices
   where name = @name and id != @selectedId
+  insert @rt (invoiceId,display,colorFlag,ord) select 0,'Matched By Name: '+ name,0, 'a'+cast(min(taxyear) as varchar)+min(parcel) from @rt where colorFlag = 1 group by name
+ end
 
  if @parcel > '  0'
+ begin
   insert @rt
-  select id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),''
+  select id*-1,'   ' + name,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',2,'b'+cast(taxYear as varchar)+name
   from dbo.invoices
   where parcel = @parcel and id != @selectedId and id not in (select invoiceId*-1 from @rt)
+  insert @rt (invoiceId,display,colorFlag,ord) select 0,'Matched By Parcel: '+ parcel,0, 'a'+cast(min(taxyear) as varchar)+min(name) from @rt where colorFlag = 2 group by parcel
+ end
 
  if @parcel > '  0'
-  insert @rt (name, parcel)
-   select 'Certificate: '+rtrim(a4), key1 from object where typ=4100 and key2='A' and key1=@parcel
+  insert @rt (display, parcel, ord)
+   select 'Certificate: '+rtrim(a4), key1, 'z' from object where typ=4100 and key2='A' and key1=@parcel
 
 /*  declare @glSum table(slink varchar(15),arAmount money, srcAmount money)
   insert @glsum
@@ -56,10 +65,10 @@ begin
 */  
 -- removed this for performance. TODO: keep an eye on this...  also, replaced 0,0 with invoiceAmount,invoiceDue in the two inserts above
 --  update @rt set
---   due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE'),0),
---   amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE'),0)
+--   due = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='RECEIVABLE' and status='Posted'),0),
+--   amount = isnull((select sum(amount) from dbo.invoiceGLTotalTF(invoiceId*-1) where accountType='SOURCE' and status='Posted'),0)
   
- delete from @rt where due < 0.01
+ delete from @rt where isnull(due,0) < 0.01 and colorFlag != 0
   
  return
 end

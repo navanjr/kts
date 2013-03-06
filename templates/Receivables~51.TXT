@@ -1,0 +1,248 @@
+\t109&Flag for Collection;
+@acc109=
+ m('This process will flag the filtered receviables for collections.||Choose one of the following options...','Collections...','question.ico','&Resale|&Tax Warrant|&Cancel'),
+ if(obj:a3+0=1,lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),lcPaidRatio='null'),
+ lcFCBlob=lcInvType&'^'&lcTaxYear&'^'&lcPaidRatio&'^'&lcSwitches&'^'&lcBlob,
+ gcDType=choose(gcretval=2,'TAXWARRANT','RESALE'),
+ if(gcretval=1,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''RESALE'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
+ if(gcretval=2,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''TAXWARRANT'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
+ m('Open Collections?','options...',,6,2),
+ if(gcretval=2,do(4026,menuprocess=));
+
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+@menuprocess=
+ lcid=kp('select min(id) from object where typ = 51'),
+ if(lcid+0>0,change(lcid),new(51));
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+@loadwindow=
+ create(171,10,3,2,'Step 1 - Gather Tax Items...'),
+ prop(171,'FontSize',10),
+ prop(171,'FontStyle',700),
+ prop(171,'Font','Arial'),
+ create(172,10,334,2,'Step 2 - Create Print Batches...'),
+ prop(172,'FontSize',10),
+ prop(172,'FontStyle',700),
+ prop(172,'Font','Arial'),
+ create(550,12,125,16,'Apply Tax Statement Rules',10),
+ create(551,12,100,29,'Include Previous',16),
+ create(552,12,3,42,'Paid Ratio Equals',12),
+ create(553,12,74,42,'or Greater than',14),
+ prop(553,7cfbh,5733049),
+ create(43,9),
+ gcvars=,
+ brwstuff=;
+
+@acc043=
+ iw(',.t000Create Batch..., ,.t001Process Count.,,.t002@n4.0.,,.w00230.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ gcvars=,
+ d1select('exec dbo.docBatchCRUD @documentName='''&lcDoc&''',@batchSize='&lcCount&',@invTypeString='''&lcInvType&''',@taxyear='''&lcTaxYear&''',@paidRatio='&lcPaidRatio&',@switches='''&lcSwitches&''',@dTypesBlob='''&lcBlob&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
+ refreshbrw=;
+
+\t120&Manage Docs;
+@acc120=browse(1,4900);
+\t101Blob; \h101102;r
+\t103Blob; \h103104;r
+
+@lbrwclick152=
+ if(kpbrwid(3)*-1>3,addRemoveMessage=,addOnlyMessage=);
+
+@addOnlyMessage=
+ m('Choose from the following options...','Right Click Options...','question.ico','&Add Mort Code|&Cancel'),
+ if(gcretval=1,addMortCode=),
+ refreshbrw=;
+
+@addRemoveMessage=
+ m('Choose from the following options...','Right Click Options...','question.ico','&Add Mort Code|&Remove Mort Code|&Edit Mort Code|&Cancel'),
+ if(gcretval=1,addMortCode=),
+ if(gcretval=2,removeMortCode=),
+ if(gcretval=3,editMortCode=),
+ refreshbrw=;
+
+@editMortCode=
+ change(kpbrwid(3)*-1);
+
+@addMortCode=
+ select(1,4030),
+ break(gcretval='esc'),
+ lcNewBlob=kp('select dbo.docDTypeToggle('&pic:id&','''&lcBlob&''')'),
+ set(102,lcNewBlob);
+
+@removeMortCode=
+ lcNewBlob=kp('select dbo.docDTypeToggle('&kpbrwid(3)&','''&lcBlob&''')'),
+ set(102,lcNewBlob);
+
+@brw3=
+ dtypeDblClick=;
+ bustItUp3=,
+ if(lcMode+0=9,dtypeDblClick=);
+
+@dtypeDblClick=
+ lcid=kpbrwid(3),
+ break(lcid>0),
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ lcNewBlob=kp('select dbo.docDTypeToggle('&lcid*-1&','''&lcBlob&''')'),
+ set(102,lcNewBlob),
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ refreshbrw=;
+ gcvars=,
+ brwreload(3,gcbrwsql52);
+
+@bustItUp3=
+ break(kpbrwid(3)=0),
+ lcMode=left(kpbrwid(3)*-1,1),
+ lcId=sub(kpbrwid(3)*-1,2,10);
+ 
+@brw2=
+ lcid=kpbrwid(2)*-1,
+ break(lcid<1),
+ openBatch=;
+@lbrwclick151=
+ lcid=kpbrwid(2)*-1,
+ break(lcid<1),
+ m('Choose one of the following options...','Batch Print Right Click Menu...','question.ico','&Open Batch|&Remove Batch|&Cancel'),
+ if(gcretval=1,openBatch=),
+ if(gcretval=2,removeBatch=);
+
+@openBatch=
+ gcDocName=obj:a17,
+ gcBatchId=lcid,
+ lcId=kp('select top 1 id from object where typ=4025'),if(lcId+0>0,change(lcId),new(4025));
+
+@removeBatch=
+ m('This action will remove this print batch and all details regarding this batches activity.||Are you sure you wish to remove this Batch?','Remove Print Batch...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.docBatchCRUD @method=''REMOVE'', @brwId='&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
+ refreshbrw2=;
+
+@gcvars=
+ lcInvDate=0,
+ lcDoc=obj:a17,
+ lcInvType=obj:key2,
+ lcTaxYear=obj:key3,
+ if(obj:a3+0=1,lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),lcPaidRatio='null'),
+ lcDocDate=choose(obj:a18>'  0',obj:a18,'0'),
+ lcDocDays=choose(obj:c2>'  0',obj:c2,'0'),
+ lcTaxRules=choose(obj:a2>'  0',obj:a2,'0'),
+ lcPRGTFlag=choose(obj:a4>'  0',obj:a4,'0'),
+ lcIncludePrior=choose(obj:a5>'  0',obj:a5,'0'),
+ lcSwitches=lcTaxRules&lcPRGTFlag&lcIncludePrior,
+ lcBlob=choose(obj:e1>'  0',obj:e1,''),
+ gcbrwsql50b='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by name, item',
+ gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
+ gcbrwsql51='select id*-1,display,count1,count2,blob,rowType from dbo.docProcessingBRW('''&lcDoc&''','&lcDocDate&','&lcDocDays&','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
+ gcbrwsql52='select id*-1,code,case when switch = 1 then ''x'' else '''' end from dbo.docDTypes('''&lcBlob&''')',
+ lcReport='select taxYear,invoiceType,taxDue,penalty,fees,certFees,Total,ord from dbo.docReceivablesList(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''','''&lcOrderBy&''','''&lcInterestDate+0&''')';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsql50,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(151,2,gcbrwsql51,335,54,220,262,'100L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(152,3,gcbrwsql52,230,17,93,35,'15C(2)~~#3#M100L(2)~~#2#M',,1),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(151,'Color',16777215),
+ prop(152,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(151,7c10h,'Courier New'),
+ prop(152,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',16777215),
+ prop(151,'SelectedFillColor',16777215),
+ prop(152,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0),
+ prop(151,'SelectedColor',0),
+ prop(152,'SelectedColor',0);
+
+@refreshbrw=
+ refreshbrw1=,
+ refreshbrw2=;
+
+@refreshbrw1=
+ gcvars=,
+ kpmo('Loading Invoice Data...','Please Wait...'),
+ brwreload(1,gcbrwsql50),
+ brwreload(3,gcbrwsql52),
+ kpmc();
+
+@refreshbrw2=
+ gcvars=,
+ kpmo('Loading Document Data...','Please Wait...'),
+ brwreload(2,gcbrwsql51),
+ brwreload(3,gcbrwsql52),
+ kpmc();
+
+@gfwindow=
+ refreshbrw2=;
+
+lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+@lbrw2color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+\t001Step 1 - Filter Receivables; \w001150; \h001002;r
+\t003Invoice Type; \f004='ALL'; \w00450; \u004; @acc004=if(obj:key2<'  0',set(4,'ALL')),refreshbrw=;
+\t005Tax Year; \f006='ALL'; \w00625; @acc006=if(obj:key3<'  0',set(6,'ALL')),refreshbrw=;
+\t007Paid Ratio; \h007; \w00830; \x008138;\t008@n4.2; @acc008=refreshbrw=; \p0087c0ch,1;
+\t009TaxStatementRulesFlag; \h009010;r @acc550=refreshbrw=;
+\t011paidRatioFlag; \h011012;r @acc551=refreshbrw=;
+\t013orGreaterThanFlag; \h013014;r @acc552=refreshbrw=;
+\t015includePrevious; \h015016;r @acc553=refreshbrw=;
+
+\t037Choose Additional Filters; \w037100; \h038;\x037230;\y0375;
+
+\t039Document; \l0404900,1; @acc040=set(2,obj:a17),refreshbrw2=;
+\t041Batch Date; \w04250; \t042@d2; @acc042=refreshbrw2=; \f042=c;
+\t043Create Print &Batch; \h044; \w04375;
+\x039044+150;r \y039044+13;r
+\t079(+) Days; \w08030; \t080@n3.0; \x079305;  \x080335; @acc080=refreshbrw2=; \f080=0;
+\x079080+150;r \y079080+13;r
+\t110Receivables &List; \x110175; \y110317;
+@acc110=
+ gcvars=,
+ lctally=0,lct1=0,lct2=0,
+ tr(
+  printed,
+  page,
+  prn('Receivables List',t1),
+  prn(obj:a17,t2),
+  prn(format(obj:key2,@d2b),t3),
+  if(obj:key3>'  0'),prn('Tax Year: '&obj:key3,t4),
+  if(obj:a1>'  0'),prn('Paid Ratio: '&obj:a1,t5),
+  bnd('HU','Name',2500,'TaxYear',400,'Type',200C,'Parcel',1500,'Item #',-500,'Due',-600,'Fees',-600),
+  det(gcbrwsql50b),
+   bnd('D',obj5:a2,2500,obj5:a9,400,obj5:a8,200C,obj5:a3,1500,format(obj5:a4,@n10.1b),-500,format(obj5:a5,@n14.2b),-600,format(obj5:a6,@n14.2b),-600),
+   lctally=lctally+1,
+   lct1=lct1+obj5:a5,
+   lct2=lct2+obj5:a6,
+  edt,
+  nl,
+  bnd('HO',,2500,,400,,200C,'Count of Items: '&lctally,1500,,-500,format(lct1,@n14.2b),-600,format(lct2,@n14.2b),-600),
+ );
+
+\t111Receivables &Detail; \x111255; \y111317;
+@acc111=
+ iw('\t001Interest Date; \t002@d2; \w00245; \t105Print by &Parcel; @acc105=gcOrderBy='Parcel',close('ok'); \t108Print by &Name; @acc108=gcOrderBy='Name',close('ok');'),
+ lcInterestDate=obj7:key1,
+ lcOrderBy=gcOrderBy,
+ gcOrderBy='',
+ break(gcretval='esc'),
+ gcvars=,
+ tr(
+  prn(pages),
+  prn('Receivables Detail',t1),
+  prn('Interest Date: '&format(lcInterestDate,@d2)&' Invoice Type: '&obj:key2&' Tax Year: '&obj:key3&'  Paid Ratio: '&obj:a1&' Document: '&obj:a17,t2),
+  prn(,250,,,,'courier new'),
+  bnd('DU','Year',475,'Tax Due',-750,'Int Due',-750,'FeeDue',-750,'Cert',-750,'Total',-750),
+  nl,
+  det(lcReport),
+   if(right(obj5:a8,1)='a'),bnd('D',obj5:a1,600,obj5:a3,2000,obj5:a4,2000),
+   if(right(obj5:a8,1)='b'),lin(250,pagey,4500,pagey),
+   if(right(obj5:a8,1)='c'),bnd('D',obj5:a1,275,obj5:a2,100,obj5:a3,-750,obj5:a4,-750,obj5:a5,-450,obj5:a6,-450,obj5:a7,-750),
+   if(right(obj5:a8,1)='d'),lin(800,pagey,4500,pagey),
+   if(right(obj5:a8,1)='e'),bnd('D',obj5:a1,275,obj5:a2,100,obj5:a3,-750,obj5:a4,-750,obj5:a5,-450,obj5:a6,-450,obj5:a7,-750),
+   if(right(obj5:a8,1)='f'),nl,
+  edt,
+ );

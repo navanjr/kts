@@ -1,0 +1,136 @@
+@nolock;
+@noupdate;
+@lbrwclick160=
+ gcvars=,
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
+ m('Choose one of the following options...','Right Click Menu...','Question.ico','&Manage Addresses|&Remove from Batch|&Debug|&Cancel'),
+ if(gcretval=1,manageAddress=),
+ if(gcretval=2,removeFromBatch=),
+ if(gcretval=3,m(lcFormLetterSQL));
+
+@removeFromBatch=
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''RemoveFromBatch'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
+ refreshTheBrw=;
+
+@manageAddress=
+  gcInvoiceId=kpbrwid(1)*-1,
+  do(4006,menuprocess=);
+
+\t116Process Fees;
+@acc116=
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''StageAll'''),
+ lcTally=readstring(obj7:d1,'@tally='),
+ break(lcTally+0<1),
+ m('Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Creating Fee Invoices...','Please Wait...'),
+ d1select('exec dbo.docFeeProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''all'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ kpmc(),
+ refreshTheBrw=;
+
+\t109&Mark Printed;
+@acc109=
+ m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
+ if(gcretval=1,markOne=),
+ if(gcretval=2,markAll=);
+
+@markOne=
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''markOne'''),
+ refreshTheBrw=;
+
+@markAll=
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''markAll'''),
+ refreshTheBrw=;
+
+\t110Print &Item;
+@acc110=
+ m('Are you sure you wish to print/reprint?','Print/Reprint...','Question.ico',6,2),
+ break(gcretval<>2),
+ gcInvoiceId=kpbrwid(1)*-1,
+ lcAddressSwitch=choose(obj:c2>0,obj:c2,'0'),
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ break(lcReportName<'  0'),
+ gcDocumentId=kp('select documentId from dbo.docBRWDecoder('&gcBatchId&')'),
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.docPrintPrep('&gcInvoiceId&', '&gcBatchId&', null, '&lcAddressSwitch&') order by printOrder',
+ kpmo('Printing...'),
+ sqlloop(lcFormLetterSQL,formLetterProc=),
+ markOne=,
+ kpmc();
+
+@gcvars=
+ gcInvoiceId=kpbrwid(1)*-1, 
+ lcAddressSwitch=choose(obj:c2>0,obj:c2,'0');
+
+@formLetterProc=
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName); 
+
+\t111Print &Batch;
+@acc111=
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ gcDocumentId=kp('select documentId from dbo.docBRWDecoder('&gcBatchId&')'),
+ lcTally=kp('select count(*) from dbo.docBatchBRW('&gcBatchId&',null,null,'''') where printed = '''''),
+ iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230.,  \t000Create Batch..;,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ lcAddressSwitch=choose(obj:c2>0,obj:c2,'0'),
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ do(452,getSiteInfo=),
+ sqlloop('select invoiceId, taxRollDetailId from dbo.docPrintPrep(null, '&gcBatchId&', '&lcCount&', '&lcAddressSwitch&') order by printOrder',printIt1=),
+ kpmc(),
+ refreshTheBrw=;
+
+@printIt1=
+ lcCnt=lcCnt+1,
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcTally),
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName),
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&gcInvoiceId&',''markOne''');
+
+\t112Reset Failed; \h112;
+@acc112=
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&kpbrwid(1)*-1&',''ResetFailed'''),
+ refreshTheBrw=;
+
+\t113Reset Printed;
+@acc113=
+ lcbatchitemid=kpbrwid(1)*-1,
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&lcbatchitemid&',''ResetPrintedStage'''),
+ m('Are you sure you wish to reset the printed flag for all tax statements greater than and equal to...||'&readstring(obj7:d1,'@name=')&' - '&readstring(obj7:d1,'@item=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Tax Statments...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.docProcessingCRUD '&gcBatchId&','&lcbatchitemid&',''ResetPrintedCommit'''),
+ refreshTheBrw=;
+
+@loadwindow=
+ gcPBStuffer=kp('select pbStuffer from dbo.site'),
+ create(550,12,615,48,'&Show Printed',78),
+ create(551,12,615,115,'Use All &Addresses',80),
+ set(78,1),
+ setVars=,
+ brwStuff=;
+@afterloadwindow=
+ prop(0,'TEXT','Document Batch - '&gcBatchId);
+@gfwindow=afterloadwindow=;
+
+@setVars=
+ gcbrwFormat4025='130L(2)~Name~#2#|M'&choose(gcPBStuffer<>1,'40L(2)~Item~#5#|M','80R(2)~POrder~#12#|M')&'95L(2)~Parcel~#4#|M20L(2)~Year~#3#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#11#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M45R(2)~Other~@n14.2b@#13#|M65L(2)~Printed~#10#|M50R(2)~Fees Processed~@n14.2b@#14#|M',
+ gcsql4025='select invoiceId * -1,name,taxyear,parcel,item,taxType,amount,due,queue,printed,treamort,printOrder,otherAmount,feesProcessed from dbo.docBatchBRW('&gcBatchId&',null,null,'''')'&choose(obj:c1+0=1,'',' where printed < ''  0'' or printed = ''Failed''')&' order by printOrder';
+
+@brwStuff=
+ brw(160,1,gcsql4025,3,15,600,220,gcbrwFormat4025,7,1);
+
+@acc550=refreshTheBrw=;
+
+@brw1=
+ sql('update invoices set printed='''' where id = '&(kpbrwid()*-1)),
+ refreshTheBrw=;
+
+@refreshTheBrw=
+ setVars=,
+ brwreload(1,gcsql4025);
+

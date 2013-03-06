@@ -1,9 +1,22 @@
-create procedure dbo.depositStagePayments (@depositId int) as
+create procedure dbo.depositStagePayments (
+ @depositId int,
+ @debugMode varchar(50) = 'FALSE'
+) as
 begin
+
+ exec dbo.logit @@procId, '@depositId', @depositId, '@debugMode', @debugMode
  
- declare @accounts table(
+ declare @accounts table(id int identity(1,1),
   accountId int,
-  amount money
+  amount money,
+  accountCode varchar(50),
+  slink varchar(15),
+  BankStatementGroup varchar(60),
+  paycode varchar(60),
+  checkno varchar(50),
+  drawnon varchar(50),
+  location varchar(50),
+  origin int
  )
  
  declare @styp char(1) = 'o'
@@ -11,43 +24,172 @@ begin
   @slink varchar(15) = @styp + cast(@depositId as varchar),
   @contraId int,
   @tokenId int,
-  @tokenAmount money
+  @tokenAccountId int,
+  @tokenAmount money,
+  @tokenpaycode varchar(60),
+  @tokenBankStatementGroup varchar(60),
+  @tokencheckno varchar(50),
+  @tokendrawnon varchar(50),
+  @tokenlocation varchar(50)
  
  select @contraId = link1 from object where id = @depositId
 
+ declare @slinks table(slink varchar(16),
+   paycode varchar(60),
+   paidid int,
+   objTyp int,
+   BankStatementGroup varchar(60),
+   checkno varchar(50),
+   drawnon varchar(50),
+   location varchar(50),
+   amount money,
+   origin int
+ )
+
+ declare @wt table(
+  slink varchar(15),
+  objTyp int,
+  accountId int,
+  accountCode varchar(50),
+  amount money
+ )
+
+ insert @slinks (slink,paycode,paidid,checkno,drawnon,location,amount,origin)
+  select 
+   'o'+cast(officialDepositId as varchar(15)),paycode,id,checkno,drawnon,location,amount,1 from paid a where a.depositId = @depositId and a.officialdepositId > 0
+
+ insert @slinks (slink,paycode,paidid,checkno,drawnon,location,amount,origin)
+  select slink,paycode,id,checkno,drawnon,location,amount,2 from paid a where a.depositId = @depositId and id not in (select paidId from @slinks)
+
+ update s set BankStatementGroup = rtrim(s.paycode) + cast(paidid as varchar)
+  from @slinks s, object o 
+  where o.typ=4505 
+  and s.paycode=o.key1
+  and o.a2 in ('E','C')
+
+ update s set s.objTyp = o.typ
+  from @slinks s, object o 
+  where left(s.slink,1) = 'o'
+   and dbo.slinkId(s.slink) = o.id
+
+ update s set 
+  paycode = '',
+  paidid = 0,
+  checkno = '',
+  drawnon = '',
+  location  = '',
+  BankStatementGroup = '' 
+  from @slinks s, object o 
+  where o.typ=4505 
+  and s.paycode=o.key1
+  and o.a2 not in ('E','C')
+
+ if @debugMode = 'TRUE'
+  select * from @slinks
+
  -- get the credits
- insert @accounts
- select
-  b.link1, sum(a.amount) * -1
- from paid a, object b 
- where a.paycode = b.key1 and b.typ = 4505 and a.depositId = @depositId 
- group by b.link1
- 
+ if 1 = 1
+ begin
+-- ok so this new method only gets the suspense debits if they are not on an official deposit and for a trust suspense reversal
+  insert @wt
+  select
+   slink,
+   case when left(slink,1) = 'o' then (select typ from object where id = dbo.slinkId(slink)) else null end,
+   accountId,
+   accountCode,
+   sum(amount)
+  from gldetail where slink in (select slink from @slinks) 
+    and accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
+  group by accountId, accountCode, slink
+  
+  update @wt set amount = 0 where objTyp = 4522 and amount < 0
+  
+  if @debugMode = 'TRUE'
+   select * from @wt
+
+  insert @accounts (accountId, amount, origin, accountCode)
+  select
+   accountId,
+   sum(amount) * -1,
+   1,
+   accountCode
+  from @wt
+  group by accountId, accountCode
+
+ end
+ else
+ begin
+-- old method
+  insert @accounts (accountId, amount, origin, accountCode)
+  select
+   accountId,
+   SUM(amount) * -1,
+   1,
+   accountCode
+  from gldetail where slink in (select slink from @slinks) 
+    and accountId in (select accountId from dbo.glAccounts where accountType = 'SUSPENSE')
+    and amount > 0 -- we are not sure if this is the best way to remove the trust reversal on the official
+  group by accountId, accountCode
+ end
+
  -- get the debits
  if exists(select * from paid where depositId = @depositId)
-  insert @accounts
+  insert @accounts (accountid,amount,paycode,checkno,drawnon,location, origin)
   select 
-   @contraId, sum(amount)
-  from paid 
+   @contraId, sum(p.amount), s.paycode, s.checkno, s.drawnon, s.location, 2
+  from paid p, @slinks s 
   where depositId = @depositId
+    and p.id = s.paidid
+  group by s.BankStatementGroup, s.paycode, s.checkno, s.drawnon, s.location
+
+  insert @accounts (accountid, amount, origin)
+  select 
+   @contraId, sum(p.amount), 3
+  from paid p
+  where depositId = @depositId
+   and p.id not in (select paidid from @slinks)
+  having sum(p.amount) != 0
+
+ if @debugMode = 'TRUE'
+  select * from @accounts
  
  -- remove 
- delete glDetailStage where slink = @slink and accountId not in (select accountId from @accounts)
+ delete @accounts where isnull(amount,0) = 0
+ delete glDetailStage where slink = @slink --and accountId not in (select accountId from @accounts)
 
- -- update
+/* -- update
  update a set a.amount = b.amount
  from glDetailStage a, @accounts b
  where a.accountId = b.accountId
   and a.slink = @slink
- 
- delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
 
+ delete @accounts where accountId in (select accountId from glDetailStage where slink = @slink)
+ */
  -- insert
  while (select count(*) from @accounts) > 0
  begin
-  select top 1 @tokenId = accountId, @tokenAmount = amount from @accounts
-  insert gldetailstage (slink,accountId,amount,contraId) select @slink,@tokenId,@tokenAmount,@contraId
-  delete @accounts where accountId = @tokenId
+  select top 1 
+    @tokenId = id, 
+    @tokenAccountId = accountId,
+    @tokenAmount = amount, 
+    @tokenpaycode = paycode,
+    @tokencheckno = checkno,
+    @tokendrawnon = drawnon,
+    @tokenlocation = location
+  from @accounts
+
+--  if isnull(@tokenAmount,0) != 0
+   insert gldetailstage (slink,accountId,amount,contraId,comment,comment2)
+    select @slink,
+      @tokenAccountId,
+      @tokenAmount,
+      @contraId,
+      left(isnull(rtrim(@tokenpaycode),'')+
+       case when len(isnull(rtrim(@tokenpaycode),''))>0 and len(isnull(rtrim(@tokencheckno),''))>0 then ' - ' else '' end
+       +isnull(rtrim(@tokencheckno),''),50),
+      left(isnull(rtrim(@tokendrawnon),'')+'/'+isnull(rtrim(@tokenlocation),''),50)
+
+  delete @accounts where id = @tokenId
  end
  
  update a set

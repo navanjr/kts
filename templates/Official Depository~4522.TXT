@@ -1,0 +1,192 @@
+@wbgcolor=15573409;
+@lmode=2;
+@format=50L(2)~Deposit #~#1#|M50R(2)~Deposit Date~@d2@#2#|M50R(2)~Post Date~@d2@#42#|M100L(2)~Received Of~#5#|M80L(2)~Account~#33#|M50R(2)~Amount~@n-14.2@#54#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
+@filtername=All,Posted,Un-Posted;
+@filter='1=1','a17=''Posted''','a17<>''Posted''';
+@seriesField=key3;
+@dk1;
+\u002104;r
+@loadwindow=
+ if(tier=3,procTier3=),
+ create(165,9,3,80,'&Apply Payment'),
+ create(160,9,3,120,'Link &Trust'),prop(160,7c04h,56),
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ reate(45,9),
+ setMiscReceiptAcct=,
+ brwstuff=,
+ gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST''');
+@select=008;
+
+@browsedelete=
+ lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.||Are you sure you wish to delete this Official Deposit?'),
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Yes|&No|&Cancel'),
+ break(gcretval<>1),
+ d1select('exec dbo.officialDepositCRUD 3,'&obj:id&', @deletePosted=''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Deleting Official Deposit...'));
+ 
+@brwstuff=
+ lcShowGL=readstring(cur:options,'@showgl='),
+ gcbrw1sql='select id,description,subdescription,amount from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&',0)order by ord',
+ brw(150,1,gcbrw1sql,65,95,270,200,
+  '138L(2)~~#2#M
+80L(2)~~#3#M
+50R(2)~Amount~@n-14.2b@#4#M
+',7,1),
+ prop(150,7CFAH,13499135);
+@lbrw1forecolor=obj7:c10<0,255;
+
+@afterloadwindow=
+ refreshDetail=,
+ break(obj:a17='Posted'),
+ create(161,9,3,105,'&Delete'),prop(161,7c04h,56),
+ if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&obj:key3&''')'))),update,
+ blankEm=;
+
+\t001Deposit Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002readstring(gcSiteBlob,'@unlockReceipt=')=0; a002+; \00020500;
+\t003Post Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
+ \w00200455;r2 
+\t065&Deposit Date Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d006obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
+ \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
+
+\t005Deposit Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;
+\t007Received From;  \l0084601,2;r008004010012048050; \d008obj:a17='Posted'; @lf008='typ=4601',3;
+\t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2;
+ \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151;
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Received by;  \f042=cur:fullname; 
+\t043Treasurer;  \f044=readstring(gcSiteBlob,'@officialName='); 
+ \d042044;r2 
+\o050008; \o010050;
+\t049Official Number; \w05055; \y049050-26;r
+ @acc050=lclastnum=kp('select top 1 b2 from object where typ=4522 and a1='''&obj:a1&''' and id<>'&obj:id&' and a17=''Posted'' order by b2 desc'),
+  lcthisnum=lclastnum+1,
+  break(lcthisnum+0=obj:b2+0),
+  m('The Deposit number provided is not the one expected.  There may be a skip in your deposit sequence');
+
+
+\t108&Post and Print; @acc108=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);\d046;
+ \w04204487;r2
+
+\t019Paycode; \l0204505; \w02050; @sel020=;
+\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
+\t023Check #; \w02450; @acc024=acc165=;
+ \h019024obj:a17='Posted';r
+ \y01969; \x01965; \y02081; \x02065;
+ \y02169; \x021120; \y02281; \x022120;
+ \y02369; \x023175; \y02481; \x024175;
+
+@acc165=
+ lcBreak=0,
+ break(obj:a17='Posted'),
+ evalPaycode=,break(lcBreak),
+ evalAmount=,break(lcBreak),
+ evalCheck=,break(lcBreak),
+ update,
+ d1select('exec dbo.officialDepositPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8&','''&obj:a9&''',0,'''&obj:link4+0&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ set(-06,0),
+ break(readstring(obj7:d1,'@code=')=1),
+ refreshDetail=,
+ blankEm=,
+ focus(020);
+
+\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&''' or officialDepositId = '&obj:id;
+\p0907cfah,13499135; \p0907c13h,700; \p0907c0ch,1; \d090;
+ \y08981; \y09081; \x089250; \x090278;
+
+\t097Comments; \d098obj:a17='Posted'; \w098271;
+ \y097298; \x0973; \y098298; \x09864; 
+
+\t111&Void; @acc111=voidReceipt=; \h111obj:a17<>'Posted';
+@voidReceipt=
+ m('Voiding a Official Deposit can not be un-done are you sure you wish to continue?','Void Official Deposit...',,6,4),
+ break(gcretval<>2);
+
+@setMiscReceiptAcct=
+ break(obj:key3>'  0'),
+ set(006,'OFFICIAL'),
+ update;
+
+@blankEm=
+ set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ set(020,''),set(022,''),set(024,'');
+
+@refreshDetail=
+ if(obj:a17='Posted',prop(165,'7C65H',1)),
+ brwreload(1),
+ calcfld(088),calcfld(090);
+
+@brw1=
+ break(obj:a17='Posted'),
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcTyp<>8),
+ set(-06,lcid,1),
+ gcblob=kp('select dbo.getPaidInfo('&lcid&')'),
+ set(020,readstring(gcblob,'@paycode=')),
+ set(022,readstring(gcblob,'@amount=')),
+ set(024,readstring(gcblob,'@checkNumber=')),
+ focus(020);
+
+\h160obj:a2<>gcTrustAccount or a17='Posted';
+
+@acc160=update,
+ d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''LINK ALL'' '),
+ refreshDetail=,
+ calcrecord(); 
+
+@acc161=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ if(lcTyp=8,deletePayment=),
+ if(lcTyp=4,removeTrust=);
+
+@removeTrust=
+ d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''UNLINK ONE'', '&lcid+0&' '),
+ refreshDetail=;
+
+@deletePayment=
+ m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),
+ break(gcretval<>2),
+ d1select('exec officialDepositPaymentRemove '&lcid&', '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ refreshDetail=;
+
+@postAndPrint=
+ if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&obj:key3&''')'))),update,
+ getRecNum=,
+ printRec=,
+ postGL=;
+
+@getRecNum=break(obj:key1>'00000'),
+ sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
+ rekey('id='&obj:id),
+ update;
+
+@printRec=
+ update,
+ gcRecId=obj:id,
+ trreport(officialDepository);
+
+@postGL=
+ break(obj:a17='Posted'),
+ set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
+ update,
+ d1select('dbo.glPost '&obj:id&',''o'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+
+ m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
+ break(gcretval<>2),
+
+\t112&Undo G/L Posting;
+@acc112=
+ m('Are you sure you wish to unPost this Official Deposit?','UnPosting Official Deposit...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.glUnPost @slink=''o'&obj:id&''''),
+ sql('exec dbo.officialDepositStageGL '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Undo G/L/ Posting...')),
+ close('ok');

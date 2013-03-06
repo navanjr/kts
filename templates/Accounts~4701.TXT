@@ -1,0 +1,287 @@
+@noins;
+@fastinsert;
+@save;
+@gfbnr=1;
+
+@loadbrowse=if(tier=-3,dbrowse=);
+@format=100L(2)~Account Code~#1#|M150L(2)~Description~#2#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
+@format2=150L(2)~Description~#2#|M100L(2)~Account Code~#1#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
+
+@bb1=&Insert,,WIZINS.ICO;
+@bbproc1=
+ lcAcctType=choose(filter,'','BANK','SUSPENSE','SOURCE','FUND','','WARRANT','OFFICIAL','PURPOSE','SCHOOL','CITY'),
+ lcTypeDesc=kp('select key2 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
+ lcTypeRptCode=kp('select key3 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
+ new(4701,,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode);
+
+@bb2=Misc Deposit;
+@bbproc2=
+ get(obj:id),
+ if(obj7:a1='BANK',gcBank=obj7:key1,gcBank=''),
+ if(obj7:a1='FUND',gcFund=obj7:key1,gcFund=''),
+ iw('\t000Enter Deposit Information...; \t001Bank; \f002'&gcBank&';\l0024701; @lf002=''a1 in (select accountType from dbo.glbankfundtypes(''''BANK'''')) '',2; \t003Fund; \f004'&gcFund&';\l0044701; @lf004=''a1 in (select accountType from dbo.glbankfundtypes(''''FUND'''')) '',2; \t005Amount; \t006@n-19.2;'),
+ break(gcretval='esc'),
+ gcBank=obj7:key1,
+ gcFund=obj7:key2,
+ gcAmount=obj7:key3,
+ d1select('exec dbo.miscDepositCRUD '''&gcBank&''','''&gcFund&''', '&gcAmount&', ''0'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Miscellaneous Deposit...')), 
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@jeId=')))
+;
+
+@bb3=Misc Payment;
+@bbproc3=
+ get(obj:id),
+ if(obj7:a1='BANK',gcBank=obj7:key1,gcBank=''),
+ if(obj7:a1='FUND',gcFund=obj7:key1,gcFund=''),
+ d1select('exec dbo.paymentCRUD @mode=0,@paymentType=''MISCELLANEOUS'',@debitAcct='''&gcFund&''',@creditAcct='''&gcBank&''',@postOverride=''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Miscellaneous Payment...')), 
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')))
+;
+
+@bb12=Transfer Check;
+@bbproc12=
+ get(obj:id),
+ if(obj7:a1='BANK',gcBank=obj7:key1,gcBank=''),
+ d1select('exec dbo.paymentCRUD @mode=0,@paymentType=''Transfer'',@debitAcct=''  '',@creditAcct='''&gcBank&''',@postOverride=''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Transfer Check...')), 
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')))
+;
+
+@bb6=&Print Account;  
+@bbproc6=
+ if(obj:a1='OFFICIAL',printOfficialDetail=),
+ break(obj:a1='OFFICIAL'),
+ m('Coming Soon!...Stay Tuned!','Under Construction');
+ gcGLid=obj:id,
+ trreport(glAcctReport);
+
+@printOfficialDetail=iw('\t000Please Enter Dates...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&'; \t003End Date; \t004@d2; \w00450; \f004'&gcEndDate&';'),
+ break(gcretval='esc'),
+ gcBeginDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ gcAccountCode=obj:key1,
+ if(gcBeginDate+0<1,gcBeginDate=10),
+ if(gcEndDate+0<1,gcEndDate=today()),
+ trreport('OfficialAccountDetail=',5036,'printOfficialAccountDetail=');
+
+
+@setandchange=
+ fastmodify(lcid,-03=obj:id,-04=obj:id,002=obj:key1,004=obj:key1,040=obj:key2,042=obj:key2),
+ change(lcid);
+
+@bb8=G/L Report;  
+@bbproc8=
+ iw(',.t000G/L Report., ,.t001Period., ,.f002=kp('select top 1 key1 from object where typ=4700 and '''&today()&''' between key3 and a1')., ,.\l0024700., ,.w00250.,'),
+ break(gcretval<'  0' or gcretval='esc'),
+ gcPeriod=obj7:key1,
+ trreport('glreport');
+
+@bb10=Daily Ledger;  
+@bbproc10=
+ iw(',.t000Daily G/L Report., ,.t001Date., ,.t002@d2., ,.f002=kp('select '''&today()&'''').,,.w00250.,'),
+ break(gcretval<'  0' or gcretval='esc'),
+ gcDate=obj7:key1,
+ trreport('gldailyledger');
+
+@bb11=Update Bals,,,gcadmin=1;  
+@bbproc11=
+ d1select('exec dbo.glAccountUpdate @mode=''ALL'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Update Account Balances...')),
+ refreshbrw=;
+
+@filtername=All,Bank Accounts,Suspense Accounts,Source Accounts,Fund Accounts,Accural Accounts,Warrants Registered,Official Accounts,Trust Purposes, Schools, Cities,In-Active;
+@filter='1=1 and b3!=1','a1 in (select accountType from dbo.glBankFundTypes(''BANK'') where accountType<>''SUSPENSE'') and b3!=1','a1=''SUSPENSE'' and b3!=1','a1=''SOURCE'' and b3!=1','a1=''FUND'' and b3!=1','a1 in (''ACCRUED PAYABLE'',''RECEIVABLE'',''ACCRUED RECEIVABLE'') and b3!=1','a1=''WARRANT'' and b3!=1','a1=''OFFICIAL'' and b3!=1','a1=''PURPOSE'' and b3!=1','a1=''SCHOOL'' and b3!=1','a1=''CITY'' and b3!=1','b3=1';
+@ordername=Account #,Description,Report Order;
+@key2=obj:key2;
+@key3=obj:a9;
+
+@loadwindow=
+ create(151,12,200,15,'&In-Active',52),
+ create(39,9),
+ create(73,9),
+ set(40,'',1),
+ if(obj:a1<>'FUND' and obj:a9>'0' and obj:a9<>'S',brwPayables=);
+
+@afterloadwindow=if(obj:a1='FUND' or obj:a1='SCHOOL' or obj:a1='VOTECH' or obj:a1='CITY',prop(49,'text','Front Page Col'));
+
+@brwPayables=
+ gcbrw1sql='select id,name,number,fund from dbo.accountReceivableTableBRW('&obj:id&') order by name',
+ brw(150,1,gcbrw1sql,190,94,220,100,
+'120L(2)~Name~#2#M|
+50R(2)~Number~@n19.2b@#3#M|
+50L(2)~Fund~#4#M
+',7,1);
+
+@brw1=
+ d1select('exec dbo.apRatesSelected '&obj:id&','&kpbrwid(1)),update,refreshDetail=;
+
+@refreshDetail=brwreload(1);
+
+\t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
+\t003Description;   \e004;
+\t005Code;  \u006;  \t006@s10;  \w00650;  
+   @acc006=update,
+     d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),
+     if(obj7:d1>1 and obj:key3>'0','pfcode='),
+     if(obj:key3>'0',d1select('exec dbo.receiptAccountsVerification '''&obj:key1&''''));  
+   @pfcode=message('Code already in use.'),set(006,''),focus(006);
+\t007Type; \l0084702;r008002010004012006;  \q008;  \w00850;
+\t009Description;  \d010;
+\t011Report Code;  \d012;  \w01225;  \w01250;
+\t013Daily Description; \w013100; \l0144703;
+\t015Clerk Code;
+\t017Bank Accnt #;\h017018obj:a1<>'BANK' and obj:a1<>'BANK';r
+
+\t021Target Account; \w021150; \l0224701,1; \w02270; \x02270;
+
+\t035Account Balance;  \t036@n-14.2;  \s036+'select sum(amount) from glDetail where accountId='&obj:id;
+  \p0367cfah,13499135; \p0367c13h,700; \p0367c0ch,1; \d036;
+
+\t039Change Acct #;  \w03970;  \x039-10;  \u040;
+@acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&obj:a17&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
+@p039y=lcCnt=kp('select count(*) from glDetail where accountId='&obj:id),m('There are '&lcCnt&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&obj:a17&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y2=
+ d1select('exec dbo.glAccountCodeChange '&obj:id&','''&obj:a17&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Code Change...')),
+ close('ok');
+
+sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),set(2,obj:a17),update;
+
+\h023024obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0';r
+\t023Table Type; \u024; \w02412; @choose024:SAPLMT;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, [M]illages, or [T]able; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, [M]illages, or [T]able';
+@accr024032r2=refreshDetail=,tsc;
+\h025026obj:a1<>'ACCRUED RECEIVABLE' or (obj:a9<>'L' and obj:a9<>'T') or obj:a8>' 0';r
+\t025PILOT Table; @nopop026;
+ \l0264009;r026004028002; @lf026='id in (select max(id) from object where typ=4009 and key2=a.key2 and key1=a.key1)';
+ \q026obj:a9='L';
+\t027Year;
+ \t028@n4;
+ \w02830;
+ \q028obj:a9='S' or obj:a9='A' or obj:a9='P' or obj:a9='L' or obj:a9='M';
+ \h027028obj:a1<>'ACCRUED RECEIVABLE' or obj:a9='T' or obj:a8>' 0';r
+\h029030obj:a9<>'M' or obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0';r
+\t029District;
+ \l0304701; @lf030='typ=4701 and a1=''SCHOOL''';
+ \q030obj:a9='M';
+\h031032(obj:a9<>'M' and obj:a9<>'S') or obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0';r
+\t031Rate;
+ \l0324011;
+ \q032obj:a9='M' or obj:a9='S';
+\t033Population Type;
+ \t034@s1;
+ \w03413;
+ \h033034obj:a9<>'P' or obj:a1<>'ACCRUED RECEIVABLE' or obj:a8>' 0' ;r
+
+\t037AccountOrigin; \h037038;r
+
+\t043Report Sec A; \h043044obj:a1<>'SOURCE';r 
+\t045GL Report Order; \h045046obj:a1<>'BANK' and obj:a1<>'INVESTMENT' and obj:a1<>'CASH' and obj:a1<>'FUND' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH' and obj:a1<>'OFFICIAL';r 
+\t047School Pages Cat; \h047048obj:a1<>'SOURCE';r 
+\t049School Pages Col; \h049050obj:a1<>'SOURCE' and obj:a1<>'FUND' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH';r 
+\t051InActive Flag; \h052038;r2
+\t053Aud Rep Grp; \h053054obj:a1<>'FUND' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH' and obj:a1<>'BANK';r
+\t055Daily Ledger Gr; \h055056obj:a1<>'OFFICIAL' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH';r
+\t057Bank Name; \h057058obj:a1<>'BANK' and obj:a1<>'INVESTMENT' and obj:a1<>'CASH';r \l0584509,3;
+
+\t073Open Warrants;
+\t074@n-14.2;
+\s074+'select sum(amount) from payments where paymentType=''Warrant'' and warrantLinkId=0 and debitAccountCode='''&clip(obj:key1)&'_WR''  ';
+\p0747cfah,13499135;
+\p0747c13h,700;
+\p0747c0ch,1;
+\d074;
+@acc073=
+  iw(\t000Please Enter Date Range...;\t001Begin Date;\t002@d2;\w00250;\t003End Date;\t004@d2;\w00450;),
+  break(gcretval='esc'),
+  gcBeginDate=obj7:key1,
+  gcEndDate=obj7:key2,
+  if(gcBeginDate+0<1,gcBeginDate=10 ),
+  if(gcEndDate+0<1,gcEndDate=today() ),
+  gcFundCode=obj:key1,
+  gcFundDesc=obj:key2,
+  trreport('FundOpenWarrants',5032,'printFundOpenWarrants='),
+  gcFundCode=0,
+  gcFundDesc=0;
+
+\h073074obj:a1<>'FUND';r
+
+\t101rateData; \h101102;r
+
+\t105Add Detail;
+ \h105obj:a9<'A';
+ @acc105=case(obj:a9='A',addada=,obj:a9='P',addpop=,obj:a9='L',addpilot=),refreshDetail=;
+ @addada=neww(4013,,002=obj:a11);
+ @addpop=neww(4014,,002=obj:a11,010=obj:a14);
+ @addpilot=neww(4009,,002=obj:a11,004=obj:a10);
+
+\t108&Print Account;  @acc108=bbproc6=;
+\t109&View G/L Detail;  
+@acc109=
+ gcFpId=0,
+ gcAcctId=obj:id,
+ lcBrwId=kp('select top 1 id from object where typ=4792'),
+ if(lcBrwId+0>'  0',change(lcBrwId),newOne=);
+@newOne=
+ insert(-02=4792,002=today()),
+ change(obj1:id);
+
+\h110obj:a1<>'ACCRUED RECEIVABLE';
+\t110Print Millage;
+@acc110=iw('\t000Enter Break Down Information...; \t001Amount; \t002@n-19.2;'),
+ gcAmount=obj7:key1,
+ gcAccountId=obj:id,
+ break(gcretval='esc' or gcAmount=0.00),
+ trreport('MillageBreakdown=',5038,'printMillageBreakdown='),
+ gcAmount=0,
+ gcAccountId=0,;
+
+@bb4=Import Funds,,,gcadmin=1;
+@bbproc4=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name from dbo.mike_fund()',impFunds=);
+@impFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@bb5=Import Sources,,,gcadmin=1;
+@bbproc5=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''SOURCE'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a SOURCE account type before you import sources.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select srcinc,name,seca from dbo.mike_source()',impSource=);
+@impSource=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,044=obj5:a3,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@bb7=Import GL,,,gcadmin=1;
+@bbproc7=
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''BANK'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a BANK account type before you import Bank Accounts.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
+ gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
+ if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
+ break(gcAcctTypeId<1),
+ getAcctType=,
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
+@impBanks=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+@impGLFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+
+@getAcctType=
+ gcAcctTypeCode=kp('select key1 from object where typ=4702 and id='&gcAcctTypeId),
+ gcAcctTypeDesc=kp('select key2 from object where typ=4702 and id='&gcAcctTypeId),
+ gcAcctTypeRepo=kp('select key3 from object where typ=4702 and id='&gcAcctTypeId);
+
+@bb9=Import Schools,,,gcadmin=1;
+@bbproc9=sql('exec  dbo.pullRatesSchools');
+

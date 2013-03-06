@@ -8,10 +8,10 @@ select
  key3 as clerksNumber,
  a1 as clerksDate,
  ltrim(a2) as payee,
- a3 as amount,
+ isnull((select sum(amount) from gldetail where slink='o' + cast(object.id as varchar) and accountCode=object.a4),0) as amount,
  a4 as debitAccountCode,
  b3 as debitAccountDesc,
- a5 as credtAccountCode,
+ a5 as creditAccountCode,
  b4 as creditAccountDesc,
  a6 as purposeAccountCode,
  b5 as purposeAccountDesc,
@@ -25,5 +25,8 @@ select
  a20 as printStatus,
  e1 as comment,
  link1 as warrantLinkId,
- case when a18 = 'WARRANT' then a4 else a8 end as dailyDataAccountLinkCode
+ case when a18 = 'WARRANT' then a4 else a8 end as dailyDataAccountLinkCode,
+ c10 as fiscalYear,
+ 'o' + cast(id as varchar) as slink,
+ isnull((select max(isnull(dateCleared,'')) from gldetail where slink='o' + cast(object.id as varchar) ),0) as dateCleared
 from object where typ = 4771

@@ -35,19 +35,18 @@ returns @wt table(id int identity(1,1),
                   
 as 
 begin                  
- insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy)
- select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy from receipt 
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station)
+ select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station
+ from receipt 
  where 
- --recNum>=@beginReceiptNo and recNum<=@endReceiptNo and 
- postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+  postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
   and recType<>'TAX'
 
  insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
    'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station
   from taxReceipt where 
- --recNum>=@beginReceiptNo and recNum<=@endReceiptNo and 
- postDate>=@beginDate and postDate<=@endDate and recStatus='Posted'
+   postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
    and parentInvoiceId<1
    order by recNum
 
@@ -57,7 +56,6 @@ begin
   from taxReceipt where recId in (select recId from @wt)
    and parentInvoiceId>0
    order by recNum
-
 
  update w 
  set paid = amount, 
@@ -69,7 +67,46 @@ begin
    and b.accountType='ACCRUED RECEIVABLE' 
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
+   and parentInvoiceId=0
 
+
+ update w 
+ set taxYear = apyear, 
+     school = apdistrict, 
+     rate = aprate 
+ from @wt w, receiptdetail a, glaccounts b 
+ where a.fundCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and left(a.slink,1)='t' and dbo.slinkId(a.slink)=w.parentInvoiceId
+   and left(w.recType,3) = 'TAX'
+   and parentInvoiceId>0
+
+ update w 
+ set fee = amount 
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType not in ('A','P')
+
+ update w 
+ set penalty = amount
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType ='P'
+
+ update w 
+ set paid = amount
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and parentInvoiceId>0
+   and invoiceType ='A'
 
  update w
   set itemNumber = cast(b.ITEMNUMBER as varchar(50)),
@@ -79,56 +116,110 @@ begin
  from @wt w, invoices a, adtax b
  where w.invoiceId=a.id 
   and a.taxrollId=b.id
+  and invoiceType <> 'S'
 
+ update w
+  set taxYear = cast(a.taxyear as varchar(50)),
+      itemNumber = cast(a.ITEM as varchar(50)),
+      parcelNumber = cast(a.PARCEL as varchar(50)),
+      ownerName = a.name,
+      perTyp = ''
+ from @wt w, invoices a
+ where w.invoiceId=a.id 
+  and invoiceType = 'S'
 
  declare @wt2 table(penalty money,
                    fee money,
                    adjust money,
-                   invoiceType varchar(50),
                    parentInvoiceId int,
-                   recId int)
+                   recId int,
+                   slink varchar(30))
+
+ declare @wt3 table(fee money,
+                   adjust money,
+                   parentInvoiceId int,
+                   slink varchar(30))
 
 insert @wt2
      select
-   sum(case when c.invoiceType='P' then b.amount else 0 end),
-   sum(case when c.invoiceType not in ('P','A') then b.amount else 0 end),
-   sum(case when c.invoiceType='A' then b.amount else 0 end),
-   '',
+   sum(isnull(c.penalty,0)),
+   sum(isnull(c.fee,0)),
+   sum(isnull(c.paid,0)),
    c.parentInvoiceId,
-     recId 
-  from receiptLink a, receiptDetail b,@wt c
- where 't'+CAST(a.invoiceId as varchar) = b.slink
-   and a.invoiceId = c.invoiceId
-   and receiptId in (select recId from @wt)
-   and c.parentInvoiceId > 0
+   c.recId,
+   ''
+  from @wt c
+ where c.parentInvoiceId > 0
      group by c.parentInvoiceId, recId
 
-update w set 
-  penalty=a.penalty, 
+update w set
+  paid=isnull(w.paid,0)+isnull(a.adjust,0),   
+  penalty=isnull(a.penalty,0), 
   fee=isnull(a.fee,0) 
   from @wt w, @wt2 a
  where a.parentInvoiceId=w.invoiceId 
   and a.parentInvoiceId>0 
   and w.recId=a.recId
 
-update w set
-  w.fee = (select sum(amount) from receiptDetail where slink = w.slink and charindex('mortgage fee',Description)>0)
-  from @wt w where w.recType='MTG'
+delete from @wt2 where parentInvoiceId > 0
 
+--Collect information on Tax Receipts with more than one line of receiptDetail
+insert @wt2 (slink,adjust,recId,parentInvoiceId)
+     select
+           c.slink,
+           d.amount,
+           c.recId,
+           c.invoiceId
+  from @wt c, (select a.slink,sum(a.amount) as amount,a.accountCode from gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE'
+   group by a.slink,a.accountCode) d
+ where c.recType='TAX' and c.slink=d.slink and c.slink in 
+  (select d.slink from @wt w, gldetail d, glaccounts a 
+    where d.slink=w.slink and d.accountCode=a.accountCode and a.accountType='ACCRUED RECEIVABLE' and w.recType='TAX' group by d.slink having count(*)>1)
+
+update w set fee = adjust, adjust=0 from @wt2 w where adjust not in (select top 1 adjust from @wt2 where slink=w.slink order by adjust desc)
+
+insert @wt3 
+  select sum(isnull(fee,0)),sum(isnull(adjust,0)),parentInvoiceId,slink from @wt2 group by parentInvoiceId,slink
+
+update w set
+  paid=isnull(a.adjust,0),
+  fee=isnull(a.fee,0)+isnull(w.fee,0)
+  from @wt w, @wt3 a
+ where a.parentInvoiceId=w.invoiceId 
+  and a.parentInvoiceId>0 
+  and a.slink=w.slink
+
+update w set 
+  taxYear=case when isnull(w.taxYear,'NULL')='NULL' then d.taxYear else w.taxYear end,
+  school=case when isnull(w.school,'NULL')='NULL' then d.school else w.school end,
+  rate=case when isnull(w.rate,'NULL')='NULL' then d.rate else w.rate end,
+  taxType=case when isnull(w.taxType,'NULL')='NULL' then d.taxType else w.taxType end
+ from @wt w, @wt d
+  where w.parentinvoiceId<=0
+   and d.parentInvoiceId=w.invoiceId
+   and w.recId=d.recId 
+   and isnull(w.taxYear,'NULL')='NULL'
+   and isnull(d.taxYear,'NULL')<>'NULL'
+ 
+update w set
+  w.fee = isnull(w.paid,0)-isnull((select sum(amount) from gldetail 
+  where slink=w.slink 
+   and accountcode = (select key3 from object where typ=4504 and a1='MTG' and key1 not like '%Fee%')),0)
+  from @wt w where w.recType='MTG'
 
 delete from @wt where parentInvoiceId>0
 
 update @wt set
   recType=recType+' '+taxYear,
-  taxType = case when invoiceType not in ('B','I','R','P','A') then 'Special' else '' end,
+  taxType = case when invoiceType not in ('B','I','R','P','A') then case when perTyp!='F' then 'Special' else 'Fire' end else '' end,
   SAtyp = case when invoiceType not in ('B','I','R','P', 'A')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
 where recType='TAX'
-
 
 update @wt set 
  paid=isnull(paid,0)-isnull(fee,0) 
  where left(recType,3)<>'TAX'
-
 
 return 
 end

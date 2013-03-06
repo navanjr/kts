@@ -16,6 +16,7 @@ begin
 
   select @keyCodeOptions = dbo.readKeyCode(@typ,'\0002')
   select @seriesField = dbo.readKeyCode(@typ,'@seriesField=')
+  select @seriesString = dbo.nextObjectAutoNumberControl(@typ,@seriesString)
 
   select 
    @padLength = cast(substring(@keyCodeOptions,1,2) as int),
@@ -30,20 +31,26 @@ begin
   N' from object where ' + case when @ignoreDeleted = 'TRUE' then 'typ' else 'abs(typ)' end + ' = ' + cast(@typ as varchar) 
 
   if isNull(@seriesString,'') > '  0'
-   select @sql = @sql + N'  and ' + @seriesField + ' = ''' + @seriesString + ''''
+   select @sql = @sql + N'  and ''' + @seriesString + ''' = dbo.nextObjectAutoNumberControl(' + cast(@typ as varchar) + ',' + @seriesField + ')'
 
   select @params = N'@returnThis varchar(50) output'
 
   exec sp_executesql @sql, @params, @returnThis = @newNumber output
 
+  exec dbo.logit @@procid, '@newNumber', @newNumber  
+
   select @newNumber = dbo.padLeft(isnull(@newNumber,'1'),'0',@padLength)
  
+  exec dbo.logit @@procid, '@newNumber', @newNumber
+
  declare @blob varchar(1000) = '@keyCodeOptions=' + isnull(@keyCodeOptions,'null')
   + ';@seriesField=' + isnull(@seriesField,'null')
   + ';@seriesString=' + isnull(@seriesString,'null')
   + ';@newNumber=' + isnull(@newNumber,'null')
   + ';@sql=' + isnull(@sql,'null')
   + ';'
+
+ exec dbo.logit @@procid, 'SQL=', @sql
 
  exec dbo.logit @@procid, 'blob', @blob
  exec dbo.logit @@procid, '@newNumber', @newNumber  

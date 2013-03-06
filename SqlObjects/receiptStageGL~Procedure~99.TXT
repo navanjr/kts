@@ -3,7 +3,7 @@ begin
  set nocount on
 
  exec dbo.logit @@procid, '@receiptId', @receiptId
- 
+
  declare @accountsWorking table(
   accountId int,
   contraId int,
@@ -47,17 +47,33 @@ begin
   @comment varchar(50),
   @sourceCode varchar(60),
   @balanceToken money,
-  @log varchar(max)
+  @log varchar(max),
+  @suspenseMethod varchar(50),
+  @exempt varchar(10),
+  @blob varchar(max)
+
+ select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
  select 
   @code = code,
   @contraId = contraId ,
   @arAccountId = arAccountId,
-  @receiptType = receiptType
+  @receiptType = receiptType,
+  @exempt = exempt
  from dbo.receiptCheck(@receiptId,null)
 
+-- fork for trust or tax
+ if @receiptType = 'TAX'
+ begin
+  exec dbo.receiptTaxStageGL @receiptId, @mode
+  return
+ end
+
+ select @blob = '@code='+cast(@code as varchar(10))+';@contraId='+cast(@contraId as varchar(15))+';@arAccountId='+cast(@arAccountId as varchar(15))+';@receiptType='+@receiptType+';@exempt='+@exempt+';'  
+
+ exec dbo.logit @@procId,@blob
 -- credit Source and Debit AR
- if @receiptType<>'OFFICIAL'
+ if @receiptType<>'OFFICIAL' and @exempt<>'TRUE'
  begin
   insert @accountsWorking
    select b.accountId, null, sum(a.amount)*-1,'', '', '', case when a.altContraId > 0 then altContraId else @contraId end
@@ -65,6 +81,23 @@ begin
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
   insert @accountsWorking select @arAccountId, null, @tokenAmount,'','','',0
  end
+
+-- credit Source and Debit AR
+ if @exempt = 'TRUE'
+ begin
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount)*-1,'Source', '', '', 0
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+    and a.sourceCode = b.accountCode 
+    group by b.accountId
+
+  insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'Credit', '', '', 0
+   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+    and a.sourceCode = b.accountCode 
+    group by b.accountId
+ end
+
 
 -- Here we go with the Paid Block
  if exists(select * from paid where slink = @slink)
@@ -78,32 +111,56 @@ begin
    comment varchar(100),
    sourceCode varchar(60)
   )
-  declare @paidTotal money
+  declare @paidTotal money, @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
 
 -- credit AR
-  select @paidTotal = sum(amount)*-1 from paid where slink = @slink
+  select @otherPaid = sum(amount)*-1 from paid where slink = @slink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @etrPaid = sum(amount)*-1 from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
+  select top 1 @etrCode = paycode from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+
+  select @etrPercent = case when @paidTotal > 0.00 then @etrPaid/@paidTotal else 0 end
+  select @otherPercent = case when @paidTotal > 0.00 then @otherPaid/@paidTotal else 0 end
+
+
   if @receiptType<>'OFFICIAL'
   begin
    insert @accountsWorking select @arAccountId, null, @paidTotal,'','','',0
   end
 
 -- debit suspense accounts
-  insert @accountsWorking
-  select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
-  from paid a, paycodes b 
-  where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
+  if @suspenseMethod in ('S','U')
+  begin
+   insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
+   from paid a, dbo.posAccounts() b 
+   where a.paycode = b.paycode and b.receiptType = @receiptType and a.slink = @slink group by b.accountId, a.id
+  end
+  else
+  begin
+   insert @accountsWorking
+   select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
+   from paid a, paycodes b 
+   where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
+  end
 
 -- debit tresurers receipt fund and credit fund receivables
   --insert @accountsWorking select @contraId, null, @paidTotal,'','','',0
 if @tokenAmount*-1=@paidTotal
  begin
   insert @accountsWorking
-  select altContraId,null, sum(amount),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
+  select altContraId,null, round(sum(amount)*@etrPercent,2),@etrCode,'','',0 from @accountsWorking where altContraId>0 group by altContraId
+
+  insert @accountsWorking
+  select altContraId,null, sum(amount)-round(sum(amount)*@etrPercent,2),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
+
  end
 else
  begin
   insert @accountsWorking
-  select @contraId, null, @paidTotal,'','','',0  
+  select @contraId, null, @otherpaid,'','','',0  
+  insert @accountsWorking
+  select @contraId, null, @etrpaid,@etrCode,'','',0  
  end
 
 

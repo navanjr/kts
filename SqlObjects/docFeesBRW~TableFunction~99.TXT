@@ -1,0 +1,40 @@
+create function dbo.docFeesBRW(
+ @documentId int
+) returns @rt table(
+ id int,
+ display varchar(max),
+ rowType int,
+ ord varchar(50)
+) as 
+begin
+
+ declare @documentName varchar(50)
+ select @documentName = key1 from object where typ = 4900 and id = @documentId
+
+ insert @rt
+ select
+  cast('-9' + cast(id as varchar) as int),
+  '   ' + dbo.padRight(key2,' ',15) + dbo.padRight(key3 + '/' +  a1,' ',20) + dbo.formatCurr(a2),
+  0,
+  'bb' + key2
+ from object
+ where typ = 4902
+  and link1 = @documentId
+
+ insert @rt 
+ select 0, 'Fees', 1, 'ba'
+
+ insert @rt 
+ select
+  cast('-8' + cast(id as varchar) as int),
+  '   <' +  dbo.padRight(dbo.splitF(settingName, '.', 2) + '>',' ',24) + isnull(settingValue,''),
+  2,
+  'cb' + dbo.splitF(settingName, '.', 2)
+ from dbo.settings where dbo.splitF(settingName, '.', 1) = @documentName
+
+ insert @rt select 0, '', 0, 'c'
+ insert @rt select 0, 'Custom Variables', 1, 'ca'
+
+ return
+
+end

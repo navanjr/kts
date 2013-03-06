@@ -1,0 +1,14 @@
+create function dbo.targetFundInvoice(@invoiceId int) returns @rt table(accountCode varchar(50),apportionPercent money) 
+as
+begin 
+declare @fundCode varchar(50)
+
+select top 1 @fundCode=fundcode from receiptdetail where 
+left(slink,1)='t' and dbo.slinkId(slink)=@invoiceId
+ order by amount desc
+
+insert @rt
+select * from dbo.targetFund(@fundCode) order by apportionpercent desc
+
+return
+end

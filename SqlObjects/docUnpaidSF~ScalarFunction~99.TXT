@@ -1,0 +1,125 @@
+create function dbo.docUnpaidSF(@invoiceId int,@interestDate varchar(50),@options varchar(10)) returns varchar(max)
+as
+begin
+
+declare         @taxYear varchar(4),
+		@item varchar(50),
+		@parcel varchar(50),
+                @interestDateInt int = dbo.clariondate(@interestDate)
+
+select	        @taxYear = taxYear, 
+		@item = ITEM, 
+		@parcel = PARCEL
+		from invoices where ID = @invoiceID
+		
+		
+declare @wt table(invoiceId int,
+                  taxrollId int,
+		  taxYear varchar(4),
+		  parcel varchar(50),
+		  invoiceDue money,
+		  fees money,
+		  penalty money,
+		  interestDate varchar(50),
+		  invoiceType varchar(10),
+                  perTyp varchar(10))
+	
+insert into @wt
+ select invoiceId,
+	taxrollId,
+	taxYear,
+	parcel,
+	taxDue,
+	fees,
+	penalty,
+	@interestDate,
+	invoiceType,
+	perTyp 
+	from docUnpaidTF(@invoiceid,@interestDate) where RIGHT(ord,1)='c'
+
+declare @ret varchar(max) = ''
+
+if @options = 0
+  begin
+
+
+	select @ret = dbo.padCenter(dbo.dateformal(@interestDateInt),' ',45)	+ CHAR(13) + char(10)
+
+        select @ret = @ret + dbo.padleft('','_',45)	+ CHAR(13) + char(10) + CHAR(13) + char(10)
+	
+   select @ret = @ret 
+				+ ' ' + dbo.padRight(taxYear,' ',24)
+				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',14)
+				+ ' ' + case invoiceType when 'R' then 'ADV'
+						when 'O' then 'SPC'
+						when 'S' then 'SPC'
+						else invoiceType + '.' +perTyp end    
+				+ CHAR(13) + CHAR(10) 
+                                from @wt order by taxYear
+
+  select @ret = @ret + dbo.padleft('','_',45)	+ CHAR(13) + char(10)
+	
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) 
+				+' ' + dbo.padRight('Total Taxes Cost & Fees',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',14)
+				from @wt 
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) 
+				+ ' ' + dbo.padRight('Total Other Fees',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(0),' ',14)
+				
+
+  select @ret = @ret 
+				+ CHAR(13) + CHAR(10) 
+				+ ' ' + dbo.padRight('Total Due',' ',24)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',14)
+				from @wt
+  end
+
+
+if @options = 1
+  begin
+
+  select @ret =			+ ' ' + dbo.padRight('Total Due:',' ',18)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',12) + CHAR(13) + CHAR(10)
+				from @wt
+
+
+   select @ret = @ret 
+				+ '   ' + dbo.padRight(taxYear
+				+ ' ' + case invoiceType when 'R' then 'ADV'
+					when 'O' then 'SPC'
+					else invoiceType + '.' +perTyp end,' ',16)
+				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',12)
+				+ CHAR(13) + CHAR(10) 
+                                from @wt order by taxYear
+  end
+
+if @options = 2
+  begin
+
+  select @ret =			+ ' ' + dbo.padRight('Total Due:',' ',18)
+				+ dbo.padLeft(dbo.formatCurrZero(sum(invoiceDue + fees + penalty)),' ',12) + CHAR(13) + CHAR(10)
+				from @wt
+
+
+   select @ret = @ret 
+				+ '   ' + dbo.padRight(taxYear
+				+ ' ' + case invoiceType when 'R' then 'ADV'
+					when 'O' then 'SPC'
+					else invoiceType + '.' +perTyp end,' ',16)
+				+ dbo.padLeft(dbo.formatCurr(invoiceDue + fees + penalty),' ',12)
+				+ dbo.padleft('@invoiceId=' + cast(invoiceId as varchar)+';',' ',25)
+				+ CHAR(13) + CHAR(10) 
+                                from @wt order by taxYear
+  end
+
+
+			
+return @ret			
+end
+
+				

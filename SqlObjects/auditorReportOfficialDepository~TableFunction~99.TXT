@@ -1,0 +1,124 @@
+create function dbo.auditorReportOfficialDepository(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10)) 
+returns @rt table(	rowstring varchar(250),
+					beginbalance varchar(50),
+					deposits varchar(50),
+					cancelvoid varchar(50),
+					journals varchar(50),
+					vouchers varchar(50),
+					endbalance varchar(50),
+					rowType varchar(10),
+					ord varchar(250))
+as 
+begin
+
+declare @wt table(	officertitle varchar(60),
+					beginbalance money,
+					deposits money,
+					cancelvoid money,
+					journals money,
+					vouchers money,
+					endbalance money,
+					ord varchar(250))
+
+
+
+declare @officialquery table(
+					id int, 
+					OfficerName varchar(50), 
+					OfficerTitle varchar(50), 
+					Department varchar(50),
+					AccountCode varchar(60),
+					BeginBalance money,
+					CancelVoid money,
+					Journals money,
+					Deposits money,
+					Vouchers money,
+					EndBalance money,
+					bankAccountCode varchar(50))
+insert @officialquery
+	select * from dbo.officialAccountQuery(@beginDate,@endDate)
+
+insert @wt
+	select 
+		officertitle,
+		beginbalance,
+		deposits,
+		cancelvoid,
+		journals,
+		vouchers,
+		endbalance,
+		Department
+	from @officialquery
+
+----insert detail
+insert @rt
+	select	'  ' + dbo.padRight(officertitle,' ',61),
+			dbo.padLeft(dbo.formatCurr(beginbalance),' ',16),
+			dbo.padLeft(dbo.formatCurr(deposits),' ',16),
+			dbo.padLeft(dbo.formatCurr(cancelvoid),' ',16),
+			dbo.padLeft(dbo.formatCurr(journals),' ',16),
+			dbo.padLeft(dbo.formatCurr(vouchers),' ',16),
+			dbo.padLeft(dbo.formatCurr(endbalance),' ',16),
+			'detail',
+			@ordSeed + ord + 'c'
+		from @wt
+
+---insert subtotals
+insert @rt
+	select  dbo.padRight('      Total ', ' ', 61),
+            dbo.padLeft(dbo.formatCurr(SUM(beginbalance)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(deposits)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(cancelvoid)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(journals)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(vouchers)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(endbalance)),' ',16),
+            'gFooter',
+            @ordSeed + 'zzzz' + 'd' 
+		from @wt 
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + 'xxxx' + 'c' 
+----headers
+insert @rt 
+	select '','','','','','','','lineFeed',@ordSeed + '0000a'
+
+insert @rt 
+	select '  Official Depository',
+			dbo.padLeft('Beginning',' ',16),
+			dbo.padLeft('Deposits',' ',16),
+			dbo.padLeft('Canceled',' ',16),
+			dbo.padLeft('Journals',' ',16),
+			dbo.padLeft('Vouchers',' ',16),
+			dbo.padLeft('Ending',' ',16),
+			'sHeader',
+			@ordSeed + '0000aa'	
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + '0000ab'
+		
+
+return
+end
+
+/*
+	declare
+		@theDate int = dbo.clariondate('20121101'),
+		@days int = 30
+		select * from dbo.auditorReportOfficialDepository(@theDate,@theDate + @days,'A') order by ord
+*/

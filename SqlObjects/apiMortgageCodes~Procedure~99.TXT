@@ -1,23 +1,24 @@
 create procedure dbo.apiMortgageCodes(
  @method varchar(50) = 'GET',
- @batchSize int = 10,
- @postFile varchar(50) = 'apiPostTaxroll.json',
+ @batchSize int = 100,
+ @postFile varchar(50) = 'apiPostMortgageCodes.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
- @result varchar(max) = null output
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
 
  declare
-  @resource varchar(50) = 'taxroll',
+  @resource varchar(50) = 'mortgagecodes',
   @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
   @apiCode varchar(50),
   @apiwt JSONHierarchy,
   @filter varchar(500),
-  @apiResource varchar(50) = '/v2/treasurer/tax_rolls',
+  @apiResource varchar(50) = '/v2/treasurer/mortgagecodes',
   @dump varchar(max),
   @log varchar(max),
   @tokenId int,
@@ -29,7 +30,7 @@ begin
   @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  exec dbo.keyAcVars 'acapiservice', @method='GET', @dump = @apiService output
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
 
 -- if not @apiService = 'ON' 
 --  return
@@ -38,7 +39,7 @@ begin
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
  if @scratchFile is null
-  set @scratchFile = @tempPath + '\' + 'apiResultTaxroll.tmp'
+  set @scratchFile = @tempPath + '\' + 'apiResultMortgageCodes.tmp'
 
  declare @jsonPrep table(
   id int identity(1,1),
@@ -51,168 +52,90 @@ begin
 
  declare @wt table(
   parentId int identity(1,1),
-  tax_roll_link int,
-  taxYear varchar(5),
-  owner varchar(50),
-  acres varchar(50),
-  addition varchar(50),
-  assessed_exemption money,
-  assessed_gross money,
-  assessed_improvements money,
-  assessed_property money,
-  assessed_miscellaneous money,
-  assessed_mobile_home money,
-  assessed_net money,
-  block varchar(50),
-  lot varchar(50),
-  millage_rate decimal(19,10),
-  owner_address1 varchar(50),
-  owner_address2 varchar(50),
-  owner_city varchar(50),
-  owner_postal varchar(50),
-  owner_state varchar(50),
-  parcel varchar(50),
-  property_address1 varchar(100),
-  parcel_address2 varchar(50),
-  parcel_city varchar(50),
-  parcel_postal varchar(50),
-  parcel_state varchar(50),
-  school_district varchar(50),
-  tax_type varchar(50),
-  legal_description varchar(1000),
-  item_number decimal(10,1),
-  mortgage_Code varchar(50)
+  mortgage_code_link int,
+  mortgage_code varchar(50),
+  mortgage_company varchar(50),
+  address1 varchar(50),
+  address2 varchar(50),
+  city varchar(50),
+  state varchar(50),
+  postal varchar(50),
+  phone varchar(50),
+  fax varchar(50),
+  contact_name varchar(50),
+  email varchar(50),
+  provider varchar(50),
+  hide_statement_message varchar(50),
+  hide_online varchar(50),
+  statement_message varchar(250)  
  )
-
- declare @taxyears table(year varchar(4))
- if not @taxyear is null and not @taxyear = 'ALL'
-  insert @taxyears select @taxYear
- else
-  insert @taxyears select realTaxYear from adtax group by realtaxyear
 
  if @method = 'JOB'
  begin
-  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
-  exec dbo.apiTaxroll @method = 'POST', @batchSize = @batchSize
+  select @batchSize = case when dbo.readString('@batchSize=',blob) = '' then @batchSize else dbo.readString('@batchSize=',blob) end from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiMortgageCodes @method = 'POST', @batchSize = @batchSize
  end
-
- if @method = 'STATUS'
- begin
-  declare @taxyearToken varchar(4)
-  declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
-
-  if not @taxyear = 'ALL'
-   insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-    from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
-  else
-   insert @status select 'ALL', count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-    from adtax where realtaxyear in (select year from @taxyears)
-
-  while exists(select * from @taxyears)
-  begin
-   select top 1 @taxYearToken = year from @taxyears order by year
-   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
-   select @log = '@taxyear=' + taxyear + ';' 
-    + '@total=' + cast(total as varchar) + ';'
-    + '@stale=' + cast(stale as varchar) + ';'
-    + '@%stale=' + cast(percentStale as varchar) + '%;'
-   from @status where taxyear = @taxyearToken
-   exec dbo.logit @@procid, @log
-   delete @taxyears where year = @taxyearToken
-  end
-  return
- end
-
  
  if @method = 'POST'
  begin
 
 -- create the post data file then call the API
   insert @wt select top (@batchSize)
-   id, REALTAXYEAR,OWNERNAME,
-   acres,
-   additionNumber,
-   baseexemption, --assessed_exemption money,
-   grossAssessed,
-   improvedAssessed, -- assessed improvements
-   landAssessed,
-   miscAssessed,
-   mfgHomeAssessed,
-   netAssessedValue,
-   townshipBlock,
-   rangeLot,
-   totalTaxRate,
-   address1,
-   address2,
-   city,
-   zip1,
-   state,
-   fullPidNumber,
-   proploc, --parcel_address1 varchar(50),
-   '', --parcel_address2 varchar(50),
-   '', --parcel_city varchar(50),
-   '', --parcel_postal varchar(50),
-   '', --parcel_state varchar(50),
-   schoolDistrictMain,
-   recordType,
-   '', -- blows up legalDescription,
-   itemNumber,
-   case when treamort > '  0' then treamort else cast(mortgageCode as varchar) end
-
-   from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
-    and isnull(apiUpdated,0) < modified
-   order by OWNERNAME, ITEMNUMBER  
+   id,
+   key1,
+   key3,
+   a1,
+   a2,
+   a3,
+   a4,
+   a5,
+   a6,
+   a7,
+   a8,
+   a9,
+   a17,
+   case when c2 = '1' then '1' else '0' end,
+   case when c3 = '1' then '1' else '0' end,
+   (select top 1 c1 from object where typ = 40)
+   from object
+   where typ = 4030
+    and k7 < dbo.date112(lasteditdate)
+   order by key1
 
 -- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
   if isnull(@tally,0) = 0
   begin
-   exec dbo.logit @@procid, 'all records updated... nothing to do. :)'
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
    return
   end
  
   if @batchSize != @tally
   begin
    set @batchSize = @tally
-   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize, @override = 'TRUE'
   end
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
-  insert @jsonPrep select parentId,null,'tax_roll_link',tax_roll_link,'int' from @wt
-  insert @jsonPrep select parentId,null,'tax_year',taxyear,'int' from @wt
-  insert @jsonPrep select parentId,null,'owner', dbo.stripChars(owner,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'acres', dbo.stripChars(acres,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'addition', dbo.stripChars(addition,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'mortgage_code_link',mortgage_code_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'mortgage_code',mortgage_code,'string' from @wt
+  insert @jsonPrep select parentId,null,'mortgage_company', dbo.stripChars(mortgage_company,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'address1', dbo.stripChars(address1,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'address2', dbo.stripChars(address2,@goofyChars),'string' from @wt
 --  assessed_exemption
-  insert @jsonPrep select parentId,null,'assessed_gross', assessed_gross,'int' from @wt
-  insert @jsonPrep select parentId,null,'assessed_improvements', assessed_improvements,'int' from @wt  
-  insert @jsonPrep select parentId,null,'assessed_property', assessed_property,'int' from @wt
-  insert @jsonPrep select parentId,null,'assessed_miscellaneous', assessed_miscellaneous,'int' from @wt
-  insert @jsonPrep select parentId,null,'assessed_mobile_home', assessed_mobile_home,'int' from @wt
-  insert @jsonPrep select parentId,null,'assessed_net', assessed_net,'int' from @wt
-  insert @jsonPrep select parentId,null,'block', dbo.stripChars(block,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'lot', dbo.stripChars(lot,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'millage_rate', millage_rate,'int' from @wt
+  insert @jsonPrep select parentId,null,'city', city,'string' from @wt
+  insert @jsonPrep select parentId,null,'state', state,'string' from @wt  
+  insert @jsonPrep select parentId,null,'postal', postal,'string' from @wt
+  insert @jsonPrep select parentId,null,'phone', phone,'string' from @wt
+  insert @jsonPrep select parentId,null,'fax', fax,'string' from @wt
+  insert @jsonPrep select parentId,null,'contact_name', contact_name,'string' from @wt
+  insert @jsonPrep select parentId,null,'email', email,'string' from @wt
+  insert @jsonPrep select parentId,null,'provider',provider,'string' from @wt
 
-  insert @jsonPrep select parentId,null,'owner_address1', dbo.stripChars(owner_address1,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'owner_address2', dbo.stripChars(owner_address2,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'owner_city', dbo.stripChars(owner_city,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'owner_postal',dbo.stripChars( owner_postal,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'owner_state', dbo.stripChars(owner_state,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'parcel', dbo.stripChars(parcel,@goofyChars),'string' from @wt
-
-  insert @jsonPrep select parentId,null,'property_address1', dbo.stripChars(property_address1,@goofyChars),'string' from @wt
---  parcel_address2,
---  parcel_city,
---  parcel_postal,
---  parcel_state,
-
-  insert @jsonPrep select parentId,null,'school_district', dbo.stripChars(school_district,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'tax_type', dbo.stripChars(tax_type,@goofyChars),'string' from @wt
---  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,@goofyChars),'string' from @wt
-  insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @wt
-  insert @jsonPrep select parentId,null,'mortgage_code', mortgage_code,'string' from @wt
-
+  insert @jsonPrep select parentId,null,'hide_statement_message', hide_statement_message,'int' from @wt
+  insert @jsonPrep select parentId,null,'hide_online', hide_online,'int' from @wt
+  insert @jsonPrep select parentId,null,'statement_message', statement_message,'string' from @wt
+  
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
   insert @jsonPrep (objectId,parentId,name,value,type) 
@@ -243,12 +166,12 @@ begin
   if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
   begin
    set @theDate = getDate()
-   update adtax set apiUpdated = @theDate where id in (select tax_roll_link from @wt)
-   exec dbo.logit @@procid, 'Success...', @dump
+   update object  set k7 = @theDate where id in (select mortgage_code_link from @wt)
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
   end
   else
   begin
-   exec dbo.logit @@procid, 'Failure...', @dump
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
   end
 
   return

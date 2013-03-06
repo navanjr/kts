@@ -1,0 +1,136 @@
+CREATE function dbo.dailyDataSuspense(
+ @theDate int,
+ @days int,
+ @ordSeed varchar(50),
+ @filterFlag varchar(10)
+) returns @rt table (
+ id int,
+ ord varchar(250),
+ rowstring varchar(250),
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50),
+ rowType char(10),
+ brwBGColor int,
+ minControlNumber varchar(50),
+ maxControlNumber varchar(50),
+ minTicketNumber varchar(50),
+ maxTicketNumber varchar(50),
+ dptno varchar(50),
+ blob varchar(max)
+)
+begin
+
+ declare
+  @title varchar(250) = '  Un-Deposited Transactions   (Un-Linked)',
+  @suspenseMethod varchar(5) = dbo.readString('@suspenseMethod=',dbo.whoami())
+
+ declare @wt table(
+  accountId int,
+  accountCode varchar(50),
+  amountToday money,
+  amountTomorrow money,
+  amountYesterday money,
+  paycode varchar(50),
+  receiptType varchar(50),
+  suspenseCode varchar(50),
+  actionId int,
+  blob varchar(max)
+ )
+
+ insert @wt (accountId, accountCode, amountYesterday, amountToday, amountTomorrow, actionId)
+ select
+  a.accountId,
+  a.accountCode,
+  SUM(case when o.key2 < @theDate then gl.amount else 0 end),
+  SUM(case when o.key2 = @theDate then gl.amount else 0 end),
+  SUM(case when o.key2 > @theDate then gl.amount else 0 end),
+  a.accountId
+ from
+  dbo.gldetail gl
+ join dbo.glaccounts a on gl.accountId = a.accountId
+ left outer join object o on dbo.slinkId(gl.slink) = o.id
+ left outer join paid p on dbo.slinkId(gl.slink2) = p.id
+ where
+  a.accountType = 'SUSPENSE'
+--  and isnull(p.depositId,0) = 0 -- this where clause will remove the receipts from your pos when they are linked to a deposit
+--  and isnull(o.typ,0) != 4513  
+ group by a.accountId, a.accountCode
+ having SUM(gl.amount) != 0 
+
+ if @suspenseMethod = 'U'
+  update a set
+   paycode = dbo.splitF(accountCode,'.',3),
+   suspenseCode = u.FullName, -- dbo.splitF(accountCode,'.',1),
+   receiptType = dbo.splitF(accountCode,'.',2),
+   blob = '@deputy=' + u.FullName + ';'
+  from @wt a
+  left join Users u on u.Ini = dbo.splitF(accountCode,'.',1)
+  where CHARINDEX('.',accountCode) > 0
+ else
+  update @wt set
+   paycode = dbo.splitF(accountCode,'.',3),
+   suspenseCode = dbo.splitF(accountCode,'.',1),
+   receiptType = dbo.splitF(accountCode,'.',2),
+   blob = case when @suspenseMethod = 'C' then '@station=' + dbo.splitF(accountCode,'.',1) + ';' else '' end
+  where CHARINDEX('.',accountCode) > 0
+
+ update @wt set
+  paycode = accountCode,
+  suspenseCode = 'unknown',
+  receiptType = accountCode
+ where CHARINDEX('.',accountCode) = 0
+
+--Suspense Account Detail
+ insert @rt (id, ord, rowstring, rowstring1, sourceAmt)
+ select
+  0,
+  @ordSeed + 'D' + suspenseCode + receiptType,
+  '      ' + dbo.padRight(receiptType,' ',14)
+  + dbo.padLeft(convert(varchar,sum(amountYesterday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountToday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountTomorrow),1),' ',20),
+  '      ' + dbo.padRight(receiptType,' ',35),
+  dbo.padLeft(convert(varchar,sum(amountToday),1),' ',16)
+ from @wt group by suspenseCode, receiptType
+
+-- Group Header
+ insert @rt (id,ord,rowstring,brwBGColor,blob)
+ select cast('-1' + CAST(min(actionId) as varchar) as int),
+  @ordSeed + 'D' + suspenseCode,
+  '   ' + dbo.padRight(suspenseCode,' ',17)
+  + dbo.padLeft(convert(varchar,sum(amountYesterday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountToday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountTomorrow),1),' ',20),
+  2,
+  max(blob)
+ from @wt group by suspenseCode
+
+-- Group Footer
+ insert @rt (id,ord)
+ select 0, @ordSeed + 'D' + suspenseCode + 'ZZZ'
+ from @wt group by suspenseCode
+
+-- total
+ insert @rt (id,ord,rowstring)				
+ select 0, @ordSeed + 'D' + 'ZZ', dbo.padRight('          Total',' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountYesterday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountToday),1),' ',20)
+  + dbo.padLeft(convert(varchar,sum(amountTomorrow),1),' ',20)
+ from @wt
+
+ insert @rt (id,ord,rowstring) select 0, @ordSeed, ''
+ insert @rt (id,ord,rowstring,rowstring1,brwBGColor) select 0, @ordSeed + 'A', @title, @title,1
+ insert @rt (id,ord,rowstring,rowstring1,sourceNo,recordCnt,sourceAmt) select 0, @ordSeed + 'B',' ' + replicate('-',79),' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+
+-- date column header
+ insert @rt (id,ord,rowstring) select 0, @ordSeed + 'C',' ' + replicate(' ',19)
+  + dbo.padLeft('before',' ',20)
+  + dbo.padLeft(dbo.date1(@theDate),' ',20)
+  + dbo.padLeft('after',' ',20)
+ 
+
+ return
+end

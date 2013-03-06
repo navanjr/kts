@@ -1,4 +1,4 @@
-create function dbo.apportionCollectionsWTIds( @accountId int, @apportionToDate int) returns @twt table(
+create function dbo.apportionCollectionsWTIds( @accountId int, @apportionToDate int, @apportionCodeOnly varchar(10), @glDetailId int, @amount money) returns @twt table(
 	[id] [int] ,
 	[fpid] [int],
 	[fpCode] [varchar](10),
@@ -16,7 +16,13 @@ create function dbo.apportionCollectionsWTIds( @accountId int, @apportionToDate 
 	[comment] [varchar](50),
 	[contraId] [int],
 	[comment2] [varchar](50),
-	[sourceCode] [varchar](60))
+	[sourceCode] [varchar](60),
+        contraAccountCode varchar(60),
+        contraAccountDesc varchar(60),
+        acrAccountId int,
+        acrAccountCode varchar(60),
+        acrAccountDesc varchar(60),
+        stepDesc varchar(50))
 
 begin
 
@@ -25,51 +31,155 @@ begin
   @accountTypeDesc varchar(50)
 
 
+
+ if isnull(@glDetailId,0) > 0
+ begin
+     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+ c.accountCode as contraAccountCode,
+ c.accountDesc as contraAccountDesc,
+ a.accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ '' 
+   from gldetail a, glaccounts c
+     where a.id=@glDetailId and 
+     contraId > 0 and 
+     c.accountId = a.contraId and
+     ISNULL(bsId,0) = 0 
+ end 
+ else 
+ begin   
   if @accountId = 0
   begin
-     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode] 
-   from gldetail a, glaccounts c
+     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+ c.accountCode as contraAccountCode,
+ c.accountDesc as contraAccountDesc,
+ a.accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ '' 
+   from gldetailreports a, glaccounts c
      where a.contraId=c.accountId and 
      contraId > 0 and 
      c.accountType='FUND' and 
      ISNULL(bsId,0) = 0 
+     and sourceDate <= cast(@apportionToDate as varchar)
   end
   else
   begin
+   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
-  select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
+   if @accountType = 4701 and @accountTypeDesc<>'ACCRUED RECEIVABLE'
+    begin
+ -- Add glDetail when apportioning by account
+     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from gldetailreports 
+     where contraId = @accountId and ISNULL(bsId,0) = 0 
+      and sourceDate <= cast(@apportionToDate as varchar)
+    end   
 
-  if @accountType = 4701 and @accountTypeDesc<>'ACCRUED RECEIVABLE'
-   begin
--- Add glDetail when apportioning by account
-    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
-    where contraId = @accountId and ISNULL(bsId,0) = 0 
-   end
+   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly <> 'TRUE' and isnull(@amount,0) < .01
+    begin
+ -- Add glDetail when apportioning by accrued receivable account
+     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from gldetailreports 
+     where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
+      and sourceDate <= cast(@apportionToDate as varchar)
+    end
 
-  if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE'
-   begin
--- Add glDetail when apportioning by accrued receivable account
-    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
-    where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
-   end
+   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly = 'TRUE' and isnull(@amount,0) > 0
+    begin
+ -- Add glDetail when apportioning by accrued receivable account
+     insert into @twt select 0,0,'','',accountId,accountCode,accountDesc,@amount,null,null,0,'',0, '','',0,'','',
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ 0 as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from glaccounts 
+     where accountId = @accountId 
+    end
 
-  if @accountType = 4512
-   begin
--- Add glDetail when apportioning protest by journal entry
-    insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode] from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@accountId 
-   end
+   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE' and @apportionCodeOnly = 'TRUE' and isnull(@amount,0) < .01
+    begin
+ -- Add glDetail when apportioning by accrued receivable account
+     insert into @twt select 0,0,'','',accountId,accountCode,accountDesc,100,null,null,0,'',0, '','',0,'','',
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ 0 as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from glaccounts 
+     where accountId = @accountId 
+    end
 
-  if @accountType = 4502
-   begin
---    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
+   if @accountType = 4512
+    begin
+ -- Add glDetail when apportioning protest by journal entry
+     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a. [creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ a.accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   
+from gldetail a, object b 
+where b.typ=4775 
+  and a.slink2=b.olink2 
+  and b.link1=@accountId 
+  and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
 
--- Add glDetail when special apportioning a receipt
-    insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],[slink2],[comment],[contraId],[comment2],[sourceCode] from gldetail 
-      where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
-   end
+union all
+
+     select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ a.accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   
+from gldetail a where left(slink,1)='o' and dbo.slinkId(a.slink)=@accountId and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
+  and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+
+    end
+
+   if @accountType = 4502
+    begin
+ --    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
+  
+ -- Add glDetail when special apportioning a receipt
+     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
+ '' as contraAccountCode,
+ '' as contraAccountDesc,
+ accountId as acrAccountId, 
+ '' as acrAccountCode,
+ '' as acrAccountDesc,
+ ''   from gldetail 
+       where slink in (select slink from dbo.receiptSLinks(@accountId) union all select 'o'+cast(jeId as varchar) from journallink where receiptId=@accountId) and contraId > 0 and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+    end
   end
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b, receiptLink c where a.slink='l'+cast(c.id as varchar) and c.receiptId = b.id
+ end
+
+--  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
+
+  update a set [date]=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
+from @twt a, object b where left(a.slink,1)='o' and cast(substring(a.slink,2,15) as int)=b.id
+
+  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
+from @twt a, object b, receiptLink c where left(a.slink,1)='l' and dbo.slinkid(a.slink)=c.id and c.receiptId = b.id
+
+  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
+from @twt a, object b, journalLink c where left(a.slink,1)='j' and dbo.slinkid(a.slink)=c.id and c.jeId = b.id
 
   delete from @twt where date > @apportionToDate
 

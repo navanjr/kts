@@ -1,0 +1,173 @@
+/*use stephens
+ 
+declare @d1 int,@d2 int
+select	@d1 = dbo.clariondate('20121205'),
+        @d2 = dbo.clariondate('20121206')
+	select a.ord,* from dbo.apportionSchoolPagesSumByFund(@d1,@d2) a  where ord is not null order by a.ord
+	--select * from dbo.apportionmentSchoolPagesDetailByFund(@d1,@d2) order by reportOrder
+	
+	
+*/
+
+
+
+create function dbo.apportionSchoolPagesSumByFund(@d1 int,@d2 int, @includeUnapportioned varchar(10)) returns 
+
+    @rt table(
+			accountType varchar(60),
+			district varchar(60), 
+			comment2 varchar(60),
+			currentTax varchar(60),
+			priorTax varchar(60),
+			backTax varchar(60),
+			amount1 varchar(60),
+			amount2 varchar(60),
+			amount3 varchar(60),
+			amount4 varchar(60),
+			amount5 varchar(60),
+			amount6 varchar(60),
+			amount7 varchar(60),
+			amount8 varchar(60),
+			amount9 varchar(60),
+			amount10 varchar(60),
+			amount11 varchar(60),
+			amount12 varchar(60),
+			total varchar(60),
+			head1 varchar(50),
+			head2 varchar(50),
+			head3 varchar(50),
+			head4 varchar(50),
+			head5 varchar(50),
+			head6 varchar(50),
+			head7 varchar(50),
+			head8 varchar(50),
+			head9 varchar(50),
+			head10 varchar(50),
+			head11 varchar(50),
+			head12 varchar(50),
+			ord varchar(250),
+			reportOrder varchar(250)
+			)
+as begin
+
+insert @rt 
+	select	isnull(accountType,''),isnull(district,''),isnull(comment2,''),
+			isnull(currentTax,''),isnull(priorTax,''),isnull(backTax,''),
+			isnull(amount1,''),isnull(amount2,''),isnull(amount3,''),isnull(amount4,''),isnull(amount5,''),isnull(amount6,''),isnull(amount7,''),isnull(amount8,''),isnull(amount9,''),isnull(amount10,''),isnull(amount11,''),isnull(amount12,''),
+			isnull(total,''),
+			isnull(heading1,''),isnull(heading2,''),isnull(heading3,''),isnull(heading4,''),isnull(heading5,''),isnull(heading6,''),isnull(heading7,''),isnull(heading8,''),isnull(heading9,''),isnull(heading10,''),isnull(heading11,''),isnull(heading12,''),
+			reportOrder+accountType+left(isnull(district,''),20)+'bbb',
+			reportOrder
+		from dbo.apportionmentSchoolPagesDetailByFund(@d1,@d2, @includeUnapportioned) --order by accountType,district,comment2
+
+--insert report order subtotals
+insert @rt (accountType,ord)
+	select 
+	     accountType,
+	  	    reportOrder+accountType+'    aaa'
+		 from @rt where right(ord,3)='bbb' group by reportOrder,accountType
+
+
+--insert headers
+insert @rt (accountType,district,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,total,ord)
+	select	'AccountType','Dist/City','Fund Name',
+			'CurTax','PriorTax','BackTax',
+			max(isnull(head1,'')),max(isnull(head2,'')),max(isnull(head3,'')),max(isnull(head4,'')),max(isnull(head5,'')),max(isnull(head6,'')),max(isnull(head7,'')),max(isnull(head8,'')),max(isnull(head9,'')),max(isnull(head10,'')),max(isnull(head11,'')),max(isnull(head12,'')),
+			'TOTAL', 
+			reportOrder+accountType+'    aaa1'
+		from @rt group by reportOrder,accountType
+
+--insert subtotals
+insert @rt (accountType,district,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,total,ord)
+	select 
+	    '','','',
+	    --sum(cast(currentTax as money)),sum(cast(priorTax as money)),sum(cast(backTax as money)),sum(cast(amount1 as money)),sum(cast(amount2 as money)),sum(cast(amount3 as money)),sum(cast(amount4 as money)),sum(cast(amount5 as money)),sum(cast(amount6 as money)),sum(cast(amount7 as money)),sum(cast(amount8 as money)),sum(cast(amount9 as money)),sum(cast(amount10 as money)),sum(cast(amount11 as money)),sum(cast(amount12 as money)),
+		'','','','','','','','','','','','','','','',
+	    sum(cast(total as money)), 
+	    reportOrder+accountType+left(district,20)+'ccc'
+		 from @rt where right(ord,3)='bbb' group by reportOrder,accountType,district
+
+--insert subtotals
+insert @rt (accountType,district,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,total,ord)
+	select 
+	    '','','',
+	    sum(cast(currentTax as money)),sum(cast(priorTax as money)),sum(cast(backTax as money)),sum(cast(amount1 as money)),sum(cast(amount2 as money)),sum(cast(amount3 as money)),sum(cast(amount4 as money)),sum(cast(amount5 as money)),sum(cast(amount6 as money)),sum(cast(amount7 as money)),sum(cast(amount8 as money)),sum(cast(amount9 as money)),sum(cast(amount10 as money)),sum(cast(amount11 as money)),sum(cast(amount12 as money)),
+		
+	    sum(cast(total as money)), 
+	    reportOrder+accountType+left(district,20)+'ccc'
+		 from @rt where right(ord,3)='bbb' and reportOrder='5000' group by reportOrder,accountType,district
+
+		 
+--insert report order subtotals
+insert @rt (accountType,district,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,total,ord)
+	select 
+	    '',max(accountType),'SubTotals',
+	    dbo.formatcurr(sum(cast(currentTax as money))),dbo.formatcurr(sum(cast(priorTax as money))),dbo.formatcurr(sum(cast(backTax as money))),dbo.formatcurr(sum(cast(amount1 as money))),dbo.formatcurr(sum(cast(amount2 as money))),
+	    dbo.formatcurr(sum(cast(amount3 as money))),dbo.formatcurr(sum(cast(amount4 as money))),dbo.formatcurr(sum(cast(amount5 as money))),dbo.formatcurr(sum(cast(amount6 as money))),dbo.formatcurr(sum(cast(amount7 as money))),
+	    dbo.formatcurr(sum(cast(amount8 as money))),dbo.formatcurr(sum(cast(amount9 as money))),dbo.formatcurr(sum(cast(amount10 as money))),dbo.formatcurr(sum(cast(amount11 as money))),dbo.formatcurr(sum(cast(amount12 as money))),
+	    dbo.formatcurr(sum(cast(total as money))), 
+	    reportOrder+'zzzzzzzzccc1'
+		 from @rt where right(ord,3)='bbb' group by reportOrder
+
+
+--insert grand total
+insert @rt (accountType,district,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,total,ord)
+	select 
+	    '','Grand','Total',
+	    dbo.formatcurr(sum(cast(currentTax as money))),dbo.formatcurr(sum(cast(priorTax as money))),dbo.formatcurr(sum(cast(backTax as money))),dbo.formatcurr(sum(cast(amount1 as money))),dbo.formatcurr(sum(cast(amount2 as money))),
+	    dbo.formatcurr(sum(cast(amount3 as money))),dbo.formatcurr(sum(cast(amount4 as money))),dbo.formatcurr(sum(cast(amount5 as money))),dbo.formatcurr(sum(cast(amount6 as money))),dbo.formatcurr(sum(cast(amount7 as money))),
+	    dbo.formatcurr(sum(cast(amount8 as money))),dbo.formatcurr(sum(cast(amount9 as money))),dbo.formatcurr(sum(cast(amount10 as money))),dbo.formatcurr(sum(cast(amount11 as money))),dbo.formatcurr(sum(cast(amount12 as money))),
+	    dbo.formatcurr(sum(cast(total as money))), 
+	    '7000'+'zzzzzzzzccc1'
+		 from @rt where right(ord,3)='bbb' and accountType<>'SCHOOL TOTAL'
+
+
+update @rt set
+	amount1 = LTRIM(RTRIM(amount1)),
+	amount2 = LTRIM(RTRIM(amount2)),
+	amount3 = LTRIM(RTRIM(amount3)),
+	amount4 = LTRIM(RTRIM(amount4)),
+	amount5 = LTRIM(RTRIM(amount5)),
+	amount6 = LTRIM(RTRIM(amount6)),
+	amount7 = LTRIM(RTRIM(amount7)),
+	amount8 = LTRIM(RTRIM(amount8)),
+	amount9 = LTRIM(RTRIM(amount9)),
+	amount10 = LTRIM(RTRIM(amount10)),
+	amount11 = LTRIM(RTRIM(amount11)),
+	amount12 = LTRIM(RTRIM(amount12)),
+	total = LTRIM(RTRIM(total))
+
+	
+	
+
+	
+update @rt set
+	amount1 = dbo.formatCurr(amount1),
+	amount2 = dbo.formatCurr(amount2),
+	amount3 = dbo.formatCurr(amount3),
+	amount4 = dbo.formatCurr(amount4),
+	amount5 = dbo.formatCurr(amount5),
+	amount6 = dbo.formatCurr(amount6),
+	amount7 = dbo.formatCurr(amount7),
+	amount8 = dbo.formatCurr(amount8),
+	amount9 = dbo.formatCurr(amount9),
+	amount10 = dbo.formatCurr(amount10),
+	amount11 = dbo.formatCurr(amount11),
+	amount12 = dbo.formatCurr(amount12),
+	currentTax = dbo.formatCurr(currentTax),
+	priorTax = dbo.formatCurr(priorTax),
+	backTax = dbo.formatCurr(backTax),
+	total = dbo.formatCurr(total)
+	
+	 
+	where RIGHT(ord,3) in ('bbb','ccc')
+
+
+		 
+return
+end
+
+
+
+
+

@@ -9,30 +9,106 @@ create function dbo.depositPaidUnPosted() returns @rt table(
  depositId int,
  depositDate int,
  drawnon varchar(50),
- location varchar(50)
-
+ location varchar(50),
+ officialDepositId int,
+ origin int,
+ objectTyp int,
+ status varchar(50),
+ depositAccountCode varchar(50),
+ depositAccountDesc varchar(50)
 )
 begin
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
- select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location 
+
+if 1 = 1
+begin
+
+-- get the unposted deposit ids
+ declare @depIds table(id int)
+ insert @depids select 0
+ union 
+ select id from object where typ=4513 and a17 != 'Posted'
+
+-- get the posted official deposit ids
+ declare @offIds table(id int)
+ insert @offids select 0 union select id from object where typ = 4522 and a17 in ( 'Posted', '' )
+
+-- Lets get the records linked to posted receipts and not linked to a posted deposit
+-- and  get the paid records linked to official deposits and not linked to a posted deposit
+ insert @rt 
+ select p.id, slink, substring(slink,2,14), o.key3, paycode, checkno, amount, depositId, cast(o.key2 as int), drawnon, location, officialDepositId, 1, o.typ, o.a17,
+  coalesce(official.a4,a.accountCode,b.key2),
+  coalesce(official.b3,a.accountDesc,b.a18) 
+ from paid p
+  left join Object o on o.id = dbo.slinkId(p.slink)
+  left join object b on b.typ = 4503 and o.key3 = b.key1 -- lets get the depositAccountCode from the receiptType template
+  left join Object d on d.typ = 4513 and p.depositId = d.id  -- lets get the actual depositAccountCode from the deposit
+  left join dbo.glAccounts a on a.accountId = d.link1
+  left join Object official on official.typ = 4601 and official.id = o.link2  -- lets get the actual depositAccountCode from the Official Deposit
+ where
+  left(p.slink,1) = 'o'
+  and o.typ in (4502,4522)
+  and o.a17 = 'Posted'
+  and isnull(depositId,0) in (select id from @depids)
+  and isnull(officialDepositId,0) in (select id from @offids)
+
+-- Lets tweak the trust items that are not linked to an official deposit yet
+ update @rt set 
+  receiptType = 'AAATRUST',
+  depositAccountCode = 'AAATRUST',
+  depositAccountDesc = '--> Create an Official Deposit for Trust'
+ where receiptType = 'TRUST'
+  and officialDepositId in (select 0 union select id from object where typ = 4522 and a17 != 'Posted')
+
+end
+else
+begin
+
+--  Nate: OK so im gonna rewrite this cause there a lot better ways to get all the paid items we want
+--        ill leave this old code here for awhile so we can be sure we didnt miss anything.
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location, origin)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location, 1 
  from paid 
  where isnull(depositId,0) = 0
+  and officialDepositId = 0
   and slink is not null
 
- insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location)
- select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location, officialDepositId, origin)
+ select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, drawnon, location, officialDepositId, 2 
+ from paid 
+ where isnull(depositId,0) = 0
+  and officialDepositId > 0
+  and slink is not null
+
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location, origin)
+ select id, slink, substring(slink,2,14), amount, paycode, checkno, depositId, drawnon, location, 3
  from paid
  where depositId in (select id from object where typ=4513 and a17 != 'Posted')
   and slink is not null
+  and officialDepositId = 0
 
- update a set a.receiptType = b.key3, a.depositDate = cast(b.key2 as int)
+ insert @rt (id, slink, objLinkId, amount, paycode, checkno, depositId, drawnon, location, origin)
+ select id, 'o'+cast(officialDepositId as varchar(15)), officialDepositId, amount, paycode, checkno, depositId, drawnon, location, 4
+ from paid
+ where depositId in (select id from object where typ=4513 and a17 != 'Posted')
+  and slink is not null
+  and officialDepositId > 0
+
+
+
+ update a set
+  a.receiptType = b.key3,
+  a.depositDate = cast(b.key2 as int),
+  a.status = b.a17,
+  a.objectTyp = b.typ
  from @rt a, object b
  where a.objLinkId = b.id
 
  delete from @rt
-  where objLinkId not in (select id from object where typ in (4502,4522))
+  where objLinkId not in (select id from object where typ in (4502,4522) and a17='Posted')
 
+end
 
  return
 end

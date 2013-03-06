@@ -1,4 +1,4 @@
-create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int) returns @wt table(
+create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int, @apportionCodeOnly varchar(10), @glDetailId int, @amount money) returns @wt table(
   id int identity(1,1),
   accountId int,
   creditCode varchar(50),
@@ -74,89 +74,9 @@ declare @twt table(
         acrAccountCode varchar(60),
         acrAccountDesc varchar(60),
         stepDesc varchar(50))
-  
-  if @accountId = 0
-  begin
-     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],a.[date],a.[slink],a.[bsId], a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
- c.accountCode as contraAccountCode,
- c.accountDesc as contraAccountDesc,
- a.accountId as acrAccountId, 
- '' as acrAccountCode,
- '' as acrAccountDesc,
- '' 
-   from gldetail a, glaccounts c
-     where a.contraId=c.accountId and 
-     contraId > 0 and 
-     c.accountType='FUND' and 
-     ISNULL(bsId,0) = 0 
-  end
-  else
-  begin
-   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
-   if @accountType = 4701 and @accountTypeDesc<>'ACCRUED RECEIVABLE'
-    begin
- -- Add glDetail when apportioning by account
-     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- '' as contraAccountCode,
- '' as contraAccountDesc,
- accountId as acrAccountId, 
- '' as acrAccountCode,
- '' as acrAccountDesc,
- ''   from gldetail 
-     where contraId = @accountId and ISNULL(bsId,0) = 0 
-    end   
-
-   if @accountType = 4701 and @accountTypeDesc='ACCRUED RECEIVABLE'
-    begin
- -- Add glDetail when apportioning by accrued receivable account
-     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- '' as contraAccountCode,
- '' as contraAccountDesc,
- accountId as acrAccountId, 
- '' as acrAccountCode,
- '' as acrAccountDesc,
- ''   from gldetail 
-     where accountId = @accountId and contraId > 0 and ISNULL(bsId,0) = 0 
-    end
-
-   if @accountType = 4512
-    begin
- -- Add glDetail when apportioning protest by journal entry
-     insert into @twt select a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],a. [creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
- '' as contraAccountCode,
- '' as contraAccountDesc,
- a.accountId as acrAccountId, 
- '' as acrAccountCode,
- '' as acrAccountDesc,
- ''   
-
-from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@accountId 
-    end
-
-   if @accountType = 4502
-    begin
- --    declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
-  
- -- Add glDetail when special apportioning a receipt
-     insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId], [slink2],[comment],[contraId],[comment2],[sourceCode],
- '' as contraAccountCode,
- '' as contraAccountDesc,
- accountId as acrAccountId, 
- '' as acrAccountCode,
- '' as acrAccountDesc,
- ''   from gldetail 
-       where slink in (select slink from dbo.receiptSLinks(@accountId)) and contraId > 0 and ISNULL(bsId,0) = 0 
-    end
-  end
-
---  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
-  update a set [date]=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where left(a.slink,1)='o' and cast(substring(a.slink,2,15) as int)=b.id
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b, receiptLink c where a.slink='l'+cast(c.id as varchar) and c.receiptId = b.id
-
-  delete from @twt where date > @apportionToDate
-
-  delete from @twt where amount=0.00
+  insert into @twt 
+   select * from dbo.apportionCollectionsWTIds( @accountId, @apportionToDate, @apportionCodeOnly, @glDetailId, @amount)
 
   update t set contraAccountCode = g.accountCode, contraAccountDesc = g.accountDesc from @twt t, glaccounts g where t.contraId=g.accountId
   update t set acrAccountCode = g.accountCode, acrAccountDesc = g.accountDesc from @twt t, glaccounts g where t.acrAccountId=g.accountId
@@ -218,10 +138,10 @@ from gldetail a, object b where b.typ=4775 and  a.slink2=b.olink2 and b.link1=@a
 
 -- credit funds
  insert @wt(accountId, creditCode, apTableType, apYear, amount, appilottable, apdistrict, aprate, appoptype, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc,ord)
- select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, b.apdistrict, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc,'030'
+ select a.accountId, b.targetAccountCode, b.apTableType, b.apYear, SUM(a.amount), b.appilottable, b.apdistrict, b.aprate, b.appoptype, a.comment, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc,'030'
   from @twt a, glAccounts b
   where a.accountId = b.accountId
-  group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc
+  group by a.accountId, b.apTableType, b.apYear, b.targetAccountCode, appilottable, apdistrict, aprate, appoptype, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, a.comment
   having SUM(a.amount) <> 0.00
 
 -- process the L types
@@ -319,6 +239,29 @@ from @wt where processFlag = 1
   insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
   select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '060'
    from dbo.millsGetRows(4014,@tokenYear,@tokenAmount,@tokenappoptype)
+  update @wt set processFlag = 2, creditCode = null where id = @tokenId
+ end
+
+-- process T types
+ update @wt set processFlag = 1 where processFlag = 0 and apTableType = 'T' 
+
+ while exists(select * from @wt where processFlag = 1)
+ begin
+  select top 1 @tokenId = id, 
+    @tokenAccountId = accountId, 
+    @tokenAmount = amount, 
+    @tokenCode = appilottable,
+    @tokenComment = isnull(comment,''), 
+    @tokenSourceCode = isnull(sourceCode,''), 
+    @tokencontraAccountCode = contraAccountCode, 
+    @tokencontraAccountDesc = contraAccountDesc, 
+    @tokenacrAccountId = acrAccountId, 
+    @tokenacrAccountCode = acrAccountCode, 
+    @tokenacrAccountDesc = acrAccountDesc 
+  from @wt where processFlag = 1
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
+  select @tokenAccountId, @tokenCode, accountCode, amount, description+' '+@tokenCode, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '070'
+   from dbo.millsGetRows(4022,@tokenCode,@tokenAmount,'')
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
 

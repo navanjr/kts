@@ -26,49 +26,57 @@ begin
  -- get the raw data from glDetail, this yields receipts, vouchers, deposits
 
 -- Collections
- if substring(@filterString,1,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
 
 -- Deposits & Disbursments
- if substring(@filterString,3,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataDeposits(@theDate, @days, 'G', @filterString)
 
--- Journal
- if substring(@filterString,4,1) = '1'
+-- Vouchers
+ if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataJournal(@theDate, @days, 'H', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Official Voucher','Official',@theDate, @days, 'H', @filterString)
+
+-- Cancelled Vouchers
+ if substring(@filterString,2,1) = '1'
+  insert @rt 
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Cancel Voucher','Official',@theDate, @days, 'H', @filterString)
+
+-- Journal
+ if substring(@filterString,2,1) = '1'
+  insert @rt 
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataJournal(@theDate, @days, 'I', @filterString)
 
 -- Warrants
- if substring(@filterString,5,1) = '1'
+ if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataWarrants(@theDate, @days, 'I
-', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Treasurers Check|Paid Warrant','Fund',@theDate, @days, 'J', @filterString)
     
+-- Miscellaneous Payments
+if substring(@filterString,2,1) = '1'
+ insert @rt 
+ select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Miscellaneous|Miscellaneous Payments','Fund',@theDate, @days, 'K', @filterString) order by ord
 
---Suspense Accounts
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt)
- select
-  cast('8'+cast(a.accountId as varchar) as int) * -1, 
-  'CC',
-  '   ' + dbo.padRight(a.accountDesc,' ',48)
-  + dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16),
-  '',
-  '   ' + dbo.padRight(a.accountDesc,' ',48),
-  dbo.padLeft(convert(varchar,sum(a.amount),1),' ',16)
- from glDetail a
- where a.accountId in (select accountId from paycodes)
- group by a.accountId,a.accountDesc
- having sum(a.amount) != 0
+-- Miscellaneous Deposits
+if substring(@filterString,2,1) = '1'
+ insert @rt 
+ select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataMiscDeposit('Fund',@theDate, @days, 'L', @filterString) order by ord
 
- insert @rt (id,ord,rowstring,glBalanceString) select 0,'C ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'CA','  Suspense Accounts','','  Suspense Accounts'
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'CB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+-- Suspense
+if substring(@filterString,1,1) = '1'
+begin
 
+ insert @rt 
+ select id,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataSuspense(@theDate, @days, 'C',@filterString) order by ord
 
 --Pending Deposits
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt)
+ insert @rt 
+ select id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt,brwBGColor
+ from dbo.dailyDataPendingDeposits()
+/*
  select 
   cast('7'+cast(b.id as varchar) as int) * -1, 
   'DC',
@@ -87,10 +95,12 @@ begin
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceAmt) 
      select 0,'DD',dbo.padLeft('Total',' ',51) + dbo.padLeft(convert(varchar,sum(amount),1),' ',16),'',dbo.padLeft('Total',' ',50),dbo.padLeft(convert(varchar,sum(amount),1),' ',16)
      from dbo.depositPaidUnPosted()
-
  insert @rt (id,ord,rowstring,glBalanceString) select 0,'D ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1) select 0,'DA','  Pending Deposits','','  Pending Deposits'
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,'DA','  Un-Posted Deposits','','  Un-Posted Deposits', 1
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,'DB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+*/
+
+end
 
  return
 

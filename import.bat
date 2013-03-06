@@ -66,7 +66,7 @@ echo    e[x]it
 echo ------------------------------
 SET /P runmode=Please Choose:
 IF /I "%runmode%"=="T" call:TestConnection
-IF /I "%runmode%"=="I" call:ImportRepo
+IF /I "%runmode%"=="I" call:ImportNew
 IF /I "%runmode%"=="G" call:SetGitCommitterQ
 IF /I "%runmode%"=="S" call:SetServerPath
 IF /I "%runmode%"=="C" call:gitCommit
@@ -74,10 +74,40 @@ IF /I "%runmode%"=="P" call:gitPull
 IF /I "%runmode%"=="U" call:gitStatus
 IF /I "%runmode%"=="H" call:gitPush
 IF /I "%runmode%"=="L" call:gitLog
-IF /I "%runmode%"=="N" call:sendLog
+IF /I "%runmode%"=="N" call:ImportRepo
 IF /I "%runmode%"=="O" call:ConfigureLogging
+IF /I "%runmode%"=="DRE" call:dropRecreateExecute
 IF /I "%runmode%"=="X" GOTO finish
 GOTO:display
+
+:dropRecreateExecute
+SET /P sqlObjectName=Please enter SQL Object Name:
+SET /P sqlObjectOrder=Please enter the SQL Objects(%sqlObjectName%) Order Number:
+echo dropping  dbo.%sqlObjectName%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"drop procedure dbo.%sqlObjectName%"
+echo creating %sqlObjectName%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -iSqlObjects\%sqlObjectName%~Procedure~%sqlObjectOrder%.TXT
+echo calling %sqlObjectName%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.%sqlObjectName%"
+GOTO:EOF
+
+:ImportNew
+set targetFile=keySQLObjectDispatcher
+echo dropping %targetFile%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"drop procedure dbo.%targetFile%"
+echo creating %targetFile%...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -iSqlObjects\%targetFile%~Procedure~2.TXT
+
+echo dropping keyUpdateAll...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"drop procedure dbo.keyUpdateAll"
+echo creating keyUpdateAll...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -iSqlObjects\keyUpdateAll~Procedure~9999.TXT
+echo calling keyUpdateAll...
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll 'NewMethod'"
+
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createIndexes" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createGroups" >> %logFile%
+GOTO:EOF
 
 :gitPush
 call git push origin dev --tags
@@ -120,8 +150,7 @@ IF /I "%qanswer%"=="D" call :SetLoggingD
 GOTO:EOF
 
 :SetLoggingE
-SET /P qanswer=Enter Logging path and filename:
-sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control='start|1|%qanswer%'"
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.logit @control='start|1|'"
 GOTO:EOF
 
 :SetLoggingD
@@ -139,19 +168,21 @@ sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"select b13 as gitPath, b14 as 
 GOTO:EOF
 
 :ImportRepo
+dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/" | cmd >> %logFile%
 dir SqlObjects\ | grep ~1.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~1.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ /b | grep ~2.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/" | cmd >> %logFile%
 dir SqlObjects\ | grep ~2.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~2.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ /b | grep ~3.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/" | cmd >> %logFile%
 dir SqlObjects\ | grep ~3.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~3.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ /b | grep ~4.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/" | cmd >> %logFile%
 dir SqlObjects\ | grep ~4.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~4.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
+dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/" | cmd >> %logFile%
 dir SqlObjects\ | grep ~5.TXT | grep -vn keyCore | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -iSqlObjects\\" "{print cmd $5}" | cmd >> %logFile%
-dir SqlObjects\ /b | grep ~5.TXT | sed "s/~/ /g" | gawk -v cmd="sqlcmd -S%serverEsc% -d%dbname% -U%user% -P%pass% -Q\"" -v cmde="\"" -v c1="drop " -v c2=" dbo." "{print cmd c1 $2 c2 $1 cmde}" | sed "s/ScalarFunction/Function/" | sed "s/TableFunction/Function/"
-sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables"
-sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep @code=
-sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import"
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.glCreateTables" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyUpdateAll" | grep '@code='
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.keyCSV import" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createIndexes" >> %logFile%
+sqlcmd -S%server% -d%dbname% -U%user% -P%pass% -Q"exec dbo.createGroups" >> %logFile%
 echo "Imported" %date% %time%
 if DEFINED dropdll goto dodropdll
 call:sendLog

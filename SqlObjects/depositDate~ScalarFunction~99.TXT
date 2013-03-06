@@ -1,9 +1,21 @@
 create function dbo.depositDate(@receiptType varchar(50)) returns int
 as 
-begin
- declare @date int
- select @date = case when @receiptType='TAX' and b9>'0' then cast(b9 as int) when @receiptType='OFFICIAL' and b10>'0' then cast(b10 as int) else cast(b8 as int) end
-  from object where typ=40
+ begin
+   declare @date int
+      select @date = isnull(a17,'')
+         from object where typ=4503 and key1=@receiptType
+    
+
+
+if @date = ''
+      select @date = 
+              case when @receiptType='TAX' and b9>'0' 
+                     then cast(b9 as int) 
+                   when @receiptType='OFFICIAL' and b10>'0' 
+                     then cast(b10 as int) 
+                   else cast(b8 as int) end
+  
+              from object where typ=40
  
  if @date < dbo.clariondate(getdate())
    set @date = (select dbo.clariondate(getdate()))

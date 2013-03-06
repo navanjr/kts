@@ -1,0 +1,88 @@
+create function dbo.delinquentTaxList(@invoiceId int,@interestDate varchar(30))
+returns varchar(max)
+as
+begin
+declare @Ret varchar(max) = '',
+	@legal varchar(max),
+	@parcel varchar(50),
+	@name varchar(50),
+	@taxrollId int
+
+select 
+	@name = name,
+	@parcel = parcel,
+	@legal = dbo.getLegaldescription(id),
+	@taxrollId = TAXROLLID
+	from invoices where ID=@invoiceid
+	
+--centerColumn
+declare  @centerSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(1000))
+	
+insert @centerSplit
+ select dbo.padRight(SECTIONNUMBER,' ',4)
+		+ dbo.padRight(TOWNSHIPBLOCK,' ',4)
+		+ dbo.padRight(RANGELOT,' ',5)
+		+ dbo.padRight(@name,' ',28)
+		from AdTax where ID = @taxrollId
+
+--LeftColumn
+declare  @leftSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(1000),
+	LengthOfText int)
+
+insert @leftSplit
+ select rowdata,LengthOfText from dbo.splitL(@legal,23)
+
+--rightColumn   
+declare  @rightSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(3000))
+	
+insert @rightSplit
+ select	
+  case when RIGHT(ord,1) = 'c' then
+	 dbo.padRight(dbo.padleft(case invoiceType when 'R' then 'ADV'	when 'O' then 'SPC'	when 'S' then 'SPC'	else invoiceType + '.' +perTyp end,' ',3) + '-' + taxYear,' ',9)
+	+ dbo.padRight('',' ',10)
+	+ dbo.padLeft(Total,' ',12)
+	+ dbo.padRight('',' ',10)
+	+ dbo.padRight('',' ',10)
+	+ dbo.padRight('',' ',6)
+	+ dbo.padRight(taxYear,' ',5)
+	+ dbo.padRight('',' ',4)
+	+ dbo.padLeft(taxDue,' ',12)
+	+ dbo.padLeft(penalty,' ',9)
+	+ dbo.padLeft(fees,' ',9)
+	else
+	 dbo.padRight('',' ',9)
+	+ dbo.padRight('Total Due',' ',10)
+	+ dbo.padLeft(Total,' ',12)
+	end
+	from docUnpaidTF(@invoiceid,@interestDate) where RIGHT(ord,1) in ('c','e') order by ord
+
+declare @wt table (	
+			rowNumber int,
+ 			rowStringLeft varchar(1000),
+			rowStringCenter varchar(1000),
+			rowStringRight varchar(1000))
+
+insert @wt
+ select RowNumber,LineOfText,'','' from @leftSplit
+insert @wt
+ select RowNumber,'',LineOfText,'' from @centerSplit
+insert @wt
+ select RowNumber,'','',LineOfText from @rightSplit
+ 
+select 
+	@ret = @ret 
+	+ ' ' + dbo.padright(max(rowStringLeft),' ',23)
+	+ dbo.padright(max(rowStringCenter),' ',42)
+	+ MAX(rowStringRight)
+	+ CHAR(13) + CHAR(10)
+	from @wt 
+	group by rowNumber	 
+
+return @ret
+end

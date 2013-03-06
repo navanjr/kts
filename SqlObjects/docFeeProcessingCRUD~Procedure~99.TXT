@@ -1,0 +1,142 @@
+create proc dbo.docFeeProcessingCRUD(
+ @batchId int = 0,
+ @invoiceId int = 0,
+ @status varchar(50),
+ @lcContinue varchar(50) = '' output,
+ @invoiceDate int = null,
+ @debugMode varchar(5) = 'FALSE',
+ @dType varchar(50) = '',
+ @documentId int = 0
+ 
+) as
+begin
+
+ set nocount on
+
+ declare @invoicesToProcess table(id int)
+
+ declare @wt table(
+  id int identity(1,1),
+  invoiceId int,
+  feeDescription varchar(50),
+  source varchar(50),
+  fund varchar(50),
+  amount money
+ )
+
+ declare
+  @tally int,
+  @documentDate int,
+  @documentName varchar(50),
+  @processCode varchar(50),
+  @tokenId int,
+  @tokenInvoiceId int,
+  @tokenInvoiceDate int,
+  @tokenFeeDescription varchar(50),
+  @tokenSource varchar(50),
+  @tokenFund varchar(50),
+  @tokenAmount money,
+  @parcel varchar(50),
+  @Item numeric(7,1),
+  @blob varchar(max)
+
+ 
+ if @status in ('ALL','STAGEALL')
+ begin
+-- get all the invoices that are printed but not processed for fees
+
+ if @batchid > 0 and @invoiceId > 0
+  begin
+   select 
+    @documentId = documentId,
+    @documentDate = documentDate,
+    @documentName = documentName,
+    @processCode = processCode
+   from dbo.docBRWDecoder(@batchId)
+   insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
+    where printed > '  0' and invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+   end
+ if @dtype > '  0' 
+  begin
+  if @documentId = 0
+   begin
+    select '@code=1;@message=Missing document!||Please select a document and then process fees.;'
+    return 
+   end
+    
+   select 
+    @documentDate = dbo.clariondate(getdate()),
+    @documentName = key1,
+    @processCode = key1+'.'+dbo.date1(coalesce(@invoiceDate, @documentDate))
+   from object where id = @documentId
+   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, null, null,0)
+    where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+   end
+
+  select @tally = @@rowcount
+
+  exec dbo.logit @@procId, '@status', @status, '@batchId', @batchId, '@invoiceId', @invoiceId, '@tally', @tally
+
+  if @status = 'STAGEALL'
+  begin
+   select '@code=0;@message=Stage Message;@tally=' + cast(@tally as varchar) + ';'
+   return
+  end
+
+  insert @wt
+  select
+   i.id,
+   f.key2,
+   f.key3,
+   f.a1,
+   cast(f.a2 as money)
+  from @invoicesToProcess i
+  join object f on f.link1 = @documentId and typ = 4902
+
+  select @tally = @@rowcount
+
+  if @debugMode = 'TRUE'
+  begin
+   select * from @wt
+   return
+  end
+
+  while exists(select * from @wt)
+  begin
+   select top 1 
+    @tokenId = id,
+    @tokenInvoiceId = invoiceId,
+    @tokenInvoiceDate = coalesce(@invoiceDate, @documentDate),
+    @tokenFeeDescription = feeDescription,
+    @tokenSource = source,
+    @tokenFund = fund,
+    @tokenAmount = amount
+   from @wt order by id
+
+   exec dbo.subInvoiceCRUD
+    @mainInvoiceId = @tokenInvoiceId,
+    @invoiceDate = @tokenInvoiceDate,
+    @description = @tokenFeeDescription,
+    @sourceCode = @tokenSource,
+    @fundCode  = @tokenFund,
+    @amount = @tokenAmount,
+    @printed = @documentName,
+    @queue = @processCode,
+    @tallyEcho = @tally
+ 
+   exec dbo.invoiceUpdate @tokenInvoiceId
+ 
+  if @dtype>'  0' and @documentId>0
+    begin
+     select @parcel = parcel, @item = item,@blob = 'Add Fee:' + @tokenFeeDescription + ': '+dbo.formatCurr(@tokenAmount) from invoices where id = @tokenInvoiceId
+     exec dbo.logit @@procId, '@mode:ADDFEE',@documentName , '@parcel', @parcel, '@item', @item, '@blob', @blob
+     exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @tokenInvoiceId ,@docReceivablesBRWBlob = @documentName , @blob = @blob
+    end   
+
+   delete @wt where id = @tokenId
+   set @tally = @tally - 1
+  end   
+
+ end
+ 
+end

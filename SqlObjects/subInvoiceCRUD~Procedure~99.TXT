@@ -8,11 +8,14 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @amount money,
  @smode int = 0,
  @origin varchar(50) = '',
- @originId int = 0
+ @originId int = 0,
+ @printed varchar(50) = '',
+ @queue varchar(50) = '',
+ @tallyEcho int = null
 ) as
 begin
 
- exec dbo.logit @@procid, '@mainInvoiceId', @mainInvoiceId, '@invoiceDate', @invoiceDate,'@amount', @amount
+ exec dbo.logit @@procid, '@mainInvoiceId', @mainInvoiceId, '@invoiceDate', @invoiceDate,'@amount', @amount, '@tallyEcho', @tallyEcho
 
  declare 
   @invoiceId int,
@@ -64,9 +67,21 @@ begin
   end 
 
   select top 1 @sourceCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'SOURCE'
-  select top 1 @fundCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'ACCRUED RECEIVABLE'
+  select top 1 @fundCode = fundCode from receiptDetail where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
+          and left(slink,1)='t'
+
+  exec dbo.logit @@procid, 'Type Adjust @sourceCode', @sourceCode,'@fundCode', @fundCode
+
 
  end
+
+ if @fundCode <= ' 0'
+ begin
+  exec dbo.logit @@procid, 'FundCode Missing... @mainInvoiceId', @mainInvoiceId
+  select '@code=1; Missing Fund Code Information.'
+  return
+ end
+
 
  exec dbo.logit @@procid, 'Begin Transaction... @mainInvoiceId', @mainInvoiceId
  begin transaction
@@ -82,7 +97,7 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId)
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId, printed, queue)
     select 
      @subInvoiceType,
      @invoiceDate,
@@ -95,11 +110,15 @@ begin
      '' as [BUSINESSNAME],
      '' as [STATUS],
      @origin,
-     @originId
+     @originId,
+     @printed,
+     @queue
      from invoices where id=@mainInvoiceId
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
    set @slink='t'+cast(@invoiceId as varchar)
+
+  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@slink', @slink
    
   if left(@description,4) = 'VOID'
    begin
@@ -112,7 +131,7 @@ begin
     select
      @slink,
      @description,
-     rtrim(@sourceCode) + '/' + rtrim(@fundCode),
+     left(rtrim(@sourceCode) + '/' + rtrim(@fundCode),50),
      @sourceCode,
      @fundcode,
      cast(@amount as varchar(50))

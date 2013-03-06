@@ -4,17 +4,22 @@ as begin
     @newInvoiceId int
 
   begin transaction
-   exec dbo.taxCorrectionReferenceCRUD @taxrollId,   @newInvoiceId = @newInvoiceId output
+   exec dbo.taxCorrectionReferenceCRUD @taxrollId, @newInvoiceId = @newInvoiceId output
 
    exec dbo.taxrollInvoiceCRUD @taxrollId, 1, '', @invoiceId=@newInvoiceId, @priorPayments=@payments, @correctionInvoice = 'TRUE'
    exec dbo.taxRollAddressInsert @taxrollId, ''
   
   select @slink = slink from dbo.taxrollCheck(@taxrollId,'',@newInvoiceId)
 
+  if exists(select * from receiptlink where invoiceId in (select id from invoices where taxrollId=@taxrollId))
+  begin
+   update receiptlink set invoiceId=@newInvoiceId where invoiceId in (select id from invoices where taxrollId=@taxrollId)
+  end
+
   if dbo.glPostCheck(@slink) = 0
    begin
     commit transaction
-    select '@code=0;@message=OK;'
+    select '@code=0;@message=OK;@newId='+cast(@newInvoiceId as varchar(50))
    end
   else
    begin 

@@ -9,7 +9,8 @@ if @switch = 0
 	insert into @wt  
 		select amount,accountCode,''
 			from gldetail a,receiptlink b 
-			where	a.slink = 'l'+cast(b.id as varchar(30)) 
+			where	
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
 					and b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
 
@@ -18,10 +19,31 @@ if @switch = 1
 	insert into @wt  
 		select amount,accountCode,''
 			from gldetail a,receiptlink b 
-			where	a.slink = 'l'+cast(b.id as varchar(30)) 
+			where
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
 					and b.invoiceId = @invoiceId  
 					and b.receiptId < @recId
 
+
+if @switch = 2
+
+	insert into @wt  
+		select a.amount,a.accountCode,''
+			from gldetail a, receiptlink b
+			where
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
+					and b.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+                union all
+		select a.amount,a.accountCode,''
+			from gldetail a, receiptlink b, invoices i, receiptlink rl
+			where
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
+                                        and rl.invoiceId = i.id
+                                        and i.invoiceId = b.invoiceId
+                                        and i.typ='A'
+					and b.invoiceId = @invoiceId  
+					and b.receiptId = @recId
 
 	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
 	

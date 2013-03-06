@@ -1,6 +1,7 @@
 create procedure dbo.paymentsImportBatch(
  @paymentType varchar(50),
  @batchId int,
+ @ini varchar(50),
  @debugMode varchar(10) = 'false' 
 ) as 
 begin
@@ -11,6 +12,7 @@ begin
    @voucherNumber varchar(50),
    @payee varchar(50),
    @amount varchar(50) = 0,
+   @comments varchar(250),
    @debitAcct varchar(50) = '',
    @creditAcct varchar(50) = '',
    @officialsFundCode varchar(50) = '',
@@ -18,7 +20,11 @@ begin
    @officialName varchar(50) = '',
    @officialDepositCode varchar(50) = '',
    @officialBankCode varchar(50) = '',
-   @fiscalYear varchar(50) = ''
+   @fiscalYear varchar(50) = '',
+   @theDate datetime = getdate(),
+   @importStamp varchar(50)
+
+  select @importStamp = @ini + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
   declare @wt table (
    id int,
@@ -26,6 +32,7 @@ begin
    voucherNumber varchar(50),
    payee varchar(50),
    amount money,
+   comments varchar(250),
    debitAcct varchar(500),
    creditAcct varchar(500),
    officialsFundCode varchar(50),
@@ -59,13 +66,15 @@ begin
    cast(voucherDate as int),
    voucherNumber,
    payee,
-   cast(amount as money),
+   cast(replace(amount,'o','0') as money),
+   comments,
    debitAcct,
    creditAcct,
    null,
    null,
    null
   from dbo.voucherImportBRW(@batchId)
+  where rowType = 0 and postCheck = 0
 
 -- insert Warrants
  if @paymentType = 'Warrant'
@@ -75,13 +84,15 @@ begin
    cast(warrantDate as int),
    warrantNumber,
    vendorCode,
-   cast(amount as money),
+   cast(replace(amount,'o','0') as money),
+   '',
    debitAcct,
    creditAcct,
    clerksFund,
    null,
    fiscalYear
   from dbo.warrantImportBRW(@batchId)
+  where rowType = 0 and postCheck = 0
  end
 
   if @debugMode = 'true'
@@ -110,6 +121,7 @@ begin
      @voucherNumber = voucherNumber,
      @payee = payee,
      @amount = amount,
+     @comments = comments,
      @debitAcct = debitAcct,
      @creditAcct = creditAcct,
      @fiscalYear = fiscalYear
@@ -127,14 +139,16 @@ begin
      @officialBankCode = key3
     from object where typ = 4770 and id = @batchId
 
- 
+    select @checkPaymentId = 0
+
     select @checkPaymentId = id from object 
       where typ=4771
        and key3 = @voucherNumber
        and a4 = @debitAcct
        and a18 = 'Warrant' 
-       and a2 = @payee
-       and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end = @voucherDate
+--       and a2 = @payee
+--       and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end = @voucherDate
+       and c10 = @fiscalYear
 
      if isnull(@checkPaymentId,0)=0
      begin
@@ -144,11 +158,13 @@ begin
        @voucherNumber = @voucherNumber,
        @payee = @payee,
        @amount = @amount,
+       @comments = @comments,
        @debitAcct = @debitAcct,
        @creditAcct = @creditAcct,
        @officialDepositCode = @officialDepositCode,
        @officialBankCode = @officialBankCode,
        @fiscalYear = @fiscalYear,
+       @importStamp = @importStamp,
        @postResult = @resultStringToken output
      end
     end
@@ -176,6 +192,8 @@ begin
       @amount = @amount,
       @debitAcct = @debitAcct,
       @creditAcct = @creditAcct,
+      @importStamp = @importStamp,
+      @comments = @comments,
       @postResult = @resultStringToken output
      end
     end
@@ -187,9 +205,9 @@ begin
   end
 
  if exists(select * from @results where code = 1)
-  select '@code=0;@message=Finished but with errors;'
+  select '@code=0;@message=Finished but with errors;@clearem=false;'
  else
-  select '@code=0;@message=Finished without errors;'
+  select '@code=0;@message=Finished without errors;@clearem=true;'
  
  return
 end

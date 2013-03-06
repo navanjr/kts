@@ -1,0 +1,37 @@
+@format=150L(2)~Tax Name~#1#|M75L(2)~Destination~#4#|M20L(2)~Table Type~#21#|M;
+
+@browse4=choose(obj:a3=1,'To Schools',choose(obj:a4=1,'To Cities',choose(obj:a5=1,'To Votechs',obj:a18)));
+
+
+
+@loadwindow=
+ create(11,12,,,,12),
+ create(13,12,,,,14),
+ create(15,12,,,,16),
+ reate(17,12,,,,18),
+ tabord('002042011013015024');
+
+\t001Tax Name; \e002;
+\t003Account;   \d004; \w00460; \x004184;
+  \l0044701;r004002042004;  @lf004='typ = 4701 and a1 in (''FUND'',''SCHOOL'',''CITY'',''VOTECH'') and b3!=1',2;
+
+\y011018-26;r
+\w01201613;r2
+\t011To Schools; \t012@s1; @acc011=break(obj:a3+0<>1),set(004,''),set(042,''),set(014,0),set(016,0),set(018,0);
+\t013To Cities; \t014@s1; @acc013=break(obj:a4+0<>1),set(004,''),set(042,''),set(012,0),set(016,0),set(018,0);
+\t015To Votechs; \t016@s1; @acc015=break(obj:a5+0<>1),set(004,''),set(042,''),set(012,0),set(014,0),set(018,0);
+t017To Rate School; acc017=break(obj:a6+0<>1),set(004,''),set(042,''),set(012,0),set(014,0),set(016,0);
+ \h012018;r2 \x011017+50;r2
+
+\t023Table Type; \u024; \w02412; @choose024:SAPLM;\m024[S]pecial Assessment,[A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages; \?024'[S]pecial Assessment, [A]DA, [P]opulation, In [L]ieu of taxes, or [M]illages';
+\t025[S]pecial Assessment - [A]da - [P]opulation - In [L]ieu of taxes - [M]illages; \w025250; \h026;
+ \y023025-50;r
+@nox=obj:key2<' 0' and obj:a3<>1 and obj:a4<>1 and obj:a5<>1 and obj:a6<>1;
+@noexit=m('You must set an account or check the School, City or Votech flag box.');
+
+\t041Account Description; \h041; \x04263;
+  \l0424701;r004002042004;  @lf042='typ = 4701 and a1 in (''FUND'',''SCHOOL'',''CITY'',''VOTECH'') and b3!=1',2; @acc042=update,break(obj:a18<' 0'),set(012,0),set(014,0),set(016,0);
+
+@bb6=Update Names;
+@bbproc6=
+ sql('exec dbo.apRatesUpdate 4008');

@@ -1,0 +1,92 @@
+create proc dbo.docBatchCRUD(
+ @documentName varchar(50) = null,
+ @batchSize int = null,
+ @method varchar(10) = 'CREATE',
+ @documentDate int = null,
+ @invTypeString varchar(50) = '',
+ @taxyear varchar(4) = null,
+ @paidRatio money = null,
+ @verbose varchar(5) = 'TRUE',
+ @initials varchar(5) = null,
+ @brwId int = null,
+ @processCode varchar(50) = null,
+ @switches varchar(10) = null,
+ @dTypesBlob varchar(max) = null
+) as 
+begin
+
+ declare
+  @taxRulesFlag int = dbo.splitF(@switches,null,1),
+  @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
+  @includePriorYears int = dbo.splitF(@switches,null,3),
+  @log varchar(max),
+  @tally int
+
+ if @method = 'REMOVE'
+ begin
+
+  select 
+   @documentName = coalesce(@documentName, documentName),
+   @processCode = coalesce(@processCode, processCode)
+  from dbo.docBRWDecoder(@brwId)
+
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@documentName', @documentName, '@processCode', @processCode
+
+  if isnull(@processCode,'') < '  0' or isnull(@documentName,'') < '  0'
+   return
+
+  delete documentProcessing where documentName = @documentName and processCode = @processCode
+  update taxRollDetail set invoiceLinkId = invoiceLinkId * -1 where invoiceLinkId > 0 and documentName = @documentName and stamp = @processCode
+
+  return
+ end
+
+ if @method = 'CREATE'
+ begin
+
+  select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
+
+  if not @tally > 0 
+  begin
+   select @log = '@code=1;@message=There are no records to work with.;'
+   exec dbo.logit @@procId, @log
+   if @verbose = 'TRUE'
+     select @log
+   return
+  end
+
+  if not @batchSize > 0
+   return
+
+  select
+   @documentDate = coalesce(@documentDate, dbo.clariondate(getdate())),
+   @initials = coalesce(@initials, dbo.readstring('@ini=',dbo.whoami()))
+
+  if exists(select * from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName)
+   select @processCode = @initials + '.' + right('000' +cast(cast(max(dbo.splitF(processCode,'.',2)) as int) + 1 as varchar),3)
+   from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName
+  else
+   set @processCode = @initials + '.001'
+
+  insert dbo.documentProcessing 
+   select top (@batchSize) id, @documentName, @documentDate, @processCode, name + cast(item as varchar), isnull(ownerNumber,0.0), name
+   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
+   where id not in (select invoiceId from documentProcessing where documentName = @documentName)
+    order by name, item
+
+  exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
+  exec dbo.docBatchPBStuff
+   @documentName,
+   @processCode,
+   @documentDate,
+   @invTypeString,
+   @taxyear,
+   @paidRatio,
+   @switches,
+   @dTypesBlob
+
+  return
+ end 
+
+end

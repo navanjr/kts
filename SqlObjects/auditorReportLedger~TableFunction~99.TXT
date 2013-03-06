@@ -1,0 +1,136 @@
+create function dbo.auditorReportLedger(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10)) 
+	returns @rt table(
+						rowstring varchar(250),
+						beginbalance varchar(50),
+						apportionIn varchar(50),
+						tranin varchar(50),
+						transferOut varchar(50),
+						paid varchar(50),
+						endbalance varchar(50),
+						rowType varchar(10),
+						ord varchar(250))
+
+as 
+begin
+
+declare @wt table(
+						accountCode varchar(60),
+						accountDesc varchar(60),
+						beginbalance money,
+						apportionIn money,
+						tranin money,
+						transferOut money,
+						paid money,
+						endbalance money,
+						ord varchar(250))
+						
+declare  @dailyledgerdetail table(
+						accountCode varchar(50),
+						accountDesc varchar(50),
+						beginbalance money,
+						paid money,
+						appout money,
+						appin money,
+						tranout money,
+						tranin money,
+						deposits money,
+						endbalance money,
+						accountType varchar(50),
+						reportOrder varchar(50))
+
+insert @dailyledgerdetail (accountCode,	accountDesc, beginbalance, paid, appout, appin,	tranout, tranin, deposits, endbalance, accountType, reportOrder)
+	select accountCode, accountDesc, beginbalance, paid, appout, appin, tranout, tranin, deposits+elecdeposits, endbalance, accountType, reportOrder from dailyledgerdata(@beginDate,@endDate) 
+
+insert @wt
+	select	accountCode,
+			accountDesc,
+			isnull(beginbalance,0),
+			isnull(appin,0) as apportionIn, 
+			isnull(tranin,0)+isnull(deposits,0) as tranin,
+			isnull(tranout,0)+isnull(appout,0) as transferOut,
+			isnull(paid,0),
+			isnull(endbalance,0),
+			reportOrder 
+			from @dailyledgerdetail 
+		where accountType='FUND'
+			and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+		order by accountType,reportOrder
+
+----insert detail
+insert @rt
+	select	'  ' + dbo.padRight(accountCode,' ',10) +' '+dbo.padRight(accountDesc,' ',51),
+			dbo.padLeft(dbo.formatCurr(beginbalance),' ',16),
+			dbo.padLeft(dbo.formatCurr(apportionIn),' ',16),
+			dbo.padLeft(dbo.formatCurr(tranin),' ',16),
+			dbo.padLeft(dbo.formatCurr(transferOut),' ',16),
+			dbo.padLeft(dbo.formatCurr(paid),' ',16),
+			dbo.padLeft(dbo.formatCurr(endbalance),' ',16),
+			'detail',
+			@ordSeed + ord + 'c'
+		from @wt where isnull(beginbalance,0) <> 0 or
+			isnull(apportionIn,0) <> 0 or
+			isnull(tranin,0) <> 0 or
+			isnull(transferOut,0) <> 0 or
+			isnull(paid,0) <> 0 or
+			isnull(endbalance,0) <> 0
+
+----insert subtotals
+insert @rt
+	select  dbo.padRight('      Total ', ' ', 61),
+            dbo.padLeft(dbo.formatCurr(sum(beginbalance)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(apportionIn)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(tranin)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(transferOut)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(paid)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(endbalance)),' ',16),
+            'gFooter',
+            @ordSeed + 'zzzz' + 'd' 
+		from @wt 
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + 'xxxx' + 'c' 
+			
+----headers
+insert @rt 
+	select '','','','','','','','lineFeed',@ordSeed + '0000a'
+
+insert @rt 
+	select '  Fund',
+			dbo.padLeft('Beginning',' ',16),
+			dbo.padLeft('Apportion In',' ',16),
+			dbo.padLeft('Transfer In',' ',16),
+			dbo.padLeft('App/Trans out',' ',16),
+			dbo.padLeft('Disbursed',' ',16),
+			dbo.padLeft('Balance',' ',16),
+			'sHeader',
+			@ordSeed + '0000aa'	
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + '0000ab'
+
+
+return
+end
+
+/*
+	declare
+		@theDate int = dbo.clariondate('20121101'),
+		@days int = 30
+		select * from dbo.auditorReportLedger(@theDate,@theDate + @days,'A') order by ord
+*/

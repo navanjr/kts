@@ -2,17 +2,28 @@ create function dbo.bankStatementBRW(
  @id int,
  @accountId int,
  @showFlag int, 
- @warrantFlag int 
+ @warrantFlag int,
+ @orderByVoucherFlag int 
 ) returns @rt table(
  id int,
  fpid int,
+ fpCode varchar(50),
  slink varchar(15),
+ paymentType varchar(50),
+ template varchar(50),
+ typ int,
+ depositDate varchar(50),
+ instrumentNumber varchar(50),
+ instrumentNumber2 varchar(50),
  description varchar(100),
  subDescription varchar(100),
  dbAmount money,
  crAmount money,
+ rowType int,
  selectedFlag char(1),
- ord varchar(50)
+ ord varchar(150),
+ comment varchar(50),
+ comment2 varchar(50)
 )
 begin
 
@@ -22,32 +33,98 @@ begin
   insert @showTable select @id
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
- insert @rt (id,fpid,slink,dbAmount,crAmount,subDescription,selectedFlag)
- select id* -1, fpid, slink,
+ insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2)
+ select id* -1, fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
   case when amount < 0 then amount else 0 end,
   slink,
-  case when isnull(bsId,0) = 0 then '' else 'X' end
+  case when isnull(bsId,0) = 0 then '' else 'X' end,
+  0,comment,comment2
  from dbo.glDetail 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
 
 -- populate the items with more details
  update a set
-  a.description = '   ' + dbo.date1(b.key2),
-  a.subDescription = c.template + ' #' + case when b.typ=4771 then b.key3 else b.key1 end,
-  ord = cast(fpid as varchar) + 'b' 
+  a.description = '      ' + b.key1,
+  a.depositDate = b.key2,
+  a.instrumentNumber = b.key1,
+  a.instrumentNumber2 = b.key3,
+  a.subDescription = b.a2, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
+  paymentType = b.a18,
+  template = c.template,
+  a.typ = b.typ
  from @rt a, object b, template c
  where left(slink,1) = 'o' 
   and cast(substring(slink,2,14) as int) = b.id
   and b.typ = c.id
 
+-- deposit Fixes
+ update @rt set
+  paymentType = 'z' + template,
+  subdescription = case when comment>' 0' then left(comment+' - '+comment2,100) else subdescription end
+ where template = 'Deposits' and rowType = 0
+
+-- je Fixes
+ update @rt set
+  subDescription = instrumentNumber2
+ where template = 'Journal Entries' and rowType = 0
+
+-- payment Fixes except miscellaneous
+ update @rt set 
+  instrumentNumber = instrumentNumber2
+ where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
+
+
+-- set description and ord
+ update @rt set
+  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + dbo.date2(depositDate),
+  ord = case when @orderByVoucherFlag = 1 then 
+    paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
+   else
+    fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+   end
+ where rowtype = 0
+
 -- add Period headers for the account details
- insert @rt (id,description,ord)
-  select 0,'Period: ' + b.key1 + ' ' + key2,b.id 
-   from @rt a, object b
-   where a.fpid = b.id
-   group by b.key1,b.key2,b.id
+ if @orderByVoucherFlag <> 1
+  begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     'Period: ' + a.fpCode + ' ' + key2,
+     a.fpCode,
+     3 
+    from @rt a, object b
+    where a.fpid = b.id and a.rowType = 0
+    group by b.key1,b.key2,b.id,a.fpCode
+   end
+
+-- add paymentType headers
+ if @orderByVoucherFlag = 1
+  begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     paymentType + 'a',
+     2 
+    from @rt 
+    where rowType = 0 and paymentType is not null
+    group by paymentType
+   end
+  else
+   begin
+   insert @rt (id,description,ord,rowType)
+    select
+     0,
+     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     fpCode +  paymentType + 'a',
+     2 
+    from @rt 
+    where rowType = 0 and paymentType is not null
+    group by fpCode, paymentType
+   end
 
 -- add Warrants, Maybe
  if not @warrantFlag = 1
@@ -59,30 +136,37 @@ begin
 
  insert @rt (id,description,ord) select 0,'','w' 
  insert @rt (id,description,ord) select 0,'Warrants: ','ww' 
+declare @glAccountIds table (id int)
+insert into @glAccountIds
+      select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode)
+ 
+insert @rt (id,description,ord) select 0,'','w'
+ insert @rt (id,description,ord) select 0,'Warrants: ','ww'
  insert @rt (id, description, subDescription, dbAmount, ord)
   select b.id,
    '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
    b.a2,
    sum(a.amount),
-   'ww' + a.accountCode + b.key3 
+   'ww' + a.accountCode + b.key3
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
-   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode))
+   and a.accountId in (select id from @glAccountIds)
    and b.link1 = 0
   group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id
   having sum(amount) > 0
-
+ 
 -- add header rows for fund
  insert @rt (id, description, subDescription, ord)
-  select 0,
-   ' -- ' + a.accountCode + ' - ' + isnull((select d.accountDesc from glAccounts c, glAccounts d where d.accountCode=c.targetAccountCode and c.accountId=a.accountId),''),
-   '',
-   'ww' + a.accountCode
-  from dbo.glDetail a, object b
-  where a.slink = 'o' + cast(b.id as varchar)
-   and a.accountId in (select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode))
-   and b.link1 = 0
-  group by a.accountCode, a.accountDesc, a.accountId
- 
+ select 0, accountCode, accountDesc, accountId from
+  (select ' -- ' + a.accountCode + ' - '
+    + isnull((select d.accountDesc from glAccounts c, glAccounts d where d.accountCode=c.targetAccountCode and c.accountId=a.accountId),'') as accountCode,
+    '' as accountDesc,
+    'ww' + a.accountCode as accountId
+   from dbo.glDetail a, object b
+   where  a.accountId in (select id from @glAccountIds)
+    and b.link1 = 0
+    and a.slink = 'o' + cast(b.id as varchar)  
+    ) as z group by z.accountCode, z.accountDesc, z.accountId 
+
  return
 end

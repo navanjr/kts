@@ -1,0 +1,282 @@
+@bb7=&Print;
+@bbproc7= 
+ gcBeginDate=77460,
+ gcEndDate=77466,
+ journalReportGL=;
+
+
+
+@journalReportAll=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=1200,
+  lcBold=700,
+  lcItalics=4600,
+  lcLgFont=12,
+  lcRegular=400,
+  lcRegFont=10,
+
+  lcJournalTot=0,
+  lcJournalDebitTot=0,
+  lcJournalCreditTot=0,
+  lcJournalTot=0,
+
+  lcsql='select accountDesc, journalDate, debit, credit, journalDesc, journalType, DetailType from journalDetail where journalDate between '''&gcBeginDate&''' and '''&gcEndDate&''' order by journalType, sourceKey1, id ',
+
+  tr(
+    prn(printed),
+    prn(page),
+    prn('Journal Report (All)',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),    
+    prn('Journals between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
+    prn(,lcLm,lcTm+300),
+       
+    grp(1,obj5:a6, do(
+    bnd('HOU','Type: '&obj5:a6,7500),
+    nl,
+    bnd('H','Accnt Desc',2200,'Journal Date',750,'Debit',1000,'Credit',1000,'Description',2000),
+    ),do(
+    bnd('H','Totals:',2800R,format(lcJournalDebitTot,@n$-14.2),1000,format(lcJournalCreditTot,@n$-14.2),1000),
+    lcJournalDebitTot=0,
+    lcJournalCreditTot=0,
+    nl,)
+    ),
+  
+    det(lcsql),
+     bnd('D',
+     format(obj5:a1,@s30),2200,
+     format(obj5:a2,@d2),750,
+     obj5:a3,1000,
+     obj5:a4,1000,
+     format(obj5:a5,@s28),2000),
+     lcJournalDebitTot=lcJournalDebitTot+obj5:a3,
+     lcJournalCreditTot=lcJournalCreditTot+obj5:a4,
+    edt,
+);
+
+
+@journalReportGL=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=1200,
+  lcBold=700,
+  lcItalics=4600,
+  lcLgFont=12,
+  lcRegular=400,
+  lcRegFont=10,
+
+  lcJournalTot=0,
+  lcJournalDebitTot=0,
+  lcJournalCreditTot=0,
+  lcJournalTot=0,
+
+  lcsql='select accountDesc, journalDate, debit, credit, journalDesc, journalType, DetailType from journalDetail where DetailType = ''GL'' and journalDate between '''&gcBeginDate&''' and '''&gcEndDate&''' order by journalType, sourceKey1, id ',
+
+  tr(
+    prn(printed),
+    prn(page),
+    prn('Journal Report (G/L)',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),    
+    prn('Journals between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
+    prn(,lcLm,lcTm+300),
+       
+    grp(1,obj5:a6, do(
+    bnd('HOU','Type: '&obj5:a6,7500),
+    nl,
+    bnd('H','Accnt Desc',2200,'Journal Date',750,'Debit',1000,'Credit',1000,'Description',2000),
+    ),do(
+    bnd('H','Totals:',2800R,format(lcJournalDebitTot,@n$-14.2),1000,format(lcJournalCreditTot,@n$-14.2),1000),
+    lcJournalDebitTot=0,
+    lcJournalCreditTot=0,
+    nl,)
+    ),
+  
+    det(lcsql),
+     bnd('D',
+     format(obj5:a1,@s30),2200,
+     format(obj5:a2,@d2),750,
+     obj5:a3,1000,
+     obj5:a4,1000,
+     format(obj5:a5,@s28),2000),
+     lcJournalDebitTot=lcJournalDebitTot+obj5:a3,
+     lcJournalCreditTot=lcJournalCreditTot+obj5:a4,
+    edt,
+);
+
+
+
+@glJournalEntryReport=
+ do(452,getSiteInfo=),
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ lcDBTot=0,
+ lcCRTot=0,
+ lcsql='select sourceKey1,accountDesc,debit,credit,date,sourceKey3,accountType from gldetailreports '&gcJEReportWhere&' and sourceType=''4512'' order by sourceKey1,accountType,accountDesc',
+ 
+  tr(
+  prn(printed),
+  prn(page),
+  prn('Journal Entry Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn(,,,7,400,'Courier New'), 
+  prn(,lcRm,1500),
+  bnd('HO',,lcAw+2000),
+  bnd('H',,250,'Account',3000,'Debit',-1000,'Credit',-1000),
+  bnd('HU',,lcAw+2000),
+
+  grp(1,obj5:a1,bnd('H','J/E Number: '&format(obj5:a1,@p######p),2000,'Date: '&format(obj5:a5,@d2),1500,obj5:a6,1000),nl),
+  grp(2,obj5:a7,bnd('H',,200,'Account Type: '&obj5:a7,1000)),
+  nl,
+
+  det(lcsql),
+   bnd('D',,250,obj5:a2,3000,format(obj5:a3,@n14.2b),-1000,format(obj5:a4,@n14.2b),-1000),
+   lcDBTot=lcDBTot+obj5:a3,
+   lcCRTot=lcCRTot+obj5:a4,
+  edt,
+  
+  bnd('HO',,lcAw+2000),
+  bnd('H',,250,'Report Totals',-3000,format(lcDBTot,@n-14.2b),-1000,format(lcCRTot,@n-14.2b),-1000),
+  nl,
+  bnd('H','Comments:',3000),
+  nl,nl,
+  txt(gcJournalComment,lcRm,,10000,2000,1,500),
+
+ );
+
+
+@glreport=
+ do(4506,getSiteInfo=),
+ lcPeriod=kp('select key1+'' - ''+key2 from object where typ=4700 and key1='&gcPeriod),
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ lcbBal=0,
+ lctIn=0,
+ lctOut=0,
+ lcBal=0,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcSql='select sDescrip,glType,bBal,tIn,tOut,bal from dbo.glReport('&gcPeriod&') order by glType',
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER`S LEDGER',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Period: '&lcPeriod,8500C),
+  prn(,lcRm,1500,,,lcFont),
+  grp(1,obj5:a2,
+   do(
+   lcbBal=0,
+   lctIn=0,
+   lctOut=0,
+   lcBal=0,
+    bnd('HO',,lcAw+2000),
+    bnd('H',obj5:a2&' Accounts',2000,'Beginning Balance',lcCw*-1,'Debits',lcCw*-1,'Credits',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('HU',,lcAw+2000),
+    nl,
+   ),
+   do(
+    prn(,2500),
+    bnd('HO',,lcAw),
+    prn(,lcRm),
+    bnd('H',,2000,format(lcbBal,@n$-16.2b),lcCw*-1,format(lctIn,@n$-16.2b),lcCw*-1,format(lctOut,@n$-16.2b),lcCw*-1,format(lcBal,@n$-16.2b),lcCw*-1),
+    prn(,lcRm),
+    nl,nl,nl
+   )
+  ),
+  det(gcSql),
+   bnd('D',obj5:a1,2000,format(obj5:a3,@n$-14.2b),lcCw*-1,format(obj5:a4,@n$-14.2b),lcCw*-1,format(obj5:a5,@n$-14.2b),lcCw*-1,format(obj5:a6,@n$-14.2b),lcCw*-1),
+   lcbBal=lcbBal+obj5:a3,
+   lctIn=lctIn+obj5:a4,
+   lctOut=lctOut+obj5:a5,
+   lcBal=lcBal+obj5:a6,
+   edt, 
+);
+
+@glDaily=
+ do(4506,getSiteInfo=),
+ lcRm=1200,
+ lcCw=750,
+ lcAw=(lcCw*4)+400,
+ lcFont='courier new',
+ lcHeaderFontSize=12,
+ gcSql4790='select rowstring1,sourceNo,recordCnt,sourceAmt,glBalanceString from dbo.dailydata('&gcStartDate&','&gcDays&','''&gcFilterString&''') order by ord',
+ tr(
+  landscape,
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,lcRm,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER DAILY REPORT',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,format(gcStartDate,@d2)&' - '&format(gcStartDate+gcDays,@d2),8500C),
+  prn(,lcRm,1500,,,lcFont),
+   det(gcSql4790),
+   bnd('D',obj5:a1,lcCw*4.88,obj5:a2,lcCw*2.08,obj5:a3,lcCw,obj5:a4,lcCw*-1.6,obj5:a5,lcCw*-1.47)
+   edt, 
+);
+
+@glAnalysis=
+ do(4506,getSiteInfo=),
+ lcPeriod=kp('select key1+'' - ''+key2 from object where typ=4700 and key1='&gcPeriod),
+ lcRm=250,
+ lcCw=1160,
+ lcAw=(lcCw*4)+1100,
+ lcbBal=0,
+ lctIn=0,
+ lctOut=0,
+ lcBal=0,
+ lcCnt=0,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcSql4790='select accountDesc,accountType,beginningBalance,debits,credits,endingBalance,recCount from dbo.glAnalysis('&gcPeriod&','''&gcFilter&''') where id<>0 order by ord',
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER`S LEDGER',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Period: '&gcPeriodName,8500C),
+  prn(,lcRm,1500,,,lcFont),
+  grp(1,obj5:a2,
+   do(
+   lcbBal=0,
+   lctIn=0,
+   lctOut=0,
+   lcBal=0,
+    bnd('HO',,lcAw+(lcCw*2)),
+    bnd('H',obj5:a2&' Accounts',lcCw*2,'Cnt',lcCw-700,'Beginning Balance',lcCw*-1,'Debits',lcCw*-1,'Credits',lcCw*-1,'Ending Balance',lcCw*-1),
+    bnd('HU',,lcAw+(lcCw*2)),
+    nl,
+   ),
+   do(
+    prn(,lcRm*10),
+    bnd('HO',,lcAw),
+    prn(,lcRm),
+    bnd('H',,lcCw*2,lcCnt,lcCw-700,format(lcbBal,@n$-16.2b),lcCw*-1,format(lctIn,@n$-16.2b),lcCw*-1,format(lctOut,@n$-16.2b),lcCw*-1,format(lcBal,@n$-16.2b),lcCw*-1),
+    prn(,lcRm),
+    nl,nl,nl
+   )
+  ),
+  det(gcSql4790),
+   bnd('D',obj5:a1,lcCw*2,obj5:a7,lcCw-700,format(obj5:a3,@n$-14.2b),lcCw*-1,format(obj5:a4,@n$-14.2b),lcCw*-1,format(obj5:a5,@n$-14.2b),lcCw*-1,format(obj5:a6,@n$-14.2b),lcCw*-1),
+   lcbBal=lcbBal+obj5:a3,
+   lctIn=lctIn+obj5:a4,
+   lctOut=lctOut+obj5:a5,
+   lcBal=lcBal+obj5:a6,
+   lcCnt=lcCnt+obj5:a7,
+   edt, 
+);

@@ -1,6 +1,8 @@
 create procedure dbo.apportionCollections(
  @accountId int, 
- @apportionToDate int = 99999
+ @apportionToDate int = 99999, 
+ @postDate int,
+ @postOverride int
 ) as
 begin
 
@@ -16,6 +18,8 @@ begin
 
   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId 
 
+ if isnull(@postDate,0)=0
+  select @postDate = dbo.clarionDate(getDate())
 
  if @accountType = 4701
   select @accountDesc = accountDesc from dbo.glAccounts where accountId = @accountId
@@ -25,13 +29,19 @@ begin
     and b.slink in (select slink from dbo.receiptSLinks(@accountId))
     and ISNULL(b.bsId,0) = 0
 
+ if @accountType = 4512
+  select top 1 @accountDesc = a.accountDesc from dbo.glAccounts a, gldetail b where a.accountId = b.contraId and b.contraId > 0
+    and b.slink in (select slink from dbo.journalSLinks(@accountId))
+    and ISNULL(b.bsId,0) = 0
+
  
 -- create new JE
-  set @jeType = 'APPORTIONMENT'+case when (@accountType=4502 or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
+  set @jeType = 'APPORTIONMENT'+case when (@accountType in (4502,4512) or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
  exec dbo.journalEntryCRUD
   @mode = 0,
   @description = @accountDesc,
   @jeType = @jeType,
+  @postDate=@postDate,
   @resultCode = @resultCode output,
   @resultMessage = @resultMessage output,
   @newId = @newId output
@@ -43,15 +53,23 @@ begin
  select accountId, accountCode, accountDesc, amount, @slink, comment, comment2, sourceCode
   from dbo.apportionCollectionsBRW( @accountId, @apportionToDate )
 
+
+ if @postOverride <> 1
+  begin 
 -- post to the gl
- exec dbo.glPost @newId, 'o'
- exec dbo.journalEntryUpdate @newId
+   exec dbo.glPost @newId, 'o'
+   exec dbo.journalEntryUpdate @newId
+  end
+ else 
+  begin
+   select '@code=0;@jeId='+cast(@newId as varchar)+';'
+  end
  
 
 -- link origional apportion postngs to this JE
   update glDetail set bsId = @newId
   where 
-    id in (select id from dbo.apportionCollectionsWTIds(@accountId, @apportionToDate)) 
+    id in (select id from dbo.apportionCollectionsWTIds(@accountId, @apportionToDate,'FALSE',null,null)) 
 
 /* if @accountType = 4502
  begin

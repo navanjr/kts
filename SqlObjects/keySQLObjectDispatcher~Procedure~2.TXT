@@ -2,38 +2,116 @@ create procedure dbo.keySQLObjectDispatcher(
  @id int,
  @dropFlag varchar(5) = 'FALSE',
  @silentMode varchar(5) = 'FALSE',
- @result int = null output
+ @alter varchar(5) = 'TRUE',
+ @logDebug varchar(5) = 'FALSE',
+ @result int = null output,
+ @log varchar(max) = null output
 ) as
 begin
 
-declare
+ declare
+  @objectFileName nvarchar(500),
   @objectName nvarchar(50),
   @objectType nvarchar(50),
   @objectDropType nvarchar(50),
   @sqlMax nvarchar(max),
-  @log varchar(max)
+  @sysObjMax nvarchar(max) = '',
+  @sysObjId int,
+  @legacyLog varchar(max),
+  @dropCommand nvarchar(1000)
 
 -- Gather information about this Object
- select -- @loopcount=(datalength(e1)/4000)+1,
+ select
+  @objectFileName = key1 + '~' + Key2 + '~' + a17 + '.TXT',
   @objectName=Key1,
   @objectType=replace(replace(Key2,'Table',''),'Scalar',''),
   @objectDropType=Key2,
   @sqlMax = e1
  from object where id = @id
 
+ select @sysObjId = id from dbo.sysobjects where Name = @objectName
+ select @sysObjMax = @sysObjMax + c.text from dbo.sysobjects s,dbo.syscomments c where s.id = c.id and s.id = @sysObjId
+
  set @log = '@objectName=' + @objectName + ';'
   + '@objectType=' + @objectType + ';'
   + '@objectDropType=' + @objectDropType + ';'
 
--- exec dbo.logit @@procid, @log
+ if @logDebug = 'TRUE'
+  exec dbo.logit @@procid, @log
 
+ if @dropFlag = 'TRUE'
+ begin
+  set @dropCommand = 'drop '+ @objectType +' [dbo].['+ @objectName +']'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid, 'Dropping Object and removing from Object... @id', @id, @dropCommand
+  if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
+   exec(@dropCommand)
+  update object set typ = typ * -1 where id = @id
+  select @dropCommand = 'del ' + path + '\SQLObjects\' + @objectFileName from paths() where name = 'gitRepo'
+  exec xp_cmdShell @dropCommand
+  return
+ end
+
+if @alter = 'TRUE'
+begin
+
+ -- create if we do not find the object
+ if isnull(@sysObjId,0) = 0
+ begin
+  exec dbo.keySQLObjectDispatcher @id, @alter = 'FALSE', @silentMode = 'TRUE', @log = @legacyLog Output
+  select @log = @legacyLog
+  if @silentMode = 'FALSE'
+   select '@code=1;@message=Ran Legacy Create;'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid, @legacyLog
+ end
+
+ -- bail if we find the object and it does not need to be altered
+ if @sysObjId > 0 and @sysObjMax = @sqlMax
+ begin
+  if @silentMode = 'FALSE'
+   select '@code=1;@message=no changes detected;'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid,'@code=1;@message=no changes detected;'
+  return
+ end
+
+ -- alter if we find the object and it needs to be altered
+ if @sysObjId > 0 and @sysObjMax != @sqlMax
+ begin
+
+  set @sqlMax = stuff(@sqlMax, charindex('create', @sqlMax), len('create'), 'alter')
+
+  begin try
+   exec(@sqlMax)
+  end try
+  begin catch
+   select @log = '@code=1;@message='+ERROR_MESSAGE()+';'
+   if @silentMode = 'FALSE'
+    select @log
+    
+   set @result = 1
+   if @logDebug = 'TRUE'
+    exec dbo.logit @@procid, 'SQL Error Catch', @log
+   return
+  end catch
+  if @silentMode = 'FALSE'
+   select '@code=0;@message=Ran Alter - OK;'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procId, '@code=0;@message=Ran Alter - OK;'
+  return
+ end
+end
+else
+begin
 -- Drop the Object
  if @objectType = 'Trigger'
  begin
   if OBJECT_ID (@objectName, 'TR') IS NOT NULL
   begin
    exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
---   exec dbo.logit @@procid, 'Dropping Trigger', @log
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid, 'Dropping Trigger', @log
   end
  end
  else
@@ -41,7 +119,8 @@ declare
   if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].['+ @objectName +']') and OBJECTPROPERTY(id, N'Is'+ @objectDropType) = 1) 
   begin
    exec(N'drop '+ @objectType +' [dbo].['+ @objectName +']')
---   exec dbo.logit @@procid, 'Dropping object', @log
+   if @logDebug = 'TRUE'
+    exec dbo.logit @@procid, 'Dropping object', @log
   end
  end
 
@@ -55,7 +134,8 @@ declare
    if @silentMode = 'FALSE'
     select '@code=1;@message=Object was removed... Have a nice day.;'
    set @result = 0
---   exec dbo.logit @@procid, '@code=1;@message=Object was removed... Have a nice day.;'
+   if @logDebug = 'TRUE'
+    exec dbo.logit @@procid, '@code=1;@message=Object was removed... Have a nice day.;'
    return 
   end
   else
@@ -63,7 +143,8 @@ declare
    if @silentMode = 'FALSE'
     select '@code=1;@message=object was not deleted. Something went horribly wrong;'
    set @result = 1
---   exec dbo.logit @@procid, '@code=1;@message=object was not deleted. Something went horribly wrong;'
+   if @logDebug = 'TRUE'
+    exec dbo.logit @@procid, '@code=1;@message=object was not deleted. Something went horribly wrong;'
    return
   end
  end
@@ -78,13 +159,16 @@ declare
     select @log
     
    set @result = 1
---   exec dbo.logit @@procid, 'SQL Error Catch', @log
+   if @logDebug = 'TRUE'
+    exec dbo.logit @@procid, 'SQL Error Catch', @log
    return
   end catch
+end
 
   if @silentMode = 'FALSE'
    select '@code=0;@message=OK;'
   set @result = 0
---  exec dbo.logit @@procid, '@code=0;@message=OK;'
+  if @logDebug = 'TRUE'
+   exec dbo.logit @@procid, '@code=0;@message=OK;'
   return
  end

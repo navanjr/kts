@@ -4,9 +4,13 @@ create function dbo.voucherImportBRW( @id int ) returns @rt table(
  voucherDate varchar(50),
  payee varchar(50),
  amount varchar(50),
+ comments varchar(250),
  debitAcct varchar(50),
  creditAcct varchar(50),
- postCheck int
+ postCheck int,
+ registerNumber varchar(50),
+ rowtype int,
+ ord varchar(50)
 )
 begin
 
@@ -16,7 +20,8 @@ begin
   @csv nvarchar(max),
   @debitAcct varchar(50),
   @creditAcct varchar(50),
-  @officalLink int
+  @officalLink int,
+  @lastNumber int
 
  select
   @officalLink = link2,
@@ -51,15 +56,39 @@ begin
     (select dbo.clarionDate(data) from dbo.split(@dataToken,',') where id = 2),
     (select data from dbo.split(@dataToken,',') where id = 3),
     (select data from dbo.split(@dataToken,',') where id = 4),
+    isnull((select data from dbo.split(@dataToken,',') where id = 5),''),
     @debitAcct,
     @creditAcct,
-    0
+    0,
+    '*',
+    0,
+    'b' + (select data from dbo.split(@dataToken,',') where id = 1)
 
   delete @rows where id = @idToken
  end
 
+ update @rt set voucherNumber = dbo.popro6(voucherNumber,6,0) where voucherNumber > ' 0'
+
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
+ update a set postCheck = 2, registerNumber=b.key1 from @rt a, object b where a.voucherNumber = b.key3 and b.typ = 4771 and a18 = 'official Voucher' and a.debitAcct = b.a4
+ update @rt set postCheck = 3 where postCheck = 0 and (voucherNumber < '  0' or isdate(dbo.date1(voucherDate)) != 1 or payee < '  0')
+
+-- set the potential register numbers
+--  declare @newNumber varchar(50), @nextNumber varchar(50)
+
+--  exec dbo.nextObjectAutoNumber @typ=4771, @seriesString = 'Official Voucher', @ignoreDeleted = 'FALSE', @nextNumber=@newNumber output 
+
+--  select @lastNumber = cast(@nextNumber as int)-1
+
+ select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and dbo.nextObjectAutoNumberControl(4771,a18) = dbo.nextObjectAutoNumberControl(4771,'Official Voucher') order by key2 desc, key1 desc
+ declare @reg table(regSeed int identity(1,1), id int)
+ insert @reg select id from @rt where postCheck = 0 order by voucherNumber
+ update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+
+-- lets add a total of amount to the top of the BRW
+ insert @rt (rowType, amount, ord)
+ select -1, sum(cast(amount as money)), 'a' from @rt where postCheck = 0
 
  return 
 end

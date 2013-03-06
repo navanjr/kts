@@ -1,0 +1,171 @@
+create procedure dbo.keyUpdateAll (
+ @mode varchar(50) = 'legacy'
+) 
+as
+begin
+ set nocount on
+
+ if @mode = 'legacy'
+ begin
+  exec dbo.keySQLObjectUpdateFromRepo null
+  exec dbo.keySQLObjectCreateAll
+  exec dbo.keyTemplateUpdateFromRepo null
+  return
+ end
+
+-- otherwise we do it the new way!
+ declare 
+  @path varchar(100),
+  @wtIdToken int,
+  @sqlIdToken int,
+  @idToken int,
+  @fullPath varchar(100),
+  @objectData varchar(max),
+  @repoData varchar(max),
+  @sqlData varchar(max),
+  @newId int,
+  @result int,
+  @dispatcherLog varchar(max)
+
+ declare @wt table(
+  id int identity(1,1),
+  sqlId int,
+  objectId int,
+  objectName varchar(60),
+  objectType varchar(50),
+  objectOrder varchar(50),
+  objectPath varchar(100),
+  data varchar(max),
+  processFlag int,
+  errors varchar(50)
+ )
+ 
+ select @path = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
+ 
+ insert @wt
+ select
+  0,
+  0,
+  objectName,
+  objectType,
+  objectOrder,
+  objectPath,
+  '',0,''
+ from dbo.dir(@path + '\SqlObjects')
+
+-- gather data from object
+ update a set a.objectId = b.id from @wt a, object b where a.objectName = b.key1 and b.typ = 451
+-- gather data from sysobject
+ update a set a.sqlId = b.id from @wt a, dbo.sysobjects b where a.objectName = b.name
+
+-- turn off the trigger on object
+ alter table object disable trigger keySqlObjectWriteToRepoTR
+
+ while exists(select * from @wt where processFlag = 0)
+ begin
+
+  set @newId = null
+
+  select top 1
+   @wtIdToken = id,
+   @sqlIdToken = sqlId,
+   @idToken = objectId,
+   @fullPath = objectPath
+  from @wt where processFlag = 0
+  order by cast(objectOrder as int), objectName
+
+  exec dbo.spReadTextFile @fullPath, @fileContents = @repoData out
+
+-- add or update objects
+  if isnull(@idToken,0) = 0
+  begin
+   insert object (typ, key1, key2, a17, e1)
+   select 451, objectName, objectType, objectOrder, @repoData from @wt where isnull(objectId,0) = 0 and objectType is not null and id = @wtIdToken
+   set @newId = @@identity
+  end
+  else
+  begin
+   update a set
+    a.key2 = b.objectType,
+    a.A17 = b.objectOrder,
+    a.A19 = '',
+    a.E1 = @repoData
+   from object a, @wt b
+   where a.typ = 451 and a.id = b.objectId and a.id = @idToken
+  end
+
+-- verify everything
+  set @sqlData = ''
+  select @sqlData = @sqlData + c.text from dbo.sysobjects s,dbo.syscomments c where s.id = c.id and s.id = @sqlIdToken
+  select @objectData = e1 from object where typ = 451 and id = coalesce(@newId, @idToken)
+
+  if @objectData != @repoData
+   update @wt set processflag = -1, errors = 'failed import from repo' where id = @wtIdToken 
+
+  if @objectData = @repoData and @sqlData != @objectData
+   update @wt set processFlag = -2, errors = 'object out of sync' where id = @wtIdToken
+
+  if @objectData = @repoData and @objectData = @sqlData
+   update @wt set processflag = 1 where id = @wtIdToken 
+
+ end
+
+-- turn the trigger back on
+ alter table object enable trigger keySqlObjectWriteToRepoTR
+
+
+-- if we need to alter glCreateTables...
+ if exists(select * from @wt where objectName = 'glCreateTables' and processFlag = -2)
+ begin
+  set @result = null
+  select @wtIdToken = id, @idToken = objectId from @wt where objectName = 'glCreateTables' and processFlag = -2
+  exec dbo.keySQLObjectDispatcher
+   @id = @idToken,
+   @silentMode = 'TRUE',
+   @result = @result output,
+   @log = @dispatcherLog output
+
+  if @result = 0
+   update @wt set processflag = 2, data = @dispatcherLog where id = @wtIdToken 
+  else
+   update @wt set processflag = -3, data = @dispatcherLog where id = @wtIdToken 
+ end
+
+-- now we run glCreateTables
+ exec dbo.glCreateTables
+
+-- ok so now lets create or alter the bad items
+ update @wt set processflag = 2 where objectName in ('keyUpdateAll','keySQLObjectDispatcher') -- we want to skip the dispatcher for ourselves
+ alter table object disable trigger keySqlObjectWriteToRepoTR
+ while exists(select * from @wt where processFlag = -2)
+ begin
+
+  set @result = null
+  select top 1 @wtIdToken = id, @idToken = objectId from @wt where processFlag = -2 order by cast(objectOrder as int), objectName
+  exec dbo.keySQLObjectDispatcher
+   @id = @idToken,
+   @silentMode = 'TRUE',
+   @logDebug = 'FALSE',
+   @result = @result output,
+   @log = @dispatcherLog output
+
+  if @result = 0
+   update @wt set processflag = 2, data = @dispatcherLog where id = @wtIdToken 
+  else
+   update @wt set processflag = -3, data = @dispatcherLog where id = @wtIdToken 
+  
+ end
+ alter table object enable trigger keySqlObjectWriteToRepoTR
+
+-- update the status of the sql objects
+  update object set a18 = 'OK' where typ = 451 and id in (select objectId from @wt where processFlag > 0)
+
+-- TODO: delete the object records that are not needed any longer
+
+ select cast(processFlag as varchar) + ' - ' + objectType +' '+ objectName + ' - ' + left(ltrim(rtrim(dbo.readstring('@message=',data))),30) from @wt where processFlag != 1 order by cast(objectOrder as int), objectName
+
+-- upate templates
+ exec dbo.keyTemplateUpdateFromRepo null
+ 
+
+end

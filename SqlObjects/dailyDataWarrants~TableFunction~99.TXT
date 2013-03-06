@@ -29,31 +29,44 @@ begin
   fundCode varchar(50),
   dailyDataAccountLinkCode varchar(50),
   paymentType varchar(50),
-  number varchar(50),
+  treasurersNumber varchar(50),
+  clerksNumber varchar(50),
   amount money
  )
 
--- insert all raw warrant data
+-- insert all raw payment data
  insert @wtRaw
  select
   b.targetAccountCode,
   a.debitAccountCode,
   a.paymentType,
   a.treasurersNumber,
+  a.clerksNumber,
   a.amount
  from payments a, glAccounts b
- where a.debitAccountCode = b.accountCode and a.dateRegistered between @theDate and @theDate + @days
---TODO i had to stop here to go work on the grady conversion... nate
+ where a.debitAccountCode = b.accountCode and case when isnumeric(a.dateRegistered)=1 then cast(a.dateRegistered as int) else 0 end between @theDate and @theDate + @days
+
+
+/*
+-- 
  insert @wt 
- select 0,'',fundCode,'','','',0,count(*)
+ select 
+  0,
+  '',
+  fundCode,
+  '',
+  '', --paymentType
+  '',
+  sum(amount),
+  count(*)
  from @wtRaw
  group by fundCode
 
  update a set fundId = b.accountId, fundDesc = b.accountDesc
  from @wt a, glAccounts b 
  where a.fundCode = b.accountCode
+
   
-/*
 -- this will get just the fund
  insert @wt
  select
@@ -75,6 +88,15 @@ begin
  order by ord
 */
 
+
+
+
+
+
+
+
+
+
 --insert main data
  insert @rt
  select
@@ -92,6 +114,19 @@ begin
 '',
   'detail',0
  from @wt
+pay
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- headers
  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
@@ -156,13 +191,13 @@ begin
  begin
   -- just lines :)
   insert @rt 
-  select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),
+  select 0,@ordSeed+'ZZZZZ'+'da',dbo.padLeft(replicate('=',20),' ',80),
    replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
 
   insert @rt
   select
    0,
-   @ordSeed + 'db',
+   @ordSeed + 'ZZZZZ' + 'db',
    dbo.padLeft('Total ' + @sectionTitle, ' ', 60)
    + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
    + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),

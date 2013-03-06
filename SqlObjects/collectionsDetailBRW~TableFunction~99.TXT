@@ -1,0 +1,113 @@
+create function dbo.collectionsDetailBRW(
+ @taxrollDetailId int
+) returns @rt table(
+ id int,
+ display varchar(max),
+ date int,
+ dtype varchar(50),
+ keyCode varchar(50),
+ documentName varchar(50),
+ color int,
+ ord int
+) as
+begin
+
+ declare
+  @dtype varchar(50),
+  @parcel varchar(50),
+  @item numeric(7,1),
+  @keyCode varchar(50),
+  @invoiceId int,
+  @interestTo varchar(50) = convert(char,GETDATE(),101)
+
+ select
+  @dtype = dtype,
+  @parcel = parcel,
+  @item = item,
+  @keyCode = keyCode
+ from dbo.collectionsItem(@taxrollDetailId)
+ 
+ if @dtype = 'TAXWARRANT'
+ begin
+  insert @rt
+  select
+   '7'+cast(id as varchar),
+   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
+   dbo.clarionDate(documentDateTime),
+   @dtype,
+   @keyCode,
+   documentName,
+   0,
+   999999 - dbo.clarionDate(documentDateTime)
+  from taxrollDetail where itemNumber = @item
+   and dtype in ('print','resale','taxwarrant','AddFee')
+
+-- manually entered comments
+  insert @rt (id,display, date, ord)
+  select --id,a2,a3,
+   '8'+cast(id as varchar),
+   dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
+   a2,
+   999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
+  from dbo.object
+  where typ=4002 
+  and key1 = @item
+
+-- Unpaid
+  select top 1 @invoiceId = ID from invoices where item = @item order by taxYear desc
+
+  insert @rt (id,display,ord, color)
+   select 
+    case when dbo.readstring('@invoiceId=',data) > 0 then '9' else '' end+dbo.readstring('@invoiceId=',data),
+    case when len(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';',''))<28 then '        '+replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','') else dbo.padleft(rtrim(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','')),' ',66) end,
+    99999,
+    1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10))
+
+   update r set r.display = r.display+'*' from @rt r, dbo.collectionsBRW(@dtype,null,null,null,@taxrollDetailId) c where '9'+cast(addFeeToInvoiceId as varchar) = r.id
+
+ end
+
+ if @dtype = 'RESALE'
+ begin
+  insert @rt
+  select
+   '7'+cast(id as varchar),
+   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
+   dbo.clarionDate(documentDateTime),
+   @dtype,
+   @keyCode,
+   documentName,
+   0,
+   999999 - dbo.clarionDate(documentDateTime)
+  from taxrollDetail where parcelNumber = @parcel
+   and dtype in ('print','resale','taxwarrant','Abstract','AddFee')
+
+-- manually entered comments
+  insert @rt (id,display, date, ord)
+  select --id,a2,a3,
+   '8'+cast(id as varchar),
+   dbo.padright(dbo.date1(a2),' ',10)+': '+cast(e1 as varchar(250)),
+   a2,
+   999999 - cast(case when isnumeric(a2) = 1 then a2 else '' end as int)
+  from dbo.object
+  where typ=4002 
+  and key2 = @parcel
+
+-- Unpaid
+  select top 1 @invoiceId = ID from invoices where PARCEL = @parcel order by taxYear desc
+
+  insert @rt (id,display,ord, color)
+   select 
+    case when dbo.readstring('@invoiceId=',data) > 0 then '9' else '' end+dbo.readstring('@invoiceId=',data),
+    case when len(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';',''))<28 then '        '+replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','') else dbo.padleft(rtrim(replace(data,'@invoiceId='+dbo.readstring('@invoiceId=',data)+';','')),' ',66) end,
+    99999,
+    1
+    from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10)) where len(data)>0
+  
+   update r set r.display = r.display+'*' from @rt r, dbo.collectionsBRW(@dtype,null,null,null,@taxrollDetailId) c where '9'+cast(addFeeToInvoiceId as varchar) = r.id
+
+ end
+
+ return
+end

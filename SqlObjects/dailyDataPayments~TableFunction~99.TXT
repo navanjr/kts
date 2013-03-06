@@ -1,0 +1,179 @@
+CREATE function dbo.dailyDataPayments(
+ @paymentTypePassed varchar(50),
+ @accountType varchar(50),
+ @theDate int,
+ @days int,
+ @ordSeed varchar(50),
+ @filterFlag varchar(10)
+) returns 
+@rt table (
+ id int,
+ ord varchar(250),
+ rowstring varchar(250),
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50),
+ rowType char(10),
+ brwBGColor int
+)
+begin
+
+ declare
+  @paymentType varchar(50),
+  @sectionTitle varchar(50)
+
+ select
+  @paymentType = dbo.splitF(@paymentTypePassed,'|',1),
+  @sectionTitle = dbo.proper(case when charindex('|',@paymentTypePassed) > 0 then dbo.splitF(@paymentTypePassed,'|',2) else @paymentTypePassed end) + 's'
+
+ declare @wt table(
+  accountId int,
+  accountDesc varchar(50),
+  paymentType varchar(50),
+  minNumber varchar(50),
+  maxNumber varchar(50),
+  amount money,
+  rowCnt int,
+  glBalance money
+ )
+
+ declare @wtRaw table(
+  accountId int,
+  accountDesc varchar(50),
+  paymentType varchar(50),
+  number varchar(50),
+  amount money
+ )
+
+-- insert all raw payment data
+ insert @wtRaw
+ select
+  a.accountId,
+  left(rtrim(a.accountDesc) + case when @paymentType='Miscellaneous' then ' '+a.bsSummary else '' end,50),
+  dbo.nextObjectAutoNumberControl(4771,p.paymentType),
+  case when @accountType <> 'Official' then p.treasurersNumber else p.clerksNumber end,
+  g.amount
+ from dbo.glDetail g
+ join payments p on g.slink = p.slink 
+ join dbo.glaccounts a on g.accountId = a.accountId 
+ where case when isnumeric(p.dateRegistered)=1 then cast(p.dateRegistered as int) else 0 end between @theDate and @theDate + @days
+  and dbo.nextObjectAutoNumberControl(4771,p.paymentType) = @paymentType
+  and accountType  in  (select accountType from dbo.glBankFundTypes(@accountType) union select @accountType)
+
+-- summarize the detail 
+ insert @wt 
+ select 
+  accountId,
+  accountDesc,
+  paymentType,
+  min(number),
+  max(number),
+  sum(amount),
+  count(*),
+  0
+ from @wtRaw
+ group by
+  accountId,
+  accountDesc,
+  paymentType
+
+ update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.accountId) from @wt a
+
+--insert main data
+ insert @rt
+ select
+  cast('9' + cast(accountId as varchar) as int),
+  @ordSeed + cast(accountId as varchar) + '',
+  dbo.dailyDataFormatCollections(accountDesc,minNumber,maxNumber,rowCnt,amount),
+  dbo.padLeft(convert(varchar,glBalance,1),' ',16),
+  '   ' + dbo.padRight(accountDesc,' ',61),  
+  case when minNumber is null then '' else dbo.padLeft(minNumber, 0, 5) + ' - ' + dbo.padLeft(maxNumber, 0, 5) end,
+  dbo.padLeft(cast(rowCnt as varchar), ' ', 4),
+  dbo.padLeft(convert(varchar,amount,1),' ',16),
+  'detail',0
+ from @wt
+
+-- headers
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0
+ insert @rt
+ select 0,@ordSeed+'00aa','  '
+  + dbo.padRight(@sectionTitle,' ',20)
+  + dbo.padLeft('',' ',20)
+  + dbo.padLeft('',' ',20),
+  '','  ' + @sectionTitle,'','','','sHeader',1
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),
+  replicate(' ',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+/*
+-- insert subtotals
+ insert @rt
+ select
+  0,
+  @ordSeed + reportOrder + 'c',
+  ' ' + replicate('-',79),
+  replicate('-',16),
+  ' ' + replicate('-',79),
+  replicate('-',22),
+  replicate('-',10),
+  replicate('-',16),
+  'line',0
+ from @wt 
+ group by reportOrder,description
+
+ insert @rt
+ select
+  0,
+  @ordSeed + reportOrder + 'd',
+  dbo.padRight('      Total ' + description, ' ', 60)
+  + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  '',
+  dbo.padRight('      Total ' + description, ' ', 60),
+  '',
+  dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
+  dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  'gFooter',0
+ from @wt 
+ group by reportOrder,description
+*/
+
+ insert @rt
+ select
+  0,
+  @ordSeed + 'YYYYY' + 'e',
+  replicate(' ',80),
+  '',
+  '',
+  '',
+  '',
+  '',
+  'lineFeed',0
+
+-- insert grand total
+-- if exists(select * from @wt)
+-- begin
+  -- just lines :)
+  insert @rt 
+  select 0,@ordSeed+'ZZZZZ'+'da',dbo.padLeft(replicate('=',20),' ',80),
+   replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0
+
+  insert @rt
+  select
+   0,
+   @ordSeed + 'ZZZZZ' + 'db',
+   dbo.padLeft('Total ' + @sectionTitle, ' ', 60)
+   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
+   + dbo.padLeft(convert(varchar,isnull(sum(amount),0),1), ' ', 16),
+   dbo.padLeft(convert(varchar,isnull(sum(glBalance),0),1), ' ', 16),
+   dbo.padLeft('Total ' + @sectionTitle + '  ', ' ', 50),
+   '',
+   dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4),
+   dbo.padLeft(convert(varchar,isnull(sum(amount),0),1), ' ', 16),
+   'grandTotal',0
+  from @wt 
+-- end
+
+ return
+end

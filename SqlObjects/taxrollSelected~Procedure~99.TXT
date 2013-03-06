@@ -5,10 +5,16 @@ create procedure dbo.taxrollSelected(
  @method varchar(10)
 ) as 
 begin
+
+set nocount on
  
  declare @unPaidSelected varchar(50),
          @parcel varchar(60),
-         @item varchar(60)
+         @item varchar(60),
+         @name varchar(60),
+         @taxYear varchar(60),
+         @unPaidCnt int = 0
+
        select top 1 @unPaidSelected = a15 from object where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
@@ -40,10 +46,18 @@ begin
   if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
    delete receiptlink where receiptId = @receiptId and invoiceId = @invoiceId
   else
+  begin
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
- end
+   select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
+   select @unPaidCnt = count(id) from invoices where 
+          (@parcel > '  0' and parcel = @parcel and taxyear < @taxYear or name = @name and taxyear < @taxYear)
+          and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+   if @unPaidCnt>0
+     select '@code=3;@message=There are unpaid paid back taxes!;'
+  end   
+ end 
 
---UnPaidSelect by Parcel and Item
+--UnPaidSelect by Parcel and Item and name
 if @unPaidSelected = 1 and lower(@method) = 'tax'
  begin
   if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
@@ -52,7 +66,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
      end
      else
      begin
-       select @parcel=parcel,@item=item from dbo.invoices where id = @invoiceId
+       select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
      end
 
   exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
@@ -61,7 +75,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
    select @receiptId, id, @methodRate from invoices 
-   where item = @Item
+   where item = @Item and name = @name
     and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
 
@@ -72,8 +86,17 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
    where parcel = @parcel
     and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
- end
 
+  if @name > '  0'
+   begin
+    insert @rd (receiptId, invoiceId, methodRate) 
+   select @receiptId, id, @methodRate from invoices 
+    where name = @name and taxyear < @taxYear
+    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+   end
+
+ end
+ 
  if lower(@method) = 'name'
  begin
   insert @rd (receiptId, invoiceId, methodRate) 
@@ -121,7 +144,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
 
  if lower(@method) = 'mtgcodeall'
  begin
-  declare @mtgcodeAll varchar(60),@taxYear varchar(60)
+  declare @mtgcodeAll varchar(60)
   select @mtgcodeAll = key1,@taxYear = a10 from object where id = @receiptId and typ = 4030
   exec dbo.logit @@procid, '@mtgcodeAll = ', @mtgcodeAll,'@taxYear = ',@taxYear, @level = 2 
  
@@ -147,14 +170,16 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
  end
 
  update r set methodRate = 1 from @rd r, invoices i where r.invoiceId=i.id and i.invoiceAmount < 25.01 and i.typ<>'O' and i.typ <>'S'
- 
- insert receiptLink (receiptId, invoiceId, methodRate) 
-   select * from @rd
+ update r set methodRate = 1 from @rd r, invoices i where r.invoiceId=i.id and i.invoiceDue < i.invoiceAmount 
 
- delete from receiptLink where receiptId = @receiptId 
+ 
+ delete from @rd where receiptId = @receiptId 
    and invoiceId in (select invoiceId from receiptLink where receiptId in (select id from object where typ=4502 and a17<>'Posted' and a17<>'VOID'))
  
- delete from receiptLink where receiptId = @receiptId 
+ delete from @rd where receiptId = @receiptId 
    and dbo.invoiceTotalAR(invoiceId)=0
+
+ insert receiptLink (receiptId, invoiceId, methodRate) 
+   select * from @rd
 
 end

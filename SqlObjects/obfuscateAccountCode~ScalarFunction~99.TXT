@@ -1,0 +1,31 @@
+create function dbo.obfuscateAccountCode(
+ @input varchar(max)
+) returns varchar(max) as
+begin
+
+ declare @retVar varchar(max)
+
+ declare @wt table(
+  keyword varchar(50),
+  output varchar(50)
+ )
+
+ insert @wt select '4 MILL','4 MILL'
+ insert @wt select '4-MILL','4 MILL'
+ insert @wt select 'BLDG SCHL','BLDG SCHL'
+ insert @wt select 'CO GEN','CO GEN'
+ insert @wt select 'CO HLTH','CO HLTH'
+ insert @wt select 'GEN SCHL','GEN SCHL'
+ insert @wt select 'SKG SCHL','SKG SCHL'
+ insert @wt select 'VOTEC BLD','VOTEC BLD'
+ insert @wt select 'VOTEC GEN','VOTEC GEN'
+ insert @wt select 'EMS','EMS'
+
+ select top 1
+  @retVar = output 
+ from @wt 
+ where charindex(keyword, @input) > 0
+ 
+ return isnull(@retVar,'unknown')
+
+end

@@ -1,0 +1,67 @@
+create function dbo.rpWarrantRegister(@begindate varchar(20),@enddate varchar(20)) returns @rt table(
+RegNo varchar(60),
+RegDateNo varchar(60),
+RegDate varchar(60),
+WarNo varchar(60),
+WarDateNo varchar(60),
+WarDate varchar(60),
+Payee varchar(60),
+amount money,
+FundCode varchar(60),
+FundDesc varchar(60),
+PayNo varchar(60),
+PayDateNo varchar(60),
+PayDate varchar(60),
+PayAmount money,
+fiscalYear varchar(60),
+debitCode varchar(60),
+reportOrder varchar(60)
+)
+as begin
+insert @rt 
+select [RegNo]
+      ,[RegDateNo]
+      ,[RegDate]
+      ,[WarNo]
+      ,[WarDateNo]
+      ,[WarDate]
+      ,[Payee]
+      ,[amount]
+      ,[FundCode]
+      ,[FundDesc]
+      ,[PayNo]
+      ,[PayDateNo]
+      ,[PayDate]
+      ,[PayAmount]
+      ,right([fiscalYear],2)
+      ,[debitCode]
+      ,[reportOrder] 
+ from warrants 
+ where RegDateNo >= @beginDate and RegDateNo <= @endDate
+ 
+ insert @rt 
+ select ''
+      ,''
+      ,''
+      ,''
+      ,''
+      ,''
+      ,'Total Carried Forward'
+      ,sum(isnull(amount,0))
+      ,FundCode
+      ,FundDesc
+      ,''
+      ,''
+      ,''
+      ,0.00
+      ,right(fiscalYear,2)
+      ,''
+      ,reportOrder
+ from warrants 
+ where RegDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
+ group by right(fiscalYear,2),fundCode,FundDesc,reportOrder
+ 
+ update @rt set fiscalyear = cast(cast('20'+fiscalyear as int)-1 as varchar(4))+'-'+'20'+fiscalyear where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
+
+return
+end

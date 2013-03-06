@@ -2,29 +2,40 @@ create function dbo.depositBalanceTF(@d1 int,@d2 int,@deputy varchar(50),@deposi
 		table (	receivedOf varchar(60),
 			Amount varchar(50),
 			ref varchar(50),
-			bankRef varchar(50),
+			bankRef varchar(100),
 			paycode varchar(50),
 			recTyp varchar(50),
 			recNo varchar(50),
 			Deputy varchar(50),
-			ord varchar(50))
+			ord varchar(50),
+                        recId int,
+                        checkNo varchar(50),
+                        bankName varchar(100),
+                        payor varchar(50))
 as
 begin
 
+if @depositId = 0
+ begin
 
-insert @rt
-select   
+  insert @rt
+   select   
      receiptType+': '+receiptNo,
      amount,
      paycode+' '+checkno,
      rtrim(drawnon)+case when drawnon>'  0' then ' / ' else '' end+location,    
-     case when paycodeDepositType>'  0' then case when paycodeDepositType='E' then 'ETR' else 'CCard' end else paycode end ,
+     case when paycodeDepositType>'  0' then case when paycodeDepositType='E' then 'ETR' else 'CCard' end else paycode end,
      receiptType,
      receiptNo,
      case when @station!='0' then station else deputy end,
-     deputy+receiptType+'bbb'
+     case when @station!='0' then station else deputy end+paycode+receiptType+': '+receiptNo+'bbb',
+     receiptId,
+     checkno,
+     drawnon,
+     receivedOf
+     
      from dbo.depositAvailablePayments where 
-     isnull(depositId,0) = case when @depositId!=0 then @depositId else depositId end 
+     isnull(depositId,0) = case when @depositId!=0 then @depositId else isnull(depositId,0) end 
      and deputy like case when @deputy!='0' then '%'+@deputy+'%' else deputy end 
      and station like case when @station!='0' then @station else station end
      and receiptType = case when @recTyp!='0' then @recTyp else receiptType end
@@ -32,27 +43,125 @@ select
      order by receiptType, deputy, paycode, receiptNo
 
 
-insert @rt (receivedOf,ord)
+
+  insert @rt (receivedOf,ord)
 	select  '',Deputy+recTyp+'bbbccc'
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp
          
-insert @rt (receivedOf,ref,Amount,ord)
-	select Deputy+' '+paycode,'',SUM(cast(amount as money)),Deputy+recTyp+paycode+'ccc1'
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select Deputy+' '+paycode,'',SUM(cast(amount as money)),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,paycode,recTyp
 
-insert @rt (receivedOf,ref,Amount,ord)
-	select Deputy+' Total','',SUM(cast(amount as money)),Deputy+recTyp+'zzzzccc3'
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select Deputy+' Total','',SUM(cast(amount as money)),Deputy+recTyp+'zzzzccc3',Deputy+' Total'
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp		
-		
 
-insert @rt (receivedOf,ref,Amount,ord)
-	select paycode,'',SUM(cast(amount as money)),'zzz'+paycode+'ddd1'
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select paycode,'',SUM(cast(amount as money)),'zzz'+paycode+'ddd1',paycode
 	from @rt  where RIGHT(ord,3)='bbb' group by paycode	
 	
-insert @rt (receivedOf,ref,Amount,ord)
+  insert @rt (receivedOf,ref,Amount,ord)
 	select 'Report Total','',SUM(cast(amount as money)),'zzzzeee'
 	from @rt  where RIGHT(ord,3)='bbb' 	
+
+ end
+ else
+ begin
+ 
+/*
+  insert @rt (paycode,ord)
+   select 'List Of Payments','aaa'
+
+  insert @rt (paycode,Amount,checkno,payor,receivedOf,bankName,ord)
+   select 'Paycode','Amount','Check No.','Payor','Receipt','Bank Name','aaa1'
+*/
+  insert @rt
+   select   
+     receiptType+': '+receiptNo,
+     dbo.formatCurr(amount),
+     paycode+' '+checkno,
+     rtrim(drawnon)+case when drawnon>'  0' then ' / ' else '' end+location,    
+          case when paycodeDepositType>'  0' then case when paycodeDepositType='E' then 'ETR' else 'CCard' end else paycode end,
+     receiptType,
+     receiptNo,
+     case when @station!='0' then station else deputy end,
+     receiptType+': '+receiptNo+'bbb',
+     receiptId,
+     checkno,
+     drawnon,
+     receivedOf
+     from dbo.depositAvailablePayments where 
+     isnull(depositId,0) = @depositId
+     and paycodeDepositType != 'E'
+     order by receiptType, deputy, paycode, receiptNo		
+
+
+  insert @rt (receivedOf,ord)
+	select  '','zzCheckbbbccc'
+	
+
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ccc1',paycode
+	from @rt  where RIGHT(ord,3)='bbb' group by paycode
+
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select 'To Bank Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzCheckccc3','To Bank Total'
+	from @rt  where RIGHT(ord,3)='bbb' 
+
+  insert @rt (receivedOf,ord)
+	select top 2 '','zzzzz    ccc'
+
+  insert @rt (paycode,ord)
+   select 'List Of Payments:','zzzzz   aaa'
+
+
+  insert @rt (paycode,Amount,checkno,payor,receivedOf,bankName,ord)
+   select 'Paycode','Amount','Check No.','Payor','Receipt','Bank Name','zzzzz  Checkaaa1'
+
+  insert @rt
+   select   
+     receiptType+': '+receiptNo,
+     dbo.formatCurr(amount),
+     paycode+' '+checkno,
+     rtrim(drawnon)+case when drawnon>'  0' then ' / ' else '' end+location,    
+     paycode,
+     receiptType,
+     receiptNo,
+     case when @station!='0' then station else deputy end,
+     'zzzzz'+receiptType+': '+receiptNo+'bbb',
+     receiptId,
+     checkno,
+     drawnon,
+     receivedOf
+     from dbo.depositAvailablePayments where 
+     isnull(depositId,0) = @depositId
+     and paycodeDepositType = 'E'
+     order by receiptType, deputy, paycode, receiptNo		
+
+  insert @rt (receivedOf,ord)
+	select  '','zzzzzz+paycode+bbbccc'
+         from @rt where left(ord,6)='zzzzzz' group by paycode
+
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzz'+paycode+'ccc3',paycode+' Total'
+	from @rt  where RIGHT(ord,3)='bbb' and left(ord,5)='zzzzz' group by paycode	
+	
+  insert @rt (receivedOf,ord)
+	select top 2 '','zzzzzzzzz+paycode+bbbccc'
+         from @rt group by paycode
+
+  insert @rt (receivedOf,ref,Amount,ord,paycode)
+	select 'Grand Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzzzzeee','Grand Total'
+	from @rt  where RIGHT(ord,3)='bbb' 
+
+ delete from @rt where paycode in ('cash','coin') and RIGHT(ord,3)='bbb'
+
+
+ end
+
          
+
+
 
   return 
  end   

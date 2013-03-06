@@ -1,14 +1,13 @@
 create view dbo.glCollectionAccount as
 select 
- a.id as accountId,
- a.key1 as accountCode,
- a.key2 as accountDesc,
- a.a1 as accountType,
- a.a4 as collectionDescription,
- b.key2 as reportOrder
-from object a, object b
-where
- a.typ = 4701
- and a.a4 > '  0'
- and a.a4 = b.key1
+ a.accountId,
+ a.accountCode,
+ a.accountDesc,
+ a.accountType,
+ a.bsSummary as collectionDescription,
+ b.key2 as reportOrder,
+ case when a.bsSummary='Depository' then isnull((select a1 from object where typ=4601 and a3=a.accountCode),'000') else '' end as dptno
+from glaccounts a, object b
+where a.bsSummary > '  0'
+ and a.bsSummary = b.key1
  and b.typ = 4703

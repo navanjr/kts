@@ -1,0 +1,82 @@
+create procedure dbo.applyRefundStageGL(@mode int, @invoiceId int, @JEId int, @refundAmount money) as
+begin
+  set nocount on
+  declare @arAccountId int,
+          @arAccountCode varchar(60),
+          @arAccountDesc varchar(60),
+          @contraAccountId int,
+          @contraAccountCode varchar(60),
+          @contraAccountDesc varchar(60),
+          @fundAccountId int,
+          @fundAccountCode varchar(60),
+          @fundAccountDesc varchar(60),
+          @sourceCode varchar(60),
+          @log varchar(max)
+          
+   select @arAccountId = a.accountId,
+          @arAccountCode = a.accountCode,
+          @arAccountDesc = a.accountDesc,
+          @contraAccountId = c.accountId,
+          @contraAccountCode = c.accountCode,
+          @contraAccountDesc = c.accountDesc,
+          @fundAccountId = f.accountId,
+          @fundAccountCode = f.accountCode,
+          @fundAccountDesc = f.accountDesc,
+          @sourceCode = arc.sourceCode
+          from (select * from dbo.applyRefundCheck(@invoiceId)) arc, glaccounts a, glaccounts c, glaccounts f
+          where
+           arc.arAccountId = a.accountId
+           and arc.contraAccountId = c.accountId
+           and arc.fundCode = f.accountCode
+
+   if isnull(@arAccountId,0) <= 0 or isnull(@arAccountCode,'') <= ' 0' or isnull(@arAccountDesc,'') <= ' 0'
+    begin
+     select @log='@code=1;@message=Missing AR Account Information;'
+     select @log
+     exec dbo.logit @@procId, @log
+     return
+    end
+
+   if isnull(@contraAccountId,0) <= 0 or isnull(@contraAccountCode,'') <= ' 0' or isnull(@contraAccountDesc,'') <= ' 0'
+    begin
+     select @log='@code=1;@message=Missing CONTRA Account Information;'
+     select @log
+     exec dbo.logit @@procId, @log
+     return
+    end
+
+   if isnull(@fundAccountId,0) <= 0 or isnull(@fundAccountCode,'') <= ' 0' or isnull(@fundAccountDesc,'') <= ' 0'
+    begin
+     select @log='@code=1;@message=Missing Fund Account Information;'
+     select @log
+     exec dbo.logit @@procId, @log
+     return
+    end
+
+          
+         -- create journalLinks
+           if not exists(select * from journallink where jeId = @JEId and invoiceId = @invoiceId)
+                insert into journalLink
+                  select @JEId,@invoiceId,1,0 
+
+         -- create gldetailstage for Contra Account
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select @contraAccountId,@contraAccountCode,@contraAccountDesc,@refundAmount*-1,'o'+cast(@JEId as varchar) 
+
+         -- create gldetailstage for Receivable Account
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select @arAccountId,@arAccountCode,@arAccountDesc,@refundAmount*-1,'j'+cast(j.id as varchar) 
+                    from journalLink j
+                         where jeId = @JEId and invoiceId = @invoiceId
+
+         -- create gldetailstage for Accrued Receivable Account
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode)
+                  select @fundAccountId,@fundAccountCode,@fundAccountDesc,@refundAmount,'j'+cast(j.id as varchar),@contraAccountId,'' 
+                    from journalLink j
+                         where jeId = @JEId and invoiceId = @invoiceId
+
+     select @log='@code=0;@message=JE Staged;'
+     select @log
+     exec dbo.logit @@procId, @log
+  
+end

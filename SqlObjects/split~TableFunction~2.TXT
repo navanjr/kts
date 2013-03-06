@@ -1,14 +1,33 @@
-create function dbo.split ( @RowData nvarchar(max), @delimeter nvarchar(max) ) returns @rt table(
+create function dbo.split (
+ @RowData nvarchar(max),
+ @delimeter nvarchar(max) 
+) returns @rt table(
  id int identity(1,1),
  data nvarchar(max)
 ) 
 as
 begin 
-    DECLARE @Iterator INT
-    SET @Iterator = 1
 
-    DECLARE @FoundIndex INT
-    SET @FoundIndex = CHARINDEX(@Delimeter,@RowData)
+ declare
+  @Iterator int = 1,
+  @FoundIndex int
+
+ if @delimeter is null
+ begin
+
+  while len(@rowData) > 0
+  begin
+   insert @rt (data) select left(@rowData,1)
+   if len(@rowData) = 1
+    break
+   set @rowData = substring(@rowData,2,len(@rowdata))
+  end
+
+ end
+ else
+ begin
+
+  set @FoundIndex = CHARINDEX(@Delimeter,@RowData)
 
     WHILE (@FoundIndex>0)
     BEGIN
@@ -27,5 +46,7 @@ begin
     INSERT INTO @rt (Data)
     SELECT Data = LTRIM(RTRIM(@RowData))
 
-    RETURN
+ end
+
+ return
 end

@@ -9,7 +9,8 @@ create function dbo.receiptCheck(@sourceId int, @paycode varchar(50) = null) ret
  fpid int,
  status varchar(50),
  objectTyp int,
- balanceDue money
+ balanceDue money,
+ exempt varchar(10)
 )
 begin
  
@@ -24,14 +25,16 @@ begin
   @status varchar(50),
   @objectTyp int,
   @officialfund varchar(50),
-  @balanceDue money
+  @balanceDue money,
+  @exempt varchar(10)
 
  select
   @cdate = dbo.depositDate(key3),
   @receiptType = key3,
   @status = a17,
   @objectTyp = typ,
-  @officialfund = a5
+  @officialfund = a5,
+  @exempt = case when olink3 = '1' then 'TRUE' else 'FALSE' end  
  from object where id = @sourceId
 
  select @balanceDue = dbo.receiptBalanceDue(@sourceId)
@@ -40,7 +43,7 @@ begin
  if @status = 'Posted'
  begin
   insert @rettable 
-   select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue
+   select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt
   return
  end
 
@@ -49,7 +52,7 @@ begin
  if @fpid = 0
  begin
   insert @rettable 
-   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue
+   select 1,'Fiscal Period is locked or does not exist.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt
   return
  end
 
@@ -69,7 +72,7 @@ begin
   if isnull(@contraId,0) = 0
   begin
    insert @rettable
-    select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp,@balanceDue
+    select 1,'Missing ' + @receiptType + ' Account Information. Contact Support.', @receiptType, @suspenseAccountId, @contraId, @arAccountId, @fpid, @status,@objectTyp,@balanceDue,@exempt
    return
   end
 
@@ -78,7 +81,7 @@ begin
   if isnull(@arAccountId,0) = 0
   begin
    insert @rettable
-    select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue
+    select 1,'Missing AR Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt
    return
   end
  end
@@ -91,13 +94,13 @@ begin
   if not isnull((select id from object where typ=4701 and id=@suspenseAccountId),0)>0  /*isnull(@suspenseAccountId,0) > 0*/
   begin
    insert @rettable 
-    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue
+    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt
    return 
   end
  end
  
  insert @rettable
-  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue
+  select 0,'OK',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt
  return
 
 end

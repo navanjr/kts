@@ -1,0 +1,136 @@
+@nosave;
+@noupdate;
+@nolock;
+@loadbrowse=menuprocess=;
+@menuprocess=new(50);
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+@loadwindow=
+ brwstuff=;
+
+
+@afterloadwindow=
+ d1select('select count(distinct accountCode) from dbo.posAccounts() where accountId = 0'),
+ lcGenerate=obj7:d1,
+ if(lcGenerate+0>0,generate=),
+ lcName=readstring(kp('select dbo.whoAmI()'),'@posName='),
+ prop(0,'Text','Dashboard, '&lcName);
+
+@brw1=
+ lcId=kpbrwid(1),
+ clickPrep=,
+ if(gcReceiptType<>'ALL',browseReceipts=),
+ break(gcReceiptType<>'ALL'),
+ gcReceiptType='',
+ printMyBalanceReport=;
+
+@lbrwclick150=
+ lcId=kpbrwid(1),
+ rightClickLinkOptions=,
+ refreshbrw=;
+
+@clickPrep=
+ lcWhoAmI=kp('select blob from dbo.posBrw() where id = '&lcId),
+ gcReceiptType=readstring(lcWhoAmI,'@receiptType='),
+ lcIni=readstring(lcWhoAmI,'@ini='),
+ gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
+
+@rightClickLinkOptions=
+ clickPrep=,
+ if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
+
+@rightClickLinkOptionsDate=
+ gcReceiptType='',
+ m('Choose from the following options...','Right Click Options...','question.ico','My &Balance Report|My Receipts Report|B&rowse All Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
+ if(gcretval=1,printMyBalanceReport=),
+ if(gcretval=2,printMyReceiptList=),
+ if(gcretval=3,browseReceiptsAll=),
+ if(gcretval=4,changeDateAll=),
+ if(gcretval=5,depositdatemanualAll=); 
+
+@rightClickLinkOptionsRecType=
+ m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ if(gcretval=1,browseReceipts=),
+ if(gcretval=2,changeDate=),
+ if(gcretval=3,depositdatemanual=); 
+
+ if(gcretval=3,printMyReceiptList=),
+
+@browseReceiptsAll=
+ writecurdata(@BrowFil4502=,'3'),
+ browse(1,4502);
+
+@browseReceipts=
+ writecurdata(@BrowFil4502=,'3'),
+ browse(1,4502,'typ=4502 and key3='''&gcReceiptType&'''');
+
+@printBalanceReport==
+ setvars=,
+ trreport('balanceReport',5018,'printDepositBalanceNew=');
+
+@printMyReceiptList=
+ setvars=,
+ gcReceiptType='',
+ trreport('receiptListStation',5019,'printReceiptListStation=');
+
+@printMyBalanceReport=
+ setvars=,
+ trreport('balanceReport',5018,'printDepositBalanceNew=');
+
+@setvars=
+ gcBeginDate=readstring(lcWhoAmI,'@Date='),
+ gcEndDate=readstring(lcWhoAmI,'@Date='),
+ gcDeputy=cur:Fullname,
+ gcStation=readstring(lcWhoAmI,'@station='),
+ if(readstring(lcWhoAmI,'@suspenseMethod=')='U',gcStation='',gcDeputy=''),
+ gcPrintDetail='Y';
+
+@changeDate=
+ sql('exec dbo.advanceDate '''&gcReceiptType&''','&gcNextBusinessDay&'');
+
+@changeDateAll=
+ sql('exec dbo.advanceDate ''All'','&gcNextBusinessDay&'');
+
+@depositdatemanual=
+ iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''&gcReceiptType&'''')''));\t001Deposit Date; \w00250; \t002@d2;'),
+ if(obj7:key1+0>2,sql('exec dbo.advanceDate '''&gcReceiptType&''','&obj7:key1&''));
+
+@depositdatemanualAll=
+ iw('\t000Deposit Date For...; @afterloadwindow=set(002,kp(''select dbo.depositDate(''''&gcReceiptType&'''')''));\t001Deposit Date; \w00250; \t002@d2;'),
+ if(obj7:key1+0>2,sql('exec dbo.advanceDate ''All'','&obj7:key1&''));
+
+\t109O&fficial Deposit; @acc109=new(4522);
+\t110&Vouchers; @acc110=gcVoucher=1,do(4770,menuprocess=);
+\t111&Warrants; @acc111=gcVoucher=0,do(4770,menuprocess=);
+\t113&Miscellaneous; @acc113=newRecLog=,do(4502,'newMisc=');
+\t114Mort&gage; @acc114=newRecLog=,do(4502,'newMort=');
+\t115&Trust; @acc115=newRecLog=,do(4502,'newTrust=');
+\t116Ta&x Inquiry; @acc116=newRecLog=,do(4502,'goTax=');
+\t117&Individual Redeem; @acc117=newRecLog=,do(4502,'newIndiv=');
+\t118&Browse All Receipts; @acc118=browse(1,4502);
+\t120Co&llections; @acc120=do(4026,menuprocess=);
+@newRecLog=
+ sql('exec dbo.logit null,''NewReceipt'','''&gcretval&'''');
+
+@generate=
+ d1select('exec dbo.posAccountMaintenance'),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Maintenance...')),
+ refreshbrw=;
+
+@brwstuff=
+ gcbrwsql50='select id,display,blob,accountId,rowType from dbo.posBRW() order by ord',
+ brw(150,1,gcbrwsql50,3,3,285,250,'285L(5)~~#2#M135R(30)~~#3#|M200L(20)~~#3#|M',7,1),
+ prop(150,'Color',13499135),
+ rop(150,7cfah,13499135),
+ prop(150,7c10h,'Courier New'),
+ prop(150,7c11h,12),
+ prop(150,'BevelOuter',10),
+ prop(150,'SelectedFillColor',13499135),
+ prop(150,'SelectedColor',0),
+ prop(150,'linewidth',10),
+ prop(150,'LineHeight',18);
+
+@refreshbrw=brwreload(1),focus(106);
+@gfwindow=refreshbrw=;
+@lbrw1color=obj7:c9+0=0,255,obj7:c10=1,13428479;
+255,230,204
+\t037ShowAll; \h037038;r

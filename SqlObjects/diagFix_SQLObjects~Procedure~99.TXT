@@ -1,0 +1,43 @@
+create proc dbo.diagFix_SQLObjects(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'SQL Objects not OK'
+  from dbo.sqlObjectCompare(0)
+  where stat != 'OK' and skipFlag = 0  -- and name not like 'mike_%'
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from dbo.sqlObjectCompare(0)
+  where stat != 'OK' and skipFlag = 0  -- and name not like 'mike_%'
+  order by name
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  exec dbo.keySQLObjectCreateAll
+  return
+
+ end
+
+end

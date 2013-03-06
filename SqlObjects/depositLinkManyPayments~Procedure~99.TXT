@@ -2,7 +2,9 @@ create proc dbo.depositLinkManyPayments(
  @depositId int,
  @receiptType varchar(50),
  @receiptDepositDate int = null,
- @mode varchar(10) = 'link'
+ @mode varchar(10) = 'link',
+ @debugMode varchar(5) = 'FALSE',
+ @bankAccountCode varchar(50) = null
 ) as 
 begin
  --  either link all the payments within the given type or limit it by the receipts deposit date
@@ -10,6 +12,19 @@ begin
 
  exec dbo.logit @@procId, '@depositId', @depositId, '@receiptType', @receiptType, '@receiptDepositDate', @receiptDepositDate, '@mode', @mode
 
+ declare @receiptTypes table(receiptType varchar(50))
+ declare @bankAccountCodes table(bankAccountCode varchar(50))
+
+-- reset receiptType when passed an array of types
+ if charindex('|',@receiptType) > 0
+ begin
+  insert @receiptTypes select data from dbo.split(@receiptType,'|')
+  set @receiptType = ''
+ end
+ else
+ begin
+  insert @receiptTypes select @receiptType
+ end
  declare @token table(
   paymentId int
  )
@@ -22,31 +37,72 @@ begin
   from object 
   where id = @depositId
 
- -- TODO: figure out how to link or unlink
+-- TODO: figure out how to link or unlink
+
+ if isnull(@bankAccountCode,'') > '  0'
+  insert @bankAccountCodes select @bankAccountCode
+ else
+  insert @bankAccountCodes select distinct depositAccountCode from dbo.depositPaidAndPosted()
   
  if @mode = 'link'
  begin
   if @receiptDepositDate is null
-   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate and receiptType = @receiptType
+   insert @token 
+   select id from dbo.depositPaidAndPosted()
+    where isnull(depositId,0) = 0
+     and depositDate <= @depositDate
+     and receiptType in (select receiptType from @receiptTypes)
+     and depositAccountCode in (select bankAccountCode from @bankAccountCodes)
   else
-   insert @token select id from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate = @receiptDepositDate and receiptType = @receiptType
+   insert @token
+   select id from dbo.depositPaidAndPosted()
+    where isnull(depositId,0) = 0
+     and depositDate = @receiptDepositDate
+     and receiptType in (select receiptType from @receiptTypes)
+     and depositAccountCode in (select bankAccountCode from @bankAccountCodes)
  end
 
  if @mode = 'unlink'
  begin
   if @receiptDepositDate is null
-   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptType = @receiptType 
+   insert @token
+   select id from dbo.depositAvailablePayments
+    where isnull(depositId,0) = @depositId and receiptType in (select receiptType from @receiptTypes)
   else
-   insert @token select id from dbo.depositAvailablePayments where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType = @receiptType
+   insert @token
+   select id from dbo.depositAvailablePayments
+    where isnull(depositId,0) = @depositId and receiptPostDate = cast(@receiptDepositDate as varchar) and receiptType in (select receiptType from @receiptTypes)
  end
 
- -- process em
+-- process em
+ if @debugMode = 'TRUE'
+ begin
+  select * from @token
+  return
+ end
+
+ if @mode = 'link'
+ begin
+  update paid set depositId = @depositId
+  where isnull(depositId,0) = 0
+   and id in (select paymentId from @token)
+ end
+
+ if @mode = 'unlink'
+ begin
+  update paid set depositId = 0
+  where isnull(depositId,0) = @depositId
+   and id in (select paymentId from @token)
+ end
+
+/*
  while exists(select * from @token)
  begin
   select top 1 @idToken = paymentId from @token order by paymentId
-  exec dbo.depositLinkPayment @depositId, @idToken, 1
+  exec dbo.depositLinkPayment @depositId, @idToken, 1, @skipSQLTransaction = 'TRUE'
   delete @token where paymentId = @idToken
  end
+*/
 
  return
 end

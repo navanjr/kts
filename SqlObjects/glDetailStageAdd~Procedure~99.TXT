@@ -4,8 +4,9 @@ create procedure dbo.glDetailStageAdd (
  @accountId int,
  @amount money,
  @stageId int = 0,
- @contraId int = null,
- @comment varchar(50) = ''
+ @contraId int = 0,
+ @comment varchar(50) = '',
+ @sourceCode varchar(60) = ''
 ) as 
 begin
  declare
@@ -30,11 +31,13 @@ begin
 
  declare 
   @accountCode varchar(50),
-  @accountDesc varchar(50)
+  @accountDesc varchar(50),
+  @accountType varchar(60)
 
  select 
   @accountCode = accountCode,
-  @accountDesc = accountDesc
+  @accountDesc = accountDesc,
+  @accountType = isnull(accountType,'')  
  from glAccounts
  where accountId = @accountId
  
@@ -50,8 +53,8 @@ begin
 
  if @stageId = 0
  begin
-  insert gldetailstage (slink,accountId,accountCode,accountDesc,amount,contraId, comment2)
-   select @slink,@accountId,@accountCode,@accountDesc,@amount,@contraId,@comment
+  insert gldetailstage (slink,accountId,accountCode,accountDesc,amount,contraId, comment2, sourceCode, accountType)
+   select @slink,@accountId,@accountCode,@accountDesc,@amount,@contraId,@comment,@sourceCode,@accountType
  end
 
  else
@@ -65,15 +68,18 @@ begin
     accountCode = @accountCode,
     accountDesc = @accountDesc,
     amount = @amount,
-    comment2 = @comment 
+    comment2 = @comment,
+    sourceCode = @sourceCode,
+    contraId = @contraId,
+    accountType = isnull(@accountType,'') 
    where id = @stageId
   else
-  insert gldetailstage (slink,accountId,accountCode,accountDesc,amount,comment2)
-   select @slink,@accountId,@accountCode,@accountDesc,@amount,@comment
+  insert gldetailstage (slink,accountId,accountCode,accountDesc,amount,comment2,sourceCode,contraId,accountType)
+   select @slink,@accountId,@accountCode,@accountDesc,@amount,@comment,@sourceCode,@contraId,@accountType
  end
 
  -- if contraId exists
- if @contraId is not null
+ if isnull(@contraId,0)>0
  begin
   declare
    @contraStageId int,
@@ -83,7 +89,17 @@ begin
   -- get the value of the transaction
   select @contraAmount = sum(amount)*-1 from glDetailStage where slink = @slink and contraId = @contraId and accountId <> @contraId
   set @contraStageId = ISNULL(@contraStageId,0)
-  exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
+  if @contraAmount <> 0.00
+   begin
+    exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
+   end
+  else
+   begin
+    if isnull(@contraStageId,0)>1
+     begin
+      delete from gldetailstage where id=@contraStageId
+     end
+   end
  end
 
  select '@code=0;@message=Staging of GL Successful;'

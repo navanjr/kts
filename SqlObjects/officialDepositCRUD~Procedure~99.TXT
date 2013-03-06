@@ -1,0 +1,102 @@
+create procedure dbo.officialDepositCRUD(
+ @mode int,
+ @depositId int = 0,
+ @deletePosted varchar(10) = 'FALSE',
+ @debugMode varchar(5) = 'FALSE',
+ @depositDate int = null,
+ @linkTrust varchar(5) = 'TRUE',
+ @newObjectId int = null output
+) as
+begin
+ 
+ exec dbo.logit @@procid, '@mode', @mode, '@depositDate', @depositDate, '@linkTrust', @linkTrust
+
+ declare 
+  @slink varchar(15) = 'o' + cast(@depositId as varchar),
+  @officialId int,
+  @officialName varchar(50),
+  @accountCode varchar(50),
+  @accountDesc varchar(50)
+
+-- Create Treasurers Official Deposit only!
+ if @mode = 0 and @linkTrust = 'TRUE'
+ begin
+
+  select top 1
+   @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate())),
+   @officialId = b.id,
+   @officialName = b.key2,
+   @accountCode = a.Key1,
+   @accountDesc = a.key2
+  from Object a
+  join Object b on b.A3 = a.Key1 and b.typ = 4601
+  where a.TYP = 4701 and a.Key3 = 'TRUST'
+  
+  if @accountCode is null
+  begin
+   exec dbo.logit @@procid, 'we are likely missing a code on our Treasurers Official Fund for Trust... Bailing'
+   select '@code=1;@message=Missing TRUST code on the Treasurers Official Fund Account;'
+   return
+  end
+
+  insert object (typ, key2, Key3, link2, a1, a2, b1, b10)
+  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate 
+  
+  set @newObjectId = @@identity
+
+  exec dbo.officialDepositLinkTrust @newObjectId, 'LINK ALL' 
+
+  return
+
+ end
+
+-- Delete
+ if @mode = 3
+ begin
+-- bail if posted and @deletePosted = 'False'
+  if dbo.isPosted(@slink) = 'TRUE' and @deletePosted = 'False'
+  begin
+   exec dbo.logit @@procid, 'official deposit already Posted... Bailing.'
+   return
+  end
+
+-- bail if period is locked
+  if (select fpStatus from dbo.glStatus(@slink)) = 'locked'
+  begin
+   exec dbo.logit @@procid, 'Period is locked... Bailing.'
+   return
+  end
+
+-- TODO: bail if payments are deposited
+
+  declare
+   @tokenSlink varchar(15),
+   @token int,
+   @tokenInt int
+
+  exec dbo.logit @@procid, 'Begin Transaction...'
+  begin transaction
+
+--remove official deposit (object) and gl and paid records
+
+   update object set typ = -4522 where typ = 4522 and id = dbo.slinkId(@slink)
+   delete paid where slink = @slink
+   update paid set officialDepositId = 0 where officialDepositId = @depositId
+
+   delete glDetail where slink = @slink
+   delete glDetailStage where slink = @slink
+
+  if @debugMode = 'TRUE'
+  begin
+   exec dbo.logit @@procid, 'Rollback Transaction...'
+   rollback transaction
+   return
+  end 
+
+  exec dbo.logit @@procid, 'Commit Transaction...'
+  commit transaction
+
+ end
+
+ return
+end

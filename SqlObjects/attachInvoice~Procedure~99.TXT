@@ -1,0 +1,65 @@
+create procedure dbo.attachInvoice(
+ @receiptId int,
+ @InvoiceId int,
+ @method varchar(10)
+) as 
+begin
+
+set nocount on
+
+declare @message varchar(200) = ''
+         
+alter table invoices disable trigger invoicesModifiedTR
+   
+ exec dbo.logit @@procid, '@receiptId', @receiptId, '@invoiceId', @invoiceId, '@method', @method
+
+
+ -- bail if the id is not an invoice
+ if not exists(select * from invoices where id = @invoiceId)
+  return
+-- check Message
+if @method = 'Check'
+    begin
+     select @message =	'@invoice=Set ' 
+						+ NAME + ' '
+						+ PARCEL + ' '
+						+ cast(taxYear as varchar(5)) + ' '
+						+ cast(ITEM as varchar(20)) +' as parent?;'
+						from invoices where ID = @InvoiceId
+	select @message = @message + '@invoiceCount=On ' + cast(COUNT(id) as varchar) + ' invoice(s);' from receiptlink where receiptId = @receiptId
+	select @message
+	exec dbo.logit @@procid, @message
+     return  
+   end
+  
+  
+-- set parent
+if @method = 'Attach'
+begin
+
+	if not exists(select * from receiptlink where receiptId = @receiptId)
+		begin
+			select '@code=1;@message=There are no invoices selected!;'
+			exec dbo.logit @@procid, '@code=1;@message=There are no invoices selected!;'
+			return
+		end
+     else
+		begin
+		  update invoices set statementId = @InvoiceId where ID in (select invoiceId from receiptlink where receiptId = @receiptId)
+		  exec dbo.logit @@procid, 'Attach'
+		end
+
+end
+
+---clear parent
+if @method = 'UnAttach'
+    begin
+		update invoices set statementId = 0 where ID = @InvoiceId
+		exec dbo.logit @@procid, 'UnAttach'
+		return
+	end
+
+
+ alter table invoices enable trigger invoicesModifiedTR
+ 
+ end

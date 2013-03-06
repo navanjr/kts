@@ -1,0 +1,260 @@
+@gfbnr=1;
+@format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M50L(3)~Type~#30#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
+@filtername=All,Apportionment,Special Apportionment,Correction,Posted,Un-Posted;
+@filter='1=1','a18=''APPORTIONMENT''','a18=''APPORTIONMENT SPECIAL''','a18=''CORRECTION''','a17=''Posted''','a17<>''Posted''';
+@ordername=Number,Date;
+@key2=obj:key2;
+
+TO DO: make sure that if a collection account is listed here that the appropriate action is taken for the accrued receivable accounts
+
+@bb6=&Print; @bbproc6=acc109=;
+
+@browseinsert=
+ m('When creating a new Journal Entry,| Please Choose one of the following TYPEs of Journal Entry to create...','Journal Entry...',,'&Manual|Co&rrection|&Transfer|&Payroll Tax|&Cancel'),
+ break(gcretval+0=5),
+ gcType=gcretval,
+ if(gcretval+0=3,m('Transfer type Journal Entries are for annual report fund-to-fund transfers only.  Are you sure you want to continue?','Continue Transfer',,6)),
+ break(gcretval<>2 and gcType+0=3),
+ new(4512,1,042=choose(gcType,'MANUAL','CORRECTION','TRANSFER','PAYROLL TAX'));
+
+@browsedelete=
+ if(obj:a17='Posted',lcDeleteMessage='This record has been posted and can only be deleted if the fiscal period is not locked.',lcDeleteMessage='Are you sure you wish to delete this Journal Entry?'),
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
+ break(gcretval<>2),
+ sql('exec dbo.journalEntryCRUD 3, @id='&obj:id);
+
+@loadwindow=
+ blankem=,
+ create(550,12,350,290,'&Import Tools',78),
+ brwstuff=;
+@acc550=tsc,if(obj:c1=1,focus(104));
+\h550obj:a17='Posted';
+
+@afterloadwindow=
+ gcToggleDb=14474460,
+ gcToggleCr=21759,
+ gcToggle=gcToggleDb,
+ create(351,9,330,40,'Credi&t'),
+ prop(351,7cfah,gcToggle),
+ refreshbrw=,
+ gccomment='',
+ if(obj:a18='Appotion Protest' and obj:a17<>'Posted',doApportionProtest=);
+
+@doApportionProtest=
+ prop(007,'7C00H','Interest Acct'),
+ set(010,'Stage Interest'),
+ gcjeid=obj:id,
+ gccomment='INTEREST',
+ stageprotest=;
+
+if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>'1',prop(005,'7C00H','Apportion')),if(obj:olink2>'1',prop(001,'7C00H','Journal')),set(002,kp('select key1 from object where id='&obj:link1));
+
+@gfwindow=refreshbrw=;
+
+@stageprotest=break(obj:a17='Posted'),sql('exec dbo.journalEntryStageGL '&obj:id),refreshbrw=;
+
+@closewindow=if(gcjeid=obj:id,gcjeid=0);
+
+@select=choose(obj:key3>'0',008,006);
+
+\t001J/E Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \a002+; \00020500;
+\t003J/E Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \w00200455;r2 \d004obj:a17='Posted'; @acc004=update;
+\t005JE Purpose; \w006175; \d006obj:a17='Posted'; \l0064511; @nopop006;
+
+\t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
+\t041Journal Type; \w04255; \p0427cfah,13499135; \p0427c13h,700; \p0427c06h,1; \p0427c10h,Arial; \p0427c11h,7; \d042;
+
+\t007&Account Code; \l0084701,1;r008002010004; @lf008='typ = 4701 and b3!=1',2;
+\t009Description; \d010; 
+\t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
+ \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h351obj:a17='Posted';
+
+\t047Interest To; \h047048obj:a18<>'Appotion Protest';r \u048; \w04813; @choose048:ARS; \?048'[A]pportion, [R]efund, or [S]plit'; \m048[A]pportion, [R]efund, or [S]plit;
+  @048=if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=);
+\t049ContraAccount; \h049050;r
+\t051ContraId; \h051052;r
+\t053SourceCode; \h053054;r
+
+
+\t073ABSValue; \h073074;r \s074+'select absAmount from glSummary('&obj:id&',''o'')';
+
+\t075Balance; \t076@n-14.2; \y075275; \y076273;  \x075100; \w075200; \x076204; \w076100; \p0757c13h,700; \d076;
+ \s076+'select balance from glSummary('&obj:id&',''o'')';
+  \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
+\t077ImportToolsFlag; \h077078;r
+\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r
+\t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
+\t120Process; \h120obj:c1<>1; \y120305;
+
+@acc120=
+ lctally=kp('select count(*) from dbo.journalEntryBRW('&obj:id&','&readstring(cur:options,'@showgl=')&') where importFlag = 1'),
+ break(lcTally+0<1),
+ m('There are '&lcTally&' records that can be imported to this JournalEntry.||Do you want to continue?','Process JournalEntry Import...','question.ico',6,2),
+ break(gcretval<>2),
+ sql('exec dbo.journalEntryDetailImport '&obj:id),
+ set(078,0),set(104,''),update,
+ tsc,refreshbrw=;
+
+\t109&Print; @acc109=
+  gcJEReportWhere='where slink=''o'&obj:id&'''',
+  gcJournalComment=obj:e1,
+  trreport('JournalEntry',4790,'glJournalEntryReport=');
+
+@bb7=Journal Report;
+@bbproc7=
+ iw(
+   \t000Please Enter Date Range...;
+   \t001Begin Date;
+   \t002@d2;
+   \w00250;
+   \t003End Date;
+   \t004@d2;
+   \w00450;
+   @loadwindow=create(150,12,3,30,'G/L Type Only',80);
+ ),
+  break(gcretval = 'esc'),
+  gcBeginDate=obj7:key1,
+  gcEndDate=obj7:key2,
+  if(gcBeginDate+0<1,gcBeginDate=10 ),
+  if(gcEndDate+0<1,gcEndDate=today() ),
+  if(obj7:c2+0=1,printJournalGL=,printJournalAll=) ;
+
+@printJournalAll=
+  trreport('JournalReportAll',4790,'journalReportAll=');
+
+@printJournalGL=
+  trreport('JournalReportGL',4790,'journalReportGL=');
+
+
+\t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0; \h110obj:a17='Posted';
+
+@invoiceUpdate=d1select('exec dbo.invoiceUpdateAll '&obj:id+0);
+
+\t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
+
+\t119Special Apportion;
+@acc119=gccontinue='',
+  if(obj:a17<>'Posted',dounposted=),
+  break(gccontinue='No'),
+  m('Are you sure you want to Special Apportion this journal?','Apportion?',,6,4),
+  break(gcretval<>2),
+  gc4794id=obj:id,
+  gcApportionToDate=obj:key2,
+  lcApportionStage=kp('select max(id) from object where typ = 4794'),
+  if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
+
+@dounposted=gccontinue='No',
+  m('The Journal must be posted before you can apportion it.  Would you like to post it now?','Post?',,6,4),
+  break(gcretval<>2),
+  acc110=, 
+  update,
+  if(obj:a17='Posted',gccontinue='');
+
+@brwstuff=
+ lcShowGL=readstring(cur:options,'@showgl='),
+ gcsql='select id,accountDesc,comment,amount,rowType from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') order by ord',
+ brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2b@#4#|M',7,1),
+ break(obj:a18<>'Appotion Protest'),
+ gcsql='select id,a2,a3,a4,key3 from object where typ=4775 and link1='&obj:id,
+ brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2b@#5#|M',7,1), ;
+@lbrw1forecolor=obj7:c10<0,255;
+
+@lbrw1color=obj7:c10='1',255;
+
+@brw1=
+ break(obj:a17='Posted'),
+ set(-07,kpbrwid(1)*-1),
+ lcblob=kp('select dbo.glDetailStageGetBlob('&kpbrwid(1)*-1&')'),
+ set(008,readstring(lcblob,'@accountCode=')),
+ set(010,readstring(lcblob,'@accountDesc=')),
+ set(046,readstring(lcblob,'@amount=')),
+ set(-03,readstring(lcblob,'@accountId=')),
+ set(050,readstring(lcblob,'@contraAccountCode=')),
+ set(052,readstring(lcblob,'@contraId=')),
+ set(054,readstring(lcblob,'@sourceCode=')),
+ gccomment=readstring(lcblob,'@comment='),
+ focus(008);
+
+@brw2=
+ break(obj:a17='Posted' or kpbrwid(2)+0<1),
+ change(kpbrwid(2),,1),
+ stageprotest=;
+
+@lbrwclick=
+ m('Choose','Journal Entry Options...','question.ico','&One Item|&All Items|A&pportionment|&Cancel'),
+ if(gcretval=1,sql('exec dbo.journalEntryReverse '&obj:id&', '&kpbrwid(1)*-1)),
+ if(gcretval=2,sql('exec dbo.journalEntryReverse '&obj:id&', @mode=''ALL''')),
+ if(gcretval=3,setcontra=),
+ refreshbrw=;
+
+@setcontra=
+break(obj:a17='Posted'),
+gcid=kpbrwid(1)*-1,
+gcblob=kp('select dbo.glDetailStageGetBlob('&gcid&')'),
+gccontraId=readstring(gcblob,'@contraId='),
+gccontraAccountCode=readstring(gcblob,'@contraAccountCode='),
+gcsourcecode=readstring(gcblob,'@sourceCode='),
+gcaccountType=readstring(gcblob,'@accountType='),
+gcaccountCode=readstring(gcblob,'@accountCode='),
+gcaccountDesc=readstring(gcblob,'@accountDesc='),
+gcamount=readstring(gcblob,'@amount='),
+gcaccountId=readstring(gcblob,'@accountId='),
+break(gcaccountType<>'ACCRUED RECEIVABLE'),
+iw('@afterloadwindow=set(-03,'&gccontraId&');
+\t000Input Collection and Source Account Information; 
+\t001Collection Acct; \f002'&gccontraAccountCode&'; \l0024701,1; @lf002=''typ=4701 and a4 >'''' 0'''' and a1 in (''''FUND'''')'',2;
+\t003Source Acct; \f004'&gcsourcecode&'; \l0044701; @lf004=''typ=4701 and a1 in (''''SOURCE'''')'',2;'),
+ d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&gcaccountId&','&gcamount+0&','&gcid&', @contraId='&obj7:link1&', @sourceCode='''&obj7:key2&''', @comment='''&clip(obj7:key1)&'; '&clip(obj7:key2)&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
+ focus(008),
+;
+
+@refreshbrw=
+ gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
+ calcfld(074),
+ calcfld(076),
+ if(obj:b15=0,prop(075,text,'Balanced'),prop(075,text,'Out of Balance')),
+ brwreload(1),
+ if(obj:a18='Appotion Protest',brwreload(2)),
+ tsc;
+
+@blankEm=
+ set(-03,0),
+ set(-07,0),
+ set(008,''),
+ set(010,''),
+ set(046,''),
+ set(050,''),
+ set(052,''),
+ set(054,''),
+ gccomment='';
+
+@saveRow=
+ if(gcToggle=gcToggleDb,lcAmt=obj:a20,lcAmt=obj:a20*-1),
+ d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&obj:link1+0&','&lcAmt+0&','&obj:link5+0&','&obj:b3+0&', @comment='''&gccomment&''', @sourceCode='''&obj:b4&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
+ focus(008),
+ break(readstring(obj7:d1,'@code=')=1),
+ if(obj:a18='Appotion Protest' and obj:a17<>'Posted',stageprotest=),
+ refreshbrw=,
+ blankEm=;
+
+@removeRow=
+ break(kpbrwid(1)=0),
+ sql('delete glDetailStage where id = '&kpbrwid(1)*-1),
+ refreshbrw=;
+
+@postGL=
+ break(obj:a17='Posted'),
+ lccheck=kp('select count(*) from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') where rowType=1'),
+ if(lccheck+0>0,m('You have one or more accrued receivable item that is not linked to a collection account.')),
+ break(lccheck+0>0),
+ m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
+ break(gcretval<>2),
+ update,
+ d1select('dbo.glPost '&obj:id&', ''o'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+
+@acc351=
+ if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
+ prop(351,7cfah,gcToggle);

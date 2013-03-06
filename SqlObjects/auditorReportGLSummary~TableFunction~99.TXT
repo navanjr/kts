@@ -1,0 +1,89 @@
+create function dbo.auditorReportGLSummary(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10))
+	returns @rt table(rowstring varchar(250),sourceAmt varchar(50),rowType char(10),ord varchar(250))
+as
+begin
+
+declare @wtdetail table(auditorReportGroup varchar(60),amount money,reportOrder varchar(60))
+
+
+declare @wttypes table(sourceType varchar(60),
+						auditorReportGroup varchar(60),
+						detail varchar(60))
+insert @wttypes
+	select * from dbo.journalTypes()
+insert @wttypes
+	select * from dbo.paymentTypes()
+
+
+insert @wtdetail
+	select 
+		auditorReportGroup,
+		amount*-1,
+		reportOrder
+		from gldetailreports g, @wttypes w
+	where sourceDate between @beginDate and @endDate
+		and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+		and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+		and g.sourcea18 = w.sourceType
+
+insert @wtdetail
+	select 
+		case when auditReportGroup>' 0' then auditReportGroup when accountType='OFFICIAL' then 'OFFICIAL' else 'FUND' end,
+		amount*-1,
+		reportOrder
+		from gldetailreports 
+	where sourceDate between @beginDate and @endDate
+		and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+		and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+		and sourcea18 not in (select sourceType from @wttypes)
+---insert detail
+insert @rt
+	select 
+		'   ' + dbo.padRight(auditorReportGroup,' ',61),
+		dbo.padLeft(dbo.formatCurr(sum(amount)),' ',16) as amount,
+		'detail',
+		@ordSeed + max(cast(reportOrder as varchar)) + 'c' 
+		from @wtdetail 
+	group by auditorReportGroup
+
+insert @rt 
+	select 
+		'   ' + dbo.padRight('BEGINNING FUND BALANCE',' ',61),
+		dbo.padLeft(dbo.formatCurr(sum(amount)*-1),' ',16),
+		'detail',
+		@ordSeed + '0000' + 'c' 
+		from gldetailreports 
+	where sourceDate < @beginDate
+	and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+	and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+ 
+----insert subtotals
+insert @rt
+	select 
+           dbo.padRight('      Ending Fund Balance ', ' ', 60),
+            dbo.padLeft(dbo.formatCurr(SUM(cast(sourceAmt as money))),' ',16),
+            'gFooter',
+            @ordSeed + 'd' 
+	from @rt
+
+insert @rt 
+	select ' ' + replicate('=',79),replicate('=',16),'line',max(@ordSeed)  + 'c' from @rt 
+ 
+----headers
+insert @rt 
+	select '','','lineFeed',@ordSeed + '0000a'
+insert @rt (rowstring,ord,rowType)
+	select ' '+'General Ledger',@ordSeed + '0000aa','sHeader'	
+insert @rt 
+	select ' ' + replicate('=',79),replicate('=',16),'line',@ordSeed + '0000ab'
+
+return
+end
+
+/*
+--select dbo.clariondate('20121101')
+	declare
+		@theDate int = 77375,
+		@days int = 30
+		select * from dbo.auditorReportGLSummary(@theDate,@theDate + @days,'A') order by ord
+*/

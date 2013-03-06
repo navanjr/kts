@@ -1,0 +1,321 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+@menuprocess=
+ if(gcDType<'  0',gcDType='RESALE'),
+ lcid=kp('select min(id) from object where typ = 4026'),
+ if(lcid+0>0,change(lcid),new(4026));
+@wbgcolor=kp('select dbo.keyColor(185,222,187)');
+
+@gfwindow=
+ if(lcbrwRefresh=1,lcbrwRefresh='',refreshbrw=);
+
+@loadwindow=
+ lcbrwRefresh=1,
+ create(551,12,458,115,'Use All &Addresses',82),
+ gcvars=,
+ brwstuff=;
+ 
+@afterloadwindow=
+ toggleButt=,
+ toggleOrder=;
+
+@gcvars=
+ lcKeyName=choose(gcDType='RESALE','Parcel','Item #'),
+ lcKeyWidth=choose(gcDType='RESALE','115','50'),
+ lcDocumentId=choose(obj:link1>0,obj:link1,0),
+ lcStartDate=choose(obj:key1>0,obj:key1,0),
+ lcDays=choose(obj:a17>0,obj:a17,0),
+ gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&',0) where rowType = 0 order by '&choose(gcColOrder='PARCEL','ordB','ord'),
+ gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&',0) order by '&choose(gcColOrder='PARCEL','ordB','ord'),
+ gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M200L(2)~Doc Status~#5#M200L(5)~~#6#M',
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW(0) order by ord',
+ gcbrw2Format4026='200L(5)~~#2#M';
+
+@brwstuff=
+ lcBrw1Z=mh*.50, 
+ lcBrw2y=lcBrw1Z+18,
+ lcBrw2z=mh*.20,
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsql4026,2,15,450,lcBrw1Z,gcbrwFormat4026),
+ brw(151,2,gcbrw2sql4026,2,lcBrw2y,450,lcBrw2z,gcbrw2Format4026),
+ kpmc(),
+ prop(150,'Color',16777215), prop(150,7c10h,'Courier New'), prop(150,'SelectedFillColor',65535), prop(150,'SelectedColor',0),
+ prop(151,'Color',16777215), prop(151,7c10h,'Courier New'), prop(151,'SelectedFillColor',16777215`), prop(151,'SelectedColor',0);
+
+@refreshbrw=
+ kpmo('Loading Data...','Please Wait...'),
+ gcvars=,
+ prop(000,'TEXT',gcDType&' Collections'),
+ brwreload(1,gcbrwsql4026,gcbrwFormat4026),
+ refreshbrw2=,
+ kpmc();
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+@lbrw2color=obj7:c10=1,13499135;
+
+@newselbrw150=
+ refreshbrw2=;
+
+@refreshbrw2=
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&') order by ord',
+ gcbrw2Format4026='200L(5)~~#2#M',
+ brwreload(2,gcbrw2sql4026,gcbrw2Format4026);
+
+@lbrwclick150=
+ if(kpbrwid(1)<0,invoiceOptions=),
+ if(kpbrwid(1)=0,mainOptions=);
+
+@mainOptions=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Print Resale Legal|Print Abstract Legal|Print Resale for Publication|Print Resale Sum for Publication|Print List of Delinquent|Personal For Pubication|&Cancel'),
+ if(gcretval=1,resaleLegal=),
+ if(gcretval=2,resaleLegalAbstracter=),
+ if(gcretval=3,resaleForPub=),
+ if(gcretval=4,resaleForPubSum=),
+ if(gcretval=5,listOfDelinquent=),
+ if(gcretval=6,personalForPubSum=);
+
+@resaleLegal=
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleLegal,5040,printResalelegal=);
+
+@resaleLegalAbstracter=
+ gcAbstracter=1,
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleLegal,5040,printResalelegal=);
+
+@resaleForPub=
+ gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleForPub,5040,printResaleForPub=);
+
+@resaleForPubSum=
+ gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printResaleForPubSum,5040,printResaleForPubSum=);
+
+@listOfDelinquent=
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(delinquentTaxList,5041,delinquentTaxList=);
+
+@personalForPubSum=
+ gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Delinquent Personal Header'''),
+ gcAbstracter='',
+ gcBeginDate=obj:key1,
+ gcDays=obj:a17,
+ trreport(printPersonalForPub,5040,printPersonalForPub=);
+
+@invoiceOptions=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|Print UnPaid Summary|Attach Personal|&Cancel'),
+ if(gcretval=1,manageAddress=),
+ if(gcretval=2,removeFromCollection=),
+ if(gcretval=3,flagforAbstracter=),
+ if(gcretval=4,printUnpaidSum=),
+ if(gcretval=5,attachPersonal=);
+
+@manageAddress=
+ gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&','&kpbrwid(1)*-1&')'),
+ do(4006,menuprocess=);
+
+@removeFromCollection=
+ lcid=kpbrwid(1)*-1,
+ d1select('exec dbo.dtypeCommentCRUD @mode=''REMOVE'', @dtype='''&gcDType&''', @taxrollDetailId='&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collection Processing...')),
+ refreshbrw=;
+ 
+@flagforAbstracter=
+ lcid=kpbrwid(1)*-1, 
+ iw('\t001Abstract; \f002=gcAbstract;'),
+ gcAbstract=obj7:key1,
+ break('esc'),
+ d1select('exec dbo.dtypeCommentCRUD @mode='''&gcAbstract&''',@dtype=''ABSTRACT'', @taxrollDetailId='&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Collections...')),
+ refreshbrw=;
+
+@printUnpaidSum=
+ lcid=kpbrwid(1)*-1,
+ gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId+0&','&obj:key1&','&obj:a17&','&kpbrwid(1)*-1&')'),
+ trreport(printUnpaidSum,5040,printUnpaidSum=);
+
+@attachPersonal=
+ lcid=kpbrwid(1)*-1,
+ gcCollectParcel=kp('select parcelNumber from taxrollDetail where id='&lcid),
+ gcMethod='Attach',
+ do(4031,menuprocess=);
+
+@lbrwclick151=
+ lc151id=kpbrwid(2)*-1,
+ lc151Typ=left(lc151id,1),
+ lc151id=sub(lc151id,2,25),
+ if(lc151Typ=9,menu9=);
+
+@menu9=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Remove|Add Fee|&Cancel'),
+ if(gcretval=2,addFee=),
+ if(gcretval=1,removeIt=);
+
+@removeIt=
+ lcInvoiceInfo=kp('select name+'' Item:''+cast(item as varchar)+'' Tax Year:''+cast(taxyear as varchar) from invoices where id='&lc151id),
+ m('Remove '&lcInvoiceInfo&' from resale?','Are you sure?.....',,6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.dtypeCommentCRUD @mode=''Exclude'',@dtype=''RESALE'', @invoiceId='&lc151id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Resale...')),
+ refreshbrw=;
+
+@addFee=
+ iw('\t001Date; \t002@d2; \w00250; \t003Description;\l0044504;r004002006004008006; @lf004=''a1=''''tax''''''; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE'''' and b3!=1'',2; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND'''' and b3!=1'',2; \t009Amount; \t010@n21.2; \w01050;'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.subInvoiceCRUD '&lc151id&','''&obj7:key1&''','''&obj7:key2&''','''&obj7:key3&''','''&obj7:a1&''',''F'','&obj7:a2),
+ lctempmess=obj7:d1,
+ if(readstring(lctempmess,'@code=')=1,m(lctempmess)),
+ refreshbrw=;
+ 
+
+\t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;
+\t039(+) Days; \t040@p###p; \w04030; \f0400; @acc040=changeDate=; @selected040=gcdr1=1; \x039040-90;r \x040-30; \p0407c0ch,1;
+\t077End Date; \t078@d2; \w07845; \f078=c; @acc078=changeDate=; @selected078=gcdr1=3; \x078-25; \x077078-200;r \p0787c0ch,1;
+@changeDate=
+ if(gcdr1=1,set(78,obj:key1+obj:a17)),
+ if(gcdr1=3,set(40,obj:c1-obj:key1)),
+ refreshbrw=,
+ if(gcdr1=1,focus(040));
+\t079Document; \l0804900,1; \y079=077; \y080=078; \x079-100; \x080-120; \w080141; @acc080=refreshbrw=;
+
+\t105Order; @acc105=gcColOrder=choose(gcColOrder='PARCEL','NAME','PARCEL'),toggleOrder=,refreshbrw=;
+@toggleOrder=
+ if(gcColOrder<'  0',gcColOrder='PARCEL'),
+ gc105Label=choose(gcColOrder='PARCEL','Order by Name',choose(gcDType='TAXWARRANT','Order by Item','Order by Parcel')),
+ prop(105,'text',gc105Label);
+
+\t108Toggle; 
+@acc108=
+ gcDType=choose(gcDType='RESALE','TAXWARRANT','RESALE'),
+ toggleButt=,
+ refreshbrw=;
+
+@toggleButt=
+ gcToggleLabel=choose(gcDType='RESALE','View TaxWarrant','View Resale'),
+ prop(108,'text',gcToggleLabel);
+
+\t109&Mark Printed;
+@acc109=
+ m('Choose one of the following options...','Mark...','Question.ico','Mark ONLY the selected Item|Mark all un-marked Items through selected statement|&Cancel'),
+ if(gcretval=1,markOne=),
+ if(gcretval=2,markAll=);
+@markOne=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''print'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&''''),
+ refreshbrw=;
+@markAll=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''printThru'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&''''),
+ refreshbrw=;
+
+\t110Print &Item;
+@acc110=
+ m('Are you sure you wish to print/reprint?','Print/Reprint...','Question.ico',6,2),
+ break(gcretval<>2 or kpbrwid(1)=0),
+ gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&','&kpbrwid(1)*-1&')'),
+ lcAddressSwitch=choose(obj:c3>0,obj:c3,'0'),
+ lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
+ if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
+ break(lcReportName<'  0'),
+ gcDocumentId=obj:link1,
+ lcFormLetterSQL='select invoiceId, taxRollDetailId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', '&kpbrwid(1)*-1&','''&obj:key1+0&''','''&obj:a17+0&''',null, '&lcAddressSwitch&','''&gcColOrder&''') order by printOrder',
+ kpmo('Printing...'),
+ sqlloop(lcFormLetterSQL,formLetterProc=),
+ markOne=,
+ kpmc();
+@formLetterProc=
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName); 
+
+\t111Print &Batch;
+@acc111=
+ lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
+ if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
+ break(lcReportName<'  0'),
+ lcTally=kp('select count(*) from dbo.collectionsBRW('''&gcDType&''','&obj:link1&','&obj:key1&','&obj:a17&',0) where charindex(''Printed'',documentStatus) = 0'),
+ iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230., ,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
+ break(gcretval<>'OK'),
+ lcCount=obj7:key1,
+ lcAddressSwitch=choose(obj:c3>0,obj:c3,'0'),
+ kpmo('Printing Invoices...'&lcCount),
+ lcCnt=0,
+ do(452,getSiteInfo=),
+ lcFormLetterSQL='select invoiceId, taxRollDetailId, dtypeCommentId from dbo.collectionsDocPrintPrep('''&gcDType&''', '&obj:link1&', null, '''&obj:key1&''', '''&obj:a17&''', '&lcCount&', '&lcAddressSwitch&','''&gcColOrder&''') order by printOrder',
+ sqlloop(lcFormLetterSQL,printIt1=),
+ kpmc(),
+ refreshbrw=;
+@printIt1=
+ lcCnt=lcCnt+1,
+ kpmm('Printing Invoices...'&lcCnt&' of '&lcTally),
+ gcInvoiceId=obj5:a1,
+ gcTaxRollDetailId=obj5:a2,
+ trreport(lcReportName),
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&obj5:a3&', @documentId='&obj:link1&', @method=''print'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&'''');
+
+\t113&Reset Printed;
+@acc113=
+ lcKeyName=choose(gcDType='RESALE','Parcels','Items'),
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetStage'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&''''),
+ m('Document: '&obj:c2&'||Are you sure you wish to reset the printed flag for all '&lcKeyName&' greater than and equal to...||'&readstring(obj7:d1,'@ordToken=')&'||This would result in '&readstring(obj7:d1,'@tally=')&' statement(s) to require printing.','Reset Printed Document...','question.ico','Reset &ONLY This '&lcKeyName&'|&Yes|&Cancel'),
+ if(gcretval=1,resetOne=),
+ if(gcretval=2,resetThru=);
+@resetOne=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetOne'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&''''),
+ refreshbrw=;
+@resetThru=
+ d1select('exec dbo.collectionsDocProcessing @taxrollDetailId='&kpbrwid(1)*-1&', @documentId='&obj:link1&', @method=''resetThru'', @date='&obj:key1&', @days='&obj:a17&', @order='''&gcColOrder&''''),
+ refreshbrw=;
+
+
+
+\t116Process Fees;
+@acc116=
+ d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1+0&',@dType='''&gcDType&''',@status=''StageAll'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ lcTally=readstring(obj7:d1,'@tally='),
+ break(lcTally+0<1 or readstring(obj7:d1,'@code=')>0),
+ m('Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Creating Fee Invoices...','Please Wait...'),
+ d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ kpmc(),
+ refreshbrw=;
+
+
+\t119Mana&ge Docs;
+@acc119=browse(1,4900);
+
+\t120&List;
+@acc120=
+ gcvars=,
+ trreport('collectionList',4026,'collectionList=');
+
+@collectionList=
+ do(452,getSiteInfo=),
+ lcKeyWidthReport=choose(gcDType='RESALE','1500','750'),
+ lcDueTot=0,
+ tr(
+  prn(printed),
+  prn(pages),
+  prn('Collection List',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  bnd('HU','Name',3000,gcDType,lcKeyWidthReport,'Total Due',-1200),
+  det(gcbrwsql4026Report),
+   bnd('D',obj5:a2,3000,obj5:a3,lcKeyWidthReport,format(obj5:a4,@n14.2b),-1200),
+   lcDueTot=lcDueTot+obj5:a4,
+  edt,
+  nl,
+  bnd('D',,3000,,lcKeyWidthReport,format(lcDueTot,@n$14.2b),-1200),
+ );

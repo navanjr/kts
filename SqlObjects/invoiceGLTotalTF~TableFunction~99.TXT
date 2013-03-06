@@ -6,37 +6,34 @@ create function dbo.invoiceGLTotalTF(@invoiceId int) returns @rt table(
  amount money,
  feeAmount money,
  penAmount money,
- status varchar(10)
+ status varchar(10),
+ detailId int
 )
 begin
 
  insert @rt
-    select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00,0.00, 'Posted'
+    select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00,0.00, 'Posted', a.id
  from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
 
  insert @rt
-   select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00,0.00, 'Staged'
+   select a.slink, a.accountId, a.accountDesc, b.accountType, a.amount,0.00,0.00, 'Staged', a.id
  from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from invoiceSlinks(@invoiceId))
 
  insert @rt
-   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount,0.00, 'Posted'
- from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId) 
-   where slink in (select realslink from invoiceAll where typ='F'))
+   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount,0.00, 'Posted', a.id
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId,'F'))
 
  insert @rt
-   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount,0.00, 'Staged'
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId) 
-   where slink in (select realslink from invoiceAll where typ='F'))
+   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, a.amount,0.00, 'Staged', a.id
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId,'F'))
 
  insert @rt
-   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, 0.00,a.amount, 'Posted'
- from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId) 
-   where slink in (select realslink from invoiceAll where typ='P'))
+   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, 0.00,a.amount, 'Posted', a.id
+ from glDetail a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId,'P'))
 
  insert @rt
-   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, 0.00,a.amount, 'Staged'
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId) 
-   where slink in (select realslink from invoiceAll where typ='P'))
+   select a.slink, a.accountId, a.accountDesc, b.accountType, 0.00, 0.00,a.amount, 'Staged', a.id
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and slink in (select slink from dbo.invoiceSubSLinks(@invoiceId,'P'))
 
  return
 

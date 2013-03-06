@@ -1,0 +1,303 @@
+create function dbo.rpFeesandCosts(@begindate varchar(20),@enddate varchar(20))
+returns @rt table(id int identity(1,1),
+                   taxyear varchar(50),
+                   taxrate varchar(60),
+                   sourceDate varchar(50),
+                   itemNo varchar(50),
+                   ReceiptNo varchar(50),
+                   Name varchar(60),
+                   Col1 varchar(60),
+                   Col2 varchar(60),
+                   Col3 varchar(60),
+                   Col4 varchar(60),
+                   Col5 varchar(60),
+                   Col6 varchar(60),
+                   Col7 varchar(60),
+                   Col8 varchar(60),
+                   Col9 varchar(60),
+                   Col10 varchar(60),
+                   Other varchar(60),
+                   ord varchar(2000))
+as
+begin
+
+declare	@wt3 table(id int identity(1,1),
+                   taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   Col1Name varchar(60),
+                   Col1Amt money default 0,
+                   Col2Name varchar(60),
+                   Col2Amt money default 0,
+                   Col3Name varchar(60),
+                   Col3Amt money default 0,
+                   Col4Name varchar(60),
+                   Col4Amt money default 0,
+                   Col5Name varchar(60),
+                   Col5Amt money default 0,
+                   Col6Name varchar(60),
+                   Col6Amt money default 0,
+                   Col7Name varchar(60),
+                   Col7Amt money default 0,
+                   Col8Name varchar(60),
+                   Col8Amt money default 0,
+                   Col9Name varchar(60),
+                   Col9Amt money default 0,
+                   Col10Name varchar(60),
+                   Col10Amt money default 0,
+                   OtherAmt money default 0
+)
+
+
+declare @wt table(id int identity(1,1),
+                   gldetailid int,
+                   slink varchar(16),
+                   subinvoiceId int,
+                   invoiceId int,
+                   taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   [description] varchar(60),
+                   amount money
+)
+
+declare @wt2 table(taxyear varchar(4),
+                   taxrate varchar(60),
+                   sourceDate varchar(20),
+                   itemNo numeric(20,1),
+                   ReceiptNo varchar(20),
+                   Name varchar(60),
+                   [description] varchar(60),
+                   amount money
+)
+ 
+declare @headers table(id int identity(1,1),
+                       [description] varchar(60))
+                       
+insert @wt (gldetailId,slink,subinvoiceId,invoiceId,name,[description],amount,sourceDate)
+select 
+ g.id,
+ g.slink,
+ g.invoiceId,
+ i.invoiceId,
+ g.sourcea1,
+ rd.[description],
+ isnull(g.amount,0),
+ g.sourceDate
+ from gldetailreports g, invoices i, receiptdetail rd
+ where g.invoiceid=i.id
+   and left(rd.slink,1)='t'
+   and dbo.slinkid(rd.slink)=i.id
+    and sourceDate >= @begindate and sourceDate <= @enddate
+    and accountType = 'ACCRUED RECEIVABLE'
+    and left(g.slink,1)='l'
+    and i.typ='F'
+
+update w set ReceiptNo=rl.receiptNumber 
+  from @wt w, receiptlink l, receiptlink rl 
+  where dbo.slinkId(w.slink)=l.id
+    and l.receiptId=rl.receiptId
+    and rl.invoiceId=w.invoiceId
+
+update w set itemNo=i.item, taxyear=cast(i.taxyear as varchar)
+  from @wt w, invoices i
+  where w.invoiceId=i.id
+
+update w set taxrate = case when aprate > ' 0' then aprate else accountCode end from @wt w,receiptdetail rd, glaccounts a 
+   where left(rd.slink,1)='t'
+     and dbo.slinkId(rd.slink)=w.invoiceId
+     and rd.fundcode=a.accountcode
+
+insert @headers select distinct [description] from @wt
+
+insert @wt2 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],amount)
+select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],sum(isnull(amount,0)) from @wt
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description]
+ 
+insert @wt3 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name)
+select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name from @wt
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
+
+update a set col1Amt=isnull(c.amount,0), Col1Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 1
+     
+update a set col2Amt=isnull(c.amount,0), Col2Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 2
+
+update a set col3Amt=isnull(c.amount,0), Col3Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 3
+     
+update a set col4Amt=isnull(c.amount,0), Col4Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 4
+     
+update a set col5Amt=isnull(c.amount,0), Col5Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 5
+     
+update a set col6Amt=isnull(c.amount,0), Col6Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 6
+     
+update a set col7Amt=isnull(c.amount,0), Col7Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 7
+     
+update a set col8Amt=isnull(c.amount,0), Col8Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 8
+     
+update a set col9Amt=isnull(c.amount,0), Col9Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 9
+     
+update a set col10Amt=isnull(c.amount,0), Col10Name=b.[description]
+ from @wt3 a, 
+ @headers b, 
+ @wt2 c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+  and b.[description]=c.[description]
+  and b.id = 10
+ 
+ delete from @wt2 where [description] in (select [description] from @headers)    
+ 
+update a set OtherAmt=isnull(c.amount,0)
+ from @wt3 a, 
+ (select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,sum(isnull(amount,0)) as amount from @wt2
+ group by taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name
+) c
+ where a.taxyear = c.taxyear
+  and a.taxrate = c.taxrate
+  and a.sourceDate = c.sourceDate
+  and a.itemNo=c.itemNo
+  and a.receiptNo=c.receiptNo
+  and a.name=c.name
+ 
+ update @wt3 set Col1Name = isnull((select max(Col1Name) from @wt3),'') where id > 0
+ update @wt3 set Col2Name = isnull((select max(Col2Name) from @wt3),'') where id > 0
+ update @wt3 set Col3Name = isnull((select max(Col3Name) from @wt3),'') where id > 0
+ update @wt3 set Col4Name = isnull((select max(Col4Name) from @wt3),'') where id > 0
+ update @wt3 set Col5Name = isnull((select max(Col5Name) from @wt3),'') where id > 0
+ update @wt3 set Col6Name = isnull((select max(Col6Name) from @wt3),'') where id > 0
+ update @wt3 set Col7Name = isnull((select max(Col7Name) from @wt3),'') where id > 0
+ update @wt3 set Col8Name = isnull((select max(Col8Name) from @wt3),'') where id > 0
+ update @wt3 set Col9Name = isnull((select max(Col9Name) from @wt3),'') where id > 0
+ update @wt3 set Col10Name = isnull((select max(Col10Name) from @wt3),'') where id > 0
+
+insert @rt  
+ select taxYear,taxrate,dbo.date2(sourceDate),itemNo,ReceiptNo,Name,dbo.formatCurr(Col1Amt),dbo.formatCurr(Col2Amt),dbo.formatCurr(Col3Amt),dbo.formatCurr(Col4Amt),dbo.formatCurr(Col5Amt),dbo.formatCurr(Col6Amt),dbo.formatCurr(Col7Amt),dbo.formatCurr(Col8Amt),dbo.formatCurr(Col9Amt),dbo.formatCurr(Col10Amt),dbo.formatCurr(OtherAmt),taxyear+''+taxrate+'d' from @wt3
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','',taxrate+' Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),taxyear+''+taxrate+'e' 
+ from @wt3 group by taxyear,taxrate
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','',taxYear+' Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),taxyear+'zzzzzf' 
+ from @wt3 group by taxyear
+
+insert @rt --(taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,Col1,Col2,Col3,Col4,Col5,Col6,Col7,Col8,Col9,Col10,Other,ord)
+ select '','','','','','Grand Total',dbo.formatCurr(sum(isnull(Col1Amt,0))),dbo.formatCurr(sum(isnull(Col2Amt,0))),dbo.formatCurr(sum(isnull(Col3Amt,0))),dbo.formatCurr(sum(isnull(Col4Amt,0))),dbo.formatCurr(sum(isnull(Col5Amt,0))),dbo.formatCurr(sum(isnull(Col6Amt,0))),dbo.formatCurr(sum(isnull(Col7Amt,0))),dbo.formatCurr(sum(isnull(Col8Amt,0))),dbo.formatCurr(sum(isnull(Col9Amt,0))),dbo.formatCurr(sum(isnull(Col10Amt,0))),dbo.formatCurr(sum(isnull(OtherAmt,0))),'zzzzzzg' 
+ from @wt3 
+
+insert @rt 
+  select 'TAX YEAR','TAX RATE','SOURCE DATE','ITEM NO','RECEIPT NO','NAME',max(Col1Name),max(Col2Name),max(Col3Name),max(Col4Name),max(Col5Name),max(Col6Name),max(Col7Name),max(Col8Name),max(Col9Name),max(Col10Name),'OTHER',min(taxyear)+''+min(taxrate)+'a' from @wt3
+
+
+  
+ return
+end 

@@ -1,0 +1,69 @@
+create function dbo.auditorReportBankReconciliation(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10), @bankAccountCode varchar(50)) 
+returns @rt table(	rowstring varchar(250),
+					sourceAmt varchar(50),
+					rowType char(10),
+					ord varchar(250),
+                                        comment varchar(250))
+as 
+begin
+
+declare		@wt table(
+					auditReportGroup varchar(60),
+					amount money,
+					ord varchar(60),
+                                        comment varchar(250))
+
+
+----insert raw data
+insert @wt 
+	select	'Cash In Banks',
+			sum(case when isnumeric(a3)=1 then cast(a3 as money) else 0 end),
+			'10',
+                        '' 
+			from object where typ=4780 and a2 <= @enddate and a2 >= @begindate and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=key1)
+
+insert @wt 
+	select	'Cash On Hand',
+			sum(amount),
+			'20',
+                        ''
+			from gldetailreports where sourceDate<=@endDate and accountType='CASH' and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
+
+insert @wt (auditReportGroup,amount,comment,ord)
+	select	*,
+			'20' from dbo.auditorReportOSDetail(@beginDate, @endDate, @bankAccountCode)
+
+----insert detail
+insert @rt
+	select	'   ' + dbo.padRight(auditReportGroup,' ',61),
+			dbo.padLeft(dbo.formatCurr(sum(isnull(amount,0))),' ',16),
+			'detail',
+			@ordSeed + cast(ord as varchar) + 'b',
+                        isnull(comment,'')
+			from @wt group by auditReportGroup, ord,isnull(comment,'')
+
+----insert subtotals
+insert @rt
+	select 
+           dbo.padRight('      Ending Fund Balance ', ' ', 60),
+            dbo.padLeft(dbo.formatCurr(SUM(isnull(amount,0))),' ',16),
+            'gFooter',
+            @ordSeed + 'd',
+            '' 
+	from @wt 
+
+insert @rt 
+	select ' ' + replicate('=',79),replicate('=',16),'line',max(@ordSeed)  + 'c','' from @rt 
+ 
+----headers
+insert @rt 
+	select '','','lineFeed',@ordSeed + '0000a',''
+insert @rt (rowstring,ord,rowType)
+	select ' '+'Bank Reconcilement',@ordSeed + '0000aa','sHeader'	
+insert @rt 
+	select ' ' + replicate('=',79),replicate('=',16),'line',@ordSeed + '0000ab',''
+	
+	
+return
+end
+

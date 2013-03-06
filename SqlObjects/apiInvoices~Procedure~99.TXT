@@ -5,7 +5,8 @@ create proc dbo.apiInvoices(
  @postFile varchar(50) = 'apiPostInvoices.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
- @result varchar(max) = null output
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
@@ -30,7 +31,7 @@ begin
   @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
 
 -- if not @apiService = 'ON' 
 --  return
@@ -100,7 +101,7 @@ begin
      + '@stale=' + cast(stale as varchar) + ';'
      + '@%stale=' + cast(percentStale as varchar) + '%;'
     from @status where taxyear = @taxyearToken
-    exec dbo.logit @@procid, @log
+    exec dbo.logit @@procid, @log, @override = 'TRUE'
     delete @taxyears where year = @taxyearToken
    end
 
@@ -133,14 +134,14 @@ begin
   select @tally = count(*) from @wt
   if isnull(@tally,0) = 0
   begin
-   exec dbo.logit @@procid, 'all records updated... nothing to do. :)'
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
    return
   end
  
   if @batchSize != @tally
   begin
    set @batchSize = @tally
-   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize, @override = 'TRUE'
   end
 
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
@@ -191,11 +192,11 @@ begin
   begin
    set @theDate = getDate()
    update invoices set apiUpdated = @theDate where id in (select invoice_link from @wt)
-   exec dbo.logit @@procid, 'Success...', @dump
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
   end
   else
   begin
-   exec dbo.logit @@procid, 'Failure...', @dump
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
   end
 
   return

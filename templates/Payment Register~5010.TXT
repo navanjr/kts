@@ -1,0 +1,113 @@
+Team America Rocks
+
+@bb7=&Print;
+@bbproc7= 
+ gcBeginDate=today(),
+ gcEndDate=today(),
+ payreg=;
+
+
+@payreg=
+ do(452,getSiteInfo=),
+ lcPrincTot=0,
+ lcGrandTot=0,
+ lcsql='select 
+     PayDateNo,
+     RegNo,
+     PayNo,
+     payee,
+     dbo.popro6(WarNo,6,1),
+     amount,
+     PayAmount,
+     fiscalYear,
+     FundDesc
+       from dbo.rpPaymentRegister('gcBeginDate','gcEndDate') where PayNo>'' 0'' order by FundCode, PayNo ',
+
+  tr(
+    lcLm=450,
+    lcTm=250,
+    prn(printed),
+    prn(page),
+    prn('Treasurers Payment Register',t1),
+    prn('of Warrants (S.A.& I. 2211)',t2),
+    prn('Paid '&format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),t3), 
+    nl,
+    lcTm=lcTm+1000,
+    prn(,lcLm,lcTm),
+    bnd('HOU','Date Pd',600,'Paymt No.',600,'Chk No.',600,'To Whom Payable',1800,'Warnt No.',600,'Amount',750C,'Interest',400C,'Total Pd',750C,'Fiscal Yr',750),
+
+  grp(1,obj5:a9,do(
+    bnd('H','FUND: '&obj5:a9,5000),
+    nl,
+     ), do(
+    nl,
+    bnd('H','',3100,'Fund Totals:',1200R,format(lcPrincTot,@n$-14.2),1000R, ' 0',200R,format(lcGrandTot,@n$-14.2),900R),
+    lcPrincTot=0,
+    lcGrandTot=0,
+    detendpage )
+     ),   
+ 
+  det(lcsql),
+      bnd('D',format(obj5:a1,@d1b),600,' ',600,obj5:a3,600,format(obj5:a4,@s22),1800,obj5:a5,600,format(obj5:a6,@n$-14.2),750R,'',400C,format(obj5:a7,@n$-14.2b),750R,obj5:a8,750 ),
+      lcPrincTot=lcPrincTot+obj5:a6,
+      lcGrandTot=lcGrandTot+obj5:a7,
+  edt,
+);
+
+
+@warrantRegister=
+  do(452,getSiteInfo=),
+  lcsql='select 
+     dbo.popro6(WarNo,6,1),
+     WarDateNo,
+     RegDateNo,
+     left(payee,40),
+     amount,
+     PayAmount,
+     PayNo,
+     PayDateNo,
+     FundDesc,
+     fiscalYear
+       from dbo.rpwarrantregister('gcBeginDate','gcEndDate') order by FundCode, fiscalYear, RegDateNo, WarNo',
+  lcYTDTotal=0,
+  tr(
+    lcLm=450,
+    lcTm=250,
+    prn(printed),
+    prn(page),
+    prn('Warrant Register',t1),
+    prn('S.A.& I. 185 (2002)',t2),
+    prn('Registered '&format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),t3), 
+    nl,
+    lcTm=lcTm+1000,
+    prn(,lcLm,lcTm),
+    bnd('HOU','Wrnt No.',600,'Date Issued',650,'Date Regist',650,'To Whom Payable',1300,'Amount',750C,'YTD Total',600C,'Interest',400C,'Total Pd',700R,'Paymt No.',600,'When Paid',650),
+  grp(1,obj5:a9&obj5:a10,do(
+    bnd('H','FUND: '&obj5:a9,1000,'',4500,'FISCAL YEAR: '&obj5:a10,1000),
+    nl,
+     ),
+   do(
+   nl,
+   bnd('H','',3700,'Fund Total Paid:',1200R,format(lcWarrantTot,@n$-14.2),1000R),
+   lcWarrantTot=0,
+   lcYTDTotal=0,
+   detendpage )
+     ),   
+ 
+    det(lcsql),
+      lcYTDTotal=lcYTDTotal+obj5:a5,
+      bnd('D',
+      format(obj5:a1,@n06b),600,
+      format(obj5:a2,@d1b),650,
+      format(obj5:a3,@d1b),650,
+      format(obj5:a4,@s28),1300,
+      format(obj5:a5,@n$-14.2),750R,
+      format(lcYTDTotal,@n$-14.2),600R,
+      '',400C,
+      format(obj5:a6,@n$-14.2b),700R,
+      obj5:a7,600C,
+      format(obj5:a8,@d1b),650 ),
+      lcWarrantTot=lcWarrantTot+obj5:a6,
+    edt,
+
+);

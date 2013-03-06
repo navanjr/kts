@@ -1,34 +1,50 @@
 create proc dbo.apiReceipts(
- @taxyear varchar(4),
+ @taxyear varchar(4) = 'ALL',
  @method varchar(50) = 'GET',
  @batchSize int = 10,
- @postFile varchar(50) = 'apiPost.json',
+ @postFile varchar(50) = 'apiPostReceipts.json',
+ @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
- @result varchar(max) = null output
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
 
- exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, @override = 'TRUE'
 
  declare
+  @resource varchar(50) = 'receipts',
+  @apiService varchar(50),
   @tempPath varchar(50), 
   @postFileFull varchar(100), 
+  @postFileFullRaw varchar(100), 
   @apiCode varchar(50),
   @apiwt JSONHierarchy,
   @filter varchar(500),
-  @apiResource varchar(50) = '/v2/treasurer/invoices',
+  @apiResource varchar(50) = '/v2/treasurer/receipts',
   @dump varchar(max),
+  @dumpRaw varchar(max),
   @log varchar(max),
   @tokenId int,
   @apiResultWt JSONHierarchy,
   @theDate datetime,
   @updated int,
-  @inserted int
+  @inserted int,
+  @tally int,
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
+
+ exec dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
  
  select @tempPath = path from dbo.paths() where name = 'temp'
  select top 1 @apiCode = b12 from object where typ = 40 order by id
  set @postFileFull = @tempPath + '\' + @postFile
+ set @postFileFullRaw = @tempPath + '\' + @postFile + '.raw'
+ if @scratchFile is null
+  set @scratchFile = @tempPath + '\' + 'apiResultReceipts.tmp'
+
+
  declare @jsonPrep table(
   id int identity(1,1),
   parentId int,
@@ -40,69 +56,101 @@ begin
 
  declare @wt table(
   parentId int identity(1,1),
-  receipt_number int,
+  invoice_link int,
+  receipt_number varchar(50),
   receipt_link int,
   post_Date varchar(20),
   paid_Date varchar(20),
   paid_by varchar(50),
   paid_fees money,
   paid_penalties money,
-  paid_total money,
-  )
+  paid_total money
+  )				
 
- if @method = 'BatchPost'
+ if @method = 'JOB'
  begin
-  exec dbo.apiReceipts @taxyear, @method = 'POST', @batchSize = @batchSize
-  exec dbo.apiReceipts @taxyear, @method = 'STATUS', @batchSize = @batchSize
+  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
  end
 
- if @method = 'STATUS'
- begin
-  declare @taxyearToken varchar(4)
-  declare @taxyears table(year varchar(4))
-  declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
-  if not @taxyear = 'ALL' 
-   insert @taxyears select @taxYear
-  else
-   insert @taxyears select taxyear from invoices group by taxyear
 
-  insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-   from  where taxyear in (select year from @taxyears) group by taxyear
 
-  while exists(select * from @taxyears)
-  begin
-   select top 1 @taxYearToken = year from @taxyears order by year
-   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
-   select @log = '@taxyear=' + taxyear + ';' 
-    + '@total=' + cast(total as varchar) + ';'
-    + '@stale=' + cast(stale as varchar) + ';'
-    + '@%stale=' + cast(percentStale as varchar) + '%;'
-   from @status where taxyear = @taxyearToken
-   exec dbo.logit @@procid, @log
-   delete @taxyears where year = @taxyearToken
-  end
-  return
- end
- 
  if @method = 'POST'
  begin
 
 -- create the post data file then call the API
-  insert @wt select top (@batchSize)
-   InvoiceId, 
-   receiptId,
-   taxyear,
-   invoiceDue,
-   invoiceAmount,
-   postDate
-  from invoices where taxyear = @taxyear and id > 0
-   and isnull(apiUpdated,0) < modified
-  order by id
+declare @it table (receiptId int)
 
+ insert @it select top (@batchsize)
+    
+		Id
+		from Object 
+		where typ = 4502 and Key3 = 'TAX' and k7 < dbo.date112(LastEditDate) and a17 = 'posted'
+		order by ID 
+
+
+
+-- bail if your done... 
+  select @tally = count(*) from @it
+  if isnull(@tally,0) = 0
+  begin
+     exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
+     set @tally = 0
+     return
+  end
+
+
+		
+  insert @wt
+     select
+       c.ID,
+       a.receiptNumber,
+       a.receiptId,
+       '',
+       '',
+       dbo.stripChars(c.NAME,@goofyChars),
+       0,
+       0,
+       sum(b.amount)
+   
+      from receiptLink a, receiptDetail b, invoices c
+     where 't'+CAST(a.invoiceId as varchar) = b.slink
+         and a.receiptId in (select i.receiptId from @it i)
+         and a.invoiceId = c.ID
+         and a.receiptNumber>'  0'
+        group by c.id,c.invoiceId, c.TAXROLLID, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
+        
+     update @wt set
+       paid_by =   dbo.stripChars(case when a1>'  0' then a1 else paid_by end,@goofyChars),
+       paid_Total =  dbo.taxReceiptTaxPaid(receipt_link,invoice_link,0),
+       paid_Date = dbo.date112(b10),
+       post_Date = dbo.date112(key2)
+      from @wt,object where id = receipt_link
+
+  select @batchsize = count(invoice_link) from @wt
+        
+  declare @wt2 table (id int,penalty money,fee money)
+
+	insert @wt2
+		select 
+		   invoiceId,
+           sum(case when invoiceId>0 and TYP='P' then invoiceamount else 0 end),
+		   sum(case when invoiceId>0 and TYP<>'P' and typ<>'A' then invoiceamount else 0 end)
+		from invoices,@wt where invoice_link = invoiceId			
+		group by invoiceId
+    
+    update w set
+			paid_penalties = penalty,
+			paid_fees = fee,
+			paid_total = paid_total + penalty + fee
+			from @wt w,@wt2 w2 where w2.id = w.invoice_link
+			
+-- insert into jsonprep			
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
   insert @jsonPrep select parentId,null,'receipt_number',receipt_number,'string' from @wt
   insert @jsonPrep select parentId,null,'receipt_link',receipt_link,'int' from @wt
-  insert @jsonPrep select parentId,null,'posted_date',posted_date,'string' from @wt
+  insert @jsonPrep select parentId,null,'invoice_link',invoice_link,'int' from @wt
+  insert @jsonPrep select parentId,null,'post_date',post_date,'string' from @wt
 
   insert @jsonPrep select parentId,null,'paid_total',paid_total,'int' from @wt
   insert @jsonPrep select parentId,null,'paid_penalties',paid_penalties,'int' from @wt
@@ -119,15 +167,22 @@ begin
   select @tokenId,'','','array'
 
   insert @apiwt select * from @jsonPrep
+  select @log = 'count of @apiwt ' + cast(count(*) as varchar) from @apiwt
+  exec dbo.logit @@procid, @log, @override='TRUE' 
   select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @dumpRaw = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
 
   exec spOverwriteTextFile @postFileFull, @dump
-  
+exec dbo.logit @@procId, 'Nate', @dropRawFile
+  if @dropRawFile = 'TRUE'
+   exec spOverwriteTextFile @postFileFullRaw, @dumpRaw
+
   exec dbo.api
    @method = @method,
    @resource = @apiResource,
    @postFile = @postFile,
    @debugMode = @debugMode,
+   @scratchfile = @scratchFile,
    @cmdOutput = @tokenId output,
    @dump = @dump output
 
@@ -139,12 +194,12 @@ begin
   if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
   begin
    set @theDate = getDate()
-   update invoices set apiUpdated = @theDate where id in (select invoice_link from @wt)
-   exec dbo.logit @@procid, 'Success...', @dump
+   update object set k7 = @theDate where id in (select receiptId from @it)
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
   end
   else
   begin
-   exec dbo.logit @@procid, 'Failure...', @dump
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
   end
 
   return

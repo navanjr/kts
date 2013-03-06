@@ -1,0 +1,71 @@
+@key2=obj:key1&obj:key2;
+@defaultbrowsekey=2;
+
+
+@filter='1=1','key1='''&filterfield1&'''';
+@filtername=All,Year;
+
+
+@format=50L(2)~Year~#1#|M100L(2)~School Desc~#30#|M50L(2)~School AcctCode~#2#|M100R(2)~ADA Amount~@n14.2b@#3#|M;
+
+@dk1;
+@fastinsert;
+
+@bb7=&Print;
+@bbproc7=trreport('adaInfo',4013,printAda=);
+
+@bb6=Copy Year;
+@bbproc6=
+ iw(',.t000Copying from year '&obj:key1&'...., ,.t001Enter New Year., ,.w00235., ,.t002p####p.,'),
+ break(gcretval<>'OK'),
+ lcfyr=obj7:key1,
+ sql('exec millsCopy 4013,'''&obj:key1&''','''&lcfyr&'''');
+
+@bb5=Pull Schools,,,;
+@bbproc5=iw('\t001Year; \t002@n4; \w00230;'),
+ lcyear=obj7:key1,
+ if(lcyear+0<1,lcyear=year(today())),
+ sql('exec dbo.adaSchoolImport '''&lcyear&''''),
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''''');
+
+@bb4=Sync Descrip; @bbproc4=d1select('exec dbo.syncAdaDescrip');
+
+@afterloadwindow=
+ if(obj:key1+0<1900,set(2,kp('select year(getdate())'))),
+ tsc,
+ tabord('002042006');
+
+\t001Year;f
+ \t002@n4;
+ \w00230;
+\t003School Acct Code; \d004; \x004184;
+\l0044701;r004002042004; @lf004='typ=4701 and a1=''SCHOOL'' and b3!=1',2;
+
+
+acc042=if(obj:key2<'  0',set(042,''));
+
+\t005ADA;
+ \t006@n14.2;
+ \w00650;\p0067c0ch,1;
+
+\t041Account Description; \h041; \x04263;
+   \l0424701;r004002042004; @lf042='typ=4701 and a1=''SCHOOL'' and b3!=1',2;
+@closewindow=update,sql('exec dbo.adaFundReceivableVerification '''&obj:key1&'''');
+
+@printAda=
+ do(452,getSiteInfo=), 
+ gcDet4013='select key1,key2,key3,a18 from object where typ=4013 order by key1',
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  grp(1,obj5:a1,
+   bnd('H','Year: '&obj5:a1,1000),
+  ),
+  bnd('HU',,100,'School Code',1000,'ADA',1000,'Description',1000),
+  det(gcDet4013),
+   bnd('D',,100,obj5:a2,1000,obj5:a3,1000,obj5:a4,1000),
+  edt,
+ );

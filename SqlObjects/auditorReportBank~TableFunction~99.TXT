@@ -1,0 +1,125 @@
+create function dbo.auditorReportBank(@begindate varchar(15),@enddate varchar(15),@ordSeed varchar(10))
+returns @rt table(	rowstring varchar(250),
+					bankAccount varchar(60),
+					DemandBalance varchar(60),
+					InvestBalance varchar(60),
+					TotalCash varchar(60),
+					Collateral varchar(60),
+					FDIC varchar(60),
+					rowType varchar(10),
+					ord varchar(250))
+as begin
+
+declare @wt table(	accountDesc varchar(60),
+					accountCode varchar(60),
+					bankAccount varchar(60),
+					DemandBalance money,
+					InvestBalance money,
+					TotalCash money,
+					Collateral money,
+					FDIC money,
+					ord varchar(250))
+
+
+
+declare @dailyledgerdetail table(
+					accountCode varchar(50),
+					accountDesc varchar(50),
+					beginbalance money,
+					paid money,
+					appout money,
+					appin money,
+					tranout money,
+					tranin money,
+					deposits money,
+					endbalance money,
+					accountType varchar(50),
+					reportOrder varchar(50))
+
+insert @dailyledgerdetail (accountCode,	accountDesc, beginbalance, paid, appout, appin,	tranout, tranin, deposits, endbalance, accountType, reportOrder)
+	select accountCode, accountDesc, beginbalance, paid, appout, appin, tranout, tranin, deposits+elecdeposits, endbalance, accountType, reportOrder from dailyledgerdata(@beginDate,@endDate) 
+
+insert @wt
+	select	d.accountDesc,
+			d.accountCode,
+			a.bankAccount,
+			case when a.accountType in ('BANK','CASH') then endBalance else 0.00 end as DemandBalance,
+			case when a.accountType='INVESTMENT' then endBalance else 0.00 end as InvestBalance,
+			endBalance as TotalCash,
+			isnull((select top 1 cast(c6 as money) from object where key1=a.accountCode and a2<=@endDate order by a2 desc),0) as Collateral,
+			isnull((select top 1 cast(c7 as money) from object where key1=a.accountCode and a2<=@endDate order by a2 desc),0) as FDIC,
+			d.accountdesc
+			from @dailyledgerdetail d, glaccounts a 
+		where d.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+			and d.accountCode=a.accountCode
+		order by d.accountType,d.reportOrder
+
+----insert detail
+insert @rt
+	select	'  ' + dbo.padRight(accountDesc,' ',61),
+			bankAccount,
+			dbo.padLeft(dbo.formatCurr(DemandBalance),' ',16),
+			dbo.padLeft(dbo.formatCurr(InvestBalance),' ',16),
+			dbo.padLeft(dbo.formatCurr(TotalCash),' ',16),
+			dbo.padLeft(dbo.formatCurr(Collateral),' ',16),
+			dbo.padLeft(dbo.formatCurr(FDIC),' ',16),
+			'detail',
+			@ordSeed + ord + 'c'
+		from @wt where isnull(DemandBalance,0) <> 0 or
+  isnull(InvestBalance,0) <> 0 or isnull(TotalCash,0) <> 0 or isnull(Collateral,0) <> 0 or isnull(FDIC,0) <> 0.00
+
+----insert subtotals
+insert @rt
+	select  dbo.padRight('      Total ', ' ', 61),
+            '',
+            dbo.padLeft(dbo.formatCurr(SUM(DemandBalance)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(InvestBalance)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(TotalCash)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(Collateral)),' ',16),
+            dbo.padLeft(dbo.formatCurr(SUM(FDIC)),' ',16),
+            'gFooter',
+            @ordSeed + 'zzzz' + 'd' 
+		from @wt 
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + 'xxxx' + 'c' 
+		
+
+----headers
+insert @rt 
+	select '','','','','','','','lineFeed',@ordSeed + '0000a'
+
+insert @rt 
+	select '  Banks/Location',
+			'Account',
+			dbo.padLeft('Demand',' ',16),
+			dbo.padLeft('Investment',' ',16),
+			dbo.padLeft('Cash',' ',16),
+			dbo.padLeft('Collateral',' ',16),
+			dbo.padLeft('FDIC',' ',16),
+			'sHeader',
+			@ordSeed + '0000aa'	
+
+insert @rt 
+	select 	' ' + replicate('=',79),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			replicate('=',16),
+			'line',
+			@ordSeed + '0000ab'
+
+
+
+return
+end

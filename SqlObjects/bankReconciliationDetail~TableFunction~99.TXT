@@ -1,0 +1,43 @@
+create function dbo.bankReconciliationDetail(@begindate varchar(15),
+@enddate varchar(15),
+@bankAccountCode varchar(50))
+returns @rt table(
+  rowstring varchar(100),
+  sourceAmount money,
+  rowType varchar(50),
+  ord varchar(50),
+  comment varchar(250),
+  accountCode varchar(60),
+  accountDesc varchar(50)
+  )
+as
+begin 
+
+declare @wt table(accountCode varchar(60))
+declare @accountCodeToken varchar(60)
+
+insert @wt
+ select key1 from object where typ=4780 and a1 >= @beginDate and a2 <= @enddate
+
+insert @rt
+ select '  Ledger Balance',sum(amount),'lBalance','e','',accountCode,accountDesc from glDetailReports 
+  where accountCode in (select accountCode from @wt) 
+   and sourceDate <= @enddate 
+  group by accountCode,accountDesc
+
+while exists(select accountCode from @wt)
+begin
+ select top 1 @accountCodeToken = accountCode from @wt
+
+ insert @rt
+  select o.rowstring, o.sourceAmt, o.rowType, o.ord, isnull(o.comment,''), a.accountCode, a.accountDesc 
+   from (select * from dbo.auditorReportBankReconciliation(@begindate,@enddate,'',@accountCodeToken)) o, glaccounts a 
+    where a.accountCode = @accountCodeToken 
+      and o.rowType in ('detail','gFooter')
+      and case when o.rowType = 'detail' then cast(sourceAmt as money) else 9 end <> 0
+
+ delete from @wt where accountCode = @accountCodeToken
+end
+
+return
+end
