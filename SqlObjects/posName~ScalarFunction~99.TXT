@@ -1,0 +1,36 @@
+create function dbo.posName(
+ @id int
+) returns varchar(50) as
+begin
+
+ declare
+  @objectTyp int,
+  @suspenseMethod varchar(50),
+  @fullName varchar(50),
+  @initials varchar(5),
+  @station varchar(50),
+  @posName varchar(50)
+
+ select
+  @objectTyp = typ,
+  @suspenseMethod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
+ from object
+ where id = @id 
+
+ if @objectTyp in (4502)
+  select 
+   @fullName = o.a18,
+   @initials = u.ini,
+   @station = o.b14
+  from object o
+   join users u on u.fullName = o.a18
+  where o.id = @id
+
+ if @suspenseMethod = 'U'
+  set @posName = @initials
+ else
+  set @posName = @station
+
+ return @posName
+
+end
