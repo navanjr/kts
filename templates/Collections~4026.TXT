@@ -9,7 +9,6 @@
 @gfwindow=
  if(lcbrwRefresh=1,lcbrwRefresh='',refreshbrw=);
 
-
 @loadwindow=
  lcbrwRefresh=1,
  create(551,12,458,115,'Use All &Addresses',82),
@@ -33,9 +32,12 @@
  gcbrw2Format4026='200L(5)~~#2#M';
 
 @brwstuff=
+ lcBrw1Z=mh*.50, 
+ lcBrw2y=lcBrw1Z+18,
+ lcBrw2z=mh*.20,
  kpmo('Loading Initial Data...','Please Wait...'),
- brw(150,1,gcbrwsql4026,2,15,450,262,gcbrwFormat4026),
- brw(151,2,gcbrw2sql4026,2,280,450,150,gcbrw2Format4026),
+ brw(150,1,gcbrwsql4026,2,15,450,lcBrw1Z,gcbrwFormat4026),
+ brw(151,2,gcbrw2sql4026,2,lcBrw2y,450,lcBrw2z,gcbrw2Format4026),
  kpmc(),
  prop(150,'Color',16777215), prop(150,7c10h,'Courier New'), prop(150,'SelectedFillColor',65535), prop(150,'SelectedColor',0),
  prop(151,'Color',16777215), prop(151,7c10h,'Courier New'), prop(151,'SelectedFillColor',16777215`), prop(151,'SelectedColor',0);
@@ -225,8 +227,8 @@
  lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
  if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
  break(lcReportName<'  0'),
- lcTally=kp('select count(*) from dbo.collectionsBRW('''&gcDType&''','&obj:link1&','&obj:key1&','&obj:a17&',0) where documentStatus = '''''),
- iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230.,  \t000Create Batch..;,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
+ lcTally=kp('select count(*) from dbo.collectionsBRW('''&gcDType&''','&obj:link1&','&obj:key1&','&obj:a17&',0) where charindex(''Printed'',documentStatus) = 0'),
+ iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230., ,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
  break(gcretval<>'OK'),
  lcCount=obj7:key1,
  lcAddressSwitch=choose(obj:c3>0,obj:c3,'0'),
@@ -278,6 +280,7 @@
 
 \t119Mana&ge Docs;
 @acc119=browse(1,4900);
+
 \t120&List;
 @acc120=
  gcvars=,
@@ -285,7 +288,7 @@
 
 @collectionList=
  do(452,getSiteInfo=),
- lcKeyWidthReport=lcKeyWidth*10,
+ lcKeyWidthReport=choose(gcDType='RESALE','1500','750'),
  lcDueTot=0,
  tr(
   prn(printed),
@@ -293,11 +296,11 @@
   prn('Collection List',t1),
   prn(gcCounty&' County',t2), 
   prn(gcCity&', '&gcState,t3), 
-  bnd('HU','Name',2000,gcDType,lcKeyWidthReport,'Total Due',-1000),
+  bnd('HU','Name',3000,gcDType,lcKeyWidthReport,'Total Due',-1200),
   det(gcbrwsql4026Report),
-   bnd('D',obj5:a2,2000,obj5:a3,lcKeyWidthReport,format(obj5:a4,@n14.2b),-1000),
+   bnd('D',obj5:a2,3000,obj5:a3,lcKeyWidthReport,format(obj5:a4,@n14.2b),-1200),
    lcDueTot=lcDueTot+obj5:a4,
   edt,
   nl,
-  bnd('D',,2000,,lcKeyWidthReport,format(lcDueTot,@n$14.2b),-1000),
+  bnd('D',,3000,,lcKeyWidthReport,format(lcDueTot,@n$14.2b),-1200),
  );
