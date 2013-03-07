@@ -556,6 +556,7 @@ close('ok');
 @doposted=lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
+ if(lcTyp+0=5 or lcTyp+0=6 or lcTyp+0=7,doprint1=),
  break(lcTyp<>8),
  lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where depositId=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
@@ -565,6 +566,18 @@ close('ok');
 
 @updatepaid=sql('update paid set paycode='''&obj7:key1&''', checkno='''&obj7:key2&''', drawnon='''&obj7:key3&''', location='''&obj7:a1&''' where id='&lcid),
   refreshDetail=;
+
+@doprint1=
+gcPrintInvoiceId=lcid,
+lcreceipt=kp('select receiptNumber from receiptlink where receiptid='&obj:id&' and invoiceid='&gcPrintInvoiceId),
+break(len(lcreceipt)<2),
+m('Would you like to print Receipt# '&lcreceipt+'?','Print?',,6),
+break(gcretval<>2),
+gcPrintOneTaxReceiptId=gcPrintInvoiceId,
+printRec=,
+gcPrintInvoiceId=0,
+gcPrintOneTaxReceiptId=0,
+;
 
 @getpaid=
  set(-06,lcid,1),
