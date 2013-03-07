@@ -1,0 +1,104 @@
+create proc dbo.diagFix_trustPostedWithLegacySuspense(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+
+ declare @legacySuspenseCodes table(accountCode varchar(50))
+
+ insert @legacySuspenseCodes
+ select accountCode from dbo.glAccounts where accountType = 'SUSPENSE' and not accountCode like '%.%'
+
+ declare @receiptSlinksWithLegacySuspense table(slink varchar(15))
+
+ insert @receiptSlinksWithLegacySuspense
+ select distinct r.slink 
+ from receipt r
+  join gldetail g on g.slink = r.slink
+   and g.accountCode in (select accountCode from @legacySuspenseCodes)
+ where r.recType = 'TRUST'
+
+ if @method = 'GET'
+ begin 
+
+  select
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'TRUST receipts with the Wrong/Old suspense glDetail'
+  from receipt a
+  where a.recType = 'TRUST'
+   and a.recId in (select dbo.slinkId(slink) from @receiptSlinksWithLegacySuspense)
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   a.*
+  from receipt a
+  where a.recType = 'TRUST'
+   and a.recId in (select dbo.slinkId(slink) from @receiptSlinksWithLegacySuspense)
+
+ end
+
+ if @method = 'FIX'
+ begin
+
+  declare
+   @updateToken table(
+    id int,
+    slink varchar(15),
+    oldAccountCode varchar(50),
+    newAccountCode varchar(50),
+    accountDesc varchar(50),
+    accountId int
+   )
+  insert @updateToken 
+  select 
+   id,
+   slink,
+   accountCode,
+   dbo.posName(dbo.slinkId(slink)) 
+   +'.TRUST.'+
+   case accountCode 
+    when 'SUSCHECK' then 'CHECK'
+    when 'SUSCASH' then 'CASH'
+    when 'SUSCC' then 'CCARD'
+    when 'SUSWARRANT' then 'WARRANT'
+    when 'SUSVOUCHER' then 'VOUCHER'
+    when 'SUSMO' then 'MO'
+    when 'SUSCOIN' then 'COIN'
+    when 'SUSETR' then 'ETR'
+   end,
+   null, null
+  from gldetail
+  where slink in (select slink from @receiptSlinksWithLegacySuspense)
+   and accountCode in (select accountCode from @legacySuspenseCodes)
+ 
+  update a set
+   a.accountDesc = b.accountDesc,
+   a.accountId = b.accountId
+  from @updateToken a, glAccounts b
+  where a.newAccountCode = b.accountCode
+
+  delete @updateToken where accountId is null  
+
+  update g set
+   g.accountId = t.accountId,
+   g.accountCode = t.newAccountCode,
+   g.accountDesc = t.accountDesc
+  from glDetail g, @updateToken t
+  where g.id = t.id
+
+  exec dbo.logit @@procId, 'Just updated some glDetail....', @@rowcount
+
+ end
+
+end
