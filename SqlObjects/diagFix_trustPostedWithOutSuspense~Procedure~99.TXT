@@ -1,0 +1,77 @@
+create proc dbo.diagFix_trustPostedWithOutSuspense(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+
+ declare @receiptIdsWithSuspense table(id int)
+
+ insert @receiptIdsWithSuspense
+ select distinct r.recId 
+ from receipt r
+  join gldetail g on g.slink = r.slink
+   and g.accountCode in (select accountCode from dbo.glAccounts where accountType = 'SUSPENSE')
+ where r.recType = 'TRUST'
+
+ if @method = 'GET'
+ begin 
+
+  select
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'TRUST receipts with out ANY suspense glDetail'
+  from receipt a
+  where a.recType = 'TRUST'
+   and a.recId not in (select id from @receiptIdsWithSuspense)
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   a.*
+  from receipt a
+  where a.recType = 'TRUST'
+   and a.recId not in (select id from @receiptIdsWithSuspense)
+
+ end
+
+ if @method = 'FIX'
+ begin
+  declare @slinks table(slink varchar(15))
+  declare
+   @tokenSlink varchar(15),
+   @tokenId int,
+   @result int
+
+  insert @slinks
+  select slink from receipt a
+   where a.recType = 'TRUST'
+   and a.recId not in (select id from @receiptIdsWithSuspense)
+  order by slink
+
+  while exists(select * from @slinks)
+  begin
+   select top 1
+    @tokenSlink = slink,
+    @tokenId = dbo.slinkId(slink)
+   from @slinks 
+   delete @slinks where slink = @tokenSlink
+   
+   exec dbo.glUnPost @slink = @tokenSlink, @code = @result output
+   if isnull(@result,0) = 0
+   begin
+    exec dbo.receiptStageGL @receiptId = @tokenId
+    exec dbo.glPost @id = @tokenId, @styp = 'o'
+   end
+  end
+ end
+
+end
