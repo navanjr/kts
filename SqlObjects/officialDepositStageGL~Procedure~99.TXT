@@ -21,7 +21,7 @@ begin
   @officialFundAccountId int,
   @tokenId int,
   @tokenAmount money,
-  @posName varchar(50) = dbo.readstring('@posName=',dbo.whoami())
+  @posName varchar(50) = dbo.posName(@officialDepositId)  --dbo.readstring('@posName=',dbo.whoami())
  
  select 
   @code = code,
@@ -37,7 +37,7 @@ begin
  select
   a.accountId, a.accountCode, a.accountDesc, gld.amount * -1
  from paid p
-  join gldetail gld on gld.slink = p.slink
+  join gldetail gld on gld.slink2 = 'p'+cast(p.id as varchar)
   join dbo.glAccounts a on a.accountCode = gld.accountCode and a.accountType = 'SUSPENSE'
  where p.officialDepositId = @officialDepositId
 
@@ -46,7 +46,7 @@ begin
  select
   @posName + '.OFFICIAL.' + dbo.splitF(a.accountCode,'.',3), gld.amount
  from paid p
-  join gldetail gld on gld.slink = p.slink
+  join gldetail gld on gld.slink2 = 'p'+cast(p.id as varchar)
   join dbo.glAccounts a on a.accountCode = gld.accountCode and a.accountType = 'SUSPENSE'
  where p.officialDepositId = @officialDepositId
 
