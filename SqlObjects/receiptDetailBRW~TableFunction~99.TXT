@@ -111,10 +111,10 @@ begin
  begin
   if exists(select * from dbo.glDetailStage where slink = @slink)
   begin
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'ca',0,'','',0
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'cb',0,'GL Detail (staged)','',0
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'ca',0,'','',0,10
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'cb',0,'GL Detail (staged)','',0,11
 
    declare @stageScratch table(accountId int, amount money, accountType varchar(50), accountDesc varchar(50), ord varchar(50))
    insert @stageScratch
@@ -129,8 +129,8 @@ begin
    from @stageScratch a, dbo.glAccounts b where a.accountId = b.accountId
    update @stageScratch set accountType = 'suspense', accountDesc = 'Temporary Suspense', ord = 'ccZsuspense' where isnull(accountId,0) = 0
 
-   insert @rettable (ord,id,description,subdescription,amount)
-   select ord,0,'   '+accountDesc,lower(accountType),sum(amount)
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select ord,0,'   '+accountDesc,lower(accountType),sum(amount),12
    from @stageScratch
    group by accountType, accountDesc, ord
 
@@ -138,12 +138,12 @@ begin
 
   if exists(select * from dbo.glDetail where slink = @slink)
   begin
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'ca',0,'','',0
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'cb',0,'GL Detail (posted)','',0
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount)
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'ca',0,'','',0,13
+   insert @rettable (ord,id,description,subdescription,amount,colorFlag,origin)
+   select 'cb',0,'GL Detail (posted)','',0,2,14
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount),15
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
     and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
    group by b.subord,a.accountDesc,lower(b.accountType)
@@ -175,30 +175,30 @@ begin
    update @taxInvoices set description = (select top 1 description from receiptDetail where slink = realslink) 
    where description = 'sub invoice'
 
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'ea',0,'','',0
-   insert @rettable (ord,id,description,subdescription,amount)
-   select 'eb',0,'GL Detail (posted via Tax Invoice)','',0
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'ea',0,'','',0,16
+   insert @rettable (ord,id,description,subdescription,amount,colorFlag,origin)
+   select 'eb',0,'GL Detail (posted via Tax Invoice)','',0,2,17
 
   --Invoice Header
-   insert @rettable (ord,id,description,subdescription,amount)
+   insert @rettable (ord,id,description,subdescription,amount,origin)
    select
     'ec' + slink + ord + min(realslink) + 'a',
     0,
     '   ' + description,
     subDescription,
-    0
+    0,18
    from @taxInvoices
    group by slink,description,subdescription, ord
 
   -- invoice GL Detail
-   insert @rettable (ord,id,description,subdescription,amount)
+   insert @rettable (ord,id,description,subdescription,amount,origin)
    select
     'ec' + c.slink + c.ord + max(c.realslink) + 'b',
     0,
     left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
     lower(b.accountType),
-    sum(a.amount)
+    sum(a.amount),19
    from dbo.glDetail a, glaccounts b, @taxInvoices c
    where a.accountId = b.accountId
     and a.slink = c. realslink
