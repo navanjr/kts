@@ -35,6 +35,8 @@ returns @wt table(id int identity(1,1),
                   
 as 
 begin                  
+
+-- here we get all rows from object where typ = 4502 and the receiptType is NOT Tax
  insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station)
  select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station
  from receipt 
@@ -42,6 +44,7 @@ begin
   postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
   and recType<>'TAX'
 
+-- dont know for sure but i think this gets all object records that are typ 4502 and receipt Type is tax
  insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
    'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station
@@ -50,6 +53,7 @@ begin
    and parentInvoiceId<1
    order by recNum
 
+-- another dip into object for tax receipts i think
  insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
  select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
   'l'+cast(linkId as varchar(15)),recId, Deputy
@@ -68,7 +72,6 @@ begin
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
    and parentInvoiceId=0
-
 
  update w 
  set taxYear = apyear, 
