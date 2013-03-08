@@ -1,0 +1,36 @@
+create   function [dbo].[time2] (@x char(10)) returns varchar(10) as 
+begin
+ declare
+  @hour int,
+  @ampm varchar(10),
+  @retvar varchar(10),
+  @hoursub int,
+  @hours varchar(10),
+  @minutes varchar(10),
+  @h int,
+  @m money
+
+ set @h = 0
+ set @m = 0
+
+ set @hour = 0
+ set @ampm = 'AM'
+ set @retvar=''
+ if isnull(@x,'')>'  0'
+ begin
+ 
+  set @h = cast(@x as int)/360000
+  set @m = (cast(@x as money)/360000)-@h
+  set @minutes = right('00'+cast(cast(@m * 60 as int) as varchar),2)
+
+  set @hoursub = cast(@x as int)/360000
+  set @hour = @hoursub
+  if @hoursub > 11 set @ampm = 'PM'
+  if @hoursub > 12 set @hour = @hoursub - 12
+  set @hours = right('00'+rtrim(cast(@hour as char)),2)
+
+  set @retvar = @hours + ':' + @minutes + rtrim(@ampm)
+
+ end
+ return @retvar
+end
