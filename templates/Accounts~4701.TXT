@@ -49,21 +49,44 @@
 ;
 
 @bb6=&Print Account;  
-@bbproc6=
- if(obj:a1='OFFICIAL',printOfficialDetail=),
- break(obj:a1='OFFICIAL'),
+@bbproc6=gcAbortPrint='FALSE',
+ gcAccountCode=obj:key1,
+ gcAccountType=obj:a1,
+ gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST'''),
+ if(gcAccountCode=gcTrustAccount,doTrustAccountPrint=),
+ break(gcAbortPrint='TRUE'),
+ if(gcAccountType='OFFICIAL',printOfficialDetail=),
+ break(gcAccountType='OFFICIAL'),
  m('Coming Soon!...Stay Tuned!','Under Construction');
  gcGLid=obj:id,
  trreport(glAcctReport);
+
+@doTrustAccountPrint=gcAbortPrint='TRUE',
+ m('Print which Report?','Choose Report...',,'Account Detail|Purpose Detail|Purpose Report|Cancel'),
+ gcWhichReport=gcretval,
+ if(gcWhichReport=1,printOfficialDetail=),
+ break(gcWhichReport=1),
+ iw('\t000Please Enter Dates...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&'; \t003End Date; \t004@d2; \w00450; \f004'&gcEndDate&';'),
+ break(gcretval='esc'),
+ gcBeginDate=obj7:key1,
+ gcEndDate=obj7:key2,
+ if(gcBeginDate+0<1,gcBeginDate=10),
+ if(gcEndDate+0<1,gcEndDate=today()),
+ if(gcWhichReport=2,print2=), 
+ if(gcWhichReport=2,print3=);
+
+@print2=
+ trreport('TrustPurposeDetail',5043,'printTrustPurposeDetail=');
+
+@print3=;
 
 @printOfficialDetail=iw('\t000Please Enter Dates...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&'; \t003End Date; \t004@d2; \w00450; \f004'&gcEndDate&';'),
  break(gcretval='esc'),
  gcBeginDate=obj7:key1,
  gcEndDate=obj7:key2,
- gcAccountCode=obj:key1,
  if(gcBeginDate+0<1,gcBeginDate=10),
  if(gcEndDate+0<1,gcEndDate=today()),
- trreport('OfficialAccountDetail=',5036,'printOfficialAccountDetail=');
+ trreport('OfficialAccountDetail',5036,'printOfficialAccountDetail=');
 
 
 @setandchange=

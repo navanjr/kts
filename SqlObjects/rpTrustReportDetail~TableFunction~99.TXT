@@ -10,7 +10,8 @@ JournalIn money,
 CancelVoid money,
 Vouchers money,
 JournalOut money,
-EndBalance money
+EndBalance money,
+Comment varchar(200)
 )
 as
 begin
@@ -25,72 +26,73 @@ JournalIn money,
 CancelVoid money,
 Vouchers money,
 JournalOut money,
-EndBalance money
+EndBalance money,
+comment varchar(200)
 )
 
 
-insert @wt (accountcode,accountdesc, beginbalance)
-select accountCode,accountdesc,sum(amount) 
+insert @wt (accountcode,accountdesc, beginbalance, number)
+select accountCode,accountdesc,sum(amount), 'Begin Balance' 
 from dbo.gldetailreports 
 where sourceDate<@begindate 
  and accounttype='PURPOSE'
 group by accountCode,accountdesc
 
-insert @wt (accountcode,accountdesc,sourcedate, endbalance)
-select accountCode,accountdesc,'999999',sum(amount) 
+insert @wt (accountcode,accountdesc,sourcedate, endbalance, number)
+select accountCode,accountdesc,'999999',sum(amount), 'End Balance' 
 from dbo.gldetailreports 
 where sourceDate<=@enddate 
  and accounttype='PURPOSE'
 group by accountCode,accountdesc
 
-insert @wt (accountcode,accountdesc,sourcedate,number,deposits)
-select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)
+insert @wt (accountcode,accountdesc,sourcedate,number,deposits, comment)
+select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount), sourced1
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and accountType = 'PURPOSE'
      and sourceType in ('4502','4522')
-group by accountCode,accountdesc,sourcedate,sourcekey1
+group by accountCode,accountdesc,sourcedate,sourcekey1, sourced1
      
-insert @wt (accountcode,accountdesc,sourcedate,number,JournalIn)
-select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)
+insert @wt (accountcode,accountdesc,sourcedate,number,JournalIn, comment)
+select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount), sourcee1
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and accountType = 'PURPOSE'
      and sourceType not in ('4502','4522','4771')
      and amount > 0
-group by accountCode,accountdesc,sourcedate,sourcekey1
+group by accountCode,accountdesc,sourcedate,sourcekey1, sourcee1
      
-insert @wt (accountcode,accountdesc,sourcedate,number,JournalOut)
-select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)*-1
+insert @wt (accountcode,accountdesc,sourcedate,number,JournalOut,comment)
+select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)*-1,sourcee1
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and accountType = 'PURPOSE'
      and sourceType not in ('4502','4522','4771')
      and amount < 0
-group by accountCode,accountdesc,sourcedate,sourcekey1
+group by accountCode,accountdesc,sourcedate,sourcekey1,sourcee1
      
-insert @wt (accountcode,accountdesc,sourcedate,number,cancelvoid)
-select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)
+insert @wt (accountcode,accountdesc,sourcedate,number,cancelvoid,comment)
+select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount),sourcee1
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and accountType = 'PURPOSE'
      and sourceType in ('4771')
      and amount > 0
-group by accountCode,accountdesc,sourcedate,sourcekey1
+group by accountCode,accountdesc,sourcedate,sourcekey1,sourcee1
      
-insert @wt (accountcode,accountdesc,sourcedate,number,vouchers)
-select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)*-1
+insert @wt (accountcode,accountdesc,sourcedate,number,vouchers,comment)
+select accountcode,accountdesc,sourcedate,sourcekey1,sum(amount)*-1,sourcee1
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and accountType = 'PURPOSE'
      and sourceType in ('4771')
      and amount < 0
-group by accountCode,accountdesc,sourcedate,sourcekey1
+group by accountCode,accountdesc,sourcedate,sourcekey1,sourcee1
      
 insert @rt 
  select accountcode,accountdesc,
@@ -102,9 +104,10 @@ insert @rt
  sum(isnull(CancelVoid,0.00)),
  sum(isnull(Vouchers,0.00)),
  sum(isnull(JournalOut,0.00)),
- sum(isnull(EndBalance,0.00))
+ sum(isnull(EndBalance,0.00)),
+ comment
 from @wt
-group by accountCode,accountdesc,sourcedate,number
+group by accountCode,accountdesc,sourcedate,number,comment
 
 return
 end
