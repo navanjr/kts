@@ -7,6 +7,7 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  amount money,
  sName varchar(50),
  fName Varchar(50),
+ origin int,
  colorFlag int 
 )
 begin
@@ -31,11 +32,11 @@ begin
 
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
-  insert @rettable (ord,id,description,subdescription,amount)
+  insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
    max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
    max(c.parcel),
-   sum(b.amount)
+   sum(b.amount), 1
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
@@ -43,10 +44,10 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount
 
-  insert @rettable (ord,id,description,subdescription)
+  insert @rettable (ord,id,description,subdescription,origin)
   select 'aa'+cast(c.id as varchar)+'aa',cast('6'+cast(c.id as varchar) as int)*-1,
    'Tax Year: '+cast(c.taxyear as varchar(4)),
-   'Tax Receipt: '+a.receiptNumber
+   'Tax Receipt: '+a.receiptNumber, 2
   from receiptLink a, receiptDetail b, invoices c
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
@@ -54,11 +55,11 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
 
-  insert @rettable (ord,id,description,subdescription,amount)
+  insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(max(c.id) as varchar) as int)*-1,
    max('   '+b.description),
    max('   '+lower(b.subDescription)),
-   sum(b.amount)
+   sum(b.amount),3
    from receiptLink a, receiptDetail b, invoices c
    where 't'+CAST(a.invoiceId as varchar) = b.slink
     and a.invoiceId = c.ID
@@ -88,21 +89,21 @@ begin
 
  if exists(select * from dbo.paid where slink = @slink)
  begin
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'ba',0,'','',0
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'bb',0,'Payment(s)','',0
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount from dbo.paid where slink = @slink
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'ba',0,'','',0,4
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bb',0,'Payment(s)','',0,5
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6 from dbo.paid where slink = @slink
  end
  if exists(select * from dbo.paid where officialDepositId = @receiptId)
  begin
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'bda',0,'','',0
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'bdb',0,'Payment(s) - via Trust Receipt','',0
-  insert @rettable (ord,id,description,subdescription,amount)
-  select 'bdc',cast('4'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount from dbo.paid where officialDepositId = @receiptId
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bda',0,'','',0,7
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bdb',0,'Payment(s) - via Trust Receipt','',0,8
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bdc',cast('4'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9 from dbo.paid where officialDepositId = @receiptId
  end
 
 
