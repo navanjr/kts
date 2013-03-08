@@ -38,7 +38,7 @@
 @afterloadwindow=
  refreshDetail=,
  break(obj:a17='Posted'),
- create(161,9,3,105,'&Delete'),prop(161,7c04h,56),
+ create(161,9,3,105,'&Delete/Unlink'),prop(161,7c04h,56),
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&obj:key3&''')'))),update,
  blankEm=;
 
@@ -69,7 +69,7 @@
   if(gcretval=2,postAndPrint=);\d046;
  \w04204487;r2
 
-\t019Paycode; \l0204505; \w02050; @sel020=;
+\t019Paycode; \l0204505; \w02050; @sel020=; @lmode020=2;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
 \t023Check #; \w02450; @acc024=acc165=;
  \h019024obj:a17='Posted';r
@@ -136,7 +136,19 @@
 \h160obj:a2<>gcTrustAccount or a17='Posted';
 
 @acc160=update,
+ m('Please Choose one of the following options...','Link Trust...','question.ico','&All Available Trust Receipts|By &Date|&Cancel'),
+ if(gcretval=1,linkAllTrust=),
+ if(gcretval=2,linkSomeTrust=);
+
+@linkAllTrust=
  d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''LINK ALL'' '),
+ refreshDetail=,
+ calcrecord(); 
+@linkSomeTrust=
+ iw(',.t000Please Enter Deposit Date..., ,.t001Date., ,.t002@d2., ,.w00250.,'),
+ break(gcretval<>'OK'),
+ lcDate=obj7:key1,
+ d1select('exec dbo.officialDepositLinkTrust '&obj:id&', ''LINK ALL'', @postDate = '&lcDate),
  refreshDetail=,
  calcrecord(); 
 

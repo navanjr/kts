@@ -1,29 +1,45 @@
 create procedure dbo.officialDepositLinkTrust(
- @receiptId int = null,
+ @officialDepositId int = null,
  @mode varchar(50),
- @paidId int = 0
+ @paidId int = 0,
+ @postDate int = null
 ) as 
 begin
- exec dbo.logit @@procid, '@receiptId', @receiptId, '@mode', @mode, '@paidId', @paidId
+
+ exec dbo.logit @@procid, '@officialDepositId', @officialDepositId, '@mode', @mode, '@paidId', @paidId, '@postDate', @postDate
   
- declare @slink varchar(16) = 'o'+cast(@receiptId as varchar(15))
+ declare @slink varchar(16) = 'o'+cast(@officialDepositId as varchar(15))
 
  if @mode = 'LINK ALL' 
- begin 
-  update paid set officialDepositId = @receiptId where isnull(depositId,0)=0 and officialDepositId not in (select id from object where typ=4522) and left(slink,1)='o' 
-    and dbo.slinkId(slink) in (select id from object where typ=4502 and key3='TRUST') 
+ begin
+ 
+  if isnull(@postDate,0) > 0
+   update paid set officialDepositId = @officialDepositId where id in 
+    (select id from dbo.depositPaidAndPosted()
+      where receiptType = 'TRUST'
+       and isnull(depositId,0) = 0
+       and isnull(officialDepositId,0) = 0
+       and depositDate = @postDate)
+
+  else
+   update paid set officialDepositId = @officialDepositId where id in 
+    (select id from dbo.depositPaidAndPosted()
+      where receiptType = 'TRUST'
+       and isnull(depositId,0) = 0
+       and isnull(officialDepositId,0) = 0)
+
  end
 
  if @mode = 'LINK ONE' 
  begin 
-  update paid set officialDepositId = @receiptId where isnull(depositId,0)=0 and officialDepositId=0 and id = @paidId
+  update paid set officialDepositId = @officialDepositId where isnull(depositId,0)=0 and officialDepositId=0 and id = @paidId
  end
 
  if @mode = 'UNLINK ONE' 
  begin 
-  update paid set officialDepositId = 0 where isnull(depositId,0)=0 and officialDepositId=@receiptId and id = @paidId
+  update paid set officialDepositId = 0 where isnull(depositId,0)=0 and officialDepositId = @officialDepositId and id = @paidId
  end
 
- exec dbo.officialDepositStageGL @receiptId 
+ exec dbo.officialDepositStageGL @officialDepositId 
 
 end
