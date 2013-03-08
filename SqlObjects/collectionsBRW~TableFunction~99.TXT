@@ -62,11 +62,12 @@ declare @AddFeeNewest varchar(50) = dbo.settingsF('site.collectionsAttachFeesNew
   display = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
   ord = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&') + keyCode,
   ordB = keyCode + replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
-  totalDue = invoiceDue + subInvoiceDue + taxRuleDue,
-  item = dbo.splitF(invoiceBlob,':',2)
+  totalDue = invoiceDue + subInvoiceDue + taxRuleDue--,
+  --item = case when dbo.splitF(invoiceBlob,':',2) = '' then 0.0 else dbo.splitF(invoiceBlob,':',2) end
 
  --insert @rt (display, ord)
  -- select '   -', display + 'b' from @rt 
+
 if @taxrollDetailId = 0
  insert @rt (keyCode, totalDue, ord, rowType)
  select cast(count(*) as varchar) + ' - ' + case when @dtype = 'RESALE' then 'Parcels' else 'Items' end, sum(totalDue), ' ', 2  from @rt where rowType = 0
