@@ -21,16 +21,22 @@ begin
   @officialFundAccountId int,
   @tokenId int,
   @tokenAmount money,
-  @posName varchar(50) = dbo.posName(@officialDepositId)  --dbo.readstring('@posName=',dbo.whoami())
+  @posName varchar(50) = dbo.posName(@officialDepositId),
+  @status varchar(50)
  
  select 
+  @status = status,
   @code = code,
   @contraId = contraId ,
   @officialFundAccountId = arAccountId
  from dbo.officialDepositCheck(@officialDepositId,null)
-
+ 
  exec dbo.logit @@procid,
   '@officialDepositId', @officialDepositId, 'check results - @code', @code, '@contraId', @contraId, '@officialFundAccountId', @officialFundAccountId
+
+-- bail if code 1
+ if isnull(@code,0) = 1
+  return
 
 -- Credit Suspense Accounts from any linked Trust Receipts
  insert @stage
