@@ -1,6 +1,6 @@
 @wbgcolor=15573409;
-@lmode=2;
-@format=50L(2)~Deposit #~#1#|M50R(2)~Deposit Date~@d2@#2#|M50R(2)~Post Date~@d2@#42#|M100L(2)~Received Of~#5#|M80L(2)~Account~#33#|M50R(2)~Amount~@n-14.2@#54#|M150L(2)~Comments~#58#|M50C~Status~#29#|M50R(2)~Type~#3#|M;
+lmode=2;
+@format=50L(2)~Deposit #~#1#|M50R(2)~Deposit Date~@d2@#2#|M50R(2)~Post Date~@d2@#42#|M100L(2)~Received Of~#5#|M80L(2)~Account~#33#|M50R(2)~Amount~@n-14.2@#54#|M50C~Status~#29#|M50R(2)~Type~#3#|M150L(2)~Comments~#58#|M;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 @seriesField=key3;
@@ -14,7 +14,8 @@
  reate(45,9),
  setMiscReceiptAcct=,
  brwstuff=,
- gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST''');
+ gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST'''),
+ if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id));
 @select=008;
 
 @browsedelete=
@@ -49,7 +50,15 @@
  \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
 
 \t005Deposit Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;
-\t007Received From;  \l0084601,2;r008004010012048050; \d008obj:a17='Posted'; @lf008='typ=4601',3;
+\t007Received From;  \l0084601,2; \d008obj:a17='Posted'; @lf008=,3; 
+@acc008=
+ get(obj:link2),
+ set(8,obj7:key2),
+ set(10,obj7:a3),
+ set(48,obj7:b2),
+ tsc,
+ focus(050);
+
 \t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2;
  \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151;
 
