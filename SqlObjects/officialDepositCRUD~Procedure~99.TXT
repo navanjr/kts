@@ -16,7 +16,10 @@ begin
   @officialId int,
   @officialName varchar(50),
   @accountCode varchar(50),
-  @accountDesc varchar(50)
+  @accountDesc varchar(50),
+  @fullName varchar(50),
+  @station varchar(50),
+  @whoami varchar(500) = dbo.whoami()
 
 -- Create Treasurers Official Deposit only!
  if @mode = 0 and @linkTrust = 'TRUE'
@@ -31,7 +34,12 @@ begin
   from Object a
   join Object b on b.A3 = a.Key1 and b.typ = 4601
   where a.TYP = 4701 and a.Key3 = 'TRUST'
-  
+
+  select 
+   @fullName = fullName,
+   @station = dbo.readstring('@station=',@whoami)
+  from dbo.users where ini = dbo.readstring('@ini=',@whoami)
+
   if @accountCode is null
   begin
    exec dbo.logit @@procid, 'we are likely missing a code on our Treasurers Official Fund for Trust... Bailing'
@@ -39,8 +47,10 @@ begin
    return
   end
 
-  insert object (typ, key2, Key3, link2, a1, a2, b1, b10)
-  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate 
+  exec dbo.logit @@procid, 'create object record @fullName', @fullName, '@station', @station
+
+  insert object (typ, key2, Key3, link2, a1, a2, b1, b10, a18, b13)
+  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate, @fullName, @station  
   
   set @newObjectId = @@identity
 
