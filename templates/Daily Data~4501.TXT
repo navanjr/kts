@@ -55,8 +55,9 @@ t119Apportionment
 @acc119=
  m(kpbrwid(1));
 
-t120Refresh BRW
-@acc12=refreshBRW=;
+\t120&Browse All Receipts;
+@acc120=browse(1,4502);
+
 @gfwindow=refreshBRW=;
 
 @lbrwclick150=
@@ -218,8 +219,9 @@ m(lcPicked);
  refreshbrw=;
 
 @menu1=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Balance Report|&Cancel'),
- if(gcretval=1,click1=);
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Balance Report|&Receipt Report|&Cancel'),
+ if(gcretval=1,click1=),
+ if(gcretval=2,click2=);
 
 @click1=
  lcSuspenseMethod=kp('select dbo.readString(''@suspenseMethod='',dbo.whoami())'),
@@ -227,18 +229,31 @@ m(lcPicked);
  break(lcSuspenseMethod='C'),
  gcBeginDate=obj:key1,
  gcEndDate=obj:c1,
- lcBlob=kp('select blob from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1)),
- gcDeputy=readstring(lcBlob,'@deputy='),
- gcStation=readstring(lcBlob,'@station='),
+ lcUser=format(kp('select rowstring from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1)),@s30),
+ gcDeputy=left(lcUser,30),
+ gcStation=left(lcUser,30),
+ if(lcSuspenseMethod='U',gcStation='',gcDeputy=''),
  gcPrintDetail='Y',
  trreport('balanceReport',5018,'printDepositBalanceNew=');
+
+@click2=
+ lcUser=format(kp('select rowstring from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1)),@s30),
+ gcDeputy=left(lcUser,30),
+ gcStation=left(lcUser,30),
+ lcSuspenseMethod=kp('select dbo.readString(''@suspenseMethod='',dbo.whoami())'), 
+ if(lcSuspenseMethod='U',gcStation='',gcDeputy=''),
+ gcBeginDate=obj:key1,
+ gcEndDate=obj:c1, 
+ gcPrintDetail='Y',
+ gcReceiptType='',
+ trreport('receiptListStation',5019,'printReceiptListStation=');
 
 @click6=
  getBlob=,
  if(readstring(lcBlob,'@changeId=')+0>0,change(readstring(lcBlob,'@changeId=')));
 
 @getBlob=
- lcBlob=kp('select blob from dbo.dailyDataPendingDeposits() where id = '&kpbrwid(1)),
+ lcBlob=kp('select blob from dbo.dailyDataPendingDeposits('&obj:key1&') where id = '&kpbrwid(1)),
  lcDepChangeId=readstring(lcBlob,'@changeId='),
  lcDepCount=readstring(lcBlob,'@depositCount=');
  

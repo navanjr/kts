@@ -1,7 +1,7 @@
 @bb1=&Print;
 @bbproc1=
- gcStartDate=kp('select dbo.clariondate(''20121101'')'),
- gcEndDate=gcStartDate+29,
+ gcBeginDate=kp('select dbo.clariondate(''20121101'')'),
+ gcEndDate=gcBeginDate+29,
  printAuditorsReport=;
 
 @printAuditorsReport=
@@ -13,12 +13,12 @@
  lcFont='Arial',
  lcHeaderFontSize=10,
  lcFootY=7400,
- gcSql5026a='select rowstring, sourceAmt, rowType from dbo.auditorReportCollections('&gcStartDate&','&gcEndDate&',''A'') where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord',
- gcSql5026b='select rowstring, sourceAmt, rowType from dbo.auditorReportGLSummary('&gcStartDate&','&gcEndDate&',''A'') where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord', 
- gcSql5026c='select rowstring, sourceAmt, rowType from dbo.auditorReportBankReconciliation('&gcStartDate&','&gcEndDate&',''A'',null) where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord',
- gcSql5026d='select * from dbo.auditorReportBank('&gcStartDate&','&gcEndDate&',''A'') order by ord',
- gcSql5026e='select * from dbo.auditorReportOfficialDepository('&gcStartDate&','&gcEndDate&',''A'') order by ord',
- gcSql5026f='select * from dbo.auditorReportLedger('&gcStartDate&','&gcEndDate&',''A'') order by ord',
+ gcSql5026a='select rowstring, sourceAmt, rowType from dbo.auditorReportCollections('&gcBeginDate&','&gcEndDate&',''A'') where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord',
+ gcSql5026b='select rowstring, sourceAmt, rowType from dbo.auditorReportGLSummary('&gcBeginDate&','&gcEndDate&',''A'') where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord', 
+ gcSql5026c='select rowstring, sourceAmt, rowType from dbo.auditorReportBankReconciliation('&gcBeginDate&','&gcEndDate&',''A'',null) where rowType in (''detail'',''sHeader'',''gFooter'',''grandTotal'') order by ord',
+ gcSql5026d='select * from dbo.auditorReportBank('&gcBeginDate&','&gcEndDate&',''A'') order by ord',
+ gcSql5026e='select * from dbo.auditorReportOfficialDepository('&gcBeginDate&','&gcEndDate&',''A'') order by ord',
+ gcSql5026f='select * from dbo.auditorReportLedger('&gcBeginDate&','&gcEndDate&',''A'') order by ord',
  lcfootMessage='I hereby cerity that the foregoing Report is true and correct as shown by the records of my office, that all County Officers are making daily deposits in the County Depository as required by law.'&chr(13)&chr(10)&'    (Except__________________________________________________________________)'&chr(13)&chr(10)&'                           State here any officer not complying with the County Depository Act.'&chr(13)&chr(10)&chr(13)&chr(10)&'    Given under in hand this the ____________ day of _______________________, 20______, '&chr(13)&chr(10)&chr(13)&chr(10)&'    _______________________________________, County Treasurer   By  _______________________________________,   Deputy.',
  lcFootMessage2='RECEIVED BY STATE AUDITOR AND INSPECTOR',
  lcMonth=kp('select datename(m,dbo.date1('&gcEndDate&'))+'' ''+cast(DATEPART(YEAR,dbo.date1('&gcEndDate&')) as varchar)'),
@@ -39,6 +39,7 @@
  lcy=lcTm, 
  bnd(,cy,1000,cx,1000),
  prn(,lcLm,lcy,,,lcFont),
+ if(curpag<>1 and lca1>'  0'),do(prn(,,,8,bold,'courier new'),box(lcLm-100,pagey-7,lcLm+10200,pagey+128,0,lcBoxColor),bnd(,lca1,3500,lca2,lcM,lca3,lcM,lca4,lcM,lca5,lcM,lca6,lcM,lca7,lcM)),
   det(gcSql5026a),
    lcRowType=obj5:a3,
    if(lcRowType='sHeader'),do(prn(,lcColOffset+lcLm,,8,bold,'courier new'),nl,box(lcLm-100,pagey-7,lcLm+2750,pagey+128,0,lcBoxColor),bnd(,obj5:a1,2700)),
@@ -80,7 +81,7 @@
   det(gcSql5026f),
    lcM=-1000,
    lcRowType=obj5:a8,
-   if(lcRowType='sHeader'),do(prn(,lcColOffset+lcLm,,8,bold,'courier new'),nl,box(lcLm-100,pagey-7,lcLm+10200,pagey+128,0,lcBoxColor),bnd(,obj5:a1,3500,obj5:a2,lcM,obj5:a3,lcM,obj5:a4,lcM,obj5:a5,lcM,obj5:a6,lcM,obj5:a7,lcM)),
+   if(lcRowType='sHeader'),do(prn(,lcColOffset+lcLm,,8,bold,'courier new'),nl,box(lcLm-100,pagey-7,lcLm+10200,pagey+128,0,lcBoxColor),bnd(,obj5:a1,3500,obj5:a2,lcM,obj5:a3,lcM,obj5:a4,lcM,obj5:a5,lcM,obj5:a6,lcM,obj5:a7,lcM),lca1=obj5:a1,lca2=obj5:a2,lca3=obj5:a3,lca4=obj5:a4,lca5=obj5:a5,lca6=obj5:a6,lca7=obj5:a7),
    if(lcRowType='detail'),do(prn(,lcColOffset+lcLm,,7,bold,'courier new'),bnd(,obj5:a1,3500,obj5:a2,lcM,obj5:a3,lcM,obj5:a4,lcM,obj5:a5,lcM,obj5:a6,lcM,obj5:a7,lcM)),
    if(lcRowType='gFooter'),do(prn(,lcColOffset+lcLm,,7,bold,'courier new'),bnd('O',obj5:a1,3500,obj5:a2,lcM,obj5:a3,lcM,obj5:a4,lcM,obj5:a5,lcM,obj5:a6,lcM,obj5:a7,lcM)),
   edt,

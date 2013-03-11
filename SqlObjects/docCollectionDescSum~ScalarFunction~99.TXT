@@ -1,0 +1,48 @@
+create function dbo.docCollectionDescSum(@invoiceid int,@interestDate varchar(50))
+returns varchar(max)
+
+as
+begin
+
+declare @Ret varchar(max) = '',
+		@legal varchar(max),
+		@name varchar(50)
+
+select 
+	@name = name,
+	@legal = dbo.getLegaldescription(id)
+ from invoices where ID = @invoiceId
+
+declare @wt table (
+ taxyear varchar(4),
+ total varchar(50),
+ ord varchar(250)
+)
+
+ insert @wt
+  select taxYear, Total, ord from dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1) in ('e','c')
+
+declare  @rt table (
+ RowNumber int identity(1,1),
+ LineOfText varchar(1000))
+
+ insert @rt
+  select @name
+
+ insert @rt
+  select 'Total Due: ' + total from @wt where RIGHT(ord,1) = 'e'
+
+ insert @rt
+  select rowdata from dbo.splitL(@legal,66)
+
+ insert @rt
+  select '(' +  case when min(taxYear) != max(taxYear) then min(taxYear) + '-'+ max(taxYear) else max(taxyear) end + ')' from @wt where RIGHT(ord,1) = 'c'
+
+ select 
+  @ret = @ret + lineOfText + char(13) + char(10)
+  from @rt 
+	
+	
+return @ret
+
+end

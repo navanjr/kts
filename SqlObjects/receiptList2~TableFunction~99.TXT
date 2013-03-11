@@ -1,0 +1,51 @@
+create function [dbo].[receiptList2](
+ @posName varchar(50),
+ @receiptType varchar(50),
+ @theDate int,
+ @days int
+) returns @rt table(
+
+ controlNumber varchar(50),
+ receiptType varchar(50),
+ postDate int,
+ receivedFrom varchar(50),
+ status varchar(50),
+ amount money
+
+) as 
+begin 
+
+ declare @receiptTypes table(receiptType varchar(50))
+
+ if nullif(@posName,'') is null
+  set @posName = dbo.readstring('@posName=',dbo.whoAmI())
+
+
+ if nullif(@receiptType,'') is null
+  insert @receiptTypes select key1 from object where typ = 4503
+ else
+  if charindex('|',@receiptType) > 0
+   insert @receiptTypes select data from dbo.split(@receiptType,'|')
+  else
+   insert @receiptTypes select @receiptType
+   
+
+
+
+
+ declare @wt table(objectId int) 
+
+
+
+ insert @rt  
+ select
+  o.key1, o.key3, o.key2, o.a1, a.accountType, sum(g.amount)
+ from gldetail g
+  join object o on 'o' + cast(o.id as varchar) = g.slink
+  join glAccounts a on g.accountCode = a.accountCode and a.accountType in ('RECEIVABLE','ACCRUED RECEIVABLE')
+ where o.typ = 4502
+  and o.key3 in (select receiptType from @receiptTypes)
+ group by  o.key1, o.key3, o.key2, o.a1, a.accountType
+
+ return
+end

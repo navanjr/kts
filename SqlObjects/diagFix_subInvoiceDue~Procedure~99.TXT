@@ -1,0 +1,55 @@
+create proc dbo.diagFix_subInvoiceDue(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(id),  
+   @message = 'Fix SubInvoice Due when subInvoices Paid',
+   @fixProc = 'exec dbo.diagFix_subInvoiceDue @method = ''FIX'''
+  from invoices where subInvoiceDue>0 and invoiceDue = 0 and ID in (select invoiceId from invoices where invoiceId>0 and invoiceDue=0)
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from invoices where subInvoiceDue>0 and invoiceDue = 0 and ID in (select invoiceId from invoices where invoiceId>0 and invoiceDue=0)
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  declare @fixTable table(id int)
+  declare @tokenId int
+     insert @fixTable select ID from invoices where subInvoiceDue>0 and invoiceDue = 0 and ID in (select invoiceId from invoices where invoiceId>0 and invoiceDue=0)
+  while exists(select * from @fixTable)
+   begin
+    select @tokenId = id from @fixTable 
+    if @tokenId>0
+     begin
+      exec dbo.invoiceUpdate @invoiceId = @tokenId
+      delete from @fixTable where id = @tokenId
+     end
+   end
+
+  return  
+ end
+
+
+end
+

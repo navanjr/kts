@@ -5,9 +5,10 @@
 @printOfficialAccountDetail=
  do(452,getSiteInfo=),
  lcgrpToken='',
- lcsql='select detailDate,registerNumber,officerNumber,left(person,43),left(purpose,32),creditmemo,deposits,withdrawals,balance,accountCode,DeptNo,OfficerName,OfficerTitle 
- from dbo.officialAccountDetail('''&gcBeginDate&''','''&gcEndDate&''') where accountCode='''&gcAccountCode&'''
- order by detaildate, ord,registerNumber,purposeamount,officerNumber',
+ if(gcAccountCode<' 0',gcaccountwhere='',gcaccountwhere=' where accountCode='''&gcAccountCode&''''),
+ lcsql='select detailDate,registerNumber,officerNumber,left(person,43),left(purpose,32),creditmemo,deposits,withdrawals*-1,balance,accountCode,DeptNo,OfficerName,OfficerTitle 
+ from dbo.officialAccountDetail('''&gcBeginDate&''','''&gcEndDate&''') '&gcaccountwhere&'
+ order by accountcode,detaildate, ord,registerNumber,purposeamount,officerNumber',
 
  lcDetFont='Arial',
  lcFont='Arial',
@@ -30,7 +31,22 @@
  lcCol5Width=1800,
  lcColAmountWidth=850,
 
+ lcGrpCurPag=0,
+
  tr(landscape,
+  grp(1,obj5:a10,
+  do(
+  ),
+  do(
+   bnd('H','',lcCol1Width,'Report Total:',lcCol2Width,'',lcCol3Width,'',lcCol4Width,'',lcCol5Width,format(lcCreditMemo,@n-19.2),lcColAmountWidth*-1,format(lcDeposits,@n-19.2),lcColAmountWidth*-1,format(lcWithdrawals,@n-19.2),lcColAmountWidth*-1,format(lcBalance,@n-19.2),lcColAmountWidth*-1),
+   lcBalance=0,
+   lcCreditMemo=0,
+   lcDeposits=0,
+   lcWithdrawals=0,
+  detendpage, 
+  lcGrpCurPag=curpag,
+  )
+),
   lcx=450,
   lcTm=400,
   box(lcx,lcTm,lcx+3200,lcTm+550,0),
@@ -43,21 +59,19 @@
   prn('Official Depository Ledger',t1),
   prn(gcCounty&' County'&' - '&gcCity&', '&gcState,t2), 
   prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
-  prn(lcTitleString,lcx,lcy+500), 
+  prn('Official: '&obj5:a12&'  -  Official Account: '&obj5:a13&'  -  Department No. '&obj5:a11,lcx,lcy+500), 
   prn(,lcx), 
-  if(curpag=1),
-  prn(,,,lcFontSize,,lcFont),
   nl,
   nl,
-  bnd('HU','Date',lcCol1Width,'Regist No.',lcCol2Width,'Officer No.',lcCol3Width,'To Whom',lcCol4Width,'Purpose',lcCol5Width,'By Memo',850C,'Deposits',850C,'Vouchers',850C,'Balance',850C),
+  bnd('HU','Date',lcCol1Width,'Regist No.',lcCol2Width,'Officer No.',lcCol3Width,'To Whom',lcCol4Width,'Purpose',lcCol5Width,'By Memo',850C,'Deposits',850C,'Vouchers',850C,'Balance',850C),   
+  prn(,lcx), 
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
- lcBalance=lcBalance+obj5:a9+obj5:a6+obj5:a7+obj5:a8,
+ lcBalance=lcBalance+obj5:a9+obj5:a6+obj5:a7-obj5:a8,
    bnd('DB',format(obj5:a1,@d2),lcCol1Width,obj5:a2,lcCol2Width,obj5:a3,lcCol3Width,format(obj5:a4,@s43),lcCol4Width,obj5:a5,lcCol5Width,format(obj5:a6,@n-19.2b),lcColAmountWidth*-1,format(obj5:a7,@n-19.2b),lcColAmountWidth*-1,format(obj5:a8,@n-19.2b),lcColAmountWidth*-1,format(lcBalance,@n-19.2b),lcColAmountWidth*-1),
  lcCreditMemo=lcCreditMemo+obj5:a6,
  lcDeposits=lcDeposits+obj5:a7,
  lcWithdrawals=lcWithdrawals+obj5:a8,
   edt,
   nl,
-   bnd('H','',lcCol1Width,'Report Total:',lcCol2Width,'',lcCol3Width,'',lcCol4Width,'',lcCol5Width,format(lcCreditMemo,@n-19.2),lcColAmountWidth*-1,format(lcDeposits,@n-19.2),lcColAmountWidth*-1,format(lcWithdrawals,@n-19.2),lcColAmountWidth*-1,format(lcBalance,@n-19.2),lcColAmountWidth*-1),
  );

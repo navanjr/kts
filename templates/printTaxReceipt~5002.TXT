@@ -11,8 +11,9 @@
   lcFont='',
   lcHeaderFontSize=12,
  lcBoxColor=14539482,
-  lcsql4506='select taxyear,receiptNo,item,parcel,schoolDistrict,legal,acres,TaxDue,TaxPaid,penalty,other,TotPaid,ckoth,cash,change,repTotalrec,repTotalDue,paidBy,case when typ=''O'' and pertyp=''F'' then ''FIRE DIST'' else '''' end,recCount,ownername,checkno,GrandTotal,remainingTaxDueTot from dbo.taxReceiptPrint('&gcRecId&')',
-  lcsql5002Det='select * from dbo.receiptPayments('''&gcRecId&''')',
+  if(gcPrintOneTaxReceiptId+0>1,lcPrintOne=' where invoiceid='&gcPrintOneTaxReceiptId,lcPrintOne=''),
+  lcsql4506='select taxyear,receiptNo,item,parcel,schoolDistrict,legal,acres,TaxDue,TaxPaid,penalty,other,TotPaid,ckoth,cash,change,repTotalrec,repTotalDue,paidBy,case when typ=''O'' and pertyp=''F'' then ''FIRE DIST'' else '''' end,recCount,ownername,checkno,GrandTotal,remainingTaxDueTot from dbo.taxReceiptPrint('&gcRecId&')'&lcPrintOne,
+  if(gcPrintOneTaxReceiptId+0>1,lcsql5002Det='select '''' as recType,0.00 as amount',lcsql5002Det='select * from dbo.receiptPayments('''&gcRecId&''')'),
   lcRecStatus=kp('select a17 from object where id = '&gcRecId),
   break(lcRecStatus<'  0'),
   taxReceiptGr=;
@@ -81,21 +82,27 @@
      bnd(,obj5:a1,lcM+300,left(format(obj5:a2,@n$-14.2b)),lcM),
      edt,
      nl,
+     if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Total Amt Recd:',lcM+100,format(lcTotalRec,@n$-14.2b),lcM),
+     if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Change Retd:',lcM+100,format(lcChange,@n$-14.2b),lcM),
      nl,
+     if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Total Tax Paid:',lcM+100,format(lcGrandTotal,@n$-14.2b),lcM),
      nl,
+     if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Tax Amount Due:',lcM+100,format(lcTaxOwed,@n$-14.2b),lcM),
      prn(,lcLm+300,lcy),
+     if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Receipt Of:',lcM),
+     if(gcPrintOneTaxReceiptId+0<1),
      txt(lcAddress,lcLm+300,lcy+130,4000,1000,1),
      nl,
      bnd(,'Paid By:'&' '&lcPaidBy,lcCw*2)
      
 );
 
-
+  if(gcPrintOneTaxReceiptId+0>1,lcsql5002Det='select '''' as recType,0.00 as amount',lcsql5002Det='select * from dbo.receiptPayments('''&gcRecId&''')'),
 
 @printTaxRec=
  do(452,getSiteInfo=),
@@ -106,7 +113,8 @@
   lcAw=(lcCw*1.5)+(lcM*4),
   lcFont='',
   lcHeaderFontSize=12,
-  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandtotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount,isnull(ckoth,0)+isnull(cash,0) from dbo.taxReceiptPrint('&gcRecId&')',
+  if(gcPrintOneTaxReceiptId+0>1,lcPrintOne=' where invoiceid='&gcPrintOneTaxReceiptId,lcPrintOne=''),
+  lcsql4506='select taxyear,parcel,schoolDistrict,receiptNo,receiptDate,blk,sec,twp,rng,acres,TaxAmt,TaxDue,TaxPaid,penalty,mail,lien,adv,mowing,other,TotPaid,grandtotal,checkno,ckoth,cash,change,paidBy,deputy,recOf,legal,invoiceId,TaxrollId,item,recCount,isnull(ckoth,0)+isnull(cash,0) from dbo.taxReceiptPrint('&gcRecId&')'&lcPrintOne,
   taxReceiptTr=;
 
 

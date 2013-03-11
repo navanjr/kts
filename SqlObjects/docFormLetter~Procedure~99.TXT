@@ -4,14 +4,25 @@ create proc dbo.docFormLetter(
  @taxRollDetailId int = 0,
  @batchId int = 0,
  @method varchar(10) = 'REPLACE',
- @interestTo varchar(50) = ''
+ @interestTo varchar(50) = '',
+ @rawText varchar(Max) = '' output
  ) as
 begin
  set nocount on
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@method',@method
 
+/*
+ @documentId int,
+ @invoiceId int = 0,
+ @taxRollDetailId int = 0,
+ @batchId int = 0,
+ @method varchar(10) = 'REPLACE',
+ @interestTo varchar(50) = '',
+ @rawText varchar(Max) = '' output
+*/
+
  declare
-  @rawText varchar(max),
+  --@rawText varchar(max),
   @sql nvarchar(max),
   @fieldToken varchar(50),
   @tag varchar(50),
@@ -32,9 +43,6 @@ begin
 
  select @documentName = key1, @rawText = e1 from object where id = @documentId
 
----check to see if interestTo is needed
-if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY'
- set @needInterestTo = '1'
 
 if @method = 'VERIFY' and @invoiceId = 0
  select	@invoiceId = (select top 1 ID from invoices)
@@ -44,6 +52,11 @@ if @interestTo>'  0'
  insert @fields select null,null,'<interestTo>',dbo.dateformal(dbo.clariondate(@interestTo))
 
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
+
+---check to see if interestTo is needed
+if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY' and not exists(select * from settings where settingName = @documentName+'.interestTo')
+  set @needInterestTo = '1'
+
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
 if @invoiceId>0
  begin
@@ -112,14 +125,15 @@ if charindex('<resaleLegal>',@rawText) > 0 or @method = 'VERIFY'
  deallocate f
 
  if @method = 'REPLACE'
-  select @rawText 
+   select @rawText 
+
  if @method = 'SHOW'
   select * from @fields
  if @method = 'VERIFY'
   begin
    declare @mv table(id int identity(1,1),missingVariable varchar(50))
    insert @mv select data from dbo.splitBetween(@rawText,'<','>') where '<' + data + '>' not in (select tag from @fields) group by data
-   if @needInterestTo = '1'
+  if @needInterestTo = '1'
     begin
      insert @mv select 'InterestTo'
      exec dbo.logit @@procid, 'Missing InterestTo'
