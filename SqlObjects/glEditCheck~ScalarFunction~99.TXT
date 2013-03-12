@@ -1,0 +1,19 @@
+create function dbo.glEditCheck(@objectId int)
+returns int as
+begin
+ declare
+  @returnInt int,
+  @slink varchar(15) = 'o' + cast(@objectId as varchar),
+  @saveCheck int,
+  @objectStatus varchar(50)
+
+ select @saveCheck = saveCheck from dbo.glStatus(@slink)
+ select @objectStatus = a17 from object where id = @objectId
+
+ if isnull(@saveCheck,1) = 1 and @objectStatus in ('saved', '')
+  set @returnInt = 0
+ else 
+  set @returnInt = 1
+
+ return @returnInt
+end

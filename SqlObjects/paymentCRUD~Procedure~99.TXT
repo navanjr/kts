@@ -1,6 +1,6 @@
 create proc dbo.paymentCRUD(
  @mode int,
- @paymentType varchar(50),
+ @paymentType varchar(50) = null,
  @officialName varchar(50) = '',
  @officialDepositCode varchar(50) = '',
  @officialBankCode varchar(50) = '',
@@ -18,7 +18,8 @@ create proc dbo.paymentCRUD(
  @fiscalYear varchar(50) = '',
  @importStamp varchar(50) = '',
  @comments varchar(250) = '',
- @voidBatch varchar(5) = 'FALSE'
+ @voidBatch varchar(5) = 'FALSE',
+ @statusInput varchar(50) = null
 ) as 
 begin
 
@@ -30,7 +31,27 @@ begin
  
  declare
   @slink varchar(15) = 'o' + cast(@id as varchar),
+  @postedStatus varchar(50),
   @log varchar(max)
+
+ select @postedStatus = status from dbo.glStatus(@slink)
+
+ if @mode = 6 and isnull(@statusInput,'') in ('saved','abandoned')
+ begin
+  exec dbo.logit @@procId, '@mode', @mode, '@id', @id, '@statusInput', @statusInput, '@postedStatus', @postedStatus
+  if not @postedStatus = 'missing'
+  begin
+   exec dbo.logit @@procId, 'bailing because @postedStatus is not MISSING'
+   return
+  end
+
+  if @statusInput = 'saved'
+   update object set a17 = 'Saved' where typ = 4771 and id = @id
+  if @statusInput = 'abandoned'
+   update object set a17 = 'Abandoned', typ = -4771 where typ = 4771 and id = @id
+  return
+ end
+
 
  if @mode = 4
  begin
