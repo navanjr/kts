@@ -7,7 +7,7 @@ create function dbo.taxrollBRWIds(
 )
 Begin
 
-
+/*
 --get the tax years we will return
   declare @taxYears table(yr varchar(4))
   if lower(@taxYear) = 'all'
@@ -15,7 +15,7 @@ Begin
   else
    insert @taxYears select @taxYear
 
-/*
+
  insert @rt
    select 
     id
@@ -41,11 +41,12 @@ begin
 
   insert @rt 
   select i.id
-  from dbo.invoices i, adtax a
+  from dbo.invoices i
+  inner join adtax a on i.taxrollId=a.id
   where i.invoiceId = 0 
-  and cast(taxYear as varchar) in (select yr from @taxYears)
-   and i.taxrollId=a.id
-   and name+' '+parcel+' '+cast(item as varchar)+cast(taxyear as varchar(4))+cast(i.item as varchar)+a.OWNERNAME+a.BUSINESSNAME+CAST(OWNERNUMBER AS VARCHAR)+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+cast(a.mortgagecode as varchar(50))+a.mort_cd+a.treamort+a.trcode+cast(a.LEGALDESCRIPTION as varchar(8000)) like '%'+@searchString+'%'
+   and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
+   --and i.taxrollId=a.id and
+    and name+' '+parcel+' '+cast(item as varchar)+cast(taxyear as varchar(4))+cast(i.item as varchar)+a.OWNERNAME+a.BUSINESSNAME+CAST(OWNERNUMBER AS VARCHAR)+a.ADDRESS1+a.ADDRESS2+a.ADDRESS3+a.CITY+a.STATE+a.ZIP1+a.ZIP2+a.ZIP3+a.proploc+cast(a.mortgagecode as varchar(50))+a.mort_cd+a.treamort+a.trcode+cast(a.LEGALDESCRIPTION as varchar(8000)) like '%'+@searchString+'%'
 
 
   insert @rt
@@ -53,10 +54,11 @@ begin
    i.id
   from dbo.taxRollDetail td, invoices i
   where i.invoiceId = 0 
-   and cast(i.taxYear as varchar) in (select yr from @taxYears)
+   and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
    and i.item=td.itemNumber
    and i.taxyear=td.taxyear
    and td.name+td.businessName+td.address1+td.address2+td.address3+td.city+td.state+td.zip1+td.zip2 like '%'+@searchString+'%'
+   --and td.dtype in ('a') --and i.id not in (select invoiceId from @rt)
 
   insert @rt
   select 
@@ -65,8 +67,8 @@ begin
   where o.typ=4005 
    and o.link1 = i.taxrollId
    and i.invoiceId = 0 
-   and cast(i.taxYear as varchar) in (select yr from @taxYears)
-   and a3 like '%'+@searchString+'%'
+   and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
+   and a3 like '%'+@searchString+'%' --and i.id not in (select invoiceId from @rt)
 
 end
 

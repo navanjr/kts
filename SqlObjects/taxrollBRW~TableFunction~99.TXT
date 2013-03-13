@@ -67,18 +67,22 @@ set @searchString=replace(@searchstring,'~{','''')
 ---Advanced Search 
      if @AdvSrch = 1
       insert @rt
-       select top 1000 
-        id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0
-       from dbo.invoices
-       where id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
+       select  
+        i.id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(i.id as varchar),'',0,
+        'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,
+        case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',
+        taxrollId,queue,printed,0
+       from dbo.invoices i
+        where i.invoiceId = 0 
+        and id in (select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch))
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
-        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
-        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
+        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(i.id as varchar(15)),null)>0 then 0 else 1 end end
+        and i.id not in (select invoiceId from receiptlink where receiptid = @receiptId)
      else
 ---Regular Search 
       insert @rt
-       select top 1000 
+       select  
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
        from dbo.invoices
        where 
@@ -111,16 +115,15 @@ set @searchString=replace(@searchstring,'~{','''')
 ---Advanced Search 
      if @AdvSrch = 1  
        insert @rt
-         select top 1000 
+         select  
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
-         from dbo.adtax
-          where 
-              id in (select adtaxId from dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch))
-              and id not in (select taxrollId from invoices)
+         from dbo.adtax a
+         inner join dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch) at on a.ID = adtaxId
+          where a.id not in (select taxrollId from invoices)
        else
 ---Regular Search 
        insert @rt
-         select top 1000 
+         select 
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
          from dbo.adtax
           where 
