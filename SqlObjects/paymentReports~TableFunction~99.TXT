@@ -1,0 +1,86 @@
+create function dbo.paymentReports(
+ @accountType varchar(50),
+ @asofDate int
+) returns @rt table(
+ slink varchar(15),
+ contraSlink varchar(15),
+ accountCode varchar(50),
+ naturalAmount money,
+ contraAmount money,
+ balance money,
+ balanceAsOf money,
+ dateMin int,
+ dateMax int,
+ rowCnt int,
+ paymentType varchar(50),
+ controlNumber varchar(50),
+ postDate int,
+ payee varchar(50),
+ foreignNumber varchar(50),
+ foreignDate int,
+ contraPaymentType varchar(50),
+ contraControlNumber varchar(50),
+ contraPostDate int,
+ contraForeignNumber varchar(50),
+ contraForeignDate int,
+ ord varchar(100)
+) as
+begin
+
+ declare @accounts table(accountCode varchar(50), targetAccountCode varchar(50), targetAccountDesc varchar(50))
+ insert @accounts 
+ select a.accountCode, a.targetAccountCode, b.accountDesc
+ from dbo.glAccounts a
+ join dbo.glAccounts b on a.targetAccountCode = b.accountCode
+ where a.accountType = @accountType
+
+ insert @rt
+ select
+  slink = coalesce(g.slink2,g.slink),
+  contraSlink = max(case when g.slink2 > '  0' then g.slink else '' end),
+  g.accountCode,
+  natural = SUM(case when slink2 IS null then amount else 0 end), 
+  contra = SUM(case when slink2 IS not null then amount else 0 end), 
+  balance = sum(amount),
+  SUM(case when g.date < = @asOfDate then amount else 0 end),
+  dateMin = min(g.date),
+  dateMax = max(g.date),
+  COUNT(g.id),
+  null,null,null,null,
+  null,null,null,null,null,null,null,
+  rtrim(a.targetAccountCode) + ' - ' + a.targetAccountDesc
+ from glDetail g
+ join @accounts a on a.accountCode =g.accountCode 
+  where 1 = 1
+ group by
+  coalesce(g.slink2,g.slink),
+  g.accountCode,
+  a.targetAccountCode, 
+  a.targetAccountDesc 
+ having
+  SUM(case when g.date < = @asOfDate then amount else 0 end) != 0
+--  and min(g.date) < = @asOfDate -- i dont think i need this as the balanceAsOf != 0 would catch them
+ order by
+  coalesce(g.slink2,g.slink)
+
+ update a set
+  a.paymentType = b.a18,
+  a.controlNumber = b.key1,
+  a.postDate = b.key2,
+  a.payee = b.a2,
+  a.foreignNumber = b.key3,
+  a.foreignDate = b.a1
+ from @rt a
+ join object b on dbo.slinkId(a.slink) = b.id
+
+ update a set
+  a.contraPaymentType = b.a18,
+  a.contraControlNumber = b.key1,
+  a.contraPostDate = b.key2,
+  a.contraForeignNumber = b.key3,
+  a.contraForeignDate = b.a1
+ from @rt a
+ join object b on dbo.slinkId(a.contraSlink) = b.id
+
+ return
+end
