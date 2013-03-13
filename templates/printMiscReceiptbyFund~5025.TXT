@@ -1,15 +1,34 @@
 
-@bb7=&Print; @bbproc7=printMiscReceiptbyReceipt=;
+@bb7=&Print; 
+
+@bbproc7=
+gcBeginDate='77400',
+gcEndDate='77466',
+printMiscReceiptbyFund=;
+
 
 @keyReportMaintenance;
+
+
+
+@printMiscOneFund=
+lcFundCode=0,
+iw('\t000Select Fund...;\t001Fund; \t003Description; \d004; \l0024701;r002002004004; @lf002='typ=4701 and a1=''FUND'' and b3!=1',2,2;
+'),
+break(gcretval<>'OK'),
+lcFundCode=obj7:key1,
+printMiscReceiptbyFund=;
+
 
 @printMiscReceiptbyFund=
  do(452,getSiteInfo=),
  lcgrpToken='',
- lcsql='select postDate, postDate1, ReceiptNo, FundDesc, LEFT(ReceivedOf,20), amount, PrevApportioned, slink, FundCode, LEFT([description],30), left(sourceDesc,20), amountToApportion from dbo.reportMiscReceiptDetail('''&gcBeginDate&''','''&gcEndDate&''') order by FundCode,ReceiptNo, detCount desc',
+ if(lcFundCode>'  0',lcWhere='where fundCode='''&lcFundCode&'''',lcWhere=''),
+ lcsql='select postDate, postDate1, ReceiptNo, FundDesc, LEFT(ReceivedOf,20), amount, PrevApportioned, slink, FundCode, LEFT([description],30), left(sourceDesc,20), amountToApportion from dbo.reportMiscReceiptDetail('''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by fundCode,ReceiptNo, detCount desc',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
+ lcFundCode=0,
  lcTotAmount=0, 
  lcTotPrev=0,
  lcFundTotAmount=0,
