@@ -1,0 +1,54 @@
+create proc dbo.diagFix_treasurersChecksSlink2(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+
+ declare @tChecks table(slink varchar(15))
+ insert @tChecks
+ select 'o' + cast(warrantlinkid as varchar) from dbo.payments where warrantlinkid > 0
+
+ if @method = 'GET'
+ begin  
+  select 
+   @guide = 'GET|SHOW',
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(distinct g.slink),
+   @message = 'Treasurers Checks glDetail missing slink2'
+  from gldetail g
+  join @tChecks t on t.slink = g.slink and isnull(g.slink2,'') = ''
+ 
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   distinct g.slink
+  from gldetail g
+  join @tChecks t on t.slink = g.slink and isnull(g.slink2,'') = ''
+ 
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  update g set g.slink2 = 'o' + cast(p.id as varchar)
+  from gldetail g
+  join @tChecks t on t.slink = g.slink and isnull(g.slink2,'') = ''
+  join dbo.payments p on 'o' + cast(p.warrantLinkId as varchar) = g.slink
+
+  exec dbo.logit @@procId, 'Just updated me some glDetail... @@rowCount', @@rowCount
+
+  return
+ end
+
+
+end
