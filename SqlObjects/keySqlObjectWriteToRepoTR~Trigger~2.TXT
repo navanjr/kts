@@ -14,6 +14,15 @@ AS
   @objectId int,
   @slink varchar(15)
 
+ declare @allowedObjectTyps table(typ int)
+ insert @allowedObjectTyps
+  select 451
+  union select 4502
+  union select 4522
+  union select 4771
+  union select 4512
+  union select 4513
+
  select
   @typ = typ,
   @objectId = id,
@@ -21,7 +30,7 @@ AS
  from inserted
 
 -- bail if the one record inserted is not in our list of approved types
- if not @typ in (451, 4502, 4522, 4771)
+ if not @typ in (select typ from @allowedObjectTyps)
   return
 
  if @objectId > 0 and @typ = 451
@@ -34,7 +43,7 @@ AS
  if (select dbo.settingsF('site.glDetailSync','FALSE')) = 'FALSE'
   return
 
- if @objectId > 0 and @typ in (4502, 4522, 4771) and update(key2)
+ if @objectId > 0 and @typ in (select typ from @allowedObjectTyps) and update(key2)
  begin
   update a
    set a.date = b.key2
