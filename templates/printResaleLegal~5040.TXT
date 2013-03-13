@@ -1,6 +1,6 @@
 @bb1=&Print;
 @bbproc1=
-printResalelegal=;
+ exportPersonalForPub=;
 
 @printResalelegal=
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
@@ -28,13 +28,19 @@ printResalelegal=;
  nl,
  edt);
 
-@printResaleForPub=
+@ResaleForPubVars=
  do(4506,getSiteInfo=),
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
  break(gcretval='esc'),
  lcInterestTo=format(obj7:key1,@d2),
+ lcfile='c:\client\exportResaleForPub.txt',
  lcOrder=gcColOrder,
+ lcDetblob=2,
  lc5040sql='select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''',0,'&gcBeginDate&','&gcDays+0&',0) where rowType = 0 '&choose(gcAbstracter=1,' and parcel in (select parcelNumber from taxrollDetail where dtype=''Abstract'')','')&' order by '&Choose(lcOrder='Parcel',lcOrder,'ord'),
+ lcLegalSql=;
+
+@printResaleForPub=
+ ResaleForPubVars=,
  lcy=0,
  lcTm=500,
  lcLm=1000,
@@ -53,14 +59,26 @@ printResalelegal=;
  bnd(,gcOfficial,3000),
  bnd(,gcCounty&' COUNTY TREASURER',3000);
 
+@exportResaleForPub=
+ ResaleForPubVars=,
+ exporting=;
 
-@printResaleForPubSum=
+@ResaleForPubSumVars=
  do(4506,getSiteInfo=),
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
  break(gcretval='esc'),
  lcInterestTo=format(obj7:key1,@d2),
+ lcfile='c:\client\exportResaleForPubSum.txt',
  lcOrder=gcColOrder,
- lc5040sql='select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''',0,'&gcBeginDate&','&gcDays+0&',0) where rowType = 0 '&choose(gcAbstracter=1,' and parcel in (select parcelNumber from taxrollDetail where dtype=''Abstract'')','')&' order by '&Choose(lcOrder='Parcel',lcOrder,'ord'),
+  lcDetblob=1,
+ lc5040sql='select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''',0,'&gcBeginDate&','&gcDays+0&',0) where rowType = 0 '&choose(gcAbstracter=1,' and parcel in (select parcelNumber from taxrollDetail where dtype=''Abstract'')','')&' order by '&Choose(lcOrder='Parcel',lcOrder,'ord');
+
+@exportResaleForPubSum=
+ ResaleForPubSumVars=,
+ exporting=;
+
+@printResaleForPubSum=
+ ResaleForPubSumVars=,
  lcy=0,
  lcTm=500,
  lcLm=1000,
@@ -80,13 +98,18 @@ printResalelegal=;
  bnd(,gcCounty&' COUNTY TREASURER',3000);
 
 
-@printPersonalForPub=
+@setPersonalForPubVars=
  do(4506,getSiteInfo=),
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
  break(gcretval='esc'),
  lcInterestTo=format(obj7:key1,@d2),
+ lcfile='c:\client\exportPersonalForPub.txt',
  lcOrder=gcColOrder,
- lc5040sql='select dbo.padRight(display,''.'',33) + dbo.padLeft((select total from dbo.docUnpaidTF(invoiceIdMain,'''&lcInterestTo&''') where RIGHT(ord,1)=''e''),''.'',17) from dbo.collectionsBRW('''&gcDType&''',0,'&gcBeginDate&','&gcDays+0&',0) where Id > 0 order by ord',
+ lcDetblob='',
+ lc5040sql='select dbo.padRight(display,''.'',33) + dbo.padLeft((select total from dbo.docUnpaidTF(invoiceIdMain,'''&lcInterestTo&''') where RIGHT(ord,1)=''e''),''.'',17) from dbo.collectionsBRW('''&gcDType&''',0,'&gcBeginDate&','&gcDays+0&',0) where Id > 0 order by ord';
+
+@printPersonalForPub=
+ setPersonalForPubVars=,
  lcy=0,
  lcTm=500,
  lcLm=1000,
@@ -102,6 +125,33 @@ printResalelegal=;
  prn(,lcLm,),
  bnd(,gcOfficial,3000),
  bnd(,gcCounty&' COUNTY TREASURER',3000);
+
+@exportPersonalForPub=
+ setPersonalForPubVars=,
+ exporting=;
+
+@exporting=
+ kpmo('exporting...'),
+ delfile(lcfile),
+ lcE1='exec dbo.docFormLetter '&gcDocumentId&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE1),
+ lcE1=clip(obj7:e1),
+ sqlloop('select 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,rowData from dbo.splitL('''&lcE1&''',70)',exportit=),
+ lcE1='',
+ sqlloop(lc5040sql,exportit=),
+ send(lcfile,'',1),
+ send(lcfile,gcOfficial,1),
+ send(lcfile,gcCounty&' COUNTY TREASURER',1),
+ kpmc(),
+ start(lcfile);
+
+@exportit=
+ if(lcDetblob='' or len(lcE1)>0,if(len(lcE1)>0,send(lcfile,clip(obj5:c1),1),send(lcfile,clip(obj5:a1),1)),exportBlob=);
+
+@exportBlob=
+ lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''',1)')),
+ send(lcfile,clip(lcLegal),1);
+ 
 
 @printUnpaidSum=
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
