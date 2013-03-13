@@ -50,18 +50,18 @@ if @selectedId > 0
   insert @rt
   select 
 	id*-1,
-		dbo.clariondate(left(Stamp,10)),
-		'',
-		case when name>'  0' then name+' ' else '' end
-		+case when businessName>'  0' then businessName+' ' else '' end
-		+case when address1>'  0' then address1+' ' else '' end
-		+case when address2>'  0' then address2+' ' else '' end
-		+case when address3>'  0' then address3+' ' else '' end
-		+case when city>'  0' then city else '' end
-		+case when state>'  0' then ', '+state else '' end
-		+case when zip1>'  0' then ' '+zip1 else '' end
-		+case when zip2>'  0' then '-'+zip2 else '' end,
-                'ADDRESS'
+	dbo.clariondate(left(Stamp,10)),
+	'',
+	case when name>'  0' then name+' ' else '' end
+	+case when businessName>'  0' then businessName+' ' else '' end
+	+case when address1>'  0' then address1+' ' else '' end
+	+case when address2>'  0' then address2+' ' else '' end
+	+case when address3>'  0' then address3+' ' else '' end
+	+case when city>'  0' then city else '' end
+	+case when state>'  0' then ', '+state else '' end
+	+case when zip1>'  0' then ' '+zip1 else '' end
+	+case when zip2>'  0' then '-'+zip2 else '' end,
+        'ADDRESS'
 	from dbo.taxRollDetail
 	where	(name=@name or len(name)<1 or name<>@name) 
 		and (parcelNumber=@parcel or len(parcelNumber)<1) 
@@ -76,16 +76,16 @@ if @selectedId > 0
 
 -- dtype records
   insert @rt select id*-1, dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype
-  from taxrollDetail where parcelNumber = @parcel and dtype = 'RESALE'
+   from taxrollDetail where parcelNumber = @parcel and dtype = 'RESALE'
   insert @rt select id*-1, dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype
-  from taxrollDetail where itemNumber = @item and dtype = 'item'
+   from taxrollDetail where itemNumber = @item and dtype = 'item'
 
 insert @rt
     select	Id*-1,
-			key2,
-			'',
-			'Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;'                         then dbo.date1(a2) else a2 end,
-                       'CORRECTION' 
+		key2,
+		'',
+		'Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;'                         then dbo.date1(a2) else a2 end,
+                'CORRECTION' 
 		from object 
 		  where typ=4005 
 		  and link1 in (select taxrollId from invoices where id=@selectedId) 
@@ -93,10 +93,10 @@ insert @rt
 
 insert @rt
     select	i.Id*-1,
-			'',
-			'',
-			'Physical Address: '+a.proploc,
-                       ' Address' 
+		'',
+		'',
+		'Physical Address: '+a.proploc,
+                ' Address' 
 		from adtax a ,invoices i 
 		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
 --voided invoice comments		  
@@ -109,7 +109,7 @@ insert @rt
             from dbo.invoices i, receiptDetail rd
                where i.typ='A' 
                   and i.invoiceId=@selectedId
-                  and left(rd.slink,1)='t' and dbo.slinkId(rd.slink)=i.id
+                  and rd.slink='t'+cast(i.id as varchar(15))
 
 --Receipt Payments
   declare @wt table(invoiceId varchar(50),receipt varchar(50),name varchar(50),controlNum varchar(50),Amount money,receiptId int,recDate varchar(50),typ varchar(50))
@@ -127,7 +127,7 @@ insert @rt
        ' Receipt'
    
       from receiptLink a, receiptDetail b, invoices c
-     where left(b.slink,1)='t' and dbo.slinkId(b.slink)=a.invoiceId
+     where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.invoiceId = c.ID
          and c.id = @selectedId and a.receiptNumber>'  0'
         group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
@@ -161,7 +161,7 @@ insert @rt
        o.key2, 
        ' Journal'
       from journalLink a, glDetail b, invoices c, glaccounts ac, object o
-     where left(b.slink,1)='j' and dbo.slinkId(b.slink)=a.id
+     where 'j'+CAST(a.id as varchar) = b.slink
          and o.typ = 4512
          and o.id = a.jeId
          and b.accountCode=ac.accountCode
