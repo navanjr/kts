@@ -1,0 +1,32 @@
+@bb5=&Print; 
+ @bbproc5=gcBankStatementId=0,gcBankAccountId=0,printBankStatementCleared=;
+
+@printBankStatementCleared=
+ do(452,getSiteInfo=),
+ lcRm=500,
+ lcCw=1200,
+ lcAw=(lcCw*4)+400,
+ lcFont='',
+ lcHeaderFontSize=12,
+ gcDet5045='select dateCleared,depositDate,left(instrumentNumber,10),left(instrumentNumber2,10),dbAmount,crAmount,comment+comment2 from dbo.bankStatementBRW('&gcBankStatementId&','&gcBankAccountId&',1,0,0,1) where dateCleared>0 order by ord',
+ lcdebits=0,
+ lccredits=0,
+
+ tr(
+  box(450,450,4000,950,6),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2),
+  bnd(,'Bank Statement Cleared Report',8500C),
+  prn(,lcRm,1500,,,),
+   bnd('D','Date Cleared',800,'Item Date',800,'First #',600,'Second #',600,'Debit',830R,'Credit',830R,'Comments',4000),
+  det(gcDet5045),
+   bnd('D',format(obj5:a1,@d2),800,format(obj5:a2,@d2),800,obj5:a3,600,obj5:a4,600,format(obj5:a5,@n-19.2b),830R,format(obj5:a6,@n-19.2b),830R,obj5:a7,4000),
+  lcdebits=lcdebits+obj5:a5,
+  lccredits=lccredits+obj5:a6,
+  edt, 
+   bnd('DO','',800,'',800,'',600,'Total: ',600,format(lcdebits,@n-19.2b),830R,format(lccredits,@n-19.2b),830R),
+
+);
