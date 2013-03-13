@@ -9,13 +9,36 @@ AS
  if (select count(*) from inserted) > 1
   return
 
--- bail if the one record inserted is not a 451
- if not (select typ from inserted) = 451
+ declare
+  @typ int,
+  @objectId int,
+  @slink varchar(15)
+
+ select
+  @typ = typ,
+  @objectId = id,
+  @slink = 'o' + cast(id as varchar)
+ from inserted
+
+-- bail if the one record inserted is not in our list of approved types
+ if not @typ in (451, 4502, 4522, 4771)
   return
 
- declare @objectId int
-
- select @objectId = id from inserted
- 
- if @objectId > 0
+ if @objectId > 0 and @typ = 451
+ begin
   exec dbo.keySQLObjectWriteToRepo @objectId
+  return
+ end
+
+-- bail if the glDetailSync is off
+ if (select dbo.settingsF('site.glDetailSync','FALSE')) = 'FALSE'
+  return
+
+ if @objectId > 0 and @typ in (4502, 4522, 4771) and update(key2)
+ begin
+  update a
+   set a.date = b.key2
+  from dbo.glDetail a, inserted b
+  where a.slink = 'o' + cast(b.id as varchar)
+  exec dbo.logit @@procId, 'Just Updated... @@rowCount', @@rowCount, '@typ', @typ
+ end
