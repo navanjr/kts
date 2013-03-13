@@ -10,7 +10,8 @@ begin
   @credits money,
   @variance money,
   @sBDate int,
-  @sEDate int
+  @sEDate int,
+  @tally int
 
  declare @priorBS table(id int)
 
@@ -24,15 +25,10 @@ begin
 
  select 
   @bBalance = isnull(sum(case when bsId = @id then 0 else amount end),0),
-  @eBalance = isnull(sum(amount),0)
+  @eBalance = isnull(sum(amount),0),
+  @tally = count(*)
  from glDetail where accountId = @accountId and bsId in (select id from @priorBS union all select @id)
 
-/*
- select 
-  @deposits = isnull(sum(case when amount > 0 then amount else 0 end),0),
-  @credits = isnull(sum(case when amount < 0 then amount else 0 end),0)
- from glDetail where accountId = @accountId and bsId = @id
-*/
  select @deposits = isnull(sum(amount),0) 
  from gldetail 
  where 
@@ -47,12 +43,12 @@ begin
    and bsId = @id
    and ((amount < 0) or slink in (select 'o'+cast(id as varchar) from object where typ=4771))
 
-
  select @variance = case when isnumeric(a3)=1 then cast(a3 as money) else 0 end-@eBalance from object where typ = 4780 and id = @id
 
  set @retvar = 
   '@bBalance=' + cast(@bBalance as varchar)
   + ';@eBalance=' + cast(@eBalance as varchar)
+  + ';@tally=' + cast(@tally as varchar)
   + ';@deposits=' + cast(@deposits as varchar)
   + ';@credits=' + cast(@credits as varchar)
   + ';@variance=' + cast(@variance as varchar)+';'

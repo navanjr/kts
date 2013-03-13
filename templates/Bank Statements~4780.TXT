@@ -7,9 +7,10 @@
 \t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=update,refreshBRW=;
 \t003Description;  \d004;
 
-\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=;
-\t009through;  \w01050;  \t010@d2;
+\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=; \d008obj:a4+0>0;
+\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0;
 \t011Stated Ending Balance; @acc012=sums=; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
+\t013Count; \h013014;r
 
 \t037Fund; \h037038;r
 \t039Fund Desc; \l0404701;r038002040004; @lf040='typ=4701 and a1 in (select accountType from dbo.glBankFundTypes(''FUND'')) and b3!=1',2; \h039040obj:c2+0<>1;r
@@ -21,7 +22,6 @@
 \t049Variance; \w05060; @calculate:050=obj:a3-obj:b1;
  \p0460507cfah,13499135;r2 \p0460507c13h,700;r2 \d046050;r2 \p0460507c0ch,1;r2 \t046050@n-14.2;r2
 
-\t075OrderClearedFlag; \h075076;r
 \t077ShowLinksFlag; \h077078;r
 \t079ShowWarrantsFlag; \h079080;r
 \t081OrderVoucherFlag; \h081082;r
@@ -39,11 +39,16 @@
  create(551,12,500,100,'Show &Warrants',80),
  create(552,2,380,3,'Variance Items'),
  create(553,12,500,112,'Order By &Voucher',82),
- create(554,12,500,124,'Order By Cleared',76),
  create(33,9,380,18,'&Add Item',4),
  create(35,9,440,18,'&Rem Item',4),
  brwstuff=,
  sums=;
+
+@doILockDates=
+ lcBsIdCount=kp('select count(*) from glDetail where bsid = '&obj:id),
+ break(lcBsIdCount+0=0),
+ if(obj:a1>'  0',prop(008,7C5FH,1)),
+ if(obj:a2>'  0',prop(010,7C5FH,1));
 
 \w03350;
 \w03550;
@@ -84,23 +89,15 @@
  gcEndDate=obj:a2,
  gcBankAccount='';
 
-\t114Print Cleared;
- @acc114=
- gcBankStatementId=obj:id,
- gcBankAccountId=obj:link1,
- trreport('bankcleared',5045,'printBankStatementCleared='),
- gcBankStatementId=0,
- gcBankAccountId=0,
- ;
 
 @acc550=refreshBRW=;
 @acc551=refreshBRW=;
-@acc553=if(obj:c3+0=1,set(076,0)),update,refreshBRW=;
-@acc554=if(obj:b15+0=1,set(082,0)),if(obj:b15+0=1,set(078,1)),update,refreshBRW=;
+@acc553=refreshBRW=;
 @gfwindow=refreshBRW=;
 
 @sums=
  lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
+ set(014,readstring(lcBlob,'@tally=')),
  set(046,readstring(lcBlob,'@bBalance=')),
  set(048,readstring(lcBlob,'@eBalance=')),
  set(084,readstring(lcBlob,'@deposits=')),
@@ -110,7 +107,7 @@
 
 @gcvars=
  lcShowFlag=obj:c1,
- gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&','&obj:b15+0&') order by ord';
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&') order by ord';
 
 @brw1=
  lcid=kpbrwid(1)*-1,
@@ -162,4 +159,5 @@ lbrw1color=obj7:c9='X',1959605; 2350115;
  sums=,
  gcvars=,
  brwreload(1,gcsql),
+ calcfld(14),
  tsc;
