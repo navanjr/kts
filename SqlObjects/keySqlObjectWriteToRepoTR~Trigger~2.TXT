@@ -14,14 +14,15 @@ AS
   @objectId int,
   @slink varchar(15)
 
- declare @allowedObjectTyps table(typ int)
+ declare @allowedObjectTyps table(typ int, reason varchar(20))
  insert @allowedObjectTyps
-  select 451
-  union select 4502
-  union select 4522
-  union select 4771
-  union select 4512
-  union select 4513
+        select 451, 'git' -- sqlObjects
+  union select 4502, 'glDetailSync' -- receipts
+  union select 4522, 'glDetailSync' -- official deposits
+  union select 4771, 'glDetailSync' -- Payments
+  union select 4512, 'glDetailSync' -- Journal Entries
+  union select 4513, 'glDetailSync' -- bank deposits
+  union select 4002, 'dtypeComments' -- taxroll Comments
 
  select
   @typ = typ,
@@ -33,21 +34,45 @@ AS
  if not @typ in (select typ from @allowedObjectTyps)
   return
 
+-- Git
  if @objectId > 0 and @typ = 451
  begin
   exec dbo.keySQLObjectWriteToRepo @objectId
   return
  end
 
+-- dType Comments
+ if @objectId > 0 and @typ in (select typ from @allowedObjectTyps where reason = 'dTypeComments') and update(a7)
+ begin
+  declare
+   @dtype varchar(50),
+   @parcel varchar(50),
+   @item varchar(50)
+
+  select
+   @dtype = a7,
+   @parcel = key2,
+   @item = key1
+  from inserted
+
+  exec dbo.dTypeCommentCRUD @mode = 'Initiate', @dtype = @dtype, @parcel = @parcel, @item = @item
+
+  return
+ end
+
+-- glDetail Sync
 -- bail if the glDetailSync is off
  if (select dbo.settingsF('site.glDetailSync','FALSE')) = 'FALSE'
   return
 
- if @objectId > 0 and @typ in (select typ from @allowedObjectTyps) and update(key2)
+ if @objectId > 0 and @typ in (select typ from @allowedObjectTyps where reason = 'glDetailSync') and update(key2)
  begin
   update a
    set a.date = b.key2
   from dbo.glDetail a, inserted b
   where a.slink = 'o' + cast(b.id as varchar)
+
   exec dbo.logit @@procId, 'Just Updated... @@rowCount', @@rowCount, '@typ', @typ
+
+  return
  end
