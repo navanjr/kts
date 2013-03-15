@@ -1,6 +1,15 @@
 create function dbo.interestWorkSheetDetail(@date varchar(20), @schoolfund varchar(20))
-returns @rt table(tableType varchar(50), apmonth varchar(20), apyear varchar(20), accountCode varchar(60), accountDesc varchar(50),comment2 varchar(50),amount money,
-tableTotal money, ratio numeric(12,10))
+returns @rt table(
+tableType varchar(50), 
+apmonth varchar(20), 
+apyear varchar(20), 
+accountCode varchar(60), 
+accountDesc varchar(50),
+comment2 varchar(50),
+amount money,
+tableTotal money, 
+ratio numeric(12,10),
+bankAccount varchar(60))
 as
 begin
 declare @datetime datetime = dbo.date1(@date)
@@ -21,21 +30,21 @@ from dbo.apportionmentSchoolPagesDetailByFund(@firstDayPriorMonth, @lastDayPrior
  
 
 insert @rt 
- select 'Apportionment',datename(month,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), w.accountcode, a.accountDesc, w.comment2, sum(w.amount) as amount,0,0 
+ select 'Apportionment',datename(month,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), w.accountcode, a.accountDesc, w.comment2, sum(w.amount) as amount,0,0,'' 
  from @wt w, glaccounts a 
  where w.accountCode=a.accountCode
  group by w.accountcode, a.accountDesc, w.comment2
  having sum(w.amount) <> 0.00
  
 insert @rt
- select 'Balance '+o.b3,datename(month,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1,0,0
+ select 'Balance '+o.b3,datename(month,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1,0,0, o.a4
    from object o, gldetail g, glaccounts a, glaccounts ita
     where o.typ=4601 
      and g.accountcode=o.a3
      and a.accountcode = o.a3
      and ita.accountCode = a.interesttoaccountcode
      and g.[date]<= cast(@lastDayPriorMonth as int)
-    group by o.b3, a.interesttoaccountcode, ita.accountDesc
+    group by o.b3, a.interesttoaccountcode, ita.accountDesc, o.a4
     having sum(g.amount) <> 0.00
 
 update r set tableTotal = wt.tableTotal from @rt r, (select tableType, sum(amount) as tableTotal from @rt group by tableType) wt 
