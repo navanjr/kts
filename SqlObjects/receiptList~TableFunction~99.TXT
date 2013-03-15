@@ -31,32 +31,33 @@ returns @wt table(id int identity(1,1),
                   deputy varchar(50),
                   ownerName varchar(60),
                   SAtyp varchar(50),
-                  station varchar(60))
+                  station varchar(60),
+                  recStatus varchar(50))
                   
 as 
 begin                  
 
 -- here we get all rows from object where typ = 4502 and the receiptType is NOT Tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station)
- select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station,recStatus)
+ select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station, recStatus
  from receipt 
  where 
   postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
   and recType<>'TAX'
 
 -- dont know for sure but i think this gets all object records that are typ 4502 and receipt Type is tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station)
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station,taxyear,recStatus)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station
+   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station, taxyear, recStatus
   from taxReceipt where 
    postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
    and parentInvoiceId<1
    order by recNum
 
 -- another dip into object for tax receipts i think
- insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy)
+ insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy,taxyear,recStatus)
  select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId, Deputy
+  'l'+cast(linkId as varchar(15)),recId, Deputy,taxyear, recStatus
   from taxReceipt where recId in (select recId from @wt)
    and parentInvoiceId>0
    order by recNum
@@ -215,7 +216,7 @@ update w set
 delete from @wt where parentInvoiceId>0
 
 update @wt set
-  recType=recType+' '+taxYear,
+  recType=recType+' '+isnull(taxYear,''),
   taxType = case when invoiceType not in ('B','I','R','P','A') then case when perTyp!='F' then 'Special' else 'Fire' end else '' end,
   SAtyp = case when invoiceType not in ('B','I','R','P', 'A')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
 where recType='TAX'
