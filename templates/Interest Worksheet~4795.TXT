@@ -1,0 +1,41 @@
+@noupdate;
+@nolock;
+
+@loadwindow=d1select('exec dbo.interestWorksheetAccountVerification '''&today()&''',''FALSE'',''SPLIT'''),create(151,12,3,15,'Split School Funds',38);
+
+@afterloadwindow=if(obj:a17<'1',doperiod=),if(obj:a16<' 0',set(38,1)),if(obj:key1+0=0,set(2,100)),brwstuff=;
+
+@doperiod=
+ lcperiod=kp('select rtrim(apyear)+right(''00''+rtrim(apmonth),2) as yearmonth from dbo.interestWorkSheetDetail('''&today()&''', '''')'),
+ set(040,lcperiod);
+
+@acc151=rebuild=;
+
+@rebuild=if(obj:a16+0=1,lcsplit='SPLIT',lcsplit=''),d1select('select dbo.clariondate('''&right(obj:a17,2)&'/28/'&left(obj:a17,4)&''')+5'),d1select('exec dbo.interestWorksheetAccountVerification '''&obj7:d1+0&''',''TRUE'','''&lcsplit&''''),brwstuff=;
+
+@brwstuff=d1select('select accountId from glaccounts where accountType=''ACCRUED RECEIVABLE'' and accountCode='''&obj:a18&''''),lcaccountid=obj7:d1,brw(150,1,'select 0,a.accountDesc,ap.stepDesc,ap.amount as interest from glaccounts a,
+(select * from dbo.apportionCollectionsWT( '&lcaccountid+0&', 0, ''TRUE'', null, '&obj:key1+0&') ) ap
+  where a.accountCode = ap.creditCode
+   and a.accountType in (select accountType from dbo.glBankFundTypes(''FUND''))
+  order by a.accountType desc,a.accountCode,a.monthEndColumn, ap.ord, ap.stepDesc',
+ 3,30,500,400,'100L(2)~Account~#2#|M60L(2)~School Fund~#3#|M50R(2)~Interest~@n-19.2@#4#|M'),tsc;
+
+@refreshbrw=update,brwstuff=;
+
+\t001Interest Amount; \t002@n-19.2; \w00250;
+@acc002=if(obj:key1+0=0,set(2,100)),update,refreshbrw=;
+
+\t039Year/Month;  
+@acc040=if(obj:a16+0=1,lcsplit='SPLIT',lcsplit=''),d1select('select dbo.clariondate('''&right(obj:a17,2)&'/28/'&left(obj:a17,4)&''')+5'),sql('exec dbo.interestWorksheetAccountVerification '''&obj7:d1&''',''FALSE'','''&lcsplit&''''),brwstuff=;
+\t041Interest Table; \l0424701; @lf042='typ=4701 and a1=''ACCRUED RECEIVABLE'' and a9=''T'' and left(key1,6)='''&obj:a17&'''';
+@acc042=refreshbrw=;
+
+\t108Print WorkSheet;  
+@acc108=
+ gcAmount=obj:key1,
+ d1select('select accountId from glaccounts where accountType=''ACCRUED RECEIVABLE'' and accountCode='''&obj:a18&''''),
+ gcAccountId=obj7:d1,
+ break(gcAmount=0.00),
+ trreport('MillageBreakdown=',5038,'printMillageBreakdown='),
+ gcAmount=0,
+ gcAccountId=0,;

@@ -10,7 +10,8 @@ create function dbo.millsGetRows(
  millRate decimal(16,14),
  amount money,
  accountId int,
- accountCode varchar(50)
+ accountCode varchar(50),
+ stepDesc varchar(50)
 ) as
 begin
 
@@ -19,7 +20,24 @@ begin
   @totalFigured money,
   @apyear varchar(50),
   @apdistrict varchar(50),
-  @aprate varchar(50)
+  @aprate varchar(50),
+  @today varchar(20) = dbo.clariondate(getdate())
+
+ if @typ=4795 and @code < ' 0'
+ begin
+  insert @rt (description, millAmount, accountId, accountCode)
+  select a.comment2,amount,b.accountId,a.accountCode from (select * from dbo.interestWorkSheetDetail(@today,@year)) a, glaccounts b 
+   where a.tableType = 'Apportionment'
+   and a.accountcode=b.accountcode
+ end
+
+ if @typ=4795 and @code > ' 0'
+ begin
+  insert @rt (description, millAmount, accountId, accountCode)
+  select a.comment2,amount,b.accountId,a.accountCode from (select * from dbo.interestWorkSheetDetail(@today,'')) a, glaccounts b 
+   where a.bankaccount=@code
+   and a.accountcode=b.accountcode
+ end
 
  if @typ=4009
  begin
@@ -42,8 +60,8 @@ begin
 
  if @typ=4022
  begin
-  insert @rt (description, millAmount, accountCode)
-  select key2 ,case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,key2 from object where typ = @typ and key1 = @year
+  insert @rt (description, millAmount, accountCode, stepDesc)
+  select key2 ,case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,key2,a1 from object where typ = @typ and key1 = @year
  end
 
  if @typ=4512
