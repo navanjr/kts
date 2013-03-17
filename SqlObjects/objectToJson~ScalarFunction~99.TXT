@@ -1,6 +1,5 @@
 create function dbo.objectToJson(
- @topInt int,
- @typ int,
+ @ids ids readonly,
  @fields objectFields readonly
 ) returns nvarchar(max) as
 begin
@@ -13,7 +12,7 @@ begin
   @tally int = 0,
   @jsonString nvarchar(max)
 
- declare ids cursor for select top (@topInt) id from Object where typ = @typ
+ declare ids cursor for select id from @ids
 
  open ids
  fetch next from ids into @tokenId
@@ -33,19 +32,19 @@ begin
 
 -- add the blob object contanier
   insert @jsonPrep (parentId,objectId,name,value,type, origin) 
-  select @tally, @tokenId, 'blob','', 'object', 2
+  select @tally, @tokenId, 'blob', @tokenId, 'object', 2
 -- add the objectId
   union select @tally, null, 'objectId', cast(@tokenId as varchar), 'int', 3
 -- add the object row contanier
-  union select 0, @tally, cast(@tally as varchar), '', 'object', 4
+  union select 0, @tally, null, @tally, 'object', 4
   
   fetch next from ids into @tokenId
  end
  close ids
  deallocate ids
 
- insert @jsonPrep (objectId, type) 
- select 0, 'array'
+ insert @jsonPrep (objectId, name, type) 
+ select 0, '-', 'array'
  
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
