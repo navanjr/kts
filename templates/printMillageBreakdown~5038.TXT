@@ -10,11 +10,11 @@ printFourMill= ;
 @printMillageBreakdown=
  do(452,getSiteInfo=),
  lcgrpToken='',
- lcsql5038='select a.accountId, a.accountCode, a.accountDesc, a.accountType, a.monthEndColumn, ap.ord,ap.stepDesc,ap.amount, ap.sourceCode, a.apdistrict, a.aprate, a.apyear from glaccounts a,
+ lcsql5038='select a.accountId, a.accountCode, a.accountDesc, a.accountType, a.monthEndColumn, ap.ord,ap.stepDesc,ap.amount, ap.sourceCode, a.apdistrict, a.aprate, a.apyear, ap.tableamount, ap.tableratio from glaccounts a,
 (select * from dbo.apportionCollectionsWT( '&gcAccountId+0&', 0, ''TRUE'', null, '&gcAmount+0&') ) ap
   where a.accountCode = ap.creditCode
    and a.accountType in (select accountType from dbo.glBankFundTypes(''FUND''))
-  order by a.accountType desc,a.monthEndColumn, ap.ord, ap.stepDesc',
+  order by a.accountType desc,a.accountCode,a.monthEndColumn, ap.ord, ap.stepDesc',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -25,6 +25,7 @@ printFourMill= ;
  d1select('select apyear from glaccounts where accountId='&gcAccountId),
  gcapYear=obj7:d1,
  lcTotAmount=0,
+ lcTotMillRate=0,
  lcBoxColor=14539482,
  tr(
   lcx=600,
@@ -40,14 +41,15 @@ printFourMill= ;
   prn(gcapYear&' - '&gcapDistrict&' - '&gcapRate,t2),
   prn(,lcx), 
   if(curpag=1),
-  bnd('H9','Account',1000,'Millage',3000,'Amount',700R),
+  bnd('H9','Account',1000,'Millage',2000,'Mill Amount',-700,'Ratio',-800,'Amount',-700),
    nl, 
    det(lcsql5038),
-   bnd('H9',obj5:a3,1000,obj5:a7,3000,format(obj5:a8,@n-19.2),700R),
+   bnd('H9',obj5:a3,1000,obj5:a7,2000,format(obj5:a13,@n-19.2),-700,format(obj5:a14,@n-14.10),-800,format(obj5:a8,@n-19.2),-700),
    lcTotAmount=lcTotAmount+obj5:a8,
+   lcTotMillRate=lcTotMillRate+obj5:a14,
   edt,
   nl,
-     bnd('HO','',1000,'Report Total:',3000,format(lcTotAmount,@n-19.2),700R),
+     bnd('HO','',1000,'Report Total:',2700,format(lcTotMillRate,@n-19.2),800R,format(lcTotAmount,@n-19.2),700R),
  );
 
   

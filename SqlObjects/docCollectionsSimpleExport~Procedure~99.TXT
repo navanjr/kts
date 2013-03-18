@@ -1,0 +1,21 @@
+create procedure dbo.docCollectionsSimpleExport(@documentId int = 0,@interestTo varchar(50),@fileName varchar(1000) = '',@sqlDet varchar(4000) = '')
+as
+begin
+set nocount on
+declare	
+ @rawtext varchar(max) = ''
+ if @documentId>0
+  exec dbo.docFormLetter  @documentId,@interestTo=@interestTo,@verbose = 'FALSE', @rawtext = @rawtext output
+declare @rt table(id int identity(1,1), rowstring varchar(500))
+insert @rt
+ select rowData from dbo.splitL(@rawtext,80)
+insert @rt
+   exec(@sqlDet)
+   set @rawtext = ''
+select @rawtext = @rawtext + rowString + CHAR(13) + CHAR(10) from @rt 
+
+if @fileName>'  0'
+ exec dbo.spOverwriteTextFile @fileName, @rawtext
+else
+ select @rawtext
+end

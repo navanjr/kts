@@ -1,10 +1,7 @@
 
 @bb4=&Print; 
 @bbproc4=
- gcBeginDate=today(),
- gcEndDate=today(),
- gcFundCode='001H',
- gcFundDesc='CO GEN 2012-2013',
+ gcEndDate='77466',
  printOpenWarrants=;
 
 @print=
@@ -17,8 +14,7 @@
  dbo.date1(w.a1) as warDate,
  cast(w.a3 as money) as warAmount,
  (select accountDesc from glaccounts where accountCode=a.a8) as fund from object a, object w where a.id = w.link1 and a.typ = 4771 and a.a18 = ''Treasurers Check'' order by a.key3  ',
- 
-lcCheckAmt=0,
+ lcCheckAmt=0,
  tr(
   prn(printed),
   prn(page),
@@ -41,8 +37,8 @@ lcCheckAmt=0,
    bnd('BD',,500,obj5:a4,1000,obj5:a5,1000,format(obj5:a6,@n14.2),1000R,obj5:a7,2000,),
    lcCheckAmt=lcCheckAmt+obj5:a6,
   edt
-
  );
+
 
 /** Warrant cleared date = date when warrant hits the G/L **/
 @printsum=
@@ -67,7 +63,6 @@ lcCheckAmt=0,
   prn(gcCity&', '&gcState,t3),
   prn('Warrants Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4), 
   prn(,2000,),
-  
   grp(1,obj5:a1,do(
    bnd('HU','Fund: '&obj5:a1,4500),
    bnd('H','Treas Chk No.',1000,'Date',1000,'Amount',1000C,),
@@ -78,13 +73,9 @@ lcCheckAmt=0,
    lcCheckAmt=0,
    nl,nl,
    )),
-  
-   bnd('H','',7500),
+  bnd('H','',7500),
   det(lcsql),
-   bnd('D',
-   obj5:a4,1000,
-   obj5:a2,1000,
-   format(obj5:a3,@n14.2),1000R,),
+   bnd('D',obj5:a4,1000,obj5:a2,1000,format(obj5:a3,@n14.2),1000R,),
    lcCheckAmt=lcCheckAmt+obj5:a3,
    lcCheckTot=lcCheckTot+obj5:a3,
   edt,
@@ -92,8 +83,8 @@ lcCheckAmt=0,
  );
 
 
-/** unpaid warrants have no treasurer's check created yet **/
-@printOpenWarrants=
+/** uses old method **/
+@printOpenWarrantsOLD=
   do(452,getSiteInfo=),
   lcsql='select 
      p.treasurersNumber,
@@ -128,14 +119,7 @@ lcCheckAmt=0,
     prn(gcCity&', '&gcState,t3), 
     prn('Warrants Registered Thru '&format(gcEndDate,@d2),t4),
 
-    bnd('HU',
-     'Warnt No.',700,
-     'Date Issued',750,
-     'Regist No.',700,
-     'Regist Date',750,
-     'Amount',700C,
-     'Pay To Whom',2000,
-     'Status',700),
+    bnd('HU','Warnt No.',700,'Date Issued',750,'Regist No.',700,'Regist Date',750,'Amount',700C,'Pay To Whom',2000,'Status',700),
     nl,
     grp(1,obj5:a13,
       do(
@@ -148,18 +132,9 @@ lcCheckAmt=0,
       nl,
     ) ),
     det(lcsql),
-      bnd('D',
-      format(obj5:a3,@n06),700,
-      format(obj5:a4,@d2),750,
-      obj5:a1,700,
-      format(obj5:a2,@d2),750,
-      format(obj5:a6,@n$-14.2),700R,
-      format(obj5:a12,@s25),2000,
-      obj5:a8),
+      bnd('D',format(obj5:a3,@n06),700,format(obj5:a4,@d2),750,obj5:a1,700,format(obj5:a2,@d2),750,format(obj5:a6,@n$-14.2),700R,format(obj5:a12,@s25),2000,obj5:a8),
       lcWarrantTot=lcWarrantTot+obj5:a6,
-    edt,
-
-);
+    edt,);
 
 
 /** cleared warrants have type 4771 Link1>0 where Link1 = Treas Check id  **/
@@ -189,13 +164,7 @@ lcCheckAmt=0,
     prn(gcCity&', '&gcState,t3),    
     prn('Warrants Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
     prn(,lcLm,lcTm+300),
-    bnd('HU',
-     'Purch Date',750,
-     'Tres Check',700,
-     'Amount',1000C,
-     'Warnt No.',700,
-     'Warnt Date',750,
-     'Warrant Payee',2800 ),
+    bnd('HU','Purch Date',750,'Tres Check',700,'Amount',1000C,'Warnt No.',700,'Warnt Date',750,'Warrant Payee',2800 ),
     nl,
     grp(1,obj5:a7,
     do(
@@ -209,19 +178,12 @@ lcCheckAmt=0,
    bnd('H','',7500),  
 
    det(lcsql),
-     bnd('D',
-     format(obj5:a2,@d1),750C,
-     format(obj5:a1,@n05),700C,
-     format(obj5:a3,@n$14.2),1000R,
-     format(obj5:a4,@n05),700C,
-     format(obj5:a5,@d1),750C,
-     format(obj5:a6,@s70),2800 ),
+     bnd('D',format(obj5:a2,@d1),750C,format(obj5:a1,@n05),700C,format(obj5:a3,@n$14.2),1000R,format(obj5:a4,@n05),700C,format(obj5:a5,@d1),750C,format(obj5:a6,@s70),2800 ),
      lcWarrantTot=lcWarrantTot+obj5:a3,
      lcWarrantGrTot=lcWarrantGrTot+obj5:a3,
    edt,
    bnd('H',,450,'Grand Total',1000,format(lcWarrantGrTot,@n$14.2),1000R,),
-
-);
+   );
 
 
 @printAllWarrants=
@@ -249,13 +211,10 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
     nl,
     bnd('H9',choose(obj5:a17='a','OUTSTANDING WARRANTS (by Fund) ','CLEARED WARRANTS (by Fund)'),5000),
     nl,
-    )  ),
+    )),
  det(lcsql),
  bnd('D',obj5:a4,600,format(obj5:a5,@d1),600,obj5:a2,500,format(obj5:a3,@d1),600,format(obj5:a6,@n$-14.2),700R,format(obj5:a8,@s18),1200,format(obj5:a20,@s22),1400,obj5:a14,500,obj5:a19,700),
- edt,
-
-);
-
+ edt,);
 
 @printFundOpenWarrants=
   do(452,getSiteInfo=),
@@ -286,28 +245,56 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
     prn(gcCity&', '&gcState,t3), 
     prn('Registered from: '&format(gcBeginDate,@d2)&' to '&format(gcEndDate,@d2),t4),   
 
-    bnd('HU',
-     'Wrnt No.',700,
-     'Wrnt Date',750,
-     'Reg No.',700,
-     'Reg Date',750,
-     'Amount',1000C,
-     'Pay To Whom',3000),
+    bnd('HU','Wrnt No.',700,'Wrnt Date',750,'Reg No.',700,'Reg Date',750,'Amount',1000C,'Pay To Whom',3000),
     det(lcsql),
-      bnd('D',
-      obj5:a3,700,
-      format(obj5:a4,@d2),750,
-      obj5:a1,700,
-      format(obj5:a2,@d2),750,
-      format(obj5:a6,@n$-14.2),1000R,
-      format(obj5:a5,@s22),3000
-       ),
+      bnd('D',obj5:a3,700,format(obj5:a4,@d2),750,obj5:a1,700,format(obj5:a2,@d2),750,format(obj5:a6,@n$-14.2),1000R,format(obj5:a5,@s22),3000),
       lcWarrantTot=lcWarrantTot+obj5:a6,
     edt,
     nl,
     bnd('H','Total:',3200R,format(lcWarrantTot,@n$14.2),1000R,),
     lcWarrantTot=0,
-   
-);
+   );
 
-
+@printOpenWarrants=
+  do(452,getSiteInfo=),
+  lcAsOfDate=gcEndDate,
+  lcPaymentType='WARRANT',
+  lcsql='select foreignNumber,foreignDate,controlNumber,postDate,BalanceAsOf,payee,contraPaymentType,contraPostDate,ord from dbo.paymentReports('''&lcPaymentType&''','''&lcAsOfDate&''') order by ord, foreignNumber', 
+   lcWarrantTot=0,
+   lcBoxColor=14539482,
+  tr(
+   lcHeaderFontSize=12,  
+   lcTm=400,
+   lcLm=300,
+   box(lcLm,lcTm,lcLm+2600,lcTm+550,0,lcBoxColor),
+   prn(printed),
+   prn(page),
+   lcTm=lcTm+100,
+   prn(gcCounty&' County Treasurer',lcLm+1000,lcTm,lcHeaderFontSize-2,,lcFont),
+   lcTm=lcTm+200,
+   prn(gcOfficial,lcLm+1000,lcTm),
+   prn('Outstanding Warrant Report',t1),
+   prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
+   prn('As Of: '&format(lcAsOfDate,@d2),t3),
+   lcLm=lcLm+200,
+   lcTm=lcTm+800,
+   box(lcLm-50,lcTm,lcLm+7500,lcTm+200,0,lcBoxColor),
+   prn(,lcLm,lcTm+25,,,),
+   bnd('H','Warnt No.',700,'Date Issued',750,'Regist No.',700,'Regist Date',750,'Amount',700C,'Pay To Whom',2000,'Current Status',700),
+   nl,
+    grp(1,obj5:a9,
+      do(
+      bnd('H','Fund: '&obj5:a9,5000)),do(
+      bnd('H','Total:',2900R,format(lcWarrantTot,@n$14.2),1000R,),
+      lcWarrantTot=0,
+      nl,
+      )),
+    det(lcsql),
+      if(obj5:a7='Cancel Warrant'),lcStatus='CANCEL',
+      if(obj5:a7='Treasurers Check'),lcStatus='PAID',
+      if(obj5:a7=''),lcStatus='OPEN',
+      bnd('D',format(obj5:a1,@n06),700,format(obj5:a2,@d2),750,obj5:a3,700,format(obj5:a4,@d2),750,format(obj5:a5,@n$-14.2),700R,format(obj5:a6,@s25),2200,format(lcStatus,@s7)&' '&format(obj5:a8,@d1b),1000),
+      lcStatus='',
+      lcWarrantTot=lcWarrantTot+obj5:a5,
+    edt,
+    );

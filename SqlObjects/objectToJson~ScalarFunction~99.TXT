@@ -1,0 +1,54 @@
+create function dbo.objectToJson(
+ @ids ids readonly,
+ @fields objectFields readonly
+) returns nvarchar(max) as
+begin
+
+--  select dbo.date1(LastEditDate)+' '+dbo.time2(LastEditTime),k7 from Object where typ = 4771
+ declare
+  @jsonPrep jsonPrep,
+  @apiwt JSONHierarchy,
+  @tokenId int,
+  @tally int = 0,
+  @jsonString nvarchar(max)
+
+ declare ids cursor for select id from @ids
+
+ open ids
+ fetch next from ids into @tokenId
+ while @@FETCH_STATUS = 0
+ begin
+  set @tally = @tally + 1
+ 
+  insert @jsonPrep (parentId,name,value,type,origin)
+  select
+   case when b.blobIt = 1 then @tokenId else @tally end, 
+   b.FriendlyName,
+   case when b.fieldType = 'clarionDate' then dbo.date1(a.value) else a.value end,
+   case when b.fieldType = 'clarionDate' then 'string' else b.fieldType end,
+   1
+  from dbo.pivotObject(@tokenId) a
+  join @fields b on a.field = b.objectName
+
+-- add the blob object contanier
+  insert @jsonPrep (parentId,objectId,name,value,type, origin) 
+  select @tally, @tokenId, 'blob', @tokenId, 'object', 2
+-- add the objectId
+  union select @tally, null, 'objectId', cast(@tokenId as varchar), 'int', 3
+-- add the object row contanier
+  union select 0, @tally, null, @tally, 'object', 4
+  
+  fetch next from ids into @tokenId
+ end
+ close ids
+ deallocate ids
+
+ insert @jsonPrep (objectId, name, type) 
+ select 0, '-', 'array'
+ 
+
+ insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
+ select @jsonString = dbo.toJSON(@apiwt)
+
+ return @jsonString
+end

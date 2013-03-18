@@ -1,4 +1,4 @@
-create procedure subInvoiceAdjust(@subInvoiceId int, @newAmount money, @receiptId int) as 
+create procedure subInvoiceAdjust(@subInvoiceId int, @newAmount money, @receiptId int, @mode varchar(10) = 'DEFAULT') as 
 begin
  declare  @mainInvoiceId int,
   @invoiceDate varchar(10),
@@ -19,13 +19,22 @@ begin
  from invoices i, receiptDetail r where i.id=@subInvoiceId and 
    left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id
 
+ exec dbo.logit @@procid, '@subInvoiceId', @subInvoiceId, '@amount', @amount, '@mode', @mode
 
  select @receiptType = key3 from object where id=@receiptId
 
- set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
+if @mode = 'single'
+  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where id=@subInvoiceId),0)
+ else
+  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
+
+
+
 
 
  exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount
+ 
+ 
 
  if @receiptId>0
  begin
@@ -33,6 +42,8 @@ begin
   select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId) 
    and id not in (select invoiceId from receiptLink)
  end
+ else
+ exec dbo.invoiceUpdate @mainInvoiceId
 
 -- add to the gl stage
   if @receiptType = 'TAX'

@@ -4,7 +4,8 @@ create function dbo.glStatus( @slink varchar(15) ) returns @rt table(
  balance money,
  debitAmount money,
  fpCode varchar(50),
- fpStatus varchar(10) -- locked, unlocked 
+ fpStatus varchar(10), -- locked, unlocked,
+ saveCheck int 
 )
 begin
  
@@ -26,7 +27,8 @@ begin
    sum(amount),
    sum(case when amount > 0 then amount else 0 end),
    min(fpCode),
-   ''
+   '',
+   0
   from dbo.glDetail where slink = @slink
 
 -- get staged gldetail
@@ -38,7 +40,8 @@ begin
    sum(amount),
    sum(case when amount > 0 then amount else 0 end),
    '',
-   ''
+   '',
+   1
   from dbo.glDetailStage where slink = @slink
 
 -- get the fp status
@@ -49,7 +52,7 @@ begin
 -- check to see if there were no gl details
  if not exists(select * from @rt)
  begin
-  insert @rt (status) select 'missing'
+  insert @rt (status,saveCheck) select 'missing', 1
   return
  end 
 
@@ -57,11 +60,11 @@ begin
  if (select count(*) from @rt) > 1
  begin
   delete @rt where status = 'Staged'
-  update @rt set status = 'damaged' where status = 'Posted'
+  update @rt set status = 'damaged', saveCheck = 1 where status = 'Posted'
   return
  end
 
- update @rt set status = 'damaged' where status = 'Posted' and balance != 0
+ update @rt set status = 'damaged', saveCheck = 1 where status = 'Posted' and balance != 0
 
  return
 end

@@ -12,6 +12,13 @@ begin
 
  exec dbo.logit @@procId, '@depositId', @depositId, '@receiptType', @receiptType, '@receiptDepositDate', @receiptDepositDate, '@mode', @mode
 
+-- bail if the deposit is not editable (saveCheck)
+ if (select saveCheck from dbo.glStatus('o' + cast(@depositId as varchar))) != 1
+ begin
+  select '@code=1;@message=Sorry, Deposit is not editable.;'
+  return
+ end
+
  declare @receiptTypes table(receiptType varchar(50))
  declare @bankAccountCodes table(bankAccountCode varchar(50))
 

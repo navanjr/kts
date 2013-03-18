@@ -21,6 +21,19 @@
 @gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
 @gfbrowse=prop(21,'7ca0h','Print Un-Cleared Vouchers');
 
+@nox=kp('select dbo.glSaveCheck('&obj:id&')')=1; 
+@noexit=saveCheck=;
+@noc=kp('select dbo.glSaveCheck('&obj:id&')')=1; 
+@nocancel=saveCheck=;
+@saveCheck=
+ m('This Payment Has not Been Posted, Do you want to:',obj:a18,,'Abandon It|Save It|Cancel'),
+ break(gcretval+0=3),
+ lcStatus=choose(gcretval+0=1,'Abandoned','Saved'),
+ sql('exec dbo.paymentCRUD 6, @id='&obj:id&', @statusInput='''&lcStatus&''''),
+ set(040,kp('select a17 from object where id='&obj:id)),
+ update,
+ close('ok');
+
 @bb2=Ca&ncel;  
 @bbproc2=
  lcPaymentType=obj:a18,
@@ -36,6 +49,7 @@
  m('Are you sure you wish to Cancel this '&lcPaymentType&'?','Cancel '&lcPaymentType&'...','Question.ico',6,4),
  break(gcretval<>2),
  iw('\t097Comment; \y097098=001;r \x097=001; \x098=002; \w098200;'),
+ break(gcretval<>'OK'),
  gccomment=obj7:d1,
  d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id&', @comments='''&gccomment&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
@@ -66,7 +80,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 @bb8=Open Warrants;
 @bbproc8=
  iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
- break(gcretval = 'esc'),
+ break(gcretval <> 'OK'),
  gcEndDate=obj7:key2,
  if(gcEndDate+0<1,gcEndDate=today() ), 
  trreport('Outstanding Warrants',5032,'printOpenWarrants=');
@@ -174,10 +188,10 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 @seriesField=a18;
 
 \t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002obj:a18<>'Miscellaneous'; 
-\t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17>'  0' and cur:securitylevel<81;
+\t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a15+0=1 and cur:securitylevel<81;
 \t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; \h005008obj:a18='Miscellaneous';r \00060600;
 \t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
- \w00200855;r2 \d006008obj:a17>'  0';r2
+ \w00200855;r2 \d006008obj:a1+0=1;r2
 
 \t009Payee;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
@@ -186,13 +200,14 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE'' and b3!=1',2;
   \h017018obj:a18<>'Trust Voucher';r
- \w01401870;r2 \d010018obj:a17>'  0';r2
+ \w01401870;r2 \d010018obj:a15+0=1;r2
 
 \t019Official;
 \t021DepositAccount;
 \t023BankAcct;
 \h019024;r
 
+\t035EditCheck; \h035036;r \s036-'select dbo.glEditCheck('&obj:id&')';
 \t037ImportStamp; \h037038;r
 
 \t051DebitAccountDesc; \h051; \h052obj:a18='Protest Voucher';
@@ -227,7 +242,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
  set(2,readstring(obj7:d1,'@nextVoucherNumber='));
 
 @postGL=
- break(obj:a17>'  0'),
+ break(obj:a15+0=1),
  d1select('exec dbo.paymentCheck '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Payment Post Check...')),
  if(readstring(obj7:d1,'@code=')>0,lcContinue='FALSE'),
@@ -241,7 +256,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 
 @postTrustVoucher=
  d1select('dbo.trustVoucherStageGL '&obj:id&',0'),
- break(obj:a17>'  0'),
+ break(obj:a15+0=1),
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
@@ -263,7 +278,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
  lcid=kp('select top 1 id from object where typ=4793 order by id desc'),
  if(lcid+0>0,change(lcid,,1),neww(4793));
 
-\h111112obj:a18<>'Trust Voucher' or obj:a17>'  0';r
+\h111112obj:a18<>'Trust Voucher' or obj:a15+0=1;r
 \t111Add Receipt;
  @acc111=select(1,4502,'typ=4502 and id in (select receiptId from dbo.purposeDetail where purpose = '''&obj:a6&''' and amount > 0.00) and id not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
    lcreceiptId=PIC:id,

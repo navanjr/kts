@@ -23,8 +23,19 @@ begin
   set @m = (cast(@x as money)/360000)-@h
   set @minutes = right('00'+cast(cast(@m * 60 as int) as varchar),2)
 
+
+
   set @hoursub = cast(@x as int)/360000
+
+-- added this to fix issue with a bogus 12:60pm return
+  if @minutes = '60'
+  begin
+   set @minutes = '00'
+   set @hoursub = @hoursub + 1
+  end
+
   set @hour = @hoursub
+
   if @hoursub > 11 set @ampm = 'PM'
   if @hoursub > 12 set @hour = @hoursub - 12
   set @hours = right('00'+rtrim(cast(@hour as char)),2)

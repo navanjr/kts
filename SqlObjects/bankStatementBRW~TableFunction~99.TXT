@@ -3,7 +3,8 @@ create function dbo.bankStatementBRW(
  @accountId int,
  @showFlag int, 
  @warrantFlag int,
- @orderByVoucherFlag int 
+ @orderByVoucherFlag int,
+ @orderByClearedFlag int  
 ) returns @rt table(
  id int,
  fpid int,
@@ -25,7 +26,8 @@ create function dbo.bankStatementBRW(
  comment varchar(50),
  comment2 varchar(50),
  origin int,
- fundGrouping varchar(100)
+ fundGrouping varchar(100),
+ dateCleared varchar(50) 
 )
 begin
 
@@ -35,13 +37,13 @@ begin
   insert @showTable select @id
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
- insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin)
+ insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
  select id* -1, fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
-  case when amount < 0 then amount else 0 end,
+  case when amount < 0 then amount*-1 else 0 end,
   slink,
   case when isnull(bsId,0) = 0 then '' else 'X' end,
-  0,comment,comment2,1
+  0,comment,comment2,1,dateCleared
  from dbo.glDetail 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
@@ -80,16 +82,19 @@ begin
 
 -- set description and ord
  update @rt set
-  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + dbo.date2(depositDate),
+  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + 
+    case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
   ord = case when @orderByVoucherFlag = 1 then 
     paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
+    when @orderByClearedFlag = 1 then
+    dateCleared
    else
     fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
    end
  where rowtype = 0
 
 -- add Period headers for the account details
- if @orderByVoucherFlag <> 1
+ if @orderByVoucherFlag <> 1 and @orderByClearedFlag <> 1
   begin
    insert @rt (id,description,ord,rowType,origin)
     select
@@ -103,7 +108,9 @@ begin
    end
 
 -- add paymentType headers
- if @orderByVoucherFlag = 1
+ if @orderByClearedFlag <> 1
+ begin
+ if @orderByVoucherFlag = 1 
   begin
    insert @rt (id,description,ord,rowType,origin)
     select
@@ -127,6 +134,7 @@ begin
     where rowType = 0 and paymentType is not null
     group by fpCode, paymentType
    end
+  end
 
 -- add Warrants, Maybe
  if not @warrantFlag = 1

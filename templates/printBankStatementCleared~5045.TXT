@@ -1,0 +1,51 @@
+@bb5=&Print; 
+ @bbproc5=
+gcBankStatementId=51310,
+gcBankAccountId=540,
+gcBeginDate=77467,
+gcEndDate=77494,
+gcBankDescription='CHICKASHA BANK GENERAL',
+printBankStatementCleared=;
+
+
+
+@printBankStatementCleared=
+ do(452,getSiteInfo=),
+ gcDet5045='select depositDate, dateCleared,paymentType,left(instrumentNumber,6),subDescription,dbAmount,crAmount from dbo.bankStatementBRW('&gcBankStatementId&','&gcBankAccountId&',1,0,0,1) where dateCleared>0 order by ord',
+ lcdebits=0,
+ lccredits=0,
+ lcBoxColor=14539482,
+
+ tr(
+  lcCw=1200,
+  lcAw=(lcCw*4)+400,
+  lcFont='',
+  lcHeaderFontSize=12,  
+  lcx=300,
+  lcTm=400,
+  lcRm=450,
+  box(lcx,lcTm,lcx+2600,lcTm+550,0,lcBoxColor),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' County Treasurer',lcx+1000,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),  
+  prn('Cleared Items Report',t1),
+  prn(gcBankDescription,t2),
+  prn(gcCounty&' County - '&gcCity&', '&gcState,t3), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t4),
+  lcTm=lcTm+1000,
+  box(lcRm-50,lcTm,lcRm+7500,lcTm+200,0,lcBoxColor),
+  prn(,lcRm,lcTm+25,,,),
+  bnd('D','Deposited',600C,'Cleared',600C,'Type',900,'Id No.',400,'Debit',850C,'Credit',850C,'Description',2800),
+  nl,
+  det(gcDet5045),
+   bnd('D',format(obj5:a1,@d1),600,format(obj5:a2,@d1),600,format(obj5:a3,@s13),900,obj5:a4,400,format(obj5:a6,@n-19.2b),850R,format(obj5:a7,@n-19.2b),850R,format(obj5:a5,@s40),2800),
+  lcdebits=lcdebits+obj5:a6,
+  lccredits=lccredits+obj5:a7,
+  edt, 
+   nl,
+   bnd('HO','',600,'',600,'',900,'Total: ',400,format(lcdebits,@n-19.2b),850R,format(lccredits,@n-19.2b),850R),
+
+);

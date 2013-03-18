@@ -1,6 +1,6 @@
 create proc dbo.paymentCRUD(
  @mode int,
- @paymentType varchar(50),
+ @paymentType varchar(50) = null,
  @officialName varchar(50) = '',
  @officialDepositCode varchar(50) = '',
  @officialBankCode varchar(50) = '',
@@ -18,7 +18,8 @@ create proc dbo.paymentCRUD(
  @fiscalYear varchar(50) = '',
  @importStamp varchar(50) = '',
  @comments varchar(250) = '',
- @voidBatch varchar(5) = 'FALSE'
+ @voidBatch varchar(5) = 'FALSE',
+ @statusInput varchar(50) = null
 ) as 
 begin
 
@@ -27,14 +28,38 @@ begin
   create a mode 4 = this is a mode that returns the delete message for the user.  this would standardize all our CRUD routines from key
   started mode 4, so far it just provides labels for the change window
 */
+
+ declare @newIdWt newIdWt
  
  declare
   @slink varchar(15) = 'o' + cast(@id as varchar),
-  @log varchar(max)
+  @postedStatus varchar(50),
+  @log varchar(max),
+  @postDate int,
+  @newId int
+
+ select @postedStatus = status from dbo.glStatus(@slink)
+
+ if @mode = 6 and isnull(@statusInput,'') in ('saved','abandoned')
+ begin
+  exec dbo.logit @@procId, '@mode', @mode, '@id', @id, '@statusInput', @statusInput, '@postedStatus', @postedStatus
+  if not @postedStatus = 'missing'
+  begin
+   exec dbo.logit @@procId, 'bailing because @postedStatus is not MISSING'
+   return
+  end
+
+  if @statusInput = 'saved'
+   update object set a17 = 'Saved' where typ = 4771 and id = @id
+  if @statusInput = 'abandoned'
+   update object set a17 = 'Abandoned', typ = -4771 where typ = 4771 and id = @id
+  return
+ end
+
 
  if @mode = 4
  begin
-  exec dbo.logit @@procId, '@paymentType', @paymentType
+  exec dbo.logit @@procId, '@mode', @mode, '@paymentType', @paymentType
 
    select @log = case when @paymentType in ('Official Voucher','Trust Voucher','Protest Voucher') then 
     '@debitFieldLabel=Deposit Account;'
@@ -267,26 +292,27 @@ begin
   declare @registerDateOverride varchar(20) = 'FALSE'
 
   if @paymentType = 'official Voucher'
-  begin
-   exec dbo.settingsCRUD 'site.voucherPostDateEqualsVoucherDate', @method='GET', @valueOut = @registerDateOverride output 
-  end
+   set @registerDateOverride = dbo.settingsF('site.voucherPostDateEqualsVoucherDate','FALSE')
 
-  exec dbo.logit @@procid, '@nextVoucherNumber=',@nextVoucherNumber
+  set @postDate = case when @registerDateOverride = 'TRUE' and isnull(@voucherDate,'') > ' 0' then isnull(@voucherDate,'') else dbo.clarionDate(getDate()) end
 
+  exec dbo.logit @@procid, '@nextVoucherNumber=',@nextVoucherNumber, '@paymentType', @paymentType, '@postDate', @postDate
 
   exec dbo.logit @@procid, 'begin SQL Transaction...'
  begin transaction
  begin try
-  insert object (
+  insert object 
+  (
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
    a7, a8, a9, c10, a16, e1
   )
+  output inserted.id into @newIdWt
   select 
    4771,
    @nextVoucherNumber,
-   case when @registerDateOverride = 'TRUE' and isnull(@voucherDate,'') > ' 0' then isnull(@voucherDate,'') else dbo.clarionDate(getDate()) end,
+   coalesce(nullif(@postDate,''),dbo.clarionDate(getdate())),
    @voucherNumber,
    isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
@@ -305,11 +331,10 @@ begin
   set @log = error_message()
   exec dbo.logit @@procid, 'sqlCatchError', @log
  end catch
- 
-  declare @newId int = @@identity
-  declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
 
-  exec dbo.logit @@procid, '@newId', @newId
+  select @newId = max(id) from @newIdWt
+  declare @newslink varchar(15) = 'o' + cast(@newId as varchar)
+  exec dbo.logit @@procid, '@newId', @newId, '@newslink', @newslink
 
  end
 
@@ -366,8 +391,6 @@ begin
    exec dbo.settingsCRUD 'site.checkStyleWarrants', @method='GET', @valueOut = @checkStyleWarrants output 
   end
 
-
- 
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
 
@@ -375,8 +398,8 @@ begin
   select @log = @log + dbo.padRight(acctCode,' ',15) + dbo.padLeft(cast(amount as varchar),' ',15) + glType + char(13) + char(10) from @stageRows
   exec dbo.logit @@procid, @log
 
-  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink)
-  select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @newslink
+  insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink,slink2)
+  select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @newslink, 'o' + cast(@id as varchar)
    from @stageRows a, glAccounts b 
    where a.acctCode = b.accountCode
 

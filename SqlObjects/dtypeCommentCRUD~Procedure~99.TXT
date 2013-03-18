@@ -54,26 +54,36 @@ begin
   return
  end
 
- if @mode = 'CREATE'
+ if @mode in ('CREATE', 'INITIATE')
  begin
 
+  if @dtype in ('RESALE', 'TAXWARRANT')
+  begin
 -- bail if we dont have our receivables blob
-  if isnull(@docReceivablesBRWBlob,'') < '  0'
-   return
- exec dbo.logit @@procid,'@keyFieldName', @keyFieldName, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
+   if isnull(@docReceivablesBRWBlob,'') < '  0'
+    return
+   exec dbo.logit @@procid,'@keyFieldName', @keyFieldName, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
  
- if @dtype = 'RESALE'
-  insert taxRollDetail (parcelNumber, dtype, comments)
-  select code, @dtype, 'initiated: ' + @dtype
-  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
-  where taxRollDetailId is null
- else
-  insert taxRollDetail (itemNumber, dtype, comments) 
-  select cast(code as numeric(7,1)), @dtype, 'initiated: ' + @dtype
-  from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
-  where taxRollDetailId is null
+   if @dtype = 'RESALE'
+    insert taxRollDetail (parcelNumber, dtype, comments)
+    select code, @dtype, 'initiated: ' + @dtype
+    from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+    where taxRollDetailId is null
+   else
+    insert taxRollDetail (itemNumber, dtype, comments) 
+    select cast(code as numeric(7,1)), @dtype, 'initiated: ' + @dtype
+    from dbo.dtypeKeysFromReceivables(@keyFieldName, @docReceivablesBRWBlob)
+    where taxRollDetailId is null
+   exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
+  end
 
-  exec dbo.logit @@procid, 'We just inserted records...', @@rowcount
+  if @dtype in ('Bankrupt','Probate')
+  begin
+   if not exists(select * from taxRollDetail where isnull(parcelNumber,'') = isnull(@parcel,'') and isnull(itemNumber,'') = isnull(@item,'') and isnull(dtype,'') = @dtype)
+    insert taxRollDetail (parcelNumber, itemNumber, dtype, comments)
+    select @parcel, @item, upper(@dtype), 'initiated: ' + @dtype
+   exec dbo.logit @@procid, '@dType', @dType, 'We just inserted records...', @@rowcount
+  end
 
   return
  end
