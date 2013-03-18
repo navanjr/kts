@@ -21,7 +21,9 @@ create function dbo.apportionCollectionsWT( @accountId int, @apportionToDate int
   acrAccountId int,
   acrAccountCode varchar(60),
   acrAccountDesc varchar(60),
-  ord varchar(10)
+  ord varchar(10),
+  tableAmount money,
+  tableRatio numeric(19,10)
 )
 
 begin
@@ -46,7 +48,9 @@ begin
   @tokencontraAccountDesc varchar(60), 
   @tokenacrAccountId int, 
   @tokenacrAccountCode varchar(60), 
-  @tokenacrAccountDesc varchar(60)
+  @tokenacrAccountDesc varchar(60),
+  @tokenTableAmount money,
+  @tokenTableRatio numeric(19,10)
 
 
 declare @twt table(
@@ -160,8 +164,8 @@ declare @twt table(
    @tokenacrAccountCode = acrAccountCode, 
    @tokenacrAccountDesc = acrAccountDesc
  from @wt where processFlag = 1
-  insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc,ord)
-  select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc,'030'
+  insert @wt(accountId, apTableType, amount, stepDesc, apYear, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc,ord,tableAmount,tableRatio)
+  select accountId, 'M', amount, @tokenComment, @tokenYear, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc,'030', millamount, millrate
    from dbo.millsGetRows(4009,@tokenYear,@tokenAmount,@tokenCode)
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
@@ -184,8 +188,8 @@ declare @twt table(
 
 
 from @wt where processFlag = 1
-  insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
-  select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment, case when @tokenSourceCode in ('AD VALOREM','') then sourceCode else @tokenSourceCode end, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '040'   
+  insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord, tableAmount, tableRatio)
+  select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment, case when @tokenSourceCode in ('AD VALOREM','') then sourceCode else @tokenSourceCode end, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '040', mill, millRatio  
    from dbo.getRates('apportionment',@tokenAccountId,@tokenAmount,null,'')
   update @wt set processFlag = 2 where id = @tokenId
  end
@@ -207,11 +211,15 @@ from @wt where processFlag = 1
     @tokencontraAccountDesc = contraAccountDesc, 
     @tokenacrAccountId = isnull(acrAccountId,0), 
     @tokenacrAccountCode = acrAccountCode, 
-    @tokenacrAccountDesc = acrAccountDesc 
+    @tokenacrAccountDesc = acrAccountDesc, 
+    @tokenTableAmount = tableAmount,
+    @tokenTableRatio = tableRatio
 from @wt where processFlag = 1
 
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
-  select @tokenAccountId, @tokenYear, accountCode, amount, left(@tokenStepDesc+' '+[description]+' '+@tokenYear,49), @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '050'
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord,tableAmount,tableRatio)
+  select @tokenAccountId, @tokenYear, accountCode, amount, left(@tokenStepDesc+' '+[description]+' '+@tokenYear,49), @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '050',
+   case when isnull(@tokenTableAmount,0)<>0 then @tokenTableAmount*millrate else millamount end, 
+   case when isnull(@tokenTableAmount,0)<>0 then millrate*@tokenTableRatio else millrate end
    from dbo.millsGetRows(4013,@tokenYear,@tokenAmount,'')
   update @wt set processFlag = 2, creditCode = null 
    where id = @tokenId
@@ -236,8 +244,8 @@ from @wt where processFlag = 1
     @tokenacrAccountCode = acrAccountCode, 
     @tokenacrAccountDesc = acrAccountDesc 
   from @wt where processFlag = 1
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
-  select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '060'
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord,tableAmount,tableRatio)
+  select @tokenAccountId, @tokenYear, accountCode, amount, description+' '+@tokenYear, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '060', millamount, millrate
    from dbo.millsGetRows(4014,@tokenYear,@tokenAmount,@tokenappoptype)
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
@@ -259,8 +267,8 @@ from @wt where processFlag = 1
     @tokenacrAccountCode = acrAccountCode, 
     @tokenacrAccountDesc = acrAccountDesc 
   from @wt where processFlag = 1
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord)
-  select @tokenAccountId, @tokenCode, accountCode, amount, stepDesc, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '070'
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord,tableAmount,tableRatio)
+  select @tokenAccountId, @tokenCode, accountCode, amount, stepDesc, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '070', millamount, millrate
    from dbo.millsGetRows(4022,@tokenCode,@tokenAmount,'')
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
