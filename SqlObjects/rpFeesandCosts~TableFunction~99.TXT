@@ -114,7 +114,9 @@ update w set taxrate = case when aprate > ' 0' then aprate else accountCode end 
      and dbo.slinkId(rd.slink)=w.invoiceId
      and rd.fundcode=a.accountcode
 
-insert @headers select distinct [description] from @wt
+
+insert @headers select top 10 [description] from (select distinct [description] from @wt) a
+--insert @headers select distinct [description] from @wt
 
 insert @wt2 (taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],amount)
 select taxyear,taxrate,sourceDate,itemNo,ReceiptNo,Name,[description],sum(isnull(amount,0)) from @wt
