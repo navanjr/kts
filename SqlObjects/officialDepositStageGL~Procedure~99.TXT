@@ -10,7 +10,8 @@ begin
   accountId int,
   accountCode varchar(50),
   accountDesc varchar(50),
-  amount money
+  amount money,
+  comment varchar(50)
  )
  
  declare @styp char(1) = 'o'
@@ -41,11 +42,12 @@ begin
 -- Credit Suspense Accounts from any linked Trust Receipts
  insert @stage
  select
-  a.accountId, a.accountCode, a.accountDesc, gld.amount * -1
+  a.accountId, a.accountCode, a.accountDesc, gld.amount * -1, ''
  from paid p
   join gldetail gld on gld.slink2 = 'p'+cast(p.id as varchar)
   join dbo.glAccounts a on a.accountCode = gld.accountCode and a.accountType = 'SUSPENSE'
  where p.officialDepositId = @officialDepositId
+
 
 -- Debit Suspense Accounts from any linked Trust Receipts
  insert @stage (accountCode, amount)
@@ -63,10 +65,27 @@ begin
  from paid p
  where p.slink = @slink
 
+  declare @paidTotal money, @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
+
+  select @otherPaid = sum(amount)*-1 from paid where slink = @slink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @etrPaid = sum(amount)*-1 from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+  select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
+  select top 1 @etrCode = paycode from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C'))
+
+  select @etrPercent = case when @paidTotal <> 0.00 then @etrPaid/@paidTotal else 0 end
+  select @otherPercent = case when @paidTotal <> 0.00 then @otherPaid/@paidTotal else 0 end
+  
+
+
 -- Credit to the Official Fund Account
  insert @stage 
- select accountId, accountCode, accountDesc, (select sum(amount) * -1 from @stage)
+ select accountId, accountCode, accountDesc, @otherPaid, ''
  from dbo.glAccounts where accountId = @officialFundAccountId
+
+ insert @stage 
+ select accountId, accountCode, accountDesc, @etrPaid, @etrCode
+ from dbo.glAccounts where accountId = @officialFundAccountId
+
 
  update a set
   a.accountId = b.accountId,
@@ -83,9 +102,9 @@ begin
 -- remove any staged GL records
  delete glDetailStage where slink = @slink 
 
- insert gldetailstage (slink, accountId, accountCode, accountDesc, amount, contraId)
- select @slink, accountId, accountCode, accountDesc, sum(amount), @contraId
+ insert gldetailstage (slink, accountId, accountCode, accountDesc, amount, contraId, comment)
+ select @slink, accountId, accountCode, accountDesc, sum(amount), @contraId, comment
  from @stage where amount != 0
- group by accountId, accountCode, accountDesc
+ group by accountId, accountCode, accountDesc, comment
 
 end
