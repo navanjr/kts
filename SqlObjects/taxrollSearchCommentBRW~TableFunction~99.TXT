@@ -5,7 +5,8 @@ create function dbo.taxrollSearchCommentBRW(
  noteDate nvarchar(50),
  actionDate nvarchar(12),
  comment text,
- commentType varchar(20)
+ commentType varchar(20),
+ origin int
 )
 begin
 
@@ -37,7 +38,7 @@ if @selectedId > 0
  
 -- comments from object
   insert @rt
-  select id,a2,a3,case when a4 = '1' then '<private> ' else '' end + cast(e1 as varchar(max)),'COMMENT'
+  select cast('-8'+cast(id as varchar) as int),a2,a3,case when a4 = '1' then '<private> ' else '' end + cast(e1 as varchar(max)),'COMMENT',1
   from dbo.object
   where typ=4002 
    and (key3=left(@name,len(key3)) or len(key3)<1) 
@@ -49,7 +50,7 @@ if @selectedId > 0
 
   insert @rt
   select 
-	id*-1,
+	cast('-1'+cast(id as varchar) as int),
 	dbo.clariondate(left(Stamp,10)),
 	'',
 	case when name>'  0' then name+' ' else '' end
@@ -61,7 +62,7 @@ if @selectedId > 0
 	+case when state>'  0' then ', '+state else '' end
 	+case when zip1>'  0' then ' '+zip1 else '' end
 	+case when zip2>'  0' then '-'+zip2 else '' end,
-        'ADDRESS'
+        'ADDRESS',2
 	from dbo.taxRollDetail
 	where	(name=@name or len(name)<1 or name<>@name) 
 		and (parcelNumber=@parcel or len(parcelNumber)<1) 
@@ -72,47 +73,47 @@ if @selectedId > 0
 
 -- print comments
  if @selectedId > 0 
-  insert @rt select id*-1, dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype from taxrollDetail where invoiceLinkId = @selectedId
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3 from taxrollDetail where invoiceLinkId = @selectedId
 
 -- dtype records
-  insert @rt select id*-1, dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,4
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('RESALE','BANKRUPT','PROBATE')
-  insert @rt select id*-1, dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5
    from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('item','BANKRUPT','PROBATE')
 
 insert @rt
-    select	Id*-1,
+    select	cast('-1'+cast(id as varchar) as int),
 		key2,
 		'',
 		'Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;'                         then dbo.date1(a2) else a2 end,
-                'CORRECTION' 
+                'CORRECTION' ,6
 		from object 
 		  where typ=4005 
 		  and link1 in (select taxrollId from invoices where id=@selectedId) 
 		  order by key1 desc
 
 insert @rt
-    select	i.Id*-1,
+    select	cast('-1'+cast(i.id as varchar) as int),
 		'',
 		'',
 		'Physical Address: '+a.proploc,
-                ' Address' 
+                ' Address' ,7
 		from adtax a ,invoices i 
 		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
 --voided invoice comments		  
   insert @rt
-     select     i.id*-1,
+     select     cast('-1'+cast(i.id as varchar) as int),
                 i.postdate,
                 i.postdate,
                 rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
-                'ADJUSTMENT'
+                'ADJUSTMENT',8
             from dbo.invoices i, receiptDetail rd
                where i.typ='A' 
                   and i.invoiceId=@selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
 
 --Receipt Payments
-  declare @wt table(invoiceId varchar(50),receipt varchar(50),name varchar(50),controlNum varchar(50),Amount money,receiptId int,recDate varchar(50),typ varchar(50))
+  declare @wt table(invoiceId varchar(50),receipt varchar(50),name varchar(50),controlNum varchar(50),Amount money,receiptId int,recDate varchar(50),typ varchar(50),receiptlinkId int)
 
   insert @wt
      select 
@@ -124,13 +125,14 @@ insert @rt
        sum(b.amount),
        a.receiptId,
        '', 
-       ' Receipt'
+       ' Receipt',
+       a.id
    
       from receiptLink a, receiptDetail b, invoices c
      where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.invoiceId = c.ID
          and c.id = @selectedId and a.receiptNumber>'  0'
-        group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
+        group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId, a.Id
  
  update @wt set
        name =   case when a1>'  0' then a1 else name end,
@@ -141,11 +143,11 @@ insert @rt
 
  insert @rt
   select 
-    invoiceId*-1,
+    cast('-9'+cast(receiptLinkId as varchar) as int),
     recDate,
     '',
     'Tax Receipt: '+receipt+'   '+NAME+'   Control: '+controlNum+'   Amount: '+cast(dbo.formatcurr(amount) as varchar),
-    typ
+    typ,9
     from @wt
 
 --Journal Entries
@@ -159,7 +161,8 @@ insert @rt
        sum(b.amount)*-1,
        a.jeId,
        o.key2, 
-       ' Journal'
+       ' Journal',
+       a.Id
       from journalLink a, glDetail b, invoices c, glaccounts ac, object o
      where 'j'+CAST(a.id as varchar) = b.slink
          and o.typ = 4512
@@ -168,7 +171,7 @@ insert @rt
          and a.invoiceId = c.ID
          and (c.id = @selectedId or c.invoiceId = @selectedId) 
          and ac.accountType = 'RECEIVABLE'
-        group by o.key1, a.jeId, o.key2
+        group by o.key1, a.jeId, o.key2, a.Id
 
  update @wt set
        name = key3
@@ -177,11 +180,11 @@ insert @rt
  
  insert @rt
   select 
-    invoiceId*-1,
+    cast('-1'+cast(invoiceId as varchar) as int),
     recDate,
     '',
     'Journal: '+controlNum+'   '+NAME+'  Amount: '+cast(dbo.formatcurr(amount) as varchar),
-    typ
+    typ,10
     from @wt
  end
 
