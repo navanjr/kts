@@ -1,4 +1,4 @@
-create function [dbo].[taxReceiptPrint](@recId varchar(50)) returns   
+create function [dbo].[taxReceiptPrint](@recId varchar(50),@invoiceId int) returns   
           @rt table(
 			recId varchar(50),
 			InvoiceId int,
@@ -74,6 +74,12 @@ begin
 					
 					 from dbo.receiptSLinks(@recId),invoices i where LEFT(slink,1)='t' and right(slink,LEN(slink)-1)=i.id 
 					  group by case when invoiceId>0 then invoiceId else ID end,i.TAXYEAR
+
+if isnull(@invoiceId,0) >0
+begin
+ delete from @rt where InvoiceId <> @InvoiceId 
+end 
+
 	
 	update @rt set 
                                 receiptDate = Key2,
