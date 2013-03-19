@@ -156,27 +156,28 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'InvoiceUpdate...')),
  m('options...','Taxroll options...',,'View &Receipts|Toggle &Half Pay|&Release Protest|Refund &Invoice|&Apply Refund|&Owner Report|&More Options|&Cancel'),
  lcretVal=gcretval,
+ if(gcretval=8,refreshBRW=),
  if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
  if(gcretval=2,selectedRateToggle=),
  if(gcretval=3,releaseProtest=),
  if(gcretval=4,refundInvoice=),
  if(gcretval=5,applyRefund=),
  if(gcretval=6,ownerReport=),
- if(gcretval=7,moreOptions=),
- break(lcretVal=7),
- refreshBRW=;
+ if(gcretval=7,moreOptions=);
+ 
 
 @moreOptions=
- if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
- m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections'&lcdel&'|View Fees|&Cancel'),
+ m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections|View Fees|&Cancel'),
  if(gcretval=1,showFeePenalty=),
  if(gcretval=2,Attach=),
  if(gcretval=3,UnAttach=),
  if(gcretval=4,collections=),
- if(gcretval=5 and cur:securitylevel=100,delInvoice=),
- if(gcretval=6,feeBrw=),
- break(gcretval=6),
- refreshBRW=;
+ if(gcretval=5,feeBrw=),
+ if(gcretval=6,refreshBRW=);
+ 
+ if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
+ '&lcdel&'
+ if(gcretval=6 and cur:securitylevel=100,delInvoice=),
 
 @feeBrw=
  gcInvoiceId=kpbrwid(1)*-1,
@@ -241,20 +242,23 @@
 
 @showFeePenalty=
  lcBlob=kp('select dbo.taxrollInvoiceAmountsBlob('&lcId&')'),
- m('id: '&lcid&'||AdTax Total: '&readstring(lcBlob,'@adtaxTotalDue')&'|AdTax Balance: '&readstring(lcBlob,'@adtaxBalanceDue')&'|Invoice Total: '&readstring(lcBlob,'@invoiceAmount=')&'|Invoice Due: '&readstring(lcBlob,'@invoiceDue=')&'|Interest Date: '&readstring(lcBlob,'@interestDate=')&'|','Fees and Penalty Details...');
+ m('id: '&lcid&'||AdTax Total: '&readstring(lcBlob,'@adtaxTotalDue')&'|AdTax Balance: '&readstring(lcBlob,'@adtaxBalanceDue')&'|Invoice Total: '&readstring(lcBlob,'@invoiceAmount=')&'|Invoice Due: '&readstring(lcBlob,'@invoiceDue=')&'|Interest Date: '&readstring(lcBlob,'@interestDate=')&'|','Fees and Penalty Details...'),
+ refreshBRW=;
 
 @selectedRateToggle=
  sql('exec dbo.taxrollSelected '&obj:id&','&lcId&','''',''toggle'''),
  refreshBRW=;
 
-@releaseProtest=lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
+@releaseProtest=
+  lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
   break(lccheck+0<.01),
   if(gcjeid+0<1,newje=,lcchange='dont'),
   break(gcjeid+0<1),
   sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where invoiceId='&lcId&' 
     and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
   sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
-  if(lcchange<>'dont',change(gcjeid));
+  if(lcchange<>'dont',change(gcjeid)),
+  refreshBRW=;
 
 @newje=fastinsert(-02=4512,004=today(),006='Protest Release',042='Apportion Protest'),
   gcjeid=obj1:id;

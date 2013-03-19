@@ -1,11 +1,10 @@
 @menuprocess=
- lcId=kp('select top 1 id from object where typ=4032'),
+ lcId=kp('select top 1 id from object where typ=4032 order by id'),
  if(lcId+0>0,change(lcId),new(4032));
 
 @loadwindow=
- lcbrw1='select invoiceId*-1,PostDate,taxYear,TYP,description,invoiceAmount,invoiceDue from dbo.taxrollFeesBrw('&gcinvoiceId&') order by postDate',
- brw(160,1,lcbrw1,3,3,355,100,'50L(2)~Date~@d2b@#2#|M25L(2)~Year~#3#|M15L(2)~Type~#4#|M150L(2)~Description~#5#|M55R(2)~Fee~@n-14.2b@#6#|M55R(2)~Unpaid~@n-14.2b@#7#|M',7,1);
-
+ lcbrw1='select invoiceId*-1,PostDate,taxYear,TYP,description,invoiceAmount,invoiceDue from dbo.taxrollFeesBrw('&gcinvoiceId+0&') order by postDate',
+ brw(160,1,lcbrw1,3,3,355,100,'50L(2)~Date~@d2b@#2#|M25L(2)~Year~#3#|M15L(2)~Type~#4#|M150L(2)~Description~#5#|M55R(2)~Fee~@n-14.2b@#6#|M55R(2)~Unpaid~@n-14.2b@#7#|M');
 
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
@@ -20,10 +19,6 @@
  d1select('exec subInvoiceAdjust @subInvoiceId ='&lcId&', @newAmount = 0, @receiptId = 0, @mode = ''single'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Tax Item Reverse Fees...')),
  refreshbrw=;
-
-
-
-
 
 @refreshBRW=
  brwreload(1);
