@@ -4,9 +4,9 @@
 \00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'') and a17 = ''Posted'' and isnull((select count(*) from gldetail where gldetail.slink = ''o''+cast(a.id as varchar) and isnull(gldetail.bsId,0)>0),0) < 1 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18=''Warrant'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'') and a17 = ''Posted'' and isnull((select count(*) from gldetail where gldetail.slink = ''o''+cast(a.id as varchar) and isnull(gldetail.bsId,0)>0),0) < 1 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Warrant'',''Cancel Warrant'',''Void Warrant'') '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and link1=0 and a18=''Warrant'' and a17 = ''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18=''Treasurers Check'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17=''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -36,9 +36,27 @@
 
 @bb2=Ca&ncel;  
 @bbproc2=
+ lcMethod='CANCEL',
+ cancelProcedure=;
+
+@cancelProcedure=
+ d1select('exec dbo.paymentCancel '&obj:id&', @method='''&lcMethod&''''),
+ lcCode=readstring(obj7:d1,'@code='),
+ break(lcCode+0=0),
+ lcMessage=readstring(obj7:d1,'@message='),
+ lcCaption=readstring(obj7:d1,'@caption='),
+ if(lcCode=1,m(lcMessage,lcCaption),cancelProcedureSir=);
+@cancelProcedureSir=
+ m(lcMessage,lcCaption,'question.ico',6,4),
+ break(gcretval<>2),
+ iw('\t097Comment; \y097098=001;r \x097=001; \x098=002; \w098200;'),
+ break(gcretval<>'OK'),
+ lcComment=obj7:d1,
+ d1select('exec dbo.paymentCancel '&obj:id&', @method='''&lcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
+
  lcPaymentType=obj:a18,
  if(lcPaymentType='Trust Voucher',lcPaymentType='Official Voucher'),
- if(lcPaymentType='Warrant',cancelRoutine=),
  if(lcPaymentType='Official Voucher',cancelRoutineV=);
 
 @cancelRoutineV=
@@ -140,6 +158,9 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
  trreport('Cancel Vouchers',5027,'printCancelVoucherList=');
 
 @browsedelete=
+ lcMethod='VOID',
+ cancelProcedure=;
+
  break(obj:a17<>'Posted'),
  if(obj:a16<'  0',voidOne=),
  if(obj:a16>'  0',voidMany=);

@@ -1,0 +1,81 @@
+create proc dbo.paymentCancel(
+ @id int,
+ @method varchar(10) = 'CANCEL',
+ @verbose varchar(5) = 'TRUE',
+ @areYouSure varchar(5) = 'NO',
+ @comments varchar(max) = ''
+) as 
+begin
+
+ declare 
+  @slink varchar(15) = 'o' + cast(@id as varchar),
+  @verbPT varchar(50) = dbo.proper(@method) + 'ed',
+  @paymentType varchar(50),
+  @log varchar(max),
+  @cancelPaymentType varchar(50),
+  @redeemingPaymentType varchar(50),
+  @paymentDebitBalance money
+
+ select @paymentType = a18 from object where typ = 4771 and id = @id
+
+ exec dbo.logit @@procid, '@id', @id, '@paymentType', @paymentType, '@verbose', @verbose, '@areYouSure', @areYouSure
+
+ if isnull(@paymentType,'') < '  0'
+ begin
+  select @log = '@code=1;@message=paymentType was not found... contact support.'
+  goto bail
+ end
+
+-- bail if we are not posted
+ if dbo.isPosted(@slink) != 'TRUE'
+ begin
+  select @log = '@code=1;@message=Sorry. This ' + @paymentType + ' is not posted and can not be ' + @verbPT
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+  goto bail
+ end
+
+-- bail if we are already redeemed
+ select 
+  @redeemingPaymentType = paymentType,
+  @paymentDebitBalance = amount
+ from dbo.paymentDebitBalance(@id)
+
+ if @paymentDebitBalance = 0
+ begin
+  select @log = '@code=1;@message=Sorry. This ' + @paymentType + ' has already been redeemed by ' + @redeemingPaymentType + ' and can not be ' + @verbPT + '.'
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+  goto bail
+ end
+
+ if @areYouSure != 'YES'
+ begin
+  select @log = '@code=2;@message=Are you sure you wish to ' + dbo.proper(@method) + ' this '
+   + @paymentType + '?'
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+  goto bail
+ end
+
+-- canceling 
+ if @paymentType in ('WARRANT', 'Official Voucher','Trust Voucher') and @method in ('VOID', 'CANCEL')
+ begin
+  if @paymentType like '%Voucher'
+   set @cancelPaymentType = dbo.proper(@method) + ' Voucher'
+  if @paymentType like '%Warrant'
+   set @cancelPaymentType = dbo.proper(@method) + ' Warrant'
+  exec dbo.paymentCRUD  @mode = 0, @paymentType = @cancelPaymentType, @id = @id, @comments = @comments
+  return
+ end
+
+ select @log = '@code=1;@message=' + dbo.proper(@method) + 'ing of ' + @paymentType + ' is not yet supported, Please Contact Support.;'
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+ goto bail
+
+ return
+
+ bail:
+  if @verbose = 'TRUE'
+   select @log
+  exec dbo.logit @@procid, @log
+  return
+
+end
