@@ -1,0 +1,28 @@
+create function dbo.paymentDebitBalance(
+ @id int
+) returns @rt table(
+ slink varchar(15),
+ amount money,
+ paymentType varchar(50)
+) as
+begin
+-- this table function returns the balance of the debit account for a payment and returns the paymentType from the credit side of that transaction
+ declare 
+  @slink varchar(15) = 'o' + cast(@id as varchar),
+  @debitAccountCode varchar(50)
+
+ select @debitAccountCode = accountCode from glDetail where slink = @slink and amount > 0
+
+ insert @rt
+ select
+  max(case when a.amount < 0 then a.slink else '' end), 
+  sum(a.amount),
+  max(case when a.amount < 0 then b.sourcea18 else '' end)
+ from gldetail a
+ left outer join dbo.glDetailReports b on a.slink = b.slink and b.accountCode = @debitAccountCode
+ where  @slink in (a.slink,a.slink2)
+  and a.accountCode = @debitAccountCode
+ 
+ return
+end
+
