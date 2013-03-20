@@ -1,6 +1,7 @@
 create function dbo.objectToJson(
  @ids ids readonly,
- @fields objectFields readonly
+ @fields objectFields readonly,
+ @urlEncode varchar(5) = 'FALSE'
 ) returns nvarchar(max) as
 begin
 
@@ -10,7 +11,8 @@ begin
   @apiwt JSONHierarchy,
   @tokenId int,
   @tally int = 0,
-  @jsonString nvarchar(max)
+  @jsonString nvarchar(max),
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
 
  declare ids cursor for select id from @ids
 
@@ -43,12 +45,22 @@ begin
  close ids
  deallocate ids
 
+-- remove the blob container if we dont need it
+ if not exists(select * from @fields where blobIt = 1)
+  delete @jsonPrep where origin = 2 and name = 'blob'
+
+ update @jsonPrep set value = dbo.stripChars(value,@goofyChars) where type = 'string'
+
  insert @jsonPrep (objectId, name, type) 
  select 0, '-', 'array'
- 
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
- select @jsonString = dbo.toJSON(@apiwt)
+-- select @jsonString = dbo.toJSON(@apiwt)
+
+ if @urlEncode = 'TRUE'
+  select @jsonString = 'siteCode=69&rows=' + dbo.URLEncode(dbo.toJSON(@apiwt))
+ else
+  select @jsonString = 'siteCode=69&rows=' + dbo.toJSON(@apiwt)
 
  return @jsonString
 end
