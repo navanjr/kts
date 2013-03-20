@@ -9,6 +9,7 @@ create procedure dbo.api(
  @resource varchar(250) = '',
  @filter varchar(8000) = '',
  @cmd varchar(8000) = null,
+ @postBlob varchar(max) = null,
  @debugMode varchar(5) = 'FALSE',
  @cmdOutput int = null output,
  @dump nvarchar(max) = null output
@@ -22,7 +23,8 @@ begin
   @default_nodeScript varchar(100) = '',
   @default_scratchFile varchar(100) = '',
   @tempPath varchar(100),
-  @apiOutputFile varchar(1000)
+  @apiOutputFile varchar(1000),
+  @postBlobPathAndFileName varchar(100)
 
  select @tempPath = path from dbo.paths() where name = 'temp'
 
@@ -42,6 +44,13 @@ begin
   @site_apiKey = b11,
   @site_apiCode = b12
  from Object where typ = 40 order by id
+
+-- create post file if we are passed a postblob and a post filename
+ if isnull(@postblob,'') > '  0' and isnull(@postFile,'') > '  0'
+ begin
+  set @postBlobPathAndFileName = @tempPath + '\' + @postFile
+  exec dbo.spOverwriteTextFile @postBlobPathAndFileName, @postBlob
+ end
 
  if isnull(@postFile,'') > '  0'
   select @filter = 'file:' + @tempPath + '\' + @postFile
