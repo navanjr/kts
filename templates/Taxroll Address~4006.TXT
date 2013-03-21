@@ -1,5 +1,6 @@
 @dk1;
 @nolock;
+@noupdate;
 @dup;
 
 @menuprocess=
@@ -31,26 +32,53 @@
  prop(160,7c10h,'Courier');
 
 @lbrwclick160=
-  lcId=kpbrwid(1),
-  break(lcId=0),
-  m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Enable|Disa&ble|&Cancel'),
-  if(gcretval=1,Default=),
-  if(gcretval=2,Alternate=),
-  if(gcretval=3,EnableIt=),
-  if(gcretval=4,DisableIt=); 
+  bustItUp=,
+  break(kpbrwid(1)=0),
+  if(lcMode<>9,advanced=,basic=);
+  
+@advanced=
+ m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Make Default by Owner#|Ma&ke Alternate by Owner#|&Enable|Disa&ble|&Cancel'),
+ if(gcretval=1,Default=),
+ if(gcretval=2,Alternate=),
+ if(gcretval=3,ownerDefault=),
+ if(gcretval=4,ownerAlternate=),  
+ if(gcretval=5,EnableIt=),
+ if(gcretval=6,DisableIt=);
+
+@basic=
+ m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Cancel'),
+ if(gcretval=1,Default=),
+ if(gcretval=2,Alternate=);
+
+@bustItUp=
+ break(kpbrwid(1)=0),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
 
 @Alternate= 
  lcId=abs(lcId),
- set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
- update,
- sql('exec dbo.taxRollAddressUpdate '&obj:id&',''AA'','&lcId),
+ lcAddBlob='@PARCEL='&obj:key1&';@ITEM='&obj:key3&';@TAXYEAR='&obj:a1&';',
+ sql('exec dbo.taxRollAddressUpdate @id = '&obj:id&',@typ = ''AA'',@taxrollDetailId = '&lcId&',@mode = ''COPY'', @addBlob = '''&lcAddBlob&''',@invoiceId = '&gcInvoiceId),
  brwreload(1);
 
 @Default= 
  lcId=abs(lcId),
- set(046,format(today(),@d2)&' '&format(clock(),@t3)&' '&cur:ini,1),
- update,
- sql('exec dbo.taxRollAddressUpdate '&obj:id&',''A'','&lcId),
+ lcAddBlob='@PARCEL='&obj:key1&';@ITEM='&obj:key3&';@TAXYEAR='&obj:a1&';',
+ sql('exec dbo.taxRollAddressUpdate @id = '&obj:id&',@typ = ''A'',@taxrollDetailId = '&lcId&',@mode = ''COPY'', @addBlob = '''&lcAddBlob&''',@invoiceId = '&gcInvoiceId),
+ brwreload(1);
+
+@ownerDefault= 
+ kpmo('updating addresses....'),
+ lcId=abs(lcId),
+ sql('exec dbo.taxRollAddressUpdate @id = '&gcInvoiceId&',@typ = ''A'',@taxrollDetailId = '&lcId&', @mode=''OwnerNumber'',@invoiceId = '&gcInvoiceId),
+ kpmc(),
+ brwreload(1);
+
+@ownerAlternate= 
+ kpmo('updating addresses....'),
+ lcId=abs(lcId),
+ sql('exec dbo.taxRollAddressUpdate @id = '&gcInvoiceId&',@typ = ''AA'',@taxrollDetailId = '&lcId&', @mode=''OwnerNumber'',@invoiceId = '&gcInvoiceId),
+ kpmc(),
  brwreload(1);
 
 @DisableIt=
@@ -136,11 +164,14 @@
  if(tier=4,addDefault=),
  if(tier=5,addAlternate=);
 
+@setBlob=
+lcAddBlob='@PARCEL='&obj:key1&';@NAME='&obj:key2&';@ITEM='&obj:key3&';@TAXYEAR='&obj:a1&';@address1='&obj:a2&';@address2='&obj:a3&';@address3='&obj:a4&';@city='&obj:a5&';@state='&obj:a6&';@zip1='&obj:a7&';@zip2='&obj:a8&';';
+
 @addDefault=
- lcAddBlob='@PARCEL='&obj:key1&';@NAME='&obj:key2&';@ITEM='&obj:key3&';@TAXYEAR='&obj:a1&';@address1='&obj:a2&';@address2='&obj:a3&';@address3='&obj:a4&';@city='&obj:a5&';@state='&obj:a6&';@zip1='&obj:a7&';@zip2='&obj:a8&';@Stamp='&obj:a20&';',
- sql('exec dbo.taxRollAddressUpdate @addBlob = '''&lcAddBlob&'''');
+ setBlob=,
+ sql('exec dbo.taxRollAddressUpdate @mode = ''NEW'',@addBlob = '''&lcAddBlob&''',@invoiceId = '&gcInvoiceId);
 
 @addAlternate=
- lcAddBlob='@PARCEL='&obj:key1&';@NAME='&obj:key2&';@ITEM='&obj:key3&';@TAXYEAR='&obj:a1&';@address1='&obj:a2&';@address2='&obj:a3&';@address3='&obj:a4&';@city='&obj:a5&';@state='&obj:a6&';@zip1='&obj:a7&';@zip2='&obj:a8&';@Stamp='&obj:a20&';',
- sql('exec dbo.taxRollAddressUpdate @typ=''AA'',@addBlob = '''&lcAddBlob&'''');
+ setBlob=,
+ sql('exec dbo.taxRollAddressUpdate @typ=''AA'',@mode = ''NEW'',@addBlob = '''&lcAddBlob&''',@invoiceId = '&gcInvoiceId);
 

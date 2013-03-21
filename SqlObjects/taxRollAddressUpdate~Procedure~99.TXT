@@ -2,29 +2,160 @@ create procedure [dbo].[taxRollAddressUpdate](
  @Id int = 0,
  @typ varchar(10) = 'A',
  @taxrollDetailId int = 0,
- @addBlob varchar(max) = ''
+ @addBlob varchar(max) = '',
+ @mode varchar(20) = 'Default',
+ @invoiceId int = 0 
 ) as
 begin
 
- exec dbo.logit @@procId, '@id', @id, '@typ', @typ, '@taxrollDetailId', @taxrollDetailId,'@addBlob',@addBlob
+declare @logitblob varchar(max) = '@addBlob:'+@addBlob+'@mode='+@mode+';'
+ exec dbo.logit @@procId, '@id', @id, '@typ', @typ, '@taxrollDetailId', @taxrollDetailId,@logitblob
 
  declare
-           @name varchar(50),
-           @parcel varchar(50),
-           @item numeric(7,1),
-           @taxyear varchar(5),
-           @ini varchar(5) = dbo.readstring('@ini=',dbo.whoamI())
-        
-if @addBlob > '  0'
+   @name varchar(50),
+   @parcel varchar(50),
+   @item numeric(7,1),
+   @taxyear varchar(5),
+   @ini varchar(5) = dbo.readstring('@ini=',dbo.whoamI()),
+   @existAddBlob varchar(max) = '',
+   @compareAddBlob varchar(max)
+
+
+
+if @addBlob > '  0' and @mode = 'NEW'
  begin
- insert into taxRollDetail(parcelNumber,name,businessname,itemNumber,taxYear,Stamp,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,dType)
+  select 
+   @addBlob = @addBlob + '@typ='+@typ+';'
+
+  select @name = left(dbo.readstring('@NAME=',@addBlob),30)
+
+  exec dbo.taxRollAddressUpdate @mode = 'insert',@addBlob = @addBlob, @typ = @typ, @invoiceId = @invoiceid
+ 
+
+ end
+
+
+if @taxrollDetailId > 0 and @mode = 'COPY'
+ begin 
+ ---set variables
+  select 
+   @parcel = dbo.readstring('@PARCEL=',@addBlob),
+   @item = dbo.readstring('@ITEM=',@addBlob),
+   @taxyear =  dbo.readstring('@TAXYEAR=',@addBlob)
+
+ 
+ exec dbo.logit @@procId, '@parcel', @parcel, '@name', @name, '@item', @item, '@taxyear', @taxyear
+ 
+ select 
+  @addBlob = 
+  '@PARCEL='+@parcel
+  +';@NAME='+name
+  +';@ITEM='+cast(@item as varchar)
+  +';@TAXYEAR='+cast(@taxyear as varchar)
+  +';@address1='+address1
+  +';@address2='+address2
+  +';@address3='+address3
+  +';@city='+city
+  +';@state='+state
+  +';@zip1='+zip1
+  +';@zip2='+zip2
+  +';@typ='+@typ+';'
+  from taxrollDetail where id = @taxrollDetailId 
+
+  select @name = left(dbo.readstring('@NAME=',@addBlob),30)
+
+  exec dbo.taxRollAddressUpdate @mode = 'insert',@addBlob = @addBlob, @typ = @typ, @invoiceId = @invoiceid
+
+
+ end
+
+
+if @taxrollDetailId > 0 and @mode = 'BULK'
+ begin
+ ---set variables
+  select 
+   @parcel = parcel,
+   @item = item,
+   @taxyear = taxyear
+   from invoices where id=@invoiceId
+ 
+ exec dbo.logit @@procId, '@parcel', @parcel, '@name', @name, '@item', @item, '@taxyear', @taxyear
+ 
+ select 
+  @addBlob = 
+  '@PARCEL='+@parcel
+  +';@NAME='+name
+  +';@ITEM='+cast(@item as varchar)
+  +';@TAXYEAR='+cast(@taxyear as varchar)
+  +';@address1='+address1
+  +';@address2='+address2
+  +';@address3='+address3
+  +';@city='+city
+  +';@state='+state
+  +';@zip1='+zip1
+  +';@zip2='+zip2
+  +';@typ='+@typ+';'
+  from taxrollDetail where id = @taxrollDetailId 
+
+
+  select @name = left(dbo.readstring('@NAME=',@addBlob),30)
+
+  exec dbo.taxRollAddressUpdate @mode = 'insert',@addBlob = @addBlob, @typ = @typ, @invoiceId = @invoiceid
+
+ end
+
+if @mode = 'insert'
+ begin
+--check to see if the address exists
+ if @typ='A'
+  ---setExistingBlob 
+  select 
+   @existAddBlob = 
+   --'@PARCEL='+parcelNumber   +
+   '@NAME='+name
+   +';@ITEM='+cast(itemNumber as varchar)
+   +';@TAXYEAR='+cast(taxYear as varchar)
+   +';@address1='+address1
+   +';@address2='+address2
+   +';@address3='+address3
+   +';@city='+city
+   +';@state='+state
+   +';@zip1='+zip1
+   +';@zip2='+zip2
+   +';@typ='+dtype+';'
+  from taxrollDetail where id = (select substring(cast(abs(id) as varchar(50)),2,20) from dbo.taxrollAddressBRW(@invoiceId) where ord='1z')
+ else
+ select @existAddBlob = @existAddBlob 
+   --+'@PARCEL='+parcelNumber
+   +'@NAME='+name
+   +';@ITEM='+cast(itemNumber as varchar)
+   +';@TAXYEAR='+cast(taxYear as varchar)
+   +';@address1='+address1
+   +';@address2='+address2
+   +';@address3='+address3
+   +';@city='+city
+   +';@state='+state
+   +';@zip1='+zip1
+   +';@zip2='+zip2
+   +';@typ='+dtype+';'
+  from taxrollDetail where id in (select substring(cast(abs(id) as varchar(50)),2,20) from dbo.taxrollAddressBRW(@invoiceId) where ord='3z')
+ 
+ set @compareAddBlob = replace(@AddBlob,'@parcel='+dbo.readstring('@parcel=',@AddBlob)+';','')
+
+ declare @msg varchar(max) = 'select charindex('''+@compareAddBlob+''','''+@existAddBlob+''')'
+ exec dbo.logit @@procId, @msg
+
+if charindex(@compareAddBlob,@existAddBlob)=0
+
+ begin
+
+ insert into taxRollDetail(parcelNumber,name,businessname,itemNumber,taxYear,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,dType,stamp)
    select 
     dbo.readstring('@PARCEL=',@addBlob),
-    dbo.readstring('@NAME=',@addBlob),
+    left(dbo.readstring('@NAME=',@addBlob),30),
     '',
     dbo.readstring('@ITEM=',@addBlob),
     dbo.readstring('@TAXYEAR=',@addBlob),
-    dbo.readstring('@Stamp=',@addBlob),
     dbo.readstring('@address1=',@addBlob),
     dbo.readstring('@address2=',@addBlob),
     dbo.readstring('@address3=',@addBlob),
@@ -33,55 +164,58 @@ if @addBlob > '  0'
     dbo.readstring('@zip1=',@addBlob),
     dbo.readstring('@zip2=',@addBlob),
     '',
-    @typ 
+    @typ,
+    convert(varchar(10),GETDATE(),101) + ' ' + @ini 
 
   select 
    @parcel = dbo.readstring('@PARCEL=',@addBlob),
    @name = dbo.readstring('@NAME=',@addBlob),
    @item = dbo.readstring('@ITEM=',@addBlob),
    @taxyear =  dbo.readstring('@TAXYEAR=',@addBlob)
- end
-
-if @taxrollDetailId = 0 and @addBlob = '' and @Id > 0
- begin 
-  ---set variables
-  select 
-   @name = left(key2,30),
-   @item = key3,
-   @taxyear = a1
-   from object where id=@id
-
-  exec dbo.logit @@procId, '@parcel', @parcel, '@name', @name, '@item', @item, '@taxyear', @taxyear
-
-  insert into taxRollDetail(adTaxId,parcelNumber,name,businessname,itemNumber,taxYear,Stamp,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,dType,Comments)
-   select 
-    0,key1,left(key2,30),'',key3,a1,a20,a2,a3,a4,a5,a6,a7,a8,'',@typ,''
-    from object where id=@Id
- end
-
-if @taxrollDetailId > 0
- begin 
-  ---set variables
-  select 
-   @parcel = key1,
-   @name = left(key2,30),
-   @item = key3,
-   @taxyear = a1
-   from object where id=@id
- 
-  exec dbo.logit @@procId, '@parcel', @parcel, '@name', @name, '@item', @item, '@taxyear', @taxyear
-
-  insert into
-   taxRollDetail(adTaxId,parcelNumber,name,businessname,itemNumber,taxYear,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,dType,Comments,stamp)
-   select
-    0,@parcel,name,'',@item,@taxyear,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,@typ,'',convert(varchar(10),GETDATE(),101) + ' ' + @ini
-    from taxrollDetail where id=@taxrollDetailId
-
- end
 
 ---update the name on invoices
-  if @Typ = 'A'
-      update invoices set name = @name where item = @item and taxyear = @taxyear
+  if @Typ = 'A' 
+   update invoices set name = @name where item = @item and taxyear = @taxyear
+  end
+ end
+
+If @mode = 'OwnerNumber'
+ begin
+  declare 
+   @tokenId int,
+   @ownerNumber numeric(14,2)
+
+  select @ownerNumber =  dbo.taxCorrectionsSF(a.OWNERNUMBER,i.taxrollid,'034') 
+   from invoices i 
+   inner join adtax a on i.taxrollId = a.id 
+   where i.id = @id
+ 
+  declare @wt table(invoiceId int,taxrollid int,ownerNumber numeric(14,2))
+  
+   insert into @wt 
+    select i.id,i.taxrollId,a.OWNERNUMBER 
+    from invoices i 
+    inner join adtax a on a.id = i.taxrollId and i.invoiceDue > 0 
+    where a.OWNERNUMBER = @ownerNumber
+ 
+   insert @wt
+     select invoiceId,taxrollId,cast(fieldData as numeric(14,2)) from dbo.taxcorrectionsTf() where fieldNumber = 34 and cast(fieldData as numeric(14,2)) = @ownerNumber and taxrollId not in (select taxrollId from @wt)
+   
+   update w set w.ownerNumber = cast(tc.fieldData as numeric(14,2)) from @wt w,dbo.taxCorrectionsTF() tc where tc.fieldNumber = 34 and tc.taxrollId = w.taxrollid
+         
+   delete from @wt where ownerNumber <> @ownerNumber or invoiceId = @Id
+   
+  while exists(select * from @wt)
+   begin
+   select @tokenId = invoiceId from @wt order by invoiceId desc
+    begin 
+     exec dbo.taxRollAddressUpdate @id=@tokenId, @typ = @typ, @taxrollDetailId = @taxrollDetailId, @mode = 'BULK', @invoiceId=@tokenId
+     delete from @wt where invoiceid = @tokenId
+    end
+   end
+
+   
+ end
 
 
 end
