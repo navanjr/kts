@@ -167,21 +167,28 @@
  
 
 @moreOptions=
- m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections|View Fees|&Cancel'),
+ if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
+ m('options...','Taxroll options...',,'&Show Detail|&Attach|&UnAttach|Co&llections'&lcdel&'|View Fees|Print Comments|&Cancel'),
  if(gcretval=1,showFeePenalty=),
  if(gcretval=2,Attach=),
  if(gcretval=3,UnAttach=),
  if(gcretval=4,collections=),
- if(gcretval=5,feeBrw=),
- if(gcretval=6,refreshBRW=);
- 
- if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
- '&lcdel&'
- if(gcretval=6 and cur:securitylevel=100,delInvoice=),
+ if(gcretval=5 and cur:securitylevel=100,delInvoice=),
+ if(gcretval=6 and cur:securitylevel=100,feeBrw=),
+ if(gcretval=5 and cur:securitylevel<>100,feeBrw=),
+ if(gcretval=7 and cur:securitylevel=100,printComment=),
+ if(gcretval=6 and cur:securitylevel<>100,printComment=),
+ break((gcretval=6 and cur:securitylevel=100) or (gcretval=5 and cur:securitylevel<>100)),
+ refreshBRW=;
 
 @feeBrw=
  gcInvoiceId=kpbrwid(1)*-1,
  do(4032,menuprocess=);
+
+@printComment=
+ gcTaxItemId=kpbrwid(1)*-1,
+ trreport('TaxItemComments',5048,'printTaxItemComments=')
+ ;
 
 @delInvoice=sql('exec dbo.invoiceCRUD @mode=3, @invoiceId='&kpbrwid(1)*-1&', @postcheckoverride=0');
 
