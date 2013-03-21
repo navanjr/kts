@@ -2,6 +2,16 @@ create function dbo.fpCodeFromDate(
  @date int
 ) returns varchar(50) as
 begin
- set @date = coalesce(@date,dbo.clarionToday())
- return (select fpCode from dbo.fiscalCalendar where @date between startDate and endDate)
+
+ declare @fpCode varchar(50)
+
+ set @date = coalesce(nullif(@date,0),dbo.clarionToday())
+
+ if @date < 0
+  select @fpCode = fpCode from (select fpcode, row=ROW_NUMBER() over (order by fpCode desc) from dbo.fiscalCalendar where fpCode < dbo.fpCodeFromDate(null))
+   as derivedTable where abs(@date) = row
+ else
+  select @fpCode = fpCode from dbo.fiscalCalendar where @date between startDate and endDate
+ 
+ return @fpCode
 end
