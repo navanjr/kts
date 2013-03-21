@@ -19,9 +19,11 @@ create proc dbo.paymentCRUD(
  @importStamp varchar(50) = '',
  @comments varchar(250) = '',
  @voidBatch varchar(5) = 'FALSE',
- @statusInput varchar(50) = null
+ @statusInput varchar(50) = null,
+ @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
 ) as 
 begin
+ set nocount on
 
 -- TODO: i have an idea for the parking lot.
 /*
@@ -403,10 +405,10 @@ begin
    where a.acctCode = b.accountCode
 
   commit transaction    
-  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @newId, 'o', @resultString = @postResult output
+  exec dbo.glPost @newId, 'o', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
   if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
@@ -439,10 +441,10 @@ begin
    from @stageRows a, glAccounts b 
    where a.acctCode = b.accountCode
 
-  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @id, 'o', @resultString = @postResult output
+  exec dbo.glPost @id, 'o', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end

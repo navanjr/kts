@@ -5,6 +5,8 @@ create procedure dbo.paymentsImportBatch(
  @debugMode varchar(10) = 'false' 
 ) as 
 begin
+ set nocount on
+ exec dbo.logit @@procid, '@paymentType', @paymentType, '@batchId', @batchId, '@ini', @ini, '@debugMode', @debugMode
 
   declare
    @idToken int,
@@ -22,7 +24,8 @@ begin
    @officialBankCode varchar(50) = '',
    @fiscalYear varchar(50) = '',
    @theDate datetime = getdate(),
-   @importStamp varchar(50)
+   @importStamp varchar(50),
+   @tally int
 
   select @importStamp = @ini + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
@@ -53,8 +56,11 @@ begin
    @code = @code output,
    @message = @message output 
 
+ exec dbo.logit @@procid, 'paymentImportCheck - result @code', @code, '@message', @message
+
  if @code != 0 and @paymentType <> 'warrant'
  begin
+   exec dbo.logit @@procid, 'bailing @code', @code, '@message', @message
    select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
    return
  end
@@ -95,12 +101,13 @@ begin
   where rowType = 0 and postCheck = 0
  end
 
-  if @debugMode = 'true'
-   select * from @wt
+ if @debugMode = 'true'
+  select * from @wt
 
 -- check them out
   if not exists(select * from @wt)
   begin
+   exec dbo.logit @@procid, 'bailing as there are no records in the workTable'
    select '@code=1;@message=No rows found to process for import;'
    return
   end
@@ -111,11 +118,14 @@ begin
    select '@code=1;@message=some items are missing required account information;'
    return
   end
-  
--- so far so good... lets verify gl Accounts
 
+  select @tally = count(*) from @wt
+  exec dbo.logit @@procid, '=============> Beginning main loop... @tally', @tally
+
+-- main loop
   while exists(select * from @wt)
   begin
+ 
     select top 1 @idToken = id, 
      @voucherDate = voucherDate,
      @voucherNumber = voucherNumber,
@@ -127,10 +137,13 @@ begin
      @fiscalYear = fiscalYear
     from @wt order by id
 
+   exec dbo.logit @@procid, '=============> @tally', @tally, '@payee', @payee, '@debitAcct', @debitAcct, '@creditAcct', @creditAcct
+
    if @debugMode = 'false'
    begin
     declare @checkPaymentId int
 
+-- WARRANT
     if @paymentType = 'warrant'
     begin
 -- get the codes from the import record
@@ -168,10 +181,10 @@ begin
        @postResult = @resultStringToken output
      end
     end
-   
+-- VOUCHER   
     else
     begin
-    select @checkPaymentId = id from object 
+     select @checkPaymentId = id from object 
       where typ=4771 
        and key3 = @voucherNumber
        and a4 = @debitAcct
@@ -182,26 +195,29 @@ begin
      if isnull(@checkPaymentId,0)=0
      begin 
       exec dbo.paymentCRUD 0,  
-      @paymentType = @paymentType,
-      @officialName = @officialName,
-      @officialDepositCode = @officialDepositCode,
-      @officialBankCode = @officialBankCode,
-      @voucherDate = @voucherDate,
-      @voucherNumber = @voucherNumber,
-      @payee = @payee,
-      @amount = @amount,
-      @debitAcct = @debitAcct,
-      @creditAcct = @creditAcct,
-      @importStamp = @importStamp,
-      @comments = @comments,
-      @postResult = @resultStringToken output
+       @paymentType = @paymentType,
+       @officialName = @officialName,
+       @officialDepositCode = @officialDepositCode,
+       @officialBankCode = @officialBankCode,
+       @voucherDate = @voucherDate,
+       @voucherNumber = @voucherNumber,
+       @payee = @payee,
+       @amount = @amount,
+       @debitAcct = @debitAcct,
+       @creditAcct = @creditAcct,
+       @importStamp = @importStamp,
+       @comments = @comments,
+       @postResult = @resultStringToken output
+      end
      end
-    end
-    insert @results select dbo.readString('@code=',@resultStringToken),@resultStringToken
+
+     exec dbo.logit @@procid, '=============> @tally', @tally, '@result', @resultStringToken
+     insert @results select dbo.readString('@code=',@resultStringToken),@resultStringToken
 
     end
 
     delete @wt where id = @idToken
+    set @tally = @tally -1
   end
 
  if exists(select * from @results where code = 1)
