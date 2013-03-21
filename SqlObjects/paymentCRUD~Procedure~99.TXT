@@ -20,6 +20,7 @@ create proc dbo.paymentCRUD(
  @comments varchar(250) = '',
  @voidBatch varchar(5) = 'FALSE',
  @statusInput varchar(50) = null,
+ @verbose varchar(5) = 'TRUE',
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
 ) as 
 begin
@@ -117,7 +118,9 @@ begin
 
    end
 
-  select @log
+  if @verbose = 'TRUE'
+   select @log
+
  end
 
  if @mode = 3
@@ -263,7 +266,10 @@ begin
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode,
     '@officialDepositCode', @officialDepositCode
-    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant1);'
+
+    if @verbose = 'TRUE'
+     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant1);'
+
    return
   end
 
@@ -274,7 +280,10 @@ begin
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode
-    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant2);'
+ 
+    if @verbose = 'TRUE'
+     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant2);'
+ 
    return
   end
 
@@ -286,7 +295,10 @@ begin
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode,
     '@officialDepositCode', @officialDepositCode
+ 
+   if @verbose = 'TRUE'
     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant3);'
+ 
    return
   end
 
@@ -343,7 +355,10 @@ begin
  begin
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
-  select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
+
+  if @verbose = 'TRUE'
+   select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
+
   return
  end
 
@@ -408,7 +423,7 @@ begin
   exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @newId, 'o', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
+  exec dbo.glPost @newId, 'o', @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
   if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
@@ -444,7 +459,7 @@ begin
   exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @id, 'o', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
+  exec dbo.glPost @id, 'o', @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end
