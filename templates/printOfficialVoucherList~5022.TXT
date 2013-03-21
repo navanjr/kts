@@ -17,12 +17,14 @@
     clerksNumber,
     payee,
     debitAccountDesc,
-    amount,
+    case when amount > 0 then amount else 0 end,
     comment,
-    creditAccountDesc
+    creditAccountDesc,
+    case when amount <= 0 then amount*-1 else 0 end
     from dbo.payments where paymentType in (''Official Voucher'',''Cancel Voucher'',''Trust Voucher'') and dateRegistered >= '''&gcBeginDate+0&''' and  dateRegistered <= '''&gcEndDate+0&''' order by treasurersNumber',
   lcRecCnt=0,
   lcVoucherTotal=0,
+  lcVoucherCreditTotal=0,
   lcBank1='',
   lcBank1Total=0,
   lcBank2='',
@@ -45,13 +47,14 @@
   prn('Report From: '&format(gcBeginDate,@d1)&' to '&format(gcEndDate,@d1),t4),
   prn(,lcLm,lcTm+1000),
   nl, 
-  bnd('D','DATE',800,'TREAS',600,'VOUCR',600,'TO WHOM ISSUED',2000,'FROM WHOM DRAWN',2000,'AMOUNT',800R,'COMMENTS',2000),
-  bnd('DU','RGSTRD',800,'REGD #',600,'PAGE',600,'',2000,'',2000,'',800R,'',2000),
+  bnd('D','DATE',550,'TREAS',500,'VOUCR',500,'TO WHOM ISSUED',2000,'FROM WHOM DRAWN',2000,'AMOUNT',800R,'AMOUNT',800R,'COMMENTS',2000),
+  bnd('DU','RGSTRD',550,'REGD #',500,'PAGE',500,'',2000,'',2000,'',800R,'CREDIT',800R,'',2000),
   nl,
   det(gcsql5022,,,,),
-    bnd(,format(obj5:a1,@d2),800,obj5:a2,600,obj5:a3,600,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),2000,format(obj5:a6,@n$-19.2b),800R, format(obj5:a7,@s25),2000),
+    bnd(,format(obj5:a1,@d2),550,obj5:a2,500,obj5:a3,500,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),2000,format(obj5:a6,@n$-19.2b),800R,format(obj5:a9,@n$-19.2b),800R, format(obj5:a7,@s25),2000),
     lcRecCnt=lcRecCnt+1,
     lcVoucherTotal=lcVoucherTotal+obj5:a6,
+    lcVoucherCreditTotal=lcVoucherCreditTotal+obj5:a9,
     if(lcBank1=''),
      lcBank1=obj5:a8,
     if(lcBank1=obj5:a8),
@@ -67,7 +70,7 @@
   edt,
   nl,
   nl,
-  bnd('H','',5500,'TOTAL:',800R,format(lcVoucherTotal,@n$-19.2b),800R),
+  bnd('H','',5500,'TOTAL:',800R,format(lcVoucherTotal,@n$-19.2b),800R,format(lcVoucherCreditTotal,@n$-19.2b),800R),
 );
 
 
