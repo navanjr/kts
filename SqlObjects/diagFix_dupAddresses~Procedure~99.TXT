@@ -1,0 +1,101 @@
+create proc dbo.diagFix_dupAddresses(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+set nocount on
+----gather the data
+ declare @rt table (item numeric(7,2),taxYear numeric(4),idCount int,defaultId int,addBlob varchar(Max),dtype varchar(10))
+ insert @rt
+ select itemnumber,taxyear,COUNT(id),MAX(id),  
+  '@NAME='+name
+  +';@ITEM='+cast(itemNumber as varchar)
+  +';@TAXYEAR='+CAST(taxYear AS VARCHAR)
+  
+  +';@address1='+address1
+  +';@address2='+address2
+  +';@address3='+address3
+  +';@city='+city
+  +';@state='+state
+  +';@zip1='+zip1
+  +';@zip2='+zip2,
+  dtype
+ from taxRollDetail where dtype in ('a','aa') group by 
+  '@NAME='+name
+  +';@ITEM='+cast(itemNumber as varchar)
+  +';@TAXYEAR='+CAST(taxYear AS VARCHAR)
+  
+  +';@address1='+address1
+  +';@address2='+address2
+  +';@address3='+address3
+  +';@city='+city
+  +';@state='+state
+  +';@zip1='+zip1
+  +';@zip2='+zip2,
+   itemNumber,taxyear,dtype
+  having COUNT(id)>1
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'Tax Items with duplicate addresses',
+   @fixProc = 'exec dbo.diagFix_dupAddresses @method = ''FIX'''
+  from @rt 
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from @rt order by item
+
+  return
+ end
+
+if @method = 'FIX'
+ begin  
+ 
+ declare 
+  @tokenId int,
+  @taxyear numeric(4),
+  @item numeric(7,2),
+  @addBlob varchar(max),
+  @dtype varchar(10) 
+ 
+ while exists(select * from @rt)
+  begin
+   select @tokenId = defaultId,@item=item,@taxyear=taxyear,@addBlob = addblob,@dtype=dtype from @rt order by item
+   if @tokenId>0
+    begin
+     delete from taxrolldetail where id < @tokenId and itemNumber=@item and taxyear=@taxyear and @dtype=dtype
+      and @addblob= 
+       '@NAME='+name
+       +';@ITEM='+cast(itemNumber as varchar)
+       +';@TAXYEAR='+CAST(taxYear AS VARCHAR)
+       +';@address1='+address1
+       +';@address2='+address2
+       +';@address3='+address3
+       +';@city='+city
+       +';@state='+state
+       +';@zip1='+zip1
+       +';@zip2='+zip2
+     delete from @rt where defaultId = @tokenId
+    end
+  end 
+
+  return  
+ end
+
+end
+
+
