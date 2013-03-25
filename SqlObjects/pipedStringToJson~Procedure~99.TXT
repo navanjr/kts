@@ -1,23 +1,25 @@
-create function dbo.objectToJson(
- @ids ids readonly,
- @fields objectFields readonly,
- @urlEncode varchar(5) = 'FALSE'
-) returns nvarchar(max) as
+create procedure dbo.pipedStringToJson(
+ @object stringBlob readonly,
+ @fields blobFields readonly,
+ @includeBlanks varchar(5) = 'FALSE', 
+ @urlEncode varchar(5) = 'FALSE',
+ @payload nvarchar(max) = null output
+)
 begin
 
---  select dbo.date1(LastEditDate)+' '+dbo.time2(LastEditTime),k7 from Object where typ = 4771
  declare
   @jsonPrep jsonPrep,
   @apiwt JSONHierarchy,
   @tokenId int,
-  @tally int = 0,
+  @tally int = -1,
   @jsonString nvarchar(max),
   @siteCode varchar(50),
-  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39',
+  @blob varchar(max)
 
  select @siteCode = apiSiteCode from dbo.site
 
- declare ids cursor for select id from @ids
+ declare ids cursor for select id from @object
 
  open ids
  fetch next from ids into @tokenId
@@ -25,23 +27,26 @@ begin
  begin
   set @tally = @tally + 1
  
+  select @blob = blob from @object where ID = @tokenId
+
   insert @jsonPrep (parentId,name,value,type,origin)
   select
-   case when b.blobIt = 1 then @tokenId else @tally end, 
-   b.FriendlyName,
-   case when b.fieldType = 'clarionDate' then dbo.date1(a.value) else a.value end,
-   case when b.fieldType = 'clarionDate' then 'string' else b.fieldType end,
+   case when f.blobIt = 1 then @tokenId else @tally end, 
+   f.fieldName,
+   case when f.fieldType = 'clarionDate' then dbo.date1(s.data) else s.data end,
+   case when f.fieldType = 'clarionDate' then 'string' else f.fieldType end,
    1
-  from dbo.pivotObject(@tokenId) a
-  join @fields b on a.field = b.objectName
+  from dbo.split(@blob,'|') s
+   join @fields f on f.id = s.id 
+  where case when @includeBlanks = 'FALSE' then s.data else '1' end > '  0'
 
 -- add the blob object contanier
   insert @jsonPrep (parentId,objectId,name,value,type, origin) 
   select @tally, @tokenId, 'blob', @tokenId, 'object', 2
 -- add the objectId
-  union select @tally, null, 'objectId', cast(@tokenId as varchar), 'int', 3
+--  union select @tally, null, 'objectId', cast(@tokenId as varchar), 'int', 3
 -- add the object row contanier
-  union select 0, @tally, null, @tally, 'object', 4
+  union select -1, @tally, null, @tally, 'object', 4
   
   fetch next from ids into @tokenId
  end
@@ -55,7 +60,7 @@ begin
  update @jsonPrep set value = dbo.stripChars(value,@goofyChars) where type = 'string'
 
  insert @jsonPrep (objectId, name, type) 
- select 0, '-', 'array'
+ select -1, '-', 'array'
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
 -- select @jsonString = dbo.toJSON(@apiwt)

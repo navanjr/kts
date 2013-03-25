@@ -1,0 +1,63 @@
+@bb7=&Print;
+
+@bbproc7=
+gcBeginDate=77440,
+gcEndDate=77466,
+gcTaxItemId=3017,
+printTaxItemComments=;
+
+@keyReportMaintenance;
+
+@printTaxItemComments=
+ do(452,getSiteInfo=),
+ lcgrpToken='',
+ lcsql5048='select noteDate,actiondate,id from dbo.taxrollSearchCommentBRW('&gctaxItemId&') 
+where commenttype=''COMMENT'' and cast(comment as varchar) > '' 0''
+order by noteDate',
+ lcDetFont='Arial',
+ lcFont='Arial',
+ lcFontSize=11,
+
+ d1select('select item from invoices where id='&gctaxItemId),
+ lcItem=obj7:d1,
+ d1select('select taxyear from invoices where id='&gctaxItemId),
+ lcTaxYear=obj7:d1,
+ d1select('select name from invoices where id='&gctaxItemId),
+ lcName=obj7:d1,
+ d1select('select parcel from invoices where id='&gctaxItemId),
+ lcParcel=obj7:d1,
+
+ lcC1w=500,
+ lcC2w=6500,
+ lcC3w=-1200,
+ lcC4w=500,
+ lcC5w=500,
+ lcC6w=600,
+ lcC7w=600,
+ lcBoxColor=14539482,
+
+ tr(lcx=300,
+  lcTm=600,
+  box(lcx,lcTm-250,lcx+2000,lcTm+550,0,lcBoxColor),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+1000,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+1000,lcy),
+  prn('Comment Report for '&lcTaxYear&' Item: '&lcItem,t1),
+  prn(lcName&'  - '&lcParcel,t2),
+  prn(,lcx+300), 
+  box(lcx,lcTm+800,lcx+6700,lcTm+1075,0,lcBoxColor),
+  prn(,,lcTm+850,lcFontSize,,lcFont),
+  bnd('H9',' Date',lcC1w),
+  nl,
+  det(lcsql5048),
+   prn(,,,lcFontSize-2,,lcDetFont),
+   lccomment=kp('select comment from dbo.taxrollSearchCommentBRW('&gctaxItemId&') where id='&obj5:a3),
+   bnd('D9',format(obj5:a1,@d2),lcC1w),
+   txt(lccomment,pagex+550,,lcC2w,,1,)
+   nl,
+  edt,
+  nl,
+ );

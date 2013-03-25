@@ -125,17 +125,20 @@ tr(
   lcTm=350,
   lcVouchGrTot=0,
   lcVoucherTot=0,
+  lcVoucherCreditTot=0,
+  lcVoucherCreditTotGr=0,
   lcsql='select
     dbo.popro6(clerksNumber,6,1),
     clerksDate,
     dbo.popro6(treasurersNumber,6,1),
     dateRegistered,    
-    amount,    
+    case when amount>0 then amount else 0 end,    
     payee,
     creditAccountDesc,
     debitAccountDesc,
     comment,
-    dateCleared
+    dateCleared,
+    case when amount<=0 then amount*-1 else 0 end    
       from dbo.payments where paymentType like ''%VOUCHER%'' and slink in 
       (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
       and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared, dbo.popro6(clerksNumber,6,1)  ',
@@ -150,8 +153,8 @@ tr(
   prn(,lcLm,lcTm+1000),
   nl,
   
-    bnd('H','VOUCH',550,'VOUCHER',750,'REGIST',550,'REGISTER',750,'AMOUNT',800C,'TO WHOM PAID',1500,'BANK',1500,'FUND',1500,'COMMENTS',1500 ),
-      bnd('HU','No.',550,'DATE',750,'No.',550,'DATE',750,'PAID',800C,' ',1500,' ',1500,' ',1500,' ',1500),
+    bnd('H','VOUCH',500,'VOUCHER',650,'REGIST',500,'REGISTER',650,'AMOUNT',800C,'AMOUNT',800C,'TO WHOM PAID',1500,'BANK',1500,'FUND',1000,'COMMENTS',1500 ),
+      bnd('HU','No.',500,'DATE',650,'No.',500,'DATE',650,'PAID',800C,'CREDIT',800C,' ',1500,' ',1500,' ',1000,' ',1500),
 nl,
 grp(1,obj5:a10,
       do(
@@ -160,27 +163,31 @@ grp(1,obj5:a10,
       nl,
       ),do(
       nl,
-      bnd('H','Total:',2700R,format(lcVoucherTot,@n$14.2),1000R,),
+      bnd('H','Total:',2400R,format(lcVoucherTot,@n$14.2),1000R,format(lcVoucherCreditTot,@n$14.2),800R,),
       lcVoucherTot=0,
+      lcVoucherCreditTot=0,
       nl,
     ) ),
 
   det(lcsql),
     bnd(,
-      obj5:a1,550,
-      format(obj5:a2,@d1),750,
-      obj5:a3,550,
-      format(obj5:a4,@d1),750,
-      format(obj5:a5,@n$-14.2),800R,
+      obj5:a1,500,
+      format(obj5:a2,@d1),650,
+      obj5:a3,500,
+      format(obj5:a4,@d1),650,
+      format(obj5:a5,@n$-14.2b),800R,
+      format(obj5:a11,@n$-14.2b),800R,
       format(obj5:a6,@s18),1500,
       format(obj5:a7,@s19),1500,
-      format(obj5:a8,@s18),1500,
+      format(obj5:a8,@s18),1000,
       format(obj5:a9,@s16),1500 ),
       lcVoucherTot=lcVoucherTot+obj5:a5,
       lcVouchGrTot=lcVouchGrTot+obj5:a5,
+      lcVoucherCreditTot=lcVoucherCreditTot+obj5:a11,
+      lcVoucherCreditTotGr=lcVoucherCreditTotGr+obj5:a11,
    edt,
    nl,
-   bnd('H','',100,'Grand Total:',2500R,format(lcVouchGrTot,@n$14.2),1000R,),
+   bnd('H','',100,'Grand Total:',2200R,format(lcVouchGrTot,@n$14.2),1000R,format(lcVoucherCreditTotGr,@n$14.2),800R,),
 
 );
 

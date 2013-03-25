@@ -1,0 +1,27 @@
+create function dbo.taxCorrectionsTF() 
+ returns @rt 
+  table(
+   id int,
+   invoiceId int,
+   taxrollId int,
+   fieldNumber int,
+   fieldData varchar(max),
+   source varchar(10))
+as
+begin
+
+ insert @rt
+  select max(id),0,taxrollId,fieldNumber,'','tc' from taxrollCorrections group by taxrollId,fieldNumber 
+
+ update r set r.fieldData = t.fieldData from @rt r, taxrollCorrections t where r.id = t.id
+   
+
+ insert @rt
+  select max(id),0,link1,key1,'','o' from Object where TYP=4005 and link1 not in (select taxrollId from @rt where fieldNumber=Key1) group by Link1,Key1
+
+ update r set r.fieldData = t.a2 from @rt r, Object t where r.id = t.id and source='o'
+
+ update r set r.invoiceId = i.id from @rt r, invoices i where i.TAXROLLID = r.taxrollId     
+
+ return
+end

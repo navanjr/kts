@@ -19,9 +19,12 @@ create proc dbo.paymentCRUD(
  @importStamp varchar(50) = '',
  @comments varchar(250) = '',
  @voidBatch varchar(5) = 'FALSE',
- @statusInput varchar(50) = null
+ @statusInput varchar(50) = null,
+ @verbose varchar(5) = 'TRUE',
+ @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
 ) as 
 begin
+ set nocount on
 
 -- TODO: i have an idea for the parking lot.
 /*
@@ -115,7 +118,9 @@ begin
 
    end
 
-  select @log
+  if @verbose = 'TRUE'
+   select @log
+
  end
 
  if @mode = 3
@@ -188,8 +193,7 @@ begin
  if @mode = 0
  begin
 
-  exec dbo.logit @@procid, 'start mode 0 - paymentType', @paymentType
-  exec dbo.logit @@procid, 'PaymentId', @id
+  exec dbo.logit @@procid, 'start mode 0 - paymentType', @paymentType, 'paymentId @id', @id
 
 -- TODO: add gl check here
 
@@ -236,7 +240,7 @@ begin
 
   end
 
-  if left(@paymentType,6) = 'Cancel'
+  if left(@paymentType,7) = 'Cancel ' or left(@paymentType,5) = 'Void '
   begin
    select
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
@@ -262,7 +266,10 @@ begin
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode,
     '@officialDepositCode', @officialDepositCode
-    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+
+    if @verbose = 'TRUE'
+     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant1);'
+
    return
   end
 
@@ -273,7 +280,10 @@ begin
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode
-    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant);'
+ 
+    if @verbose = 'TRUE'
+     select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:RegisterWarrant2);'
+ 
    return
   end
 
@@ -285,7 +295,10 @@ begin
     '@creditAcct', @creditAcct,
     '@officialBankCode', @officialBankCode,
     '@officialDepositCode', @officialDepositCode
-    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant);'
+ 
+   if @verbose = 'TRUE'
+    select '@code=1;@message=Missing Account details. Contact Support (paymentCRUD:BuyWarrant3);'
+ 
    return
   end
 
@@ -342,7 +355,10 @@ begin
  begin
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and quickly return - 1'
-  select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
+
+  if @verbose = 'TRUE'
+   select '@code=0;@message=Payment Created;@id='+cast(@newId as varchar)
+
   return
  end
 
@@ -404,15 +420,15 @@ begin
    where a.acctCode = b.accountCode
 
   commit transaction    
-  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @newId, 'o', @resultString = @postResult output
+  exec dbo.glPost @newId, 'o', @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
   if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
   begin
-    update gldetail set bsId = @bankStatementId where slink = @newslink and accountcode=@officialbankcode
+    update gldetail set bsId = @bankStatementId, dateCleared=coalesce(nullif(@postDate,''),dbo.clarionDate(getdate())) where slink = @newslink and accountcode=@officialbankcode
   end
 
  end
@@ -440,10 +456,10 @@ begin
    from @stageRows a, glAccounts b 
    where a.acctCode = b.accountCode
 
-  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2'
+  exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @id, 'o', @resultString = @postResult output
+  exec dbo.glPost @id, 'o', @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end

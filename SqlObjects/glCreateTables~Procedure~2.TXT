@@ -206,7 +206,7 @@ begin
 -- ADTAX
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AdTax]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table [dbo].[AdTax](
-	[ID] [int] IDENTITY(1,1) NOT NULL,
+ [ID] [int] IDENTITY(1,1) NOT NULL,
 	[RECORDTYPE] [nvarchar](1) NOT NULL,
 	[ADDITIONNUMBER] [nvarchar](4) NOT NULL,
 	[TOWNSHIPBLOCK] [nvarchar](3) NOT NULL,
@@ -323,25 +323,16 @@ begin
 	[zip1] [nvarchar](5) NOT NULL,
 	[zip2] [nvarchar](4) NOT NULL,
 	[zip3] [nvarchar](4) NOT NULL,
-	[comments] [text] NOT NULL
+	[comments] [text] NOT NULL,
+ dtype varchar(10) not null default '',
+ documentName varchar(50) not null default '',
+ documentDateTime datetime not null default getdate(),
+ creationDateTime datetime not null default getdate(),
+ invoiceLinkId int not null default 0,
+ printOrder varchar(50) not null default '',
+ enabled int not null default 0
    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'dtype')
-   alter table taxRollDetail add dtype varchar(10) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentName')
-   alter table taxRollDetail add documentName varchar(50) not null default ''
- if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentDate')
-   alter table taxRollDetail drop column documentDate
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentDateTime')
-   alter table taxRollDetail add documentDateTime datetime not null default getdate()
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'creationDateTime')
-   alter table taxRollDetail add creationDateTime datetime not null default getdate()
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'invoiceLinkId')
-   alter table taxRollDetail add invoiceLinkId int not null default 0
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'printOrder')
-   alter table taxRollDetail add printOrder varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'enabled')
-   alter table taxRollDetail add enabled int not null default 0
  if exists(select * from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = 'taxrollDetail' and COLUMN_NAME = 'adtaxid' and COLUMN_DEFAULT is null)
  begin
   alter table taxrollDetail add constraint default_adtaxId DEFAULT 0 for adtaxId
@@ -422,8 +413,45 @@ begin
    fieldType varchar(50),
    blobIt int
   )
+ IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'blobFields')
+  CREATE TYPE dbo.blobFields AS TABLE
+  (
+   id int identity(1,1),
+   fieldName varchar(50),
+   fieldType varchar(50),
+   blobIt int
+  )
  IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'ids')
   CREATE TYPE dbo.ids AS TABLE(id int)
+ IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'stringBlob')
+  CREATE TYPE dbo.stringBlob AS TABLE(
+   id int identity(1,1),
+   blob varchar(max) default null
+  )
+ IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'stringTable')
+  CREATE TYPE dbo.stringTable AS TABLE(
+   id int identity(1,1),
+   s1 varchar(50) default null,
+   s2 varchar(50) default null,
+   s3 varchar(50) default null,
+   s4 varchar(50) default null,
+   s5 varchar(50) default null,
+   s6 varchar(50) default null,
+   s7 varchar(50) default null,
+   s8 varchar(50) default null,
+   s9 varchar(50) default null,
+   s10 varchar(50) default null,
+   s11 varchar(50) default null,
+   s12 varchar(50) default null,
+   s13 varchar(50) default null,
+   s14 varchar(50) default null,
+   s15 varchar(50) default null,
+   s16 varchar(50) default null,
+   s17 varchar(50) default null,
+   s18 varchar(50) default null,
+   s19 varchar(50) default null,
+   s20 varchar(50) default null
+  )
 
 -- split table
  IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'splitWt')

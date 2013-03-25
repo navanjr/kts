@@ -31,7 +31,7 @@ select	@name = name,
 --Default Address	
 insert @rt
         select top 1
-		id*-1,
+		cast('-1' + cast(id as varchar) as int),
 		'   '+dbo.taxrollDetailAddressSF(id),
 		name,
 		parcelNumber,
@@ -50,7 +50,7 @@ from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYe
 
 --Default Address History
 insert @rt
-        select 	id*-1,
+        select 	cast('-2' + cast(id as varchar) as int),
 		'   '+dbo.taxrollDetailAddressSF(id),
 		name,
 		parcelNumber,
@@ -60,8 +60,11 @@ insert @rt
                 case when enabled = 0 then 'X' else '' end,
 		'2z',
 		0
-from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYear and id not in (select abs(id) from @rt)
+from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYear and id not in (select substring(cast(abs(id) as varchar),2,12) from @rt)
 		order by id desc
+
+
+
 	
           insert @rt (id,rowString,ord,colorFlag)
 			select	0,'Default Address History:','2',2 from @rt where ord = '2Z' group by ord
@@ -69,7 +72,7 @@ from taxRollDetail where dtype = 'a' and itemNumber = @item and taxYear = @taxYe
 ---alernate addresses	
 insert @rt
 		select 
-			id*-1,
+			cast('-3' + cast(id as varchar) as int),
 			'   '+dbo.taxrollDetailAddressSF(id),
 			name,
 			parcelNumber,
@@ -102,7 +105,7 @@ if @name > '  0'
 	begin
 
 	insert @wt 
-			select id from taxRollDetail where dtype in ('a','aa') and name = @name and id not in (select abs(id) from @rt) 
+			select id from taxRollDetail where dtype in ('a','aa') and name = @name and id not in (select substring(cast(abs(id) as varchar),2,12) from @rt) 
    
 
 	 while exists(select * from @wt)
@@ -114,7 +117,7 @@ if @name > '  0'
 				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
                                     begin
 					insert @rt select 
-								id*-1,
+								cast('-9' + cast(id as varchar) as int),
 								'   '+dbo.taxrollDetailAddressSF(id),
 								name,
 								parcelNumber,
@@ -139,7 +142,7 @@ if @parcel>'  0'
 	begin
 
 	insert @wt 
-			select id from taxRollDetail where dtype in ('a','aa') and parcelNumber = @parcel and id not in (select abs(id) from @rt)
+			select id from taxRollDetail where dtype in ('a','aa') and parcelNumber = @parcel and id not in (select substring(cast(abs(id) as varchar),2,12) from @rt)
    
 
 	 while exists(select * from @wt)
@@ -150,7 +153,7 @@ if @parcel>'  0'
 
 				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
 					insert @rt select 
-								id*-1,
+								cast('-9' + cast(id as varchar) as int),
 								'   '+dbo.taxrollDetailAddressSF(id),
 								name,
 								parcelNumber,
@@ -176,7 +179,7 @@ if @item>'  0'
 	begin
 	
 	insert @wt 
-			select id from taxRollDetail where dtype in ('a','aa') and itemNumber = @item and id not in (select abs(id) from @rt)
+			select id from taxRollDetail where dtype in ('a','aa') and itemNumber = @item and id not in (select substring(cast(abs(id) as varchar),2,12) from @rt)
    
 
 	 while exists(select * from @wt)
@@ -187,7 +190,7 @@ if @item>'  0'
 
 				if (select '   '+dbo.taxrollDetailAddressSF(abs(@idToken))) not in (select isnull(rowString,'') from @rt)
 					insert @rt select 
-								id*-1,
+								cast('-9' + cast(id as varchar) as int),
 								'   '+dbo.taxrollDetailAddressSF(id),
 								name,
 								parcelNumber,
