@@ -12,6 +12,7 @@ begin
  declare @results table(
   id int identity(1,1),
   method varchar(50),
+  class varchar(50),
   code int,
   message varchar(max),
   tally int,
@@ -22,6 +23,7 @@ begin
 
  declare 
   @methodUnit varchar(50),
+  @class varchar(50),
   @code int = 0,
   @message varchar(max) = '',
   @tally int = 0,
@@ -53,6 +55,7 @@ begin
 
    exec @methodUnit
     @mode = @mode,
+    @class = @class output,
     @code = @code output,
     @tally = @tally output,
     @message = @message output,
@@ -60,7 +63,7 @@ begin
     @guide = @guide output
 
    insert @results
-    select @methodUnit, @code, @message, @tally, 'none', getDate(), '@procName=' + @methodUnit + ';@guide=' + @guide + ';'  
+    select @methodUnit, @class, @code, @message, @tally, 'none', getDate(), '@procName=' + @methodUnit + ';@guide=' + @guide + ';'  
 
    exec dbo.logit @@procId, 'proc', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
 
@@ -83,7 +86,7 @@ begin
   declare @trialId int
   select @trialId = isnull(max(trialId),0) + 1 from dbo.diagnosticResults
   insert dbo.diagnosticResults 
-  select @trialId, id, method, code, message, tally, fixProc, timeStamp, @mode, guideBlob from @results order by id
+  select @trialId, id, method, code, message, tally, fixProc, timeStamp, @mode, guideBlob, class from @results order by id
   return
  end
 
