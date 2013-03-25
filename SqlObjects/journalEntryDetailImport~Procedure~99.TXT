@@ -1,4 +1,4 @@
-create procedure dbo.journalEntryDetailImport ( @jeId int ) as
+create procedure dbo.journalEntryDetailImport ( @jeId int, @adjustToFlag varchar(10) = 'FALSE') as
 begin
 
  exec dbo.logit @@procid, '@jeId', @jeId
@@ -16,7 +16,8 @@ begin
   @idToken int,
   @accountIdToken int,
   @amountToken money,
-  @commentToken varchar(500)
+  @commentToken varchar(500),
+  @currentAccountBalance money
 
  while exists( select * from @wt where processFlag = 0 )
  begin
@@ -26,6 +27,12 @@ begin
    @amountToken = amount,
    @commentToken = comment
   from @wt where processFlag = 0
+
+  if @adjustToFlag = 'TRUE'
+  begin
+   select @currentAccountBalance = sum(amount) from gldetail where accountId=@accountIdToken
+   select @amountToken = @amountToken - @currentAccountBalance   
+  end
 
   exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken
  
