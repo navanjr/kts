@@ -1,0 +1,62 @@
+create proc dbo.diagFix_missingReportModules(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+set nocount on
+----gather the data
+ declare @rt table (reportId int,reportControl varchar(50),template varchar(50),reportModule varchar(50))
+ insert @rt
+  select o.ID, o.Key1,o.key2,o.Key3
+   from object o 
+   inner join template t on o.Key2 = t.id
+   where typ=452
+   and CHARINDEX(o.key3,t.Options)=0
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'Report control records missing report modules on templates',
+   @fixProc = 'exec dbo.diagFix_missingReportModules @method = ''FIX'''
+  from @rt 
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from @rt order by reportModule
+
+  return
+ end
+
+if @method = 'FIX'
+ begin  
+ 
+ declare 
+  @tokenId int,
+  @taxyear numeric(4),
+  @item numeric(7,1),
+  @addBlob varchar(max),
+  @dtype varchar(10) 
+ 
+ delete from object where ID in (select reportId from @rt)
+
+  return  
+ end
+
+end
+
+
