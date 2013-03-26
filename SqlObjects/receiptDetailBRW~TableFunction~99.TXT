@@ -8,7 +8,8 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  sName varchar(50),
  fName Varchar(50),
  origin int,
- colorFlag int 
+ colorFlag int,
+ subDescription2 varchar(125)  
 )
 begin
 
@@ -25,10 +26,15 @@ begin
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
  
  update @rettable 
-      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
 
- update @rettable 
-      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50)  from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+  update @rettable 
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+
+  update @rettable 
+      set subDescription = subDescription2
+
+
 
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
