@@ -19,6 +19,8 @@ printBookReceiptList=;
 @printReceiptList=
  do(452,getSiteInfo=),
  d1select('select a17 from object where typ=40'),
+ d1select('select case when settingvalue = ''TRUE'' then ''Y'' else ''N'' end from dbo.settings where settingname=''site.receiptReportIndetail'''),
+ if(gcPrintDetail<' 0',gcPrintDetail=obj7:d1),
  lcSusMethod=obj7:d1,
  lcReportType=choose(lcSusMethod='S','Station','Deputy'),
  lcReportSort=choose(lcSusMethod='S',1,0),
@@ -79,10 +81,11 @@ printBookReceiptList=;
    prn(,,,lcFontSize-2,,lcDetFont),
    if(lcReportSort=0),do(
      bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a6,800),
-     if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
+     ),
    if(lcReportSort=1),do(
      bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,800),
-     if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000)),
+     ),
+   if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
    lcPenalty=lcPenalty+obj5:a8,
@@ -141,6 +144,7 @@ printBookReceiptList=;
      bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a6,800)),
    if(lcReportSort=1),do(
      bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a14,800)),
+   if(gcPrintDetail='Y' and left(obj5:a1,3)='TAX'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
    lcPenalty=lcPenalty+obj5:a8,
