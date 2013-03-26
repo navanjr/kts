@@ -49,7 +49,8 @@ TO DO: make sure that if a collection account is listed here that the appropriat
 
 if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>'1',prop(005,'7C00H','Apportion')),if(obj:olink2>'1',prop(001,'7C00H','Journal')),set(002,kp('select key1 from object where id='&obj:link1));
 
-@gfwindow=refreshbrw=;
+@gfwindow=
+ refreshbrw=;
 
 @stageprotest=break(obj:a17='Posted'),sql('exec dbo.journalEntryStageGL '&obj:id),refreshbrw=;
 
@@ -82,7 +83,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  \s076+'select balance from glSummary('&obj:id&',''o'')';
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
 \t077ImportToolsFlag; \h077078;r
-\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r
+\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r @acc102=tsc;
 \t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
 
 \t118Adjust To; \h118obj:c1<>1; \y118322;
@@ -132,7 +133,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
   trreport('JournalReportGL',4790,'journalReportGL=');
 
 
-\t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0; \h110obj:a17='Posted';
+\t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0 or (obj:a18='CORRECTION' and len(clip(obj:e1))=0); \h110obj:a17='Posted';
 
 @invoiceUpdate=d1select('exec dbo.invoiceUpdateAll '&obj:id+0);
 
@@ -259,7 +260,12 @@ iw('@afterloadwindow=set(-03,'&gccontraId&');
  break(gcretval<>2),
  update,
  d1select('dbo.glPost '&obj:id&', ''o'''),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),postSuccess=);
+
+@postSuccess=
+ acc109=,
+ close('ok');
+ lcClosewindow=1,
 
 @acc351=
  if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
