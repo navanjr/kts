@@ -1,0 +1,41 @@
+create procedure dbo.glDetailSync(
+ @typ int,
+ @slink varchar(15),
+ @postDate varchar(50)
+) as 
+begin
+
+ declare
+  @fpCode varchar(10),
+  @fpId int,
+  @fpLock int,
+  @log varchar(1000)
+
+ select
+  @fpCode = fpCode,
+  @fpId = fpId,
+  @fpLock = locked
+ from dbo.fiscalCalendar
+ where @postDate between startDate and endDate
+ 
+ if isnull(@fpLock,1) = 1
+ begin
+  set @log = 'Fiscal period is locked or missing. Contact a System Administrator to Unlock this period. (@fpCode:' + isnull(@fpCode,'null') + ';@typ:' + cast(@typ as varchar) + ')'
+  rollback transaction
+  exec dbo.logit @@procId, @log
+  Raiserror(@log, 16, 1)
+  return
+ end
+ 
+ update a set
+  a.date = @postDate,
+  a.fpCode = @fpCode,
+  a.fpId = @fpId
+ from dbo.glDetail a
+ where a.slink = @slink
+
+ exec dbo.logit @@procId, 'Just Updated... @@rowCount', @@rowCount, '@typ', @typ, '@postDate', @postDate
+
+ return
+
+end
