@@ -73,6 +73,15 @@ begin
    and c.invoiceId > 0
   group by c.invoiceId, c.typ
 
+ update @rettable 
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=ltrim(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)) and  RIGHT(ord,2)='az' 
+
+  update @rettable 
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50) and RIGHT(ord,2)='az' 
+
+  update @rettable 
+      set subDescription = subDescription2 where RIGHT(ord,2)='az'   
+
   if @showFunds = 1
   begin
 -- get subInvoice and Invoices exclude tax invoice
