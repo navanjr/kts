@@ -33,7 +33,8 @@ and isnull(bsId,-1) not in (select id from object where typ=4780) ) order by deb
  case when left(contraPaymentType,6)=''cancel'' then ''Cancelled'' else contraPaymentType end, dbo.date1(contraPostDate)
  from dbo.paymentReports(''Bank'','&gcAsOfDate+0&') a, object b
  where b.typ=4771 and b.id = dbo.slinkId(a.slink)
- and isnull(a.paymentType,'''') like ''%voucher%''',
+ and isnull(a.paymentType,'''') like ''%voucher%'' 
+ order by b.b3,postdate,controlnumber,dbo.popro6(foreignNumber,6,1)',
   lcRecCnt=0,
   lcVoucherTotal=0,
   lcBank1='',
@@ -141,7 +142,7 @@ tr(
     case when amount<=0 then amount*-1 else 0 end    
       from dbo.payments where paymentType like ''%VOUCHER%'' and slink in 
       (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
-      and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared, dbo.popro6(clerksNumber,6,1)  ',
+      and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared,debitAccountDesc, dbo.popro6(clerksNumber,6,1)  ',
 
  tr(landscape,
   prn(printed),
