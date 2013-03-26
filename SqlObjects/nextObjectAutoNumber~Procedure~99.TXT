@@ -1,8 +1,10 @@
 create procedure dbo.nextObjectAutoNumber(
  @typ int,
  @seriesString varchar(50),
+ @additionalWhereClause varchar(500) = null,
  @ignoreDeleted varchar(10) = 'FALSE',
- @newNumber nvarchar(max) output 
+ @debugMode varchar(5) = 'FALSE',
+ @newNumber nvarchar(max) = null output 
 ) as
 -- this function looks for \0002 in the template code to know what format to return the next number as
 --  also, looks for @seriesField= to know what object column to find the series data
@@ -33,6 +35,10 @@ begin
   if isNull(@seriesString,'') > '  0'
    select @sql = @sql + N'  and ''' + @seriesString + ''' = dbo.nextObjectAutoNumberControl(' + cast(@typ as varchar) + ',' + @seriesField + ')'
 
+  if isNull(@additionalWhereClause,'') > '  0'
+   select @sql = @sql + N'  and ' + @additionalWhereClause
+
+
   select @params = N'@returnThis varchar(50) output'
 
   exec sp_executesql @sql, @params, @returnThis = @newNumber output
@@ -46,9 +52,13 @@ begin
   + ';@sql=' + isnull(@sql,'null')
   + ';'
 
--- exec dbo.logit @@procid, 'SQL=', @sql
--- exec dbo.logit @@procid, 'blob', @blob
- exec dbo.logit @@procid, '@newNumber', @newNumber  
+ if @debugMode = 'TRUE'
+ begin
+  exec dbo.logit @@procid, 'SQL=', @sql
+  exec dbo.logit @@procid, 'blob', @blob
+  select @newNumber
+ end
+ exec dbo.logit @@procid, '@newNumber', @newNumber, '@additionalWhereClause', @additionalWhereClause  
 
  return
 end
