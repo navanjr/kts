@@ -21,7 +21,7 @@ if @depositId = 0
   insert @rt
    select   
      receiptType+': '+receiptNo,
-     amount,
+     dbo.formatCurr(amount),
      paycode+' '+checkno,
      rtrim(drawnon)+case when drawnon>'  0' then ' / ' else '' end+location,    
      case when paycodeDepositType>'  0' then case when paycodeDepositType='E' then 'ETR' else 'CCard' end else paycode end,
@@ -49,19 +49,19 @@ if @depositId = 0
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp
          
   insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select Deputy+' '+paycode,'',SUM(cast(amount as money)),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode
+	select Deputy+' '+paycode,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,paycode,recTyp
 
   insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select Deputy+' Total','',SUM(cast(amount as money)),Deputy+recTyp+'zzzzccc3',Deputy+' Total'
+	select Deputy+' Total','',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+'zzzzccc3',Deputy+' Total'
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp		
 
   insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select paycode,'',SUM(cast(amount as money)),'zzz'+paycode+'ddd1',paycode
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ddd1',paycode
 	from @rt  where RIGHT(ord,3)='bbb' group by paycode	
 	
   insert @rt (receivedOf,ref,Amount,ord)
-	select 'Report Total','',SUM(cast(amount as money)),'zzzzeee'
+	select 'Report Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzeee'
 	from @rt  where RIGHT(ord,3)='bbb' 	
 
  end
