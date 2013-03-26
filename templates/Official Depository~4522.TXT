@@ -74,9 +74,15 @@ lmode=2;
   m('The Deposit number provided is not the one expected.  There may be a skip in your deposit sequence');
 
 
-\t108&Post and Print; @acc108=if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Post this to the General Ledger & Print?','Posting...',,6,4)),
-  if(gcretval=2,postAndPrint=);\d046;
- \w04204487;r2
+\t108&Post and Print; 
+@acc108=
+  if(obj:a1='',m('Please fill in "Received From".','missing info...')),
+  break(obj:a1=''),
+  if(obj:a2='',m('Please fill in "Official Account".','missing info...')),
+  break(obj:a1='' or obj:a2=''),
+  if(obj:a17='Posted',postAndPrint=,m('Are you sure you want to Post this to the General Ledger & Print?','Posting...',,6,4)),
+  if(gcretval=2,postAndPrint=);
+\d046; \w04204487;r2
 
 \t019Paycode; \l0204505; \w02050; @sel020=; @lmode020=2;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
