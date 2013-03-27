@@ -1,19 +1,19 @@
-\t047de_1; \x0483; \w04840;
-\t049de_2; \x05044; \w05050; \t050@d1;
-\t051de_3; \x05295; \w052196;
-\t053de_4; \x054292; \p0547c0ch,1 \w05450;
-\t055de_5; \x056342; \w056141; \l0564701; @nopop056; @lf056='typ=4701 and a1=''PURPOSE''',2;
+\t047de_1; \x0483; \w04840; \p0487cfah,13217535;
+\t049de_2; \x05044; \w05050; \t050@d1; \p0507cfah,13217535;
+\t051de_3; \x05295; \w052196; \p0527cfah,13217535;
+\t053de_4; \x054292; \p0547c0ch,1 \w05450; \p0547cfah,13217535;
+\t055de_5; \x056342; \w056141; \l0564701; @nopop056; @lf056='typ=4701 and a1=''PURPOSE''',2; \p0567cfah,13217535;
  \h047056;r2 \y048056190;r2
  \h048056obj:c1<>1;r2
  h066obj:c1<>1;
 
-\t025wde_1; \x0263; \w02650;
-\t027wde_2; \x02854; \w02840; \l0284704;r028004;
-\t029wde_3; \x03094; \w03040;
-\t031wde_4; \x032135; \w03250; \t032@d1;
+\t025wde_1; \x0263; \w02650; \p0267cfah,13217535;
+\t027wde_2; \x02854; \w02840; \l0284704;r028004; \p0287cfah,13217535;
+\t029wde_3; \x03094; \w03040; \p0307cfah,13217535;
+\t031wde_4; \x032135; \w03250; \t032@d1; \p0327cfah,13217535;
 \t033wde_5; \x034186; \w03450;
-\t035wde_6; \x036236; \w03650; \t036@n-19.2;
-\t037wde_7; \x038287; \w038196;
+\t035wde_6; \x036236; \w03650; \t036@n-19.2; \p0367cfah,13217535;
+\t037wde_7; \x038287; \w038196; \p0387cfah,13217535;
  \h025038;r2 \y026038190;r2
  \h026038obj:b15<>1;r2
 
@@ -113,13 +113,38 @@
  create(551,12,500,260,'&Warrants',76),
  create(552,12,500,272,'&Edit Raw Data',84),
  update,
+ bankaccount=, 
  brwstuff=;
 
 @afterloadwindow=
  refreshBRW=;
 
-@acc550=set(78,1),set(76,0),if(len(clip(obj:e1))+0>0,clearmemo=),refreshBRW=; 
-@acc551=set(78,0),set(76,1),if(len(clip(obj:e1))+0>0,clearmemo=),refreshBRW=; 
+@bankaccount=if(obj:b15+0=1,bankaccountWarrant=),
+             if(obj:c1+0=1,bankaccountVoucher=);
+
+@bankaccountWarrant=
+ d1select('select a1 from object where typ=1515 and key1=''Warrant'''),
+ lcwarrantaccount=obj7:d1,
+ d1select('select accountDesc from glaccounts where accountcode='''&lcwarrantaccount&''''),
+ lcwarrantaccountdesc=obj7:d1,
+ set(6,lcwarrantaccount),
+ set(44,lcwarrantaccountdesc),
+ update;
+
+@bankaccountVoucher=
+ d1select('select dbo.isOfficialBank('''&obj:key3&''')'),
+ break(obj7:d1='TRUE'),
+ set(2,''),
+ set(4,''),
+ set(6,''),
+ set(42,''),
+ set(44,''),
+ focus(002)
+;
+
+
+@acc550=set(78,1),set(76,0),if(len(clip(obj:e1))+0>0,clearmemo=),bankaccount=,refreshBRW=; 
+@acc551=set(78,0),set(76,1),if(len(clip(obj:e1))+0>0,clearmemo=),bankaccount=,refreshBRW=; 
 @acc552=refreshBRW=,if(obj:c4=1,focus(102)); 
 
 @brwstuff=
@@ -162,11 +187,13 @@
 \h001004obj:c1+0=0;r
 \h041042obj:c1+0=0;r
 \t001Received From;  \l0024601,2;r002002004012006014042050044052;  @acc002=calcfld(082),clearmemo=,updateRegisterNumber=;
-
+ \q002obj:c1+0=1;
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL'' and b3!=1',2;
+ \q004obj:c1+0=1;
  \t041OfficialAccountDesc; \h041; \d042; \x042184; \w042151;
  @acc004=calcfld(080),clearmemo=,updateRegisterNumber=;
 \t005Bank Account; \l0064701;r006002044004; @lf006='a1=''BANK'' and b3!=1',2; @acc006=clearmemo=,updateRegisterNumber=;
+ \q006;
  \t043OfficialBankDesc; \h043; \d044; \x044184; \w044151;
 
 @updateRegisterNumber=set(48,obj:c3+1);
