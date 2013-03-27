@@ -136,7 +136,7 @@ insert @wt
   @ordSeed + ord + 'b',
   case when description = 'Apportionment Receivable' 
    then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft('',' ',16)
-   else dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount)
+   else dbo.dailyDataFormatCollections(subDescription,minControlNumber,maxControlNumber,rowCnt,amount,case when description='Depository' then 43 else 28 end)+case when description='Depository' then '' else dbo.padLeft(convert(varchar,glBalance*-1,1),' ',16) end
   end,  
   dbo.padLeft(convert(varchar,glBalance,1),' ',16),
   '   ' + dbo.padRight(subDescription,' ',61),  
@@ -181,9 +181,9 @@ insert @wt
  select
   0,
   @ordSeed + ord + 'd',
-  dbo.padRight('      Total ' + description, ' ', 60)
+  dbo.padRight('      Total ' + description, ' ', case when description='Depository' then 60 else 45 end)
   + dbo.padLeft(cast(sum(rowCnt) as varchar), ' ', 4)
-  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
+  + dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16)+case when description='Depository' then '' else dbo.padLeft(convert(varchar,sum(glBalance)*-1,1),' ',16) end,
   '',
   dbo.padRight('      Total ' + description, ' ', 60),
   '',
