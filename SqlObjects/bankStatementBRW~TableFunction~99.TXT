@@ -103,7 +103,21 @@ begin
    else
     fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
    end
- where rowtype = 0
+ where rowtype = 0 and template not in ('deposits')
+
+ update @rt set
+  description = '      ' + 
+   dbo.padLeft(instrumentNumber,'0',6) 
+    + '   ' + 
+    case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
+  ord = case when @orderByVoucherFlag = 1 then 
+    paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
+    when @orderByClearedFlag = 1 then
+    dateCleared
+   else
+    fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+   end
+ where rowtype = 0 and template in ('deposits')
 
 -- add Period headers for the account details
  if @orderByVoucherFlag <> 1 and @orderByClearedFlag <> 1
