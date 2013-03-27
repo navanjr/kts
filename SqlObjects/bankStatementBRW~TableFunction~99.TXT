@@ -54,7 +54,12 @@ begin
   a.depositDate = b.key2,
   a.instrumentNumber = b.key1,
   a.instrumentNumber2 = b.key3,
-  a.subDescription = b.a2, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
+  a.subDescription = case b.a18
+   when 'Treasurers Check' then
+    'Payment #' + b.key1
+   else
+    b.a2
+   end, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
   paymentType = b.a18,
   template = c.template,
   a.typ = b.typ
@@ -75,14 +80,21 @@ begin
  where template = 'Journal Entries' and rowType = 0
 
 -- payment Fixes except miscellaneous
- update @rt set 
-  instrumentNumber = instrumentNumber2
- where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
+-- update @rt set 
+--  instrumentNumber = instrumentNumber2
+-- where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
 
 
 -- set description and ord
  update @rt set
-  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + 
+  description = '  ' + 
+  case when @orderByVoucherFlag <> 1 then
+   dbo.padLeft(instrumentNumber,'0',6) + ' / ' + dbo.padLeft(instrumentNumber2,'0',6)
+  else
+   dbo.padLeft(instrumentNumber2,'0',6) + ' / ' + dbo.padLeft(instrumentNumber,'0',6)
+  end
+    + '   ' + 
+--  description = '   ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + 
     case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
   ord = case when @orderByVoucherFlag = 1 then 
     paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
@@ -115,7 +127,7 @@ begin
    insert @rt (id,description,ord,rowType,origin)
     select
      0,
-     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      paymentType + 'a',
      2,4 
     from @rt 
@@ -127,7 +139,7 @@ begin
    insert @rt (id,description,ord,rowType,origin)
     select
      0,
-     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      fpCode +  paymentType + 'a',
      2,5 
     from @rt 
