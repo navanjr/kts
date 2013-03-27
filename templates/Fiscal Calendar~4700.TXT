@@ -13,7 +13,25 @@ fastinsert;
 @save;
 @loadwindow=
  create(39,12,120,1,,40),
- brw(150,1,'select gl.link1,sum(cast(gl.key3 as money)),sum(cast(gl.a1 as money)) from object gl where gl.typ=204 and gl.link3='&obj:id&' group by gl.link1 having sum(cast(gl.key3 as money)) <> sum(cast(gl.a1 as money))',63,119,100,100,'50R(2)~Debits~@n-12.2@#2#|M50R(2)~Credits~@n-12.2@#3#|M');
+ brwStuff=;
+
+@brwStuff=
+ break(gcadmin<>1),
+ brw(150,1,'select id, sourceType + '' - '' + sourceA18, tally from dbo.fpStatisticsBRW('''&obj:key1&''',null)',63,119,200,200,'150L(2)~Source~#2#|M50R(2)~Count~@n-12.0@#3#|M');
+@lbrwclick150=
+ break(gcadmin<>1),
+ lcDataLabel=kp('select sourceType + '' - '' + sourceA18 from dbo.fpStatisticsBRW('''&obj:key1&''',null) where id = '&kpbrwid(1)),
+ m('General Ledger Data Source: '&lcDataLabel&'|Fiscal Period: '&obj:key1&'||   *** this is NOT reverseable *** | DO YOU KNOW WHAT YOU ARE DOING?|','Right Click Menu...','exclaim.ico','&Run a Backup|&Purge Data|&Cancel'),
+ if(gcretval=1,do(40,acc059=)),
+ if(gcretval=2,purgedata=);
+ 
+@purgedata=
+ m('Are you sure you wish to proceed with this purge?','Purge Data...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.fpPurgeData @fpCode='''&obj:key1&''',@brwid='&kpbrwid(1)),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Purge Data...')),
+ brwreload(1),
+ calcfld(016),calcfld(018);
  
 @sel106=if(obj:a17=0,set(40,'',1));
 
@@ -62,6 +80,6 @@ t009Working Days;  t010@n-12;   w01025;
 
 \t015Debits;  \w01670;  \t016@n14.2; \p0167cfah,13499135; \p0167c13h,700; \p0167c0ch,1; \s016+'select sum(amount) from glDetail where amount > 0 and fpId='&obj:id;
 \t017Credits;  \w01870;  \t018@n14.2; \p0187cfah,13499135; \p0187c13h,700; \p0187c0ch,1; \s018+'select abs(sum(amount)) from glDetail where amount < 0 and fpId='&obj:id;
-\t019db<>cr;  \h020;
+\t019Details;  \h020; \h019gcadmin<>1;
 
-\t039&Lock Period;  \h040;
+\t039&Lock Period;  \h040; @acc039=update;

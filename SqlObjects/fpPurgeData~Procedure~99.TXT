@@ -1,0 +1,61 @@
+create procedure dbo.fpPurgeData(
+ @fpCode varchar(10),
+ @brwid int
+) as 
+begin
+
+ declare 
+  @sourceType varchar(50),
+  @sourceA18 varchar(50),
+  @fpLock int,
+  @log varchar(max),
+  @templateName varchar(50)
+
+ select 
+  @sourceType = sourceType,
+  @sourceA18 = sourceA18
+ from dbo.fpStatisticsBRW(@fpCode,null) 
+ where id = @brwId
+
+ select @fpLock = locked from dbo.fiscalCalendar where fpCode = @fpCode
+ select @templateName = template from template where cast(id as varchar) = @sourceType
+
+ exec dbo.logit @@procid, '@fpCode', @fpCode, '@brwid', @brwid, '@sourceType', @sourceType, '@sourceA18', @sourceA18
+
+-- bail if we are locked
+ if nullif(isnull(@fpLock,1),'') = 1
+ begin
+  set @log = '@code=1;@message=I am sorry we can not proceed as the Fiscal Period is locked/missing(@fpCode:' + @fpCode + ');@fpLock:' + cast(@fpLock as varchar)
+  exec dbo.logit @@procid, @log
+  select @log
+  return
+ end
+
+-- bail if sourceType is not a valid object typ
+ if isnull(@templateName,'') = ''
+ begin
+  set @log = '@code=1;@message=I am sorry we can not Purge data of this type at this time.(' + @sourceType + ');'
+  exec dbo.logit @@procid, @log
+  select @log
+  return
+ end
+ 
+ declare @slinks slinks 
+ insert @slinks select slink from dbo.fpStatisticsBRW(@fpCode,@brwid)
+
+ exec dbo.logit @@procId, 'Preparing to Purge Data... @@rowCount', @@rowCount
+ begin transaction
+ exec dbo.logit @@procId, 'Created SQL Transaction...'
+
+-- delete gldetail
+ delete glDetail where slink in (select slink from @slinks)
+ exec dbo.logit @@procId, 'Purged glDetail... @@rowCount', @@rowCount
+-- delete object
+ delete object where id in (select dbo.slinkId(slink) from @slinks)
+ exec dbo.logit @@procId, 'Purged object... @@rowCount', @@rowCount
+
+ commit transaction
+ exec dbo.logit @@procId, 'Committed SQL Transaction.'
+
+ return
+end
