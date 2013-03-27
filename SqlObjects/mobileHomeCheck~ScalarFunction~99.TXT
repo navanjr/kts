@@ -1,0 +1,22 @@
+create function dbo.mobileHomeCheck(
+ @receiptId int
+) returns int as
+begin
+ declare @retInt int = 0
+
+ if dbo.settingsF('site.offerDecalOnReceipt','FALSE') = 'TRUE'
+  select
+   @retInt = count(*) 
+  from
+   receiptlink rl,
+   invoices i,
+   adtax a 
+  where rl.receiptid = @receiptId
+   and rl.invoiceid = i.id
+   and i.taxrollid = a.id
+   and i.typ <> 'S'
+   and isnull(i.taxrollid,0) > 0
+   and isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],a.id,'056'),0) > 0 
+ 
+ return @retInt
+end
