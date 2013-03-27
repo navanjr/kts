@@ -1,0 +1,56 @@
+create function dbo.fpStatisticsBRW(
+ @fpCode varchar(10),
+ @brwId int = null
+) returns @rt table(
+ id int identity(-1,-1),
+ sourceType varchar(50),
+ sourceA18 varchar(50),
+ tally int,
+ slink varchar(15)
+) as
+begin
+-- pass me a null @brwId and ill return all the statistics for the fiscal period.  
+-- pass me a real brwId and ill return a list of all the slinks for that sourceType
+
+ declare 
+  @sourceType varchar(50),
+  @sourceA18 varchar(50)
+
+ if isnull(@brwId,0) < 0
+ begin
+  select 
+   @sourceType = sourceType,
+   @sourceA18 = sourceA18
+  from dbo.fpStatisticsBRW(@fpCode,null) 
+  where id = @brwId
+ 
+  insert @rt
+  select
+   sourceType,
+   sourceA18,
+   count(id),
+   slink
+  from glDetailReports
+  where fpCode = @fpCode
+   and sourceType = @sourceType and sourceA18 = @sourceA18
+  group by sourceType, sourceA18, slink
+  order by sourceType, sourceA18, slink
+
+ end
+ else
+ begin
+
+  insert @rt
+  select
+   sourceType,
+   sourceA18,
+   count(distinct slink),
+   null
+  from glDetailReports where fpCode = @fpCode
+  group by sourceType, sourceA18
+  order by sourceType, sourceA18
+
+ end
+
+ return
+end
