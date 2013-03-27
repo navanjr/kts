@@ -1,0 +1,78 @@
+create proc dbo.diagFix_missingAccountGLDetail(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+
+ if @method = 'GET'
+ begin  
+
+  if @mode != 'heavy'
+  begin
+   select
+    @class = 'General',
+    @guide = 'GET|SHOW|FIX',
+    @code = 0, 
+    @message = 'SKIPPED - missing account glDetail - Heavy proc'
+   return
+  end
+
+  declare @rt table(accountId int,accountCode varchar(60), accountDesc varchar(50),cnt int)
+
+
+  insert @rt
+  select
+   accountId,
+   accountCode,
+   accountDesc,
+   count(*)
+  from gldetail 
+   where accountCode not in (select accountCode from dbo.glaccounts)
+  group by accountId,
+   accountCode,
+   accountDesc
+
+   select 
+    @guide = 'GET|SHOW|FIX',
+    @tally = sum(cnt),
+    @code = case when count(*) > 0 then 1 else 0 end,  
+    @message = 'missing account glDetail',
+    @fixProc = 'exec dbo.diagFix_missingAccountGLDetail @method = ''FIX'''
+   from @rt
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select
+   accountId,
+   accountCode,
+   accountDesc,
+   count(*)
+  from gldetail 
+   where accountCode not in (select accountCode from dbo.glaccounts)
+  group by accountId,
+   accountCode,
+   accountDesc
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  delete
+  from gldetail 
+   where accountCode not in (select accountCode from dbo.glaccounts)
+
+ end
+
+
+end
