@@ -38,7 +38,7 @@ begin
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
  insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
- select id* -1, fpid, fpCode, slink,
+ select dbo.bsIdEncoder(1,id), fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
   case when amount < 0 then amount*-1 else 0 end,
   slink,
@@ -79,12 +79,6 @@ begin
   subDescription = instrumentNumber2
  where template = 'Journal Entries' and rowType = 0
 
--- payment Fixes except miscellaneous
--- update @rt set 
---  instrumentNumber = instrumentNumber2
--- where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
-
-
 -- set description and ord
  update @rt set
   description = '  ' + 
@@ -94,7 +88,6 @@ begin
    dbo.padLeft(instrumentNumber2,'0',6) + ' / ' + dbo.padLeft(instrumentNumber,'0',6)
   end
     + '   ' + 
---  description = '   ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + 
     case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
   ord = case when @orderByVoucherFlag = 1 then 
     paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
@@ -181,7 +174,7 @@ begin
 
 -- get the warrants
  insert @rt (id, description, subDescription, dbAmount, ord, origin, fundGrouping)
-  select b.id,
+  select dbo.bsIdEncoder(9,b.id),
    '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
    b.a2,
    sum(a.amount),
@@ -196,10 +189,12 @@ begin
   having sum(amount) > 0
  
 -- add header rows for fund
- insert @rt (id, description, ord, rowType, origin)
+ insert @rt (id, description, subDescription, ord, rowType, origin)
  select 
   0,
-  '-- ' + fundGrouping + ' - ' + t.accountDesc, 'ww' + fundGrouping, 2, 11
+  '-- ' + fundGrouping + ' - ' + t.accountDesc,
+  dbo.padLeft('Balance: $' + dbo.formatCurr(dbo.glAccountBalance(fundGrouping)),' ',50),
+  'ww' + fundGrouping, 2, 11
  from @rt r
  left join glAccounts g on g.accountcode = r.fundGrouping
  left join glAccounts t on t.accountcode = g.targetAccountCode
