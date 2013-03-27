@@ -1,0 +1,52 @@
+CREATE function dbo.paidVouchersReport(@beginDate int,@endDate int) 
+ returns
+ @rt table(actionDate varchar(50),registerDate varchar(50),controlNumber varchar(50),registerNumber varchar(50),toWhom varchar(50),fundAccount varchar(50),vType varchar(10), TotalAmount varchar(50),paidAmount varchar(50), contraAmount varchar(50),ord varchar(250))
+ as
+ begin
+
+insert @rt
+ select 
+  dbo.date1(contraPostDate),
+  dbo.date1(postDate),
+  controlNumber,
+  foreignNumber,
+  payee,
+  fundAccount,
+  case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' else left(contraPaymentType,1) end,
+  naturalamount*-1,
+  (naturalamount*-1)-contraAmount,
+  contraAmount,
+  fundaccount+'b'
+ from dbo.paymentReports('BANK',@endDate,'TRUE') a
+ where paymentType like '%Voucher%'
+   and contraPaymentType is not null  
+   and contraPostDate >= @beginDate
+   and contraPostDate <= @endDate
+
+insert @rt (toWhom,totalAmount,paidAmount,contraAmount,ord)
+ select 
+  fundaccount+' Total',
+  sum(cast(TotalAmount as money)),
+  sum(cast(paidAmount as money)-cast(contraAmount as money)),
+  sum(cast(contraAmount as money)),
+  fundaccount+'c'
+ from @rt group by fundaccount
+
+
+insert @rt (toWhom,totalAmount,paidAmount,contraAmount,ord)
+ select 
+  'GRAND TOTAL',
+  sum(cast(TotalAmount as money)),
+  sum(cast(paidAmount as money)-cast(contraAmount as money)),
+  sum(cast(contraAmount as money)),
+  +'zzzz'
+ from @rt    
+
+update @rt set
+ totalAmount = dbo.formatcurr(totalAmount),
+ paidAmount = dbo.formatcurr(paidAmount),
+ contraAmount = dbo.formatcurr(contraAmount)
+
+
+  return
+ end
