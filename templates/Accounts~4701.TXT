@@ -12,7 +12,8 @@
  lcAcctType=choose(filter,'','BANK','SUSPENSE','SOURCE','FUND','','WARRANT','OFFICIAL','PURPOSE','SCHOOL','CITY'),
  lcTypeDesc=kp('select key2 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
  lcTypeRptCode=kp('select key3 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
- new(4701,,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode);
+ lcDailyDesc=kp('select a1 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
+ new(4701,,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode,014=lcDailyDesc);
 
 @bb2=Misc Deposit;
 @bbproc2=
@@ -142,14 +143,14 @@
 
 @refreshDetail=brwreload(1);
 
-\t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250;
-\t003Description;   \e004;
+\t001Account #;  \u002;    \d002obj:key1>'  0';  \w00250; \q002;
+\t003Description;   \e004; \q004;
 \t005Code;  \u006;  \t006@s10;  \w00650;  
    @acc006=update,
      d1select('select count(*) from object where typ=4701 and key3='''&OBJ:Key3&''''),
      if(obj7:d1>1 and obj:key3>'0','pfcode=');  
    @pfcode=message('Code already in use.'),set(006,''),focus(006);
-\t007Type; \l0084702;r008002010004012006;  \q008;  \w00850;
+\t007Type; \l0084702;r008002010004012006014008;  \q008;  \w00850;
 \t009Description;  \d010;
 \t011Report Code;  \d012;  \w01225;  \w01250;
 \t013Daily Description; \w013100; \l0144703;
