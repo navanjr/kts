@@ -1,6 +1,7 @@
 create function dbo.paymentReports(
  @accountType varchar(50),
- @asofDate int
+ @asofDate int,
+ @includeAsOfBalanceZeros varchar(5) = null
 ) returns @rt table(
  slink varchar(15),
  contraSlink varchar(15),
@@ -18,6 +19,7 @@ create function dbo.paymentReports(
  payee varchar(50),
  foreignNumber varchar(50),
  foreignDate int,
+ fundAccount varchar(60),
  contraPaymentType varchar(50),
  contraControlNumber varchar(50),
  contraPostDate int,
@@ -28,6 +30,8 @@ create function dbo.paymentReports(
  dateCleared varchar(50)
 ) as
 begin
+
+ set @includeAsOfBalanceZeros = coalesce(@includeAsOfBalanceZeros,'FALSE')
 
  declare @accounts table(accountCode varchar(50), targetAccountCode varchar(50), targetAccountDesc varchar(50))
  insert @accounts 
@@ -49,22 +53,23 @@ begin
   dateMax = max(g.date),
   COUNT(g.id),
   null,null,null,null,
-  null,null,null,null,null,null,null,
+  null,null,null,null,null,null,null,null,
   rtrim(a.targetAccountCode) + ' - ' + a.targetAccountDesc,
   max(g.bsId),
   max(case when @accountType='Bank' then dateCleared else @asofDate end)
  from glDetail g
  join @accounts a on a.accountCode =g.accountCode 
-  where case when @accountType='Bank' then dateCleared else 99999 end > @asofDate 
-     or isnull(dateCleared,0)=0
+  where @includeAsOfBalanceZeros = 'TRUE' or (case when @accountType='Bank' then dateCleared else 99999 end > @asofDate 
+     or isnull(dateCleared,0)=0)
  group by
   coalesce(g.slink2,g.slink),
   g.accountCode,
   a.targetAccountCode, 
   a.targetAccountDesc 
  having
+  @includeAsOfBalanceZeros = 'TRUE' or (
   SUM(case when g.date < = @asOfDate then amount else 0 end) != 0 
---  and min(g.date) < = @asOfDate -- i dont think i need this as the balanceAsOf != 0 would catch them
+  and min(g.date) < = @asOfDate) -- i dont think i need this as the balanceAsOf != 0 would catch them
  order by
   coalesce(g.slink2,g.slink)
 
@@ -74,7 +79,8 @@ begin
   a.postDate = b.key2,
   a.payee = b.a2,
   a.foreignNumber = b.key3,
-  a.foreignDate = b.a1
+  a.foreignDate = b.a1,
+  a.fundAccount = case when b.a18 like '%Voucher%' then b.b3 else '' end
  from @rt a
  join object b on dbo.slinkId(a.slink) = b.id
  where b.typ=4771
