@@ -48,6 +48,14 @@ begin
   goto bail
  end
 
+-- bail if the period is locked
+ if (select fpStatus from dbo.glStatus(@slink)) != 'UNLOCKED'
+ begin
+  select @log = '@code=1;@message=Sorry. The fiscal period is locked.'
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+  goto bail
+ end
+
 -- bail if we are trying to void on the wrong day
  if dbo.settingsF('site.voidOnlyOnPostDate','TRUE') = 'TRUE'
   and (select postdate from dbo.glStatus(@slink)) != dbo.clarionToday()
@@ -80,6 +88,19 @@ begin
   return
  end
 
+-- canceling/voiding cancel payments
+-- Deleting glDetail and hiding object records
+ if @paymentType in ('Cancel Voucher','Cancel Warrant') and @method = 'VOID'
+ begin
+  exec dbo.paymentCRUD @mode = 3, @id = @id, @paymentType = @paymentType, @postOverride = 'TRUE'
+  return
+ end
+ if @paymentType in ('Cancel Voucher','Cancel Warrant') and @method = 'CANCEL'
+ begin
+  exec dbo.paymentCRUD @mode = 3, @id = @id, @paymentType = @paymentType, @postOverride = 'TRUE', @deleteObject = 'TRUE'
+  return
+ end
+ 
  select @log = '@code=1;@message=' + dbo.proper(@method) + 'ing of ' + @paymentType + ' is not yet supported, Please Contact Support.;'
    + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
  goto bail
