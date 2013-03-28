@@ -5,7 +5,8 @@ create procedure dbo.officialDepositCRUD(
  @debugMode varchar(5) = 'FALSE',
  @depositDate int = null,
  @linkTrust varchar(5) = 'TRUE',
- @newObjectId int = null output
+ @newObjectId int = null output,
+ @voidDeposit varchar(5) = 'FALSE'
 ) as
 begin
  
@@ -90,8 +91,14 @@ begin
   begin transaction
 
 --remove official deposit (object) and gl and paid records
-
-   update object set typ = -4522 where typ = 4522 and id = dbo.slinkId(@slink)
+   if @voidDeposit <> 'TRUE'
+    begin
+     update object set typ = -4522 where typ = 4522 and id = dbo.slinkId(@slink)
+    end
+   else
+    begin
+     update object set a17 = 'VOID' where typ = 4522 and id = dbo.slinkId(@slink)
+    end
    delete paid where slink = @slink
    update paid set officialDepositId = 0 where officialDepositId = @depositId
 

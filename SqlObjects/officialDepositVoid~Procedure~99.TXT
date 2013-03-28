@@ -1,0 +1,62 @@
+create proc dbo.officialDepositVoid(
+ @receiptId int,
+ @debugMode varchar(5) = 'FALSE'
+) as 
+begin
+ exec dbo.logit @@procid, '@officialDepositId', @receiptId
+
+ declare
+  @postDate int,
+  @fpId int,
+  @resultCode int,
+  @newId int,
+  @receiptSlink varchar(15) = 'o' + cast(@receiptId as varchar),
+  @jeDescription varchar(50) = 'Credit/Void official deposit id:' + cast(@receiptId as varchar),
+  @log varchar(max),
+  @jeId int 
+
+-- get the postdate
+ select @postdate = dbo.clariondate(getDate())
+ 
+ select @fpId = dbo.glGetFiscalPeriodid(@postDate)
+
+ exec dbo.logit @@procid, '@receiptSlink', @receiptSlink
+
+ -- bail if the period is closed
+ if isnull(@fpId,0) < 1
+ begin
+  exec dbo.logit @@procid, 'Period closed... @fpid', @fpid
+  select '@code=1;@message=Fiscal Period is closed... You can not void this receipt.'
+  return
+ end
+
+ -- bail if this has already been voided/canceled
+ if exists (select * from dbo.journalLink where receiptid = @receiptId)
+ begin
+  select top 1 @jeId = jeId from dbo.journalLink where receiptId = @receiptId
+  exec dbo.logit @@procid, 'Appears Void already exists... @jeId', @jeId
+  select '@code=1;@message=Void already exists... Can not continue.'
+  return
+ end
+
+ -- bail if effected payments have already been deposited
+ if exists(select * from paid where slink = @receiptSlink and depositId > 0)
+ begin
+  exec dbo.logit @@procid, 'Can not void this receipt as it has already been attached to a deposit.'
+  select '@code=1;@message=Sorry, Receipt linked to a deposit can not be voided.;'
+  return
+ end
+
+ -- TODO: bail if there is no balance. like if it was done wrong
+
+ -- TODO: dont forget a sql transaction
+
+ -- ok so for now we will just will erase all the glDetail and flag the receipt, invoices and payments as VOID
+
+ 
+ exec dbo.officialDepositCRUD 3, @receiptId, @voidDeposit = 'TRUE', @deletePosted = 'TRUE' 
+
+-- TODO: void by reversing entry
+ 
+ return
+end
