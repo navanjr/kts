@@ -32,7 +32,8 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[heading9] varchar(50) NOT NULL default '',
 	[heading10] varchar(50) NOT NULL default '',
 	[heading11] varchar(50) NOT NULL default '',
-	[heading12] varchar(50) NOT NULL default ''
+	[heading12] varchar(50) NOT NULL default '',
+        [ord] [varchar](50) NOT NULL default ''
 )
 
 as
@@ -51,7 +52,8 @@ declare @det table(
 	[journalType] [varchar](50) NOT NULL default '',
 	[sourceDesc] [varchar](50) NOT NULL default '',
 	[sourceSECA] [varchar](50) NOT NULL default '',
-	[journalDesc] [varchar](50) NOT NULL default ''
+	[journalDesc] [varchar](50) NOT NULL default '',
+        [ord] [varchar](50) NOT NULL default ''
 )
 
 insert @det
@@ -66,7 +68,9 @@ select isnull(accountType,''),
 	isnull(journalType,''),
 	isnull(sourceDesc,''),
 	isnull(sourceSECA,''),
-	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+	isnull(journalDesc,''),
+        '' 
+  from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT'
@@ -85,11 +89,16 @@ select isnull(accountType,''),
 	isnull(journalType,''),
 	isnull(sourceDesc,''),
 	isnull(sourceSECA,''),
-	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
+	isnull(journalDesc,''),
+        ''
+  from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT SPECIAL'
 end
+
+update d set ord=o.a12 from @det d, object o where o.typ=4008 and left(d.comment2,len(o.key1))=o.key1 and o.a12 > ' 0'
+
 update @det set comment2='4 MILL' where comment2 like '%MILL%' and comment2 like '%4%' and comment2 not like '%JOINT%' 
 
 update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' and sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M')
@@ -124,17 +133,18 @@ declare @det2 table(id int identity(1,1),
 	[accountType] [varchar](50) NULL,
 	[comment2] [varchar](50) NULL,
 	[journalDesc] [varchar](50) NULL,
-	[amount] [money] NOT NULL default 0
+	[amount] [money] NOT NULL default 0,
+        [ord] [varchar](50) NOT NULL default ''
     )
 
 insert @det2
-select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1 from @det a, @years b 
+select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1, max(a.ord) from @det a, @years b 
  where a.journalDesc=b.journalDesc and a.accountType<>'FUND'
 group by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 
 insert @det2
-select a.accountCode,a.accountDesc,a.accountType,'',b.yearCode, sum(amount)*-1 from @det a, @years b 
+select a.accountCode,a.accountDesc,a.accountType,'',b.yearCode, sum(amount)*-1, max(a.ord) from @det a, @years b 
  where a.journalDesc=b.journalDesc and a.accountType='FUND'
 group by a.accountType,a.accountCode,a.accountDesc,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,b.yearCode
@@ -156,21 +166,21 @@ select distinct accountType,accountCode,accountDesc,comment2 from @det2 where ac
 insert @rt (accountType,accountCode,accountDesc)
 select distinct accountType,accountCode,accountDesc from @det2 where accountType='FUND' order by  accountCode,accountDesc
 
-update r set currentTax=b.amount from @rt r, @det2 b 
+update r set currentTax=b.amount, ord=b.ord from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
      and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Current'
 
-update r set priorTax=b.amount from @rt r, @det2 b 
+update r set priorTax=b.amount, ord=b.ord from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
      and case when r.accountType <> 'FUND' then r.comment2 else b.comment2 end = b.comment2
      and b.journalDesc='Prior'
 
-update r set backTax=b.amount from @rt r, @det2 b 
+update r set backTax=b.amount, ord=b.ord from @rt r, @det2 b 
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
@@ -185,7 +195,7 @@ insert @schoolHeadings
 select distinct sourceDesc,0 from @det where (accountType like '%SCHOOL%' or accountType='VOTECH') and amount <> 0.00
 
 insert @det2
- select a.accountCode,a.accountDesc,a.accountType,a.comment2,sourceDesc, sum(amount)*-1 from @det a 
+ select a.accountCode,a.accountDesc,a.accountType,a.comment2,sourceDesc, sum(amount)*-1, max(a.ord) from @det a 
   where accountType like '%SCHOOL%' or accountType='VOTECH'
  group by a.accountType,a.accountCode,a.accountDesc,a.comment2,sourceDesc
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,sourceDesc
@@ -326,7 +336,7 @@ select distinct sourceDesc,0 from @det where accountType='CITY' and amount <> 0.
 
 
 insert @det2
- select a.accountCode,a.accountDesc,a.accountType,a.comment2,sourceDesc, sum(amount)*-1 from @det a 
+ select a.accountCode,a.accountDesc,a.accountType,a.comment2,sourceDesc, sum(amount)*-1, max(a.ord) from @det a 
   where accountType='CITY'
  group by a.accountType,a.accountCode,a.accountDesc,a.comment2,sourceDesc
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,sourceDesc
@@ -453,7 +463,7 @@ delete from @det2 where accountCode > ' 0'
 update @rt set comment2 = accountDesc, district='CNTY' where accountType = 'FUND'
 
 insert @det2
- select a.accountCode,a.accountDesc,a.accountType,a.accountDesc,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end, sum(amount)*-1 from @det a, glaccounts b 
+ select a.accountCode,a.accountDesc,a.accountType,a.accountDesc,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end, sum(amount)*-1, max(a.ord) from @det a, glaccounts b 
   where a.sourceCode=b.accountCode and a.accountType='FUND'
  group by a.accountType,a.accountCode,a.accountDesc,case when b.monthEndColumn >' 0' then b.monthEndColumn else 'OTHER' end
 
@@ -586,11 +596,11 @@ from @rt r where r.accountType='FUND'
 update @rt set district = left(rtrim(accountCode)+' '+rtrim(accountDesc),50) where accountType like '%SCHOOL%' or accountType = 'VOTECH'
 update @rt set district = left(rtrim(accountDesc),50) where isnull(district,'') < ' 0'
 
-update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'
-                                  when accountType = 'COUNTY SCHOOL' then '2000'
-                                  when accountType = 'VOTECH' then '3000'
+update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'+reportOrder
+                                  when accountType = 'COUNTY SCHOOL' then '2000'+reportOrder
+                                  when accountType = 'VOTECH' then '3000'+reportOrder
                                   when accountType = 'CITY' then '4000' 
-                                  when accountType = 'SCHOOL TOTAL' then '5000' 
+                                  when accountType = 'SCHOOL TOTAL' then '5000'+reportOrder 
                                   else '6000' end
 
 
