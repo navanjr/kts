@@ -138,7 +138,15 @@
  if(lcMode=9,warrOptions=);
 
 @sumOptions=
- m(lcid&' - '&obj7:c9);
+ d1select('select dbo.bankStatementBRWRightClickBlob('&obj:id&','&obj:link1&','&kpbrwid(1)&')'),
+ lcSumString=obj7:d1,
+ lcMessage=readstring(lcSumString,'@message='),
+ lcTotal=readstring(lcSumString,'@total='),
+ lcAmount=readstring(lcSumString,'@amount='),
+ lcIdBlob=readstring(lcSumString,'@idBlob='),
+ m(lcMessage,'Right Click Menu...','question.ico','Clear '&format(lcAmount,@n$14.2)&'|Clear All '&format(lcTotal,@n$14.2)&'|Cancel'),
+ if(gcretval=1,brw1=),
+ if(gcretval=2,bsToggleMany=);
 
 @warrOptions=
  m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|&Cancel'),
@@ -156,6 +164,9 @@
 
 @bsToggle=
  sql('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id),
+ refreshBRW=;
+@bsToggleMany=
+ sql('exec dbo.bankStatementItemSelected null, '&obj:id&','''&lcIdBlob&''''),
  refreshBRW=;
 
 @brwstuff=
