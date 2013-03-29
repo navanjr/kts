@@ -1,0 +1,12 @@
+create function dbo.glAccountBalance(
+ @accountCode varchar(70)
+) returns money as
+begin
+ declare @amount money
+ 
+ if left(@accountCode,8) = 'target->'
+  select @accountCode = rtrim(targetAccountCode) from dbo.glAccounts where accountCode = substring(@accountCode,9,70)
+
+ select @amount = sum(amount) from gldetail where accountCode = @accountCode
+ return @amount
+end

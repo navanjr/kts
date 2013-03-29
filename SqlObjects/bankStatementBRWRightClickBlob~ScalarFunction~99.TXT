@@ -1,0 +1,90 @@
+create function dbo.bankStatementBRWRightClickBlob(
+ @bankStatementId int,
+ @accountId int,
+ @brwid int,
+ @showLinks int
+) returns varchar(max) as
+begin
+
+ declare 
+  @blob varchar(max),
+  @template varchar(50),
+  @paymentType varchar(50),
+  @slink varchar(50),
+  @origin int,
+  @depositDate int,
+  @count int,
+  @amount money,
+  @total money,
+  @paycodeBlob varchar(max),
+  @idBlob varchar(max) = ''
+
+ declare @electronicPaycodes table(paycode varchar(50))
+ insert @electronicPaycodes select paycode from dbo.paycodes where depositType in ('E','C')
+
+ declare @relatedItems table(
+  id int,
+  amount money,
+  paycode varchar(50)
+ )
+
+ select
+  @origin = origin,
+  @template = template,
+  @paymentType = replace(replace(paymentType,'z',''),'Official ',''),
+  @slink = slink,
+  @depositDate = depositDate,
+  @amount = abs(isnull(dbAmount,0) - isnull(crAmount,0))  
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
+ where id = @brwid
+
+ insert @relatedItems
+ select 
+  id,
+  abs(isnull(dbAmount,0) - isnull(crAmount,0)),
+  dbo.splitF(subDescription,'-',1)
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
+ where origin = @origin
+  and template = @template
+  and depositDate = @depositDate 
+
+ select @paycodeBlob = 
+  '|     ' + dbo.padRight(paycode,' ',15) + dbo.padLeft('$' + dbo.formatCurr(sum(amount)),' ',15)
+ from @relatedItems
+ where paycode in (select paycode from @electronicPaycodes)
+ group by paycode
+
+ select @idBlob = @idBlob + cast(dbo.brwidDecoderId(id) as varchar) + '|' from @relatedItems
+
+ select 
+  @count = count(id),
+  @total = sum(amount)  
+ from @relatedItems
+
+ set @blob = 
+  '@count=' + cast(isnull(@count,0) as varchar) + ';'
+  + '@total=' + cast(isnull(@total,0) as varchar) + ';'
+  + '@amount=' + cast(isnull(@amount,0) as varchar) + ';'
+  + '@depositDate=' + cast(isnull(@depositDate,'') as varchar) + ';'
+  + '@template=' + isnull(@template,'') + ';'
+  + '@paymentType=' + isnull(@paymentType,'') + ';'
+  + '@openId=' + isnull(cast(dbo.slinkId(@slink) as varchar),'') + ';'
+  + '@origin=' + cast(isnull(@origin,'') as varchar) + ';'
+
+  + '@message=|'
+  + '     ' + isnull(cast(@count as varchar),'') + ' ' + isnull(@template,'') + '|'
+  + '     ' + 'Date: ' + dbo.date1(isnull(@depositDate,'')) + '|'
+  + '     ' + 'Total: $' + dbo.formatCurr(isnull(@total,0)) + '|'
+
+  + isnull(@paycodeBlob,'')
+
+  + '|;' 
+
++  case when isnull(@idBlob,'') > '  0' then
+    '@idBlob=' + left(@idBlob,len(@idBlob) - 1) + ';'
+  else '' end
+
+ return @blob 
+end
+
+

@@ -10,34 +10,10 @@
 \t114Reports;
  @acc114=lcReportId=kp('select id from object where typ=4506 and lasteditini='''&cur:ini&''''),
   if(lcReportId+0>0,sql('update object set key1='''&obj:key1&''',key2='''&obj:c1&''' where id='&lcReportId)),
-  if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1))
-;
+  if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
 
-@balanceReport=update,
- gcDepId=0,
- trreport('depositBalance',5018,'printDepositBalance=');
-
-t115&Print Off Deposits
-@acc115=
- gcBeginDate=obj:key1,
- gcEndDate=obj:c1,
- trreport(depositoryRegister,5020,printDepositoryRegister=,,,,);
-
-t116&Print Receipt List
-@acc116=
- iw(
-  \t000Receipt List....;
-  \t001User; 
-  \t003Type;
- ),
- gcUser=obj7:key1,
- gcReceiptType=obj7:key2,
- recList=;
-
-@recList=
- gcBeginDate=obj:key1,
- gcEndDate=obj:c1,
- trreport(receiptList,5019,printReceiptList=,,,,);
+\t116Fiscal Calendar; @acc116=browse(1,4700);
+ 
 
 \t117&Print Daily Data;
 @acc117=
@@ -51,12 +27,8 @@ t116&Print Receipt List
  gcD2=obj:key1+obj:a17,
  trreport(printDailyLedger,5017,glreport=,,,,);
 
-t119Apportionment
-@acc119=
- m(kpbrwid(1));
-
-\t120&Browse All Receipts;
-@acc120=browse(1,4502);
+\t119&Bank Statements; @acc119=browse(1,4780);
+\t120Browse All &Receipts; @acc120=browse(1,4502);
 
 @gfwindow=refreshBRW=;
 
@@ -220,31 +192,25 @@ m(lcPicked);
 
 @menu1=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Balance Report|&Receipt Report|&Cancel'),
- if(gcretval=1,click1=),
- if(gcretval=2,click2=);
+ if(gcretval=1,balanceReport=),
+ if(gcretval=2,receiptReport=);
 
-@click1=
+@setvars=
  lcSuspenseMethod=kp('select dbo.readString(''@suspenseMethod='',dbo.whoami())'),
- break(lcSuspenseMethod<'  0'),
- break(lcSuspenseMethod='C'),
  gcBeginDate=obj:key1,
  gcEndDate=obj:c1,
- lcUser=format(kp('select rowstring from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1)),@s30),
- gcDeputy=left(lcUser,30),
- gcStation=left(lcUser,30),
- if(lcSuspenseMethod='U',gcStation='',gcDeputy=''),
- gcPrintDetail='Y',
- trreport('balanceReport',5018,'printDepositBalanceNew=');
+ if(lcSuspenseMethod='U',gcDeputy=kp('select dbo.readstring(''@deputy='',blob) from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1))),
+ if(lcSuspenseMethod='U',gcStation=kp('select dbo.readstring(''@station='',blob) from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1))),
+ if(lcSuspenseMethod='U',gcStation='',gcDeputy='');
 
-@click2=
- lcUser=format(kp('select rowstring from dbo.dailydataSuspense('&gcStartDate&','&gcDays&','''','''&gcFilterString&''') where id = '&kpbrwid(1)),@s30),
- gcDeputy=left(lcUser,30),
- gcStation=left(lcUser,30),
- lcSuspenseMethod=kp('select dbo.readString(''@suspenseMethod='',dbo.whoami())'), 
- if(lcSuspenseMethod='U',gcStation='',gcDeputy=''),
- gcBeginDate=obj:key1,
- gcEndDate=obj:c1, 
+@balanceReport=
+ setvar=,
+ gcDepId=0,
  gcPrintDetail='Y',
+ trreport('balanceReport',5018,'printBalanceReport=');
+
+@receiptReport=
+ setvars=,
  gcReceiptType='',
  trreport('receiptListStation',5019,'printReceiptListStation=');
 
@@ -257,7 +223,6 @@ m(lcPicked);
  lcDepChangeId=readstring(lcBlob,'@changeId='),
  lcDepCount=readstring(lcBlob,'@depositCount=');
  
-
 @menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),
  lcExistingDepositId=kp('select max(depositId) from dbo.depositPaidUnPosted() a where a.receiptType = '''&lcDepositType&''''),
@@ -271,8 +236,18 @@ m(lcPicked);
  if(lcPicked=5,recListByType=),
  refreshBRW=;
 
-@balanceReportByType=gcReceiptType=lcDepositType,balanceReport=;
+@balanceReportByType=
+ setvars=,
+ gcStation='',
+ gcDeputy='',
+ gcReceiptType=lcDepositType,
+ balanceReport=;
 
-@recListByType=gcUser='',gcReceiptType=lcDepositType,recList=;
+@recListByType=
+ setvars=,
+ gcStation='',
+ gcDeputy='',
+ gcUser='',
+ gcReceiptType=lcDepositType,
+ receiptReport=;
 
-recListByUser=gcUser=cur:fullname,gcReceiptType=lcDepositType,recList=;

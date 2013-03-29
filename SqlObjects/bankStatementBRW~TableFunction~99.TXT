@@ -38,7 +38,7 @@ begin
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
  insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
- select id* -1, fpid, fpCode, slink,
+ select dbo.brwidEncoder(1,id), fpid, fpCode, slink,
   case when amount > 0 then amount else 0 end,
   case when amount < 0 then amount*-1 else 0 end,
   slink,
@@ -54,7 +54,12 @@ begin
   a.depositDate = b.key2,
   a.instrumentNumber = b.key1,
   a.instrumentNumber2 = b.key3,
-  a.subDescription = b.a2, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
+  a.subDescription = case b.a18
+   when 'Treasurers Check' then
+    'Payment #' + b.key1
+   else
+    b.a2
+   end, --c.template + ' #' + case when b.typ=4771 then b.key3 + ', '+b.a18+' #' + b.key1 else b.key1 end,
   paymentType = b.a18,
   template = c.template,
   a.typ = b.typ
@@ -74,15 +79,15 @@ begin
   subDescription = instrumentNumber2
  where template = 'Journal Entries' and rowType = 0
 
--- payment Fixes except miscellaneous
- update @rt set 
-  instrumentNumber = instrumentNumber2
- where rowtype = 0 and template = 'Payments' and paymentType != 'Miscellaneous'
-
-
 -- set description and ord
  update @rt set
-  description = '      ' + dbo.padLeft(case when @orderByVoucherFlag <> 1 then instrumentNumber else instrumentNumber2 end,'0',6) + '   ' + 
+  description = '  ' + 
+  case when @orderByVoucherFlag <> 1 then
+   dbo.padLeft(instrumentNumber,'0',6) + ' / ' + dbo.padLeft(instrumentNumber2,'0',6)
+  else
+   dbo.padLeft(instrumentNumber2,'0',6) + ' / ' + dbo.padLeft(instrumentNumber,'0',6)
+  end
+    + '   ' + 
     case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
   ord = case when @orderByVoucherFlag = 1 then 
     paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
@@ -91,7 +96,21 @@ begin
    else
     fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
    end
- where rowtype = 0
+ where rowtype = 0 and template not in ('deposits')
+
+ update @rt set
+  description = '      ' + 
+   dbo.padLeft(instrumentNumber,'0',6) 
+    + '   ' + 
+    case when @orderByClearedFlag = 1 then dbo.date2(DateCleared) else dbo.date2(depositDate) end,
+  ord = case when @orderByVoucherFlag = 1 then 
+    paymentType + 'c' + dbo.padLeft(instrumentNumber2,'0',6)
+    when @orderByClearedFlag = 1 then
+    dateCleared
+   else
+    fpCode + paymentType + 'c' + dbo.padLeft(instrumentNumber,'0',6)
+   end
+ where rowtype = 0 and template in ('deposits')
 
 -- add Period headers for the account details
  if @orderByVoucherFlag <> 1 and @orderByClearedFlag <> 1
@@ -112,24 +131,30 @@ begin
  begin
  if @orderByVoucherFlag = 1 
   begin
-   insert @rt (id,description,ord,rowType,origin)
+   insert @rt (id,description,ord,rowType,dbAmount,crAmount,origin)
     select
      0,
-     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      paymentType + 'a',
-     2,4 
+     2,
+     sum(dbAmount),
+     sum(crAmount),
+     4 
     from @rt 
     where rowType = 0 and paymentType is not null
     group by paymentType
    end
   else
    begin
-   insert @rt (id,description,ord,rowType,origin)
+   insert @rt (id,description,ord,rowType,dbAmount,crAmount,origin)
     select
      0,
-     '   ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
+     ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      fpCode +  paymentType + 'a',
-     2,5 
+     2,
+     sum(dbAmount),
+     sum(crAmount),
+     5 
     from @rt 
     where rowType = 0 and paymentType is not null
     group by fpCode, paymentType
@@ -154,26 +179,33 @@ begin
 -- insert @rt (id,description,ord,origin) select 0,'Warrants: ','ww',9
 
 -- get the warrants
- insert @rt (id, description, subDescription, dbAmount, ord, origin, fundGrouping)
-  select b.id,
+ insert @rt (id, description, subDescription, dbAmount, ord, fundGrouping, paymentType, origin)
+  select dbo.brwidEncoder(9,b.id),
    '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
    b.a2,
    sum(a.amount),
    'ww' + a.accountCode + b.key3,
-   10,
-   accountCode
+   accountCode,
+   b.a18,
+   10
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
    and a.accountId in (select id from @glAccountIds)
    and b.link1 = 0
-  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id
+  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
   having sum(amount) > 0
  
 -- add header rows for fund
- insert @rt (id, description, ord, rowType, origin)
+ insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
  select 
   0,
-  '-- ' + fundGrouping + ' - ' + t.accountDesc, 'ww' + fundGrouping, 2, 11
+  '-- ' + fundGrouping + ' - ' + t.accountDesc,
+  dbo.padLeft('Balance: $' + dbo.formatCurr(abs(dbo.glAccountBalance('target->' + fundGrouping))),' ',50),
+  'ww' + fundGrouping,
+  2,
+  sum(dbAmount),
+  sum(crAmount),
+  11
  from @rt r
  left join glAccounts g on g.accountcode = r.fundGrouping
  left join glAccounts t on t.accountcode = g.targetAccountCode

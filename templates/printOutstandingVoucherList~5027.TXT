@@ -2,78 +2,43 @@
 @bbproc7=
 gcBeginDate=77405,
 gcEndDate=77480,
-printClearedVoucherList=;
-
+printOutstandingVoucherList=;
 
 @printOutstandingVoucherList=
  gcAsOfDate=gcEndDate,
  do(452,getSiteInfo=),
   if(gcAsOfDate+0<5,gcAsOfDate=today()),
-  lcLm=600,
+  lcLm=350,
   lcTm=350,
-  lcM=1000,
-  lcCw=2250,
-  lcAw=(lcCw*1.5)+(lcM*4),
   lcFont='',
-  lcHeaderFontSize=8,
-  gcsql5022='select
-    dateRegistered, 
-    treasurersNumber,
-    dbo.popro6(clerksNumber,6,1),
-    payee,
-    debitAccountDesc,
-    amount,
-    comment,
-    creditAccountDesc
-    from dbo.payments where paymentType like ''%VOUCHER%'' and dateRegistered <= '''&gcAsOfDate+0&''' and slink in 
-(select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
-and isnull(bsId,-1) not in (select id from object where typ=4780) ) order by debitAccountDesc,dbo.popro6(treasurersNumber,6,1),dbo.popro6(clerksNumber,6,1)',
-
-  gcsql5022='select postDate,controlNumber,dbo.popro6(foreignNumber,6,1),payee,b.b3,balanceAsOf*-1,b.e1,b.b4,
- case when left(contraPaymentType,6)=''cancel'' then ''Cancelled'' else contraPaymentType end, dbo.date1(contraPostDate)
- from dbo.paymentReports(''Bank'','&gcAsOfDate+0&') a, object b
- where b.typ=4771 and b.id = dbo.slinkId(a.slink)
- and isnull(a.paymentType,'''') like ''%voucher%''',
-  lcRecCnt=0,
-  lcVoucherTotal=0,
-  lcBank1='',
-  lcBank1Total=0,
-  lcBank2='',
-  lcBank2Total=0,
-  lcBank3='',
-  lcBank3Total='',
-  lcFundTotal=0,
-  lcFundDesc='',
+  lcHeaderFontSize=12,
+  gcsql5022='select registerDate,controlNumber,registerNumber,toWhom,fundAccount,paidAmount,vType,actionDate,ord from dbo.outStandingVoucherReport('&gcAsOfDate&') order by ord',
+  lcBoxColor=14539482,
  tr(
-  grp(1,obj5:a5,
-   do(bnd('H',lcFundDesc,1000)),
-   do(bnd('H','',3600,lcFundDesc&' TOTAL:',800R,format(lcFundTotal,@n$-19.2b),800R),
-    lcFundDesc=obj5:a5,
-    lcFundTotal=0,
-     )
-),
+  box(350,450,4000,950,6,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',1400,500,lcHeaderFontSize-2,regular,lcFont),
+  prn(gcOfficial,1400,700),
   prn(printed),
   prn(page),
-  prn('Outstanding Voucher List',t1),
-  prn(gcCounty&' County',t2), 
-  prn(gcCity&', '&gcState,t3), 
-  prn('Registered As Of: '&format(gcAsOfDate,@d1),t4),
-  prn(,lcLm,lcTm+1000),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'Outstanding Voucher List',8000C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Registered As Of: '&format(gcAsOfDate,@d1),8000C),
+  bnd(,gcCounty&' County',8000C),
+  bnd(,gcCity&', '&gcState,8000C),
+  prn(,lcLm,lcTm+1300,9),
   nl, 
-  bnd('H','DATE',600,'TREAS',500,'VOUCR',500,'TO WHOM ISSUED',2000,'WHOM DRAWN',800,'AMOUNT',800R,'STATUS',600,'DATE',600),
-  bnd('HU','REGD #',600,'REGD #',500,'PAGE',500,'',2000,'',800,'',800R,'',600,'',600),
+  box(pagex-100,pagey-50,pagex+7800,pagey+330,,lcBoxColor),
+  bnd(,'DATE',600,'TREAS',500,'VOUCR',500,'',2000,'',800,'',800R,'',600,'',600),
+  bnd(,'REGD #',600,'REGD #',500,'PAGE',500,'TO WHOM ISSUED',1600,'WHOM DRAWN',1500,'AMOUNT',800R,'STATUS',600,'DATE',600),
   nl,
   det(gcsql5022,,,,),
-    bnd(,format(obj5:a1,@d2),600,obj5:a2,500,obj5:a3,500,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),800,format(obj5:a6,@n$-19.2b),800R,obj5:a9,600,obj5:a10,600),
-    lcRecCnt=lcRecCnt+1,
-    lcVoucherTotal=lcVoucherTotal+obj5:a6,
-    lcFundTotal=lcFundTotal+obj5:a6,
+   if(right(obj5:a9,1)='a'),do(prn(,,,9,bold,'courier new'),bnd('U',obj5:a4,7700)),
+   if(right(obj5:a9,1)='b'),do(prn(,,,8,regular,'courier new'),bnd(,format(obj5:a1,@d2),600,obj5:a2,500,obj5:a3,500,left(obj5:a4,25),1600,left(obj5:a5,25),1500,obj5:a6,800R,obj5:a7,600,obj5:a8,600)),
+   if(right(obj5:a9,1)='c'),do(prn(,,,9,bold,'courier new'),bnd('O','',4175,obj5:a4,800R,obj5:a6,800R,,1675)),
+   if(right(obj5:a9,1)='z'),do(nl,prn(,,,10,bold,'courier new'),bnd(,'',4175,obj5:a4,800R,obj5:a6,900R)),
   edt,
-  nl,
-  nl,
-  bnd('H','',5500,'TOTAL:',800R,format(lcVoucherTotal,@n$-19.2b),800R),
 );
-
 
 /*The report is run for a month at a time.  When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
 
@@ -141,7 +106,7 @@ tr(
     case when amount<=0 then amount*-1 else 0 end    
       from dbo.payments where paymentType like ''%VOUCHER%'' and slink in 
       (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
-      and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared, dbo.popro6(clerksNumber,6,1)  ',
+      and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared,debitAccountDesc, dbo.popro6(clerksNumber,6,1)  ',
 
  tr(landscape,
   prn(printed),

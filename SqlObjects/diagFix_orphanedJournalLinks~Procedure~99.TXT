@@ -1,6 +1,7 @@
 create proc dbo.diagFix_orphanedJournalLinks(
  @mode varchar(5) = 'heavy',
  @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
  @code int = 0 output,
  @message varchar(100) = null output,
  @tally int = 0 output,
@@ -13,11 +14,11 @@ begin
  begin  
 
   select
+   @class = 'JournalEntries',
    @guide = 'GET|SHOW|FIX',
    @code = case when count(*) > 0 then 1 else 0 end,
    @tally = count(*),  
-   @message = 'orphaned journalLinks',
-   @fixProc = 'exec dbo.diagFix_orphanedJournalLinks @method = ''FIX'''
+   @message = 'orphaned journalLinks'
   from journallink
    where jeId > 0 
    and jeId not in (select id from Object where Typ in (4512))

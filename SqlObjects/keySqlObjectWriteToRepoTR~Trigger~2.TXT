@@ -12,7 +12,8 @@ AS
  declare
   @typ int,
   @objectId int,
-  @slink varchar(15)
+  @slink varchar(15),
+  @postDate varchar(50)
 
  declare @allowedObjectTyps table(typ int, reason varchar(20))
  insert @allowedObjectTyps
@@ -27,7 +28,8 @@ AS
  select
   @typ = typ,
   @objectId = id,
-  @slink = 'o' + cast(id as varchar)
+  @slink = 'o' + cast(id as varchar),
+  @postDate = key2
  from inserted
 
 -- bail if the one record inserted is not in our list of approved types
@@ -65,14 +67,14 @@ AS
  if (select dbo.settingsF('site.glDetailSync','FALSE')) = 'FALSE'
   return
 
+-- bail if the @postDate is missing
+ if isnull(@postdate,'') = ''
+  return
+
  if @objectId > 0 and @typ in (select typ from @allowedObjectTyps where reason = 'glDetailSync') and update(key2)
  begin
-  update a
-   set a.date = b.key2
-  from dbo.glDetail a, inserted b
-  where a.slink = 'o' + cast(b.id as varchar)
-
-  exec dbo.logit @@procId, 'Just Updated... @@rowCount', @@rowCount, '@typ', @typ
-
+  
+  exec dbo.glDetailSync @typ, @slink, @postDate
+ 
   return
  end

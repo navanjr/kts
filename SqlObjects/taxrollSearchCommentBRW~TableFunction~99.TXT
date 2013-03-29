@@ -17,7 +17,10 @@ if @selectedId > 0
   @name varchar(50),
   @item numeric (7,1),
   @parcel varchar(50),
-  @taxYear numeric (5,0)
+  @taxYear numeric (5,0),
+  @pubFlag varchar(10)
+
+ select @pubFlag = case when charindex('@group=publicuser;',options)>0 then 'TRUE' else 'FALSE' end from users where ini = dbo.readstring('@ini=',dbo.whoami())
 
  select 
   @name = name,
@@ -35,7 +38,9 @@ if @selectedId > 0
    @taxYear = realtaxyear
   from adtax where id = @selectedId-9000000
  end
- 
+
+if @pubFlag = 'FALSE'
+ begin 
 -- comments from object
   insert @rt
   select cast('-8'+cast(id as varchar) as int),a2,a3,case when a4 = '1' then '<private> ' else '' end + cast(e1 as varchar(max)),'COMMENT',1
@@ -92,14 +97,7 @@ insert @rt
 		  and link1 in (select taxrollId from invoices where id=@selectedId) 
 		  order by key1 desc
 
-insert @rt
-    select	cast('-1'+cast(i.id as varchar) as int),
-		'',
-		'',
-		'Physical Address: '+a.proploc,
-                ' Address' ,7
-		from adtax a ,invoices i 
-		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
+
 --voided invoice comments		  
   insert @rt
      select     cast('-1'+cast(i.id as varchar) as int),
@@ -111,6 +109,17 @@ insert @rt
                where i.typ='A' 
                   and i.invoiceId=@selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
+end
+
+--Physical Address
+insert @rt
+    select	cast('-1'+cast(i.id as varchar) as int),
+		'',
+		'',
+		'Physical Address: '+a.proploc,
+                ' Address' ,7
+		from adtax a ,invoices i 
+		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
 
 --Receipt Payments
   declare @wt table(invoiceId varchar(50),receipt varchar(50),name varchar(50),controlNum varchar(50),Amount money,receiptId int,recDate varchar(50),typ varchar(50),receiptlinkId int)
@@ -150,6 +159,8 @@ insert @rt
     typ,9
     from @wt
 
+if @pubFlag = 'FALSE'
+ begin
 --Journal Entries
   delete from @wt where invoiceId<>0
   insert @wt
@@ -187,6 +198,7 @@ insert @rt
     typ,10
     from @wt
  end
+end
 
  return
 end

@@ -8,7 +8,8 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  sName varchar(50),
  fName Varchar(50),
  origin int,
- colorFlag int 
+ colorFlag int,
+ subDescription2 varchar(125)  
 )
 begin
 
@@ -25,10 +26,49 @@ begin
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
  
  update @rettable 
-      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc)  from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
 
- update @rettable 
-      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50)  from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+  update @rettable 
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+
+  update @rettable 
+      set subDescription = subDescription2
+
+
+/*
+  -- get the journals
+   insert @journals
+   select
+    'o'+cast(o.id as varchar) as slink,
+    'j'+cast(j.id as varchar) as realslink,
+    rtrim(key1)+' '+rtrim(a18) as description,
+    rtrim(key3) as subDescription,
+    o.id as invoiceId,
+    'a' as ord
+   from object o, journalLink j 
+    where o.id=j.jeId 
+      and j.receiptId = @receiptId
+
+*/
+
+ if exists(select * from dbo.journalLink where receiptId = @receiptId)
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bf1',0,'','',0,4
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bf2',0,'Journal(s)','',0,5
+
+  insert @rettable (ord,id,description,subdescription,origin)
+  select 'bf3'+cast(c.id as varchar)+'a',cast('4'+cast(c.id as varchar) as int)*-1,
+   max(c.key1)+' '+max(c.a18),
+   max(c.key3), 10
+  from journalLink a, object c
+  where a.jeId = c.ID
+   and a.receiptId = @receiptId
+  group by c.id
+ end
+
+
 
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
@@ -66,6 +106,15 @@ begin
     and receiptId = @receiptId
    and c.invoiceId > 0
   group by c.invoiceId, c.typ
+
+ update @rettable 
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=ltrim(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)) and  RIGHT(ord,2)='az' 
+
+  update @rettable 
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50) and RIGHT(ord,2)='az' 
+
+  update @rettable 
+      set subDescription = subDescription2 where RIGHT(ord,2)='az'   
 
   if @showFunds = 1
   begin
@@ -145,9 +194,64 @@ begin
    insert @rettable (ord,id,description,subdescription,amount,origin)
    select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount),15
    from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
-    and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
+    and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink) not in ('t','j'))
    group by b.subord,a.accountDesc,lower(b.accountType)
   end
+
+  if exists(select * from dbo.journalLink where receiptId = @receiptId)
+  begin
+   declare @journals table (
+    slink varchar(15),
+    realslink varchar(15),
+    description varchar(50),
+    subDescription varchar(50),
+    subInvoiceId int,
+    ord char(1)
+   )
+
+  -- get the journals
+   insert @journals
+   select
+    'o'+cast(o.id as varchar) as slink,
+    'j'+cast(j.id as varchar) as realslink,
+    rtrim(key1)+' '+rtrim(a18) as description,
+    rtrim(key3) as subDescription,
+    o.id as invoiceId,
+    'a' as ord
+   from object o, journalLink j 
+    where o.id=j.jeId 
+      and j.receiptId = @receiptId
+
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select 'ea',0,'','',0,16
+   insert @rettable (ord,id,description,subdescription,amount,colorFlag,origin)
+   select 'eb',0,'GL Detail (posted via Journal Entry)','',0,2,17
+
+  --Invoice Header
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select
+    'ec' + slink + ord + min(realslink) + 'a',
+    0,
+    '   ' + description,
+    subDescription,
+    0,18
+   from @journals
+   group by slink,description,subdescription, ord
+
+  -- invoice GL Detail
+   insert @rettable (ord,id,description,subdescription,amount,origin)
+   select
+    'ec' + c.slink + c.ord + max(c.realslink) + 'b',
+    0,
+    left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
+    lower(b.accountType),
+    sum(a.amount),19
+   from dbo.glDetail a, glaccounts b, @journals c
+   where a.accountCode = b.accountCode
+    and a.slink in (c.slink,c.realslink)
+   group by c.slink,a.accountDesc,b.accountType, c.ord, a.comment2 
+  end
+
 
   if exists(select * from dbo.receiptLink where receiptId = @receiptId)
   begin

@@ -1,0 +1,169 @@
+create function dbo.rpBudgetReport(@begindate varchar(20),
+        @enddate varchar(20),
+        @fundCode varchar(20))
+
+returns @rt table(accountCode varchar(60),
+                  accountDesc varchar(50),
+                  sourceSECA varchar(60),
+                  sourceDesc varchar(60),
+                  July money,
+                  August money,
+                  September money,
+                  October money,
+                  November money,
+                  December money,
+                  January money,
+                  February money,
+                  March money,
+                  April money,
+                  May money,
+                  June money
+                  )
+as
+begin
+declare @wt table(id int identity,
+                   apportionmonth int,
+                   accountCode varchar(60),
+                   accountDesc varchar(50),
+                   sourceCode varchar(60),
+                   sourceDesc varchar(60),
+                   sourceSECA varchar(50),
+                   amount money)
+        
+
+declare @det table(apportionmonth int,
+                   accountCode varchar(60),
+                   accountDesc varchar(50),
+                   sourceCode varchar(60),
+                   sourceDesc varchar(60),
+                   sourceSECA varchar(50),
+                   journalDesc varchar(50),
+                   amount money)
+insert @det
+select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(amount*-1) 
+from dbo.rpMonthEndDetail(
+ @beginDate,
+ @endDate,
+ 'FALSE')
+ where left(journalType,13)='APPORTIONMENT'
+       and accountcode=@fundCode
+group by 
+ month(dbo.date1(apportiondate)),accountCode,accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc
+ 
+ 
+declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50),ord varchar(50))
+
+insert @years
+select top 1 'Current Tax',journalDesc,'0001' from @det where journalDesc like '%ADVALOREM' order by journalDesc desc
+insert @years
+select top 1 'Prior Tax',journalDesc,'0002' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years) order by journalDesc desc
+insert @years
+select distinct 'Back Tax',journalDesc,'0003' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years)
+
+update d set sourceCode = y.yearcode,sourceDesc = y.yearcode, sourceSECA = y.ord from @det d, @years y where d.journalDesc=y.journalDesc
+
+insert @wt (apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
+ select apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
+  group by apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA
+  
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc)
+select distinct accountCode,accountDesc,sourceSECA,sourceDesc from @wt
+
+update r set January=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=1
+
+update r set February=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=2
+
+update r set March=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=3
+
+update r set April=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=4
+
+update r set May=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=5
+
+update r set June=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=6
+
+update r set July=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=7
+
+update r set August=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=8
+
+update r set September=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=9
+
+update r set October=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=10
+
+update r set November=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=11
+
+update r set December=d.amount from @rt r, @det d
+ where 
+ r.accountCode=d.accountCode
+ and r.accountDesc=d.accountDesc
+ and r.sourceSECA=d.sourceSECA
+ and r.sourceDesc=d.sourceDesc
+ and d.apportionmonth=12
+
+return
+end

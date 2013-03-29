@@ -15,7 +15,8 @@ create function dbo.rpMonthEndDetail(
  sourceDesc varchar(50),
  sourceSECA varchar(50),
  journalDesc varchar(50),
- monthEndCategory varchar(50)
+ monthEndCategory varchar(50),
+ apportiondate varchar(50)
 ) as
 begin
 
@@ -33,14 +34,15 @@ begin
   '' as sourceDesc,
   '' as  sourceSECA,
   o.key3 as journalDesc,
-  '' as monthEndCategory
+  '' as monthEndCategory,
+  o.key2 as apportiondate
  from gldetail a, glAccounts b, (select * from dbo.rpMonthEndSLinks(@beginDate,@endDate)) c, object o  
  where o.typ=4512
   and left(slink,1)='o' and dbo.slinkId(slink)=o.id
   and a.accountCode=b.accountCode 
   and slink = c.journalSlink
   and accountType not in ('EXPENSE')
- group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3
+ group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3, o.key2
  having sum(amount)<>0.00
 
  if @includeUnapportioned = 'TRUE'
@@ -60,7 +62,8 @@ begin
    '' as sourceDesc,
    '' as  sourceSECA,
    a.contraAccountDesc as journalDesc,
-   '' as monthEndCategory
+   '' as monthEndCategory,
+   @enddate as apportiondate
   from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
   where a.creditCode=b.accountCode
    and b.accountType not in ('EXPENSE')
@@ -81,7 +84,8 @@ begin
    '' as sourceDesc,
    '' as  sourceSECA,
    a.contraAccountDesc as journalDesc,
-   '' as monthEndCategory
+   '' as monthEndCategory,
+   @enddate as apportiondate
   from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
   where a.debitCode=b.accountCode
    and b.accountType not in ('EXPENSE')

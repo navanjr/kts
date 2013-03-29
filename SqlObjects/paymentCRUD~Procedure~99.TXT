@@ -20,6 +20,7 @@ create proc dbo.paymentCRUD(
  @comments varchar(250) = '',
  @voidBatch varchar(5) = 'FALSE',
  @statusInput varchar(50) = null,
+ @nextNumAdditionalWhere varchar(500) = '',
  @verbose varchar(5) = 'TRUE',
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
 ) as 
@@ -94,7 +95,7 @@ begin
    then
     '@debitFieldLabel=Fund Account;'
     + '@creditFieldLabel=Bank Account;'
-    + '@key1FieldLabel=Voucher #;'
+    + '@key1FieldLabel=Payment #;'
     + '@key2FieldLabel=Date Created;'
     + '@key3FieldLabel=Hidden Key3;'
     + '@a1FieldLabel=Hidden A1;'
@@ -230,7 +231,8 @@ begin
     @officialName = a.a7,
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
-    @fiscalYear = c10
+    @fiscalYear = c10,
+    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + ''''
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
@@ -256,10 +258,10 @@ begin
   end
 
   if @paymentType not in ('Miscellaneous','Transfer')
-   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @newNumber = @nextVoucherNumber output
+   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @additionalWhereClause = @nextNumAdditionalWhere, @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
-  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant')
+  if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant','Cancel MISCELLANEOUS')
   begin
    exec dbo.logit @@procid,
     'Oops, Missing one of the following...  @debitAcct', @debitAcct,
@@ -389,7 +391,7 @@ begin
 
   end
 
-  if @paymentType in ('Cancel Voucher','Cancel Warrant')
+  if @paymentType in ('Cancel Voucher','Cancel Warrant','Cancel Miscellaneous')
   begin
 
 -- and mark the original warrant as bought!
@@ -401,11 +403,6 @@ begin
   end
 
   declare @checkStyleWarrants varchar(20) = 'FALSE'
-
-  if @paymentType = 'Treasurers Check'
-  begin
-   exec dbo.settingsCRUD 'site.checkStyleWarrants', @method='GET', @valueOut = @checkStyleWarrants output 
-  end
 
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
@@ -423,14 +420,22 @@ begin
   exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
 
   -- post gl
-  exec dbo.glPost @newId, 'o', @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
-  exec dbo.logit @@procid, 'glPost - @postResult', @postResult
+  exec dbo.glPost @newId, 'o', @verbose = 'FALSE', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
+  exec dbo.logit @@procid, 'glPost - @postResult', @postResult, '@paymentType', @paymentType, '@nextVoucherNumber', @nextVoucherNumber
 
-  if @paymentType = 'Treasurers Check' and @checkStyleWarrants = 'TRUE'
+  if @paymentType = 'Treasurers Check' and dbo.settingsF('site.checkStyleWarrants', 'FALSE') = 'TRUE'
+    update gldetail set
+     bsId = @bankStatementId,
+     dateCleared=coalesce(nullif(@postDate,''),
+     dbo.clarionDate(getdate())) 
+    where slink = @newslink and accountcode=@officialbankcode
+
+  if @paymentType = 'Treasurers Check' and dbo.settingsF('site.displayPaymentNumber', 'TRUE') = 'TRUE'
   begin
-    update gldetail set bsId = @bankStatementId, dateCleared=coalesce(nullif(@postDate,''),dbo.clarionDate(getdate())) where slink = @newslink and accountcode=@officialbankcode
+   exec dbo.logit @@procid, 'this is a test'
+   select '@code=2;@message=Created Treasurers Check with Payment #: ' + @nextVoucherNumber + ';@caption=Buying Warrants...;'
   end
-
+  return
  end
 
  if @mode = 2 and @paymentType in ('MISCELLANEOUS','Transfer')

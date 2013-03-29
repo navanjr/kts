@@ -1,7 +1,7 @@
 @gfbnr=1;
 @format=40R(3)~J/E Num~#1#|M50R(3)~J/E Date~@d2@#2#|M50L(3)~Type~#30#|M200L(3)~Description~#3#|M60R(3)~Amount~@n14.2b@#46#|M50R(3)~Balance~@n14.2@#47#|M50C~Status~#29#;
-@filtername=All,Apportionment,Special Apportionment,Correction,Posted,Un-Posted;
-@filter='1=1','a18=''APPORTIONMENT''','a18=''APPORTIONMENT SPECIAL''','a18=''CORRECTION''','a17=''Posted''','a17<>''Posted''';
+@filtername=All,Apportionment,Special Apportionment,Correction,Posted,Un-Posted,Query;
+@filter='1=1','a18=''APPORTIONMENT''','a18=''APPORTIONMENT SPECIAL''','a18=''CORRECTION''','a17=''Posted''','a17<>''Posted''','typ=4512 and id in (select id from dbo.journalsearch('''&filterfield1&'''))';
 @ordername=Number,Date;
 @key2=obj:key2;
 
@@ -49,7 +49,8 @@ TO DO: make sure that if a collection account is listed here that the appropriat
 
 if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>'1',prop(005,'7C00H','Apportion')),if(obj:olink2>'1',prop(001,'7C00H','Journal')),set(002,kp('select key1 from object where id='&obj:link1));
 
-@gfwindow=refreshbrw=;
+@gfwindow=
+ refreshbrw=;
 
 @stageprotest=break(obj:a17='Posted'),sql('exec dbo.journalEntryStageGL '&obj:id),refreshbrw=;
 
@@ -82,7 +83,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  \s076+'select balance from glSummary('&obj:id&',''o'')';
   \p0767cfah,13499135; \p0767c13h,700; \p0767c0ch,1;
 \t077ImportToolsFlag; \h077078;r
-\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r
+\t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r @acc102=tsc;
 \t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
 
 \t118Adjust To; \h118obj:c1<>1; \y118322;
@@ -132,7 +133,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
   trreport('JournalReportGL',4790,'journalReportGL=');
 
 
-\t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0; \h110obj:a17='Posted';
+\t110Post to the &G/L; @acc110=postGL=,invoiceUpdate=; \d110obj:b15<>0 or (obj:a18='CORRECTION' and len(clip(obj:e1))=0); \h110obj:a17='Posted';
 
 @invoiceUpdate=d1select('exec dbo.invoiceUpdateAll '&obj:id+0);
 
@@ -199,7 +200,9 @@ gcid=kpbrwid(1)*-1,
 gcblob=kp('select dbo.glDetailStageGetBlob('&gcid&')'),
 gccontraId=readstring(gcblob,'@contraId='),
 gccontraAccountCode=readstring(gcblob,'@contraAccountCode='),
+gccontraAccountDesc=readstring(gcblob,'@contraAccountDesc='),
 gcsourcecode=readstring(gcblob,'@sourceCode='),
+gcsourcedesc=readstring(gcblob,'@sourceDesc='),
 gcaccountType=readstring(gcblob,'@accountType='),
 gcaccountCode=readstring(gcblob,'@accountCode='),
 gcaccountDesc=readstring(gcblob,'@accountDesc='),
@@ -208,12 +211,24 @@ gcaccountId=readstring(gcblob,'@accountId='),
 break(gcaccountType<>'ACCRUED RECEIVABLE'),
 iw('@afterloadwindow=set(-03,'&gccontraId&');
 \t000Input Collection and Source Account Information; 
-\t001Collection Acct; \f002'&gccontraAccountCode&'; \l0024701,1; @lf002=''typ=4701 and a4 >'''' 0'''' and a1 in (''''FUND'''')'',2;
-\t003Source Acct; \f004'&gcsourcecode&'; \l0044701; @lf004=''typ=4701 and a1 in (''''SOURCE'''')'',2;'),
+\t001Collection Acct; \f002'&gccontraAccountCode&'; \l0024701,1;r002002040004; @lf002=''typ=4701 and a4 >'''' 0'''' and a1 in (''''FUND'''')'',2;
+\t039Collection Acct Desc; \h039; \f040'&gccontraAccountDesc&'; \l0404701,1;r002002040004; @lf040=''typ=4701 and a4 >'''' 0'''' and a1 in (''''FUND'''')'',2;\x040-50;
+\t003Source Acct; \f004'&gcsourcecode&'; \l0044701;r004002042004; @lf004=''typ=4701 and a1 in (''''SOURCE'''')'',2;
+\t041Source Acct Desc; \h041; \f042'&gcsourcedesc&'; \l0424701;r004002042004; @lf042=''typ=4701 and a1 in (''''SOURCE'''')'',2;\x042-50;
+'),
  d1select('exec dbo.glDetailStageAdd '&obj:id&',''o'','&gcaccountId&','&gcamount+0&','&gcid&', @contraId='&obj7:link1&', @sourceCode='''&obj7:key2&''', @comment='''&clip(obj7:key1)&'; '&clip(obj7:key2)&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Journal Entry...')),
  focus(008),
 ;
+
+t003Deposit Account; l0044701,1;r004002042004; lf004='a1=''BANK'' and b3!=1',2; w00480; d004; x004184;
+ t041Default Bank Account Desc; h041; x04263; l0424701,1;r004002042004; lf042='a1=''BANK'' and b3!=1',2;
+  acc042=if(obj:a18<'  0',set(004,''));
+
+t005Fund; l0064701,2;r006002044004008014; lf006='a1 in (''FUND'',''OFFICIAL'') and b3!=1',2; w00680; d006; x006184;
+ t043Default Fund Desc; h043; x04463; l0444701,2;r006002044004008014; lf044='a1 in (''FUND'',''OFFICIAL'') and b3!=1',2;
+
+
 
 @refreshbrw=
  gcTable4512=choose(obj:a17='Posted','gldetail','glDetailStage'),
@@ -259,7 +274,12 @@ iw('@afterloadwindow=set(-03,'&gccontraId&');
  break(gcretval<>2),
  update,
  d1select('dbo.glPost '&obj:id&', ''o'''),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),postSuccess=);
+
+@postSuccess=
+ acc109=,
+ close('ok');
+ lcClosewindow=1,
 
 @acc351=
  if(gcToggle=gcToggleDb,gcToggle=gcToggleCr,gcToggle=gcToggleDB),
