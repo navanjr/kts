@@ -16,7 +16,7 @@ begin
   @count int,
   @amount money,
   @total money,
-  @paycodeBlob varchar(max),
+  @paycodeBlob varchar(max) = '',
   @idBlob varchar(max) = ''
 
  declare @electronicPaycodes table(paycode varchar(50))
@@ -48,8 +48,8 @@ begin
   and template = @template
   and depositDate = @depositDate 
 
- select @paycodeBlob = 
-  '|     ' + dbo.padRight(paycode,' ',15) + dbo.padLeft('$' + dbo.formatCurr(sum(amount)),' ',15)
+ select @paycodeBlob = @paycodeBlob + 
+  '|     ' + dbo.padRight(paycode,' ',20) + '$' + dbo.formatCurr(sum(amount))
  from @relatedItems
  where paycode in (select paycode from @electronicPaycodes)
  group by paycode
@@ -83,6 +83,10 @@ begin
 +  case when isnull(@idBlob,'') > '  0' then
     '@idBlob=' + left(@idBlob,len(@idBlob) - 1) + ';'
   else '' end
+
+--+  case when isnull(@paycodeBlob,'') > '  0' then
+--    '@paycodeBlob=' + isnull(@paycodeBlob,'') + ';'
+--  else '' end
 
  return @blob 
 end
