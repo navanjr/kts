@@ -131,24 +131,30 @@ begin
  begin
  if @orderByVoucherFlag = 1 
   begin
-   insert @rt (id,description,ord,rowType,origin)
+   insert @rt (id,description,ord,rowType,dbAmount,crAmount,origin)
     select
      0,
      ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      paymentType + 'a',
-     2,4 
+     2,
+     sum(dbAmount),
+     sum(crAmount),
+     4 
     from @rt 
     where rowType = 0 and paymentType is not null
     group by paymentType
    end
   else
    begin
-   insert @rt (id,description,ord,rowType,origin)
+   insert @rt (id,description,ord,rowType,dbAmount,crAmount,origin)
     select
      0,
      ' ' + case when left(paymentType,1) = 'z' then substring(paymentType,2,50) else paymentType end,
      fpCode +  paymentType + 'a',
-     2,5 
+     2,
+     sum(dbAmount),
+     sum(crAmount),
+     5 
     from @rt 
     where rowType = 0 and paymentType is not null
     group by fpCode, paymentType
@@ -173,28 +179,33 @@ begin
 -- insert @rt (id,description,ord,origin) select 0,'Warrants: ','ww',9
 
 -- get the warrants
- insert @rt (id, description, subDescription, dbAmount, ord, origin, fundGrouping)
+ insert @rt (id, description, subDescription, dbAmount, ord, fundGrouping, paymentType, origin)
   select dbo.brwidEncoder(9,b.id),
    '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
    b.a2,
    sum(a.amount),
    'ww' + a.accountCode + b.key3,
-   10,
-   accountCode
+   accountCode,
+   b.a18,
+   10
   from dbo.glDetail a, object b
   where a.slink = 'o' + cast(b.id as varchar)
    and a.accountId in (select id from @glAccountIds)
    and b.link1 = 0
-  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id
+  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
   having sum(amount) > 0
  
 -- add header rows for fund
- insert @rt (id, description, subDescription, ord, rowType, origin)
+ insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
  select 
   0,
   '-- ' + fundGrouping + ' - ' + t.accountDesc,
-  dbo.padLeft('Balance: $' + dbo.formatCurr(dbo.glAccountBalance(fundGrouping)),' ',50),
-  'ww' + fundGrouping, 2, 11
+  dbo.padLeft('Balance: $' + dbo.formatCurr(abs(dbo.glAccountBalance('target->' + fundGrouping))),' ',50),
+  'ww' + fundGrouping,
+  2,
+  sum(dbAmount),
+  sum(crAmount),
+  11
  from @rt r
  left join glAccounts g on g.accountcode = r.fundGrouping
  left join glAccounts t on t.accountcode = g.targetAccountCode

@@ -138,18 +138,28 @@
  if(lcMode=9,warrOptions=);
 
 @sumOptions=
- d1select('select dbo.bankStatementBRWRightClickBlob('&obj:id&','&obj:link1&','&kpbrwid(1)&')'),
+ d1select('select dbo.bankStatementBRWRightClickBlob('&obj:id&','&obj:link1&','&kpbrwid(1)&','&obj:c1+0&')'),
  lcSumString=obj7:d1,
  lcMessage=readstring(lcSumString,'@message='),
  lcTotal=readstring(lcSumString,'@total='),
  lcAmount=readstring(lcSumString,'@amount='),
  lcIdBlob=readstring(lcSumString,'@idBlob='),
- m(lcMessage,'Right Click Menu...','question.ico','Clear '&format(lcAmount,@n$14.2)&'|Clear All '&format(lcTotal,@n$14.2)&'|Cancel'),
- if(gcretval=1,brw1=),
- if(gcretval=2,bsToggleMany=);
-
+ lcTemplate=readstring(lcSumString,'@template='),
+ lcPaymentType=readstring(lcSumString,'@paymentType='),
+ lcOpenId=readstring(lcSumString,'@openId='),
+ lcOptions='C&lear '&format(lcAmount,@n$14.2)&'|Clear &All '&format(lcTotal,@n$14.2)&'|&Open '&lcPaymentType,
+ lcOptions=lcOptions&choose(lcTemplate='Deposits','|E&xit','|&Void '&lcPaymentType&'|Ca&ncel '&lcPaymentType&'|E&xit'),
+ lcPickOffset=choose(lcTemplate='Deposits',0,10),
+ m(lcMessage,'Right Click Menu...','question.ico',lcOptions),
+ lcPicked=gcretval+lcPickOffset,
+ if(lcPicked=1,brw1=),
+ if(lcPicked=2,bsToggleMany=),
+ if(lcPicked=3,change(lcOpenId)),
+ if(lcPicked=14,voidIt=),
+ if(lcPicked=15,cancelIt=);
+ 
 @warrOptions=
- m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|&Cancel'),
+ m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|E&xit'),
  if(gcretval=1,change(lcid)),
  if(gcretval=2,buyWarrant=);
 
@@ -168,6 +178,23 @@
 @bsToggleMany=
  sql('exec dbo.bankStatementItemSelected null, '&obj:id&','''&lcIdBlob&''''),
  refreshBRW=;
+@voidIt=lcMethod='VOID',cancelProcedure=;
+@cancelIt=lcMethod='CANCEL',cancelProcedure=;
+@cancelProcedure=
+ d1select('exec dbo.paymentCancel '&lcOpenId&', @method='''&lcMethod&''''),
+ lcCode=readstring(obj7:d1,'@code='),
+ break(lcCode+0=0),
+ lcMessage=readstring(obj7:d1,'@message='),
+ lcCaption=readstring(obj7:d1,'@caption='),
+ if(lcCode=1,m(lcMessage,lcCaption),cancelProcedureSir=);
+@cancelProcedureSir=
+ m(lcMessage,lcCaption,'question.ico',6,4),
+ break(gcretval<>2),
+ iw('\t097Comment; \y097098=001;r \x097=001; \x098=002; \w098200;'),
+ break(gcretval<>'OK'),
+ lcComment=obj7:d1,
+ d1select('exec dbo.paymentCancel '&lcOpenId&', @method='''&lcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
 
 @brwstuff=
  gcvars=,

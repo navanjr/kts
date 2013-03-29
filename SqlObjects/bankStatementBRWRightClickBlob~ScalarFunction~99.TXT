@@ -1,13 +1,16 @@
 create function dbo.bankStatementBRWRightClickBlob(
  @bankStatementId int,
  @accountId int,
- @brwid int
+ @brwid int,
+ @showLinks int
 ) returns varchar(max) as
 begin
 
  declare 
   @blob varchar(max),
   @template varchar(50),
+  @paymentType varchar(50),
+  @slink varchar(50),
   @origin int,
   @depositDate int,
   @count int,
@@ -28,17 +31,19 @@ begin
  select
   @origin = origin,
   @template = template,
+  @paymentType = replace(replace(paymentType,'z',''),'Official ',''),
+  @slink = slink,
   @depositDate = depositDate,
-  @amount = isnull(dbAmount,0) - isnull(crAmount,0)  
- from dbo.bankStatementBRW(@bankStatementId,@accountId,0,1,0,0)
+  @amount = abs(isnull(dbAmount,0) - isnull(crAmount,0))  
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
  where id = @brwid
 
  insert @relatedItems
  select 
   id,
-  isnull(dbAmount,0) - isnull(crAmount,0),
+  abs(isnull(dbAmount,0) - isnull(crAmount,0)),
   dbo.splitF(subDescription,'-',1)
- from dbo.bankStatementBRW(@bankStatementId,@accountId,0,1,0,0)
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
  where origin = @origin
   and template = @template
   and depositDate = @depositDate 
@@ -62,18 +67,22 @@ begin
   + '@amount=' + cast(isnull(@amount,0) as varchar) + ';'
   + '@depositDate=' + cast(isnull(@depositDate,'') as varchar) + ';'
   + '@template=' + isnull(@template,'') + ';'
+  + '@paymentType=' + isnull(@paymentType,'') + ';'
+  + '@openId=' + isnull(cast(dbo.slinkId(@slink) as varchar),'') + ';'
   + '@origin=' + cast(isnull(@origin,'') as varchar) + ';'
 
-  + '@message='
-  + isnull(cast(@count as varchar),'') + ' ' + isnull(@template,'') + '(s)|'
-  + 'Date: ' + dbo.date1(isnull(@depositDate,'')) + '|'
-  + 'Total: $' + dbo.formatCurr(isnull(@total,0)) + '|'
+  + '@message=|'
+  + '     ' + isnull(cast(@count as varchar),'') + ' ' + isnull(@template,'') + '|'
+  + '     ' + 'Date: ' + dbo.date1(isnull(@depositDate,'')) + '|'
+  + '     ' + 'Total: $' + dbo.formatCurr(isnull(@total,0)) + '|'
 
   + isnull(@paycodeBlob,'')
 
   + '|;' 
 
-  + '@idBlob=' + left(@idBlob,len(@idBlob) - 1) + ';' 
++  case when isnull(@idBlob,'') > '  0' then
+    '@idBlob=' + left(@idBlob,len(@idBlob) - 1) + ';'
+  else '' end
 
  return @blob 
 end
