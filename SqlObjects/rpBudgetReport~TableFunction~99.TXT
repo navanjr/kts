@@ -1,26 +1,29 @@
-create function dbo.rpBudgetReport(@begindate varchar(20),
-        @enddate varchar(20),
+create function dbo.rpBudgetReport(@beginDate varchar(20),
+        @endDate varchar(20),
         @fundCode varchar(20))
 
-returns @rt table(accountCode varchar(60),
-                  accountDesc varchar(50),
-                  sourceSECA varchar(60),
-                  sourceDesc varchar(60),
-                  July money,
-                  August money,
-                  September money,
-                  October money,
-                  November money,
-                  December money,
-                  January money,
-                  February money,
-                  March money,
-                  April money,
-                  May money,
-                  June money
+returns @rt table(accountCode varchar(60) default '',
+                  accountDesc varchar(50) default '',
+                  sourceSECA varchar(60) default '',
+                  sourceDesc varchar(60) default '',
+                  July varchar(60) default '',
+                  August varchar(60) default '',
+                  September varchar(60) default '',
+                  October varchar(60) default '',
+                  November varchar(60) default '',
+                  December varchar(60) default '',
+                  January varchar(60) default '',
+                  February varchar(60) default '',
+                  March varchar(60) default '',
+                  April varchar(60) default '',
+                  May varchar(60) default '',
+                  June varchar(60) default '',
+                  Total varchar(60) default '',
+                  ord varchar(250)  default ''                
                   )
 as
 begin
+
 declare @wt table(id int identity,
                    apportionmonth int,
                    accountCode varchar(60),
@@ -66,8 +69,8 @@ insert @wt (apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
  select apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
   group by apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA
   
-insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc)
-select distinct accountCode,accountDesc,sourceSECA,sourceDesc from @wt
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,ord)
+select distinct accountCode,accountDesc,sourceSECA,sourceDesc,accountCode+rtrim(accountDesc)+sourceSECA+'b' from @wt
 
 update r set January=d.amount from @rt r, @det d
  where 
@@ -164,6 +167,29 @@ update r set December=d.amount from @rt r, @det d
  and r.sourceSECA=d.sourceSECA
  and r.sourceDesc=d.sourceDesc
  and d.apportionmonth=12
+
+ update @rt set total = cast(july as money)+cast(august as money)+cast(september as money)+cast(october as money)+cast(november as money)+cast(december as money)+cast(january as money)+cast(february as money)+cast(march as money)+cast(april as money)+cast(may as money)+cast(june as money)
+
+insert @rt (sourceDesc,july,august,september,october,november,december,january,february,march,april,may,june,total, ord)
+ select 
+  'Total Revenue Rec''d',
+  sum(cast(July as money)),
+  sum(cast(August as money)),
+  sum(cast(September as money)),
+  sum(cast(october as money)),
+  sum(cast(november as money)),
+  sum(cast(december as money)),
+  sum(cast(January as money)),
+  sum(cast(february as money)),
+  sum(cast(march as money)),
+  sum(cast(april as money)),
+  sum(cast(may as money)),
+  sum(cast(june as money)),
+  sum(cast(total as money)),
+  'zzzzzzzzzz'
+  from @rt
+
+
 
 return
 end
