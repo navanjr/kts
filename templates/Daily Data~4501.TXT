@@ -178,11 +178,17 @@ m(lcPicked);
 
 @menu6=
  getBlob=,
- lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&'&New|E&xit',
+ lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&'&New'&choose(lcBankStatementCode>'  0','|Current Bank Statement','')&'|E&xit',
  m('Please Choose one of the following options...','Right Click Menu...','question.ico',lcMessageOptions),
- lcChoice=gcretval+0-choose(lcDepCount+0=1,1,0),
- if(lcChoice+0=0,change(lcDepChangeId)),
- if(lcChoice+0=1,newDeposit=);
+ lcChoice=gcretval+0+choose(lcDepCount+0=1,10,0)+choose(lcBankStatementCode>'  0',100,0),
+ if(lcChoice=11 or lcChoice=111,change(lcDepChangeId)),
+ if(lcChoice=1 or lcChoice=12 or lcChoice=101 or lcChoice=112,newDeposit=),
+ if(lcChoice=102 or lcChoice=113,openCurrentBankStatement=);
+
+@openCurrentBankStatement=
+ lcBankStatementId=kp('select id from object where typ=4780 and '&obj:key1&' between a1 and a2 and key1 = '''&lcBankStatementCode&''''),
+ break(lcBankStatementId<1),
+ change(lcBankStatementId);
 
 @newDeposit=
  d1select('exec dbo.depositCRUD 0, @dailyDataBRWId='&kpbrwid(1)),
@@ -204,7 +210,7 @@ m(lcPicked);
  if(lcSuspenseMethod='U',gcStation='',gcDeputy='');
 
 @balanceReport=
- setvars=,
+ setvar=,
  gcDepId=0,
  gcPrintDetail='Y',
  trreport('balanceReport',5018,'printBalanceReport=');
@@ -222,7 +228,7 @@ m(lcPicked);
  lcBlob=kp('select blob from dbo.dailyDataPendingDeposits('&obj:key1&') where id = '&kpbrwid(1)),
  lcDepChangeId=readstring(lcBlob,'@changeId='),
  lcDepCount=readstring(lcBlob,'@depositCount='),
- lcBankStatementId=readstring(lcBlob,'@bankStatementId=');
+ lcBankStatementCode=readstring(lcBlob,'@bankStatementAccountCode=');
  
 @menu7=
  lcDepositType=kp('select key1 from object where typ = 4503 and id = '&lcid),

@@ -21,7 +21,8 @@ returns @rt table (
  minId int,
  blob varchar(max),
  beforeAmount money,
- afterAmount money
+ afterAmount money,
+ origin int
 ) as 
 begin
 
@@ -43,7 +44,7 @@ begin
    case when MAX(depositId) > 0 then '(deposit #'+(select key1 from object where id=max(depositId))+' started)' else '' end,
    '',
    dbo.padLeft(convert(varchar,sum(amount),1),' ',16),
-   null,null,null,null,null,null,null,null,null,null,null,null
+   null,null,null,null,null,null,null,null,null,null,null,null,1
   from dbo.depositPaidUnPosted() a, object b
   where a.receiptType = b.key1 and b.typ = 4503
   group by receiptType, b.id
@@ -56,7 +57,7 @@ begin
  else
  begin
 -- get the raw data
- insert @rt (id,recordCnt,sourceAmt,depositAccountCode,depositAccountDesc,receiptType,amount,beforeAmount,afterAmount,brwBGColor,actionId,existingDepositId,minId)
+ insert @rt (id,recordCnt,sourceAmt,depositAccountCode,depositAccountDesc,receiptType,amount,beforeAmount,afterAmount,brwBGColor,actionId,existingDepositId,minId,origin)
   select
    cast('-6' + cast(min(a.id) as varchar) as int),
    count(a.id),
@@ -74,7 +75,8 @@ begin
    else
     max(isnull(a.depositId,0))
    end,0),
-   min(a.id)
+   min(a.id),
+   2
   from dbo.depositPaidUnPosted() a
   left join object b on a.receiptType = b.key1 and b.typ = 4503 --and b.Key1 != 'TRUST'
   group by
@@ -95,7 +97,7 @@ begin
    receiptType = case when receiptType = 'TRUST' then 'OFFICIAL' else receiptType end
 
 -- add grouping  
-  insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob,receiptType)
+  insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob,receiptType,origin)
   select 
    cast('-5' + cast(min(a.minId) as varchar) as int),
    @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + '  a',
@@ -118,16 +120,23 @@ begin
    depositAccountCode,depositAccountDesc,
    2,
    case when COUNT(distinct existingDepositId) > 1 then '@deposits=' else '@changeId=' end
-    + stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,'')+';'
-    + '@depositCount=' + cast(COUNT(distinct existingDepositId) as varchar) + ';'
-    + '@bankAccountCode=' + rtrim(depositAccountCode) + ';',
-   stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,'')
+    + isnull(stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,''),'') + ';'
+    + '@depositCount=' + isnull(cast(COUNT(distinct existingDepositId) as varchar),'') + ';'
+    + '@bankAccountCode=' + rtrim(depositAccountCode) + ';'
+    + case when left(depositAccountCode,3) != 'AAA' then
+     '@bankStatementAccountCode=' + rtrim(depositAccountCode) + ';'
+    else
+     ''
+    end,
+   stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,''),
+   3
   from @rt a
   group by depositAccountCode, depositAccountDesc
   
-  insert @rt (ord)
+  insert @rt (ord, origin)
   select 
-   @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + 'z'
+   @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + 'z',
+   4
   from @rt
   group by depositAccountCode, depositAccountDesc
 
@@ -137,9 +146,10 @@ begin
 
  end
 
- insert @rt (id,ord,rowstring,glBalanceString) select 0,@seedString + ' ','',''
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor) select 0,@seedString + 'BA','  Un-Posted Deposits','','  Un-Posted Deposits', 1
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt) select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16)
+ insert @rt (id,ord,rowstring,glBalanceString,origin) select 0,@seedString + ' ','','',5
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor,origin) select 0,@seedString + 'BA','  Un-Posted Deposits','','  Un-Posted Deposits', 1, 6
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt, origin)
+  select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16), 7
   
  return
 end
