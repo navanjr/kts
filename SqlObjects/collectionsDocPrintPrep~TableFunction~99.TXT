@@ -11,9 +11,11 @@ create function dbo.collectionsDocPrintPrep(
  invoiceId int,
  taxYear numeric(5,0),
  item numeric(7,1),
+ parcel varchar(50),
  taxrollDetailId int, -- address Id
  dtypeCommentId int,
- printOrder varchar(250)
+ printOrder varchar(250),
+ origin int
 ) as
 begin
 
@@ -24,9 +26,15 @@ begin
    a.invoiceIdMain,
    a.taxyearMax,
    a.item,
-   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.parcel,
+   case when @dtype = 'RESALE' then
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.parcelNumber = a.parcel and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   else
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   end,
    a.id,
-   a.ord
+   a.ord,
+   1
   from dbo.collectionsBRW(@dType,@documentId,null,null,@taxrollDetailId) a
   --where a.id = @taxrollDetailId
 
@@ -39,9 +47,15 @@ begin
    a.invoiceIdMain,
    a.taxyearMax,
    a.item,
-   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.parcel,
+   case when @dtype = 'RESALE' then
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.parcelNumber = a.parcel and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   else
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   end,
    a.id,
-   case when @order = 'Parcel' then a.ordB else a.ord end
+   case when @order = 'Parcel' then a.ordB else a.ord end,
+   2
   from dbo.collectionsBRW(@dType, @documentId, @date, @days,0) a
    where charindex('printed',a.documentStatus) = 0
    order by case when @order = 'Parcel' then a.ordB else a.ord end
@@ -51,9 +65,15 @@ begin
    a.invoiceIdMain,
    a.taxyearMax,
    a.item,
-   (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc),
+   a.parcel,
+   case when @dtype = 'RESALE' then
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.parcelNumber = a.parcel and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   else
+    (select top 1 b.id from dbo.taxrollDetail b where b.taxyear = a.taxyearMax and b.itemNumber = a.item and b.enabled = 0 and b.dtype = 'a' order by id desc)
+   end,
    a.id,
-   case when @order = 'Parcel' then a.ordB else a.ord end
+   case when @order = 'Parcel' then a.ordB else a.ord end,
+   3
   from dbo.collectionsBRW(@dType, @documentId, @date, @days,0) a
    where charindex('printed',a.documentStatus) = 0
    order by case when @order = 'Parcel' then a.ordB else a.ord end
@@ -61,18 +81,38 @@ begin
  end
 
  if @multiAddressSwitch = 1 --get all the alternate addresses
-  insert @rt select 
-   a.invoiceId,
-   a.taxyear,
-   a.item,
-   b.id,
-   a.dtypeCommentId,
-   a.printOrder
-  from @rt a
-  join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.itemNumber = a.item
-  where
-   b.enabled = 0
-   and b.dtype = 'aa' 
- 
+ begin
+  if @dtype = 'RESALE'
+   insert @rt select 
+    a.invoiceId,
+    a.taxyear,
+    a.item,
+    a.parcel,
+    b.id,
+    a.dtypeCommentId,
+    a.printOrder,
+    4
+   from @rt a
+   join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.parcelNumber = a.parcel
+   where
+    b.enabled = 0
+    and b.dtype = 'aa' 
+  else
+   insert @rt select 
+    a.invoiceId,
+    a.taxyear,
+    a.item,
+    a.parcel,
+    b.id,
+    a.dtypeCommentId,
+    a.printOrder,
+    5
+   from @rt a
+   join dbo.taxrollDetail b on b.taxyear = a.taxyear and b.itemNumber = a.item
+   where
+    b.enabled = 0
+    and b.dtype = 'aa' 
+
+ end
  return
 end
