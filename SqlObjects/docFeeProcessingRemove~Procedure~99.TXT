@@ -1,0 +1,56 @@
+create procedure dbo.docFeeProcessingRemove(
+ @dtype varchar(50),
+ @documentId int,
+ @date int,
+ @days int,
+ @documentDate int,
+ @method varchar(50) = 'Stage'
+) as
+begin
+
+ -- TODO: this is not finished... but usable for maintenance during beta
+
+ declare
+  @commentIds ids,
+  @feeInvoiceIds ids,
+  @documentName varchar(50)
+
+ select @documentName = documentName from dbo.documents where documentId = @documentId
+
+-- remove comments
+ insert @commentIds select id from taxrollDetail 
+ where case when @dtype = 'RESALE' then parcelNumber else cast(itemNumber as varchar) end
+  in (select keyCode from dbo.collectionsAddFeesTF(@dtype, @documentId, @date, @days))
+  and dtype = 'ADDFEE'
+  and documentName = @documentName
+
+ exec dbo.logit @@procid, 'comments - @@rowCount', @@rowCount, '@documentName', @documentName
+
+-- remove fee invoices
+ insert @feeInvoiceIds
+ select id from invoices
+ where
+  queue = @documentName + '.' + dbo.date1(@documentDate)
+
+/*
+ select 
+  inv.id
+ from taxrollDetail t
+ join invoices inv on t.invoiceLinkId = inv.invoiceId
+ where t.id in (select id from @commentIds)
+  and inv.origin = rtrim(@documentName) + '.04/03/2013'
+*/
+
+ exec dbo.logit @@procid, 'fee invoices - @@rowCount', @@rowCount, '@documentName', @documentName
+
+
+ if @method = 'DELETE'
+ begin
+  delete taxrollDetail where id in (select id from @commentIds)
+  exec dbo.logit @@procid, 'comments deleted - @@rowCount', @@rowCount, '@documentName', @documentName
+
+  exec dbo.invoiceCRUD @mode=3, @postCheckOverride = 0, @ids = @feeInvoiceIds
+ end
+
+
+end
