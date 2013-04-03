@@ -6,7 +6,8 @@ create proc dbo.docFeeProcessingCRUD(
  @invoiceDate int = null,
  @debugMode varchar(5) = 'FALSE',
  @dType varchar(50) = '',
- @documentId int = 0
+ @documentId int = 0,
+ @verbose varchar(5) = 'FALSE'
  
 ) as
 begin
@@ -79,7 +80,16 @@ begin
 
   if @status = 'STAGEALL'
   begin
-   select '@code=0;@message=Stage Message;@tally=' + cast(@tally as varchar) + ';'
+   
+   declare @fees varchar(max) = 'The Following Fees will be added'
+    + case when (select dbo.settingsF('site.CollectionsAttachFeesNewest','FALSE')) = 'TRUE' then
+     ' to the Newest Open Invoice...|'
+    else
+     '...|'
+    end
+   select @fees = @fees + display + '|' from dbo.docFeesBRW(@documentId) where ord < 'c' order by ord
+
+   select '@code=0;@message=' + @documentName + '||' + @fees+';@tally=' + cast(@tally as varchar) + ';'
    return
   end
 
@@ -122,7 +132,8 @@ begin
     @amount = @tokenAmount,
     @printed = @documentName,
     @queue = @processCode,
-    @tallyEcho = @tally
+    @tallyEcho = @tally,
+    @verbose = @verbose
  
    exec dbo.invoiceUpdate @tokenInvoiceId
  
