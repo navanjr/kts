@@ -11,9 +11,12 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @originId int = 0,
  @printed varchar(50) = '',
  @queue varchar(50) = '',
- @tallyEcho int = null
+ @tallyEcho int = null,
+ @verbose varchar(5) = 'TRUE'
 ) as
 begin
+
+ set nocount on
 
  exec dbo.logit @@procid, '@mainInvoiceId', @mainInvoiceId, '@invoiceDate', @invoiceDate,'@amount', @amount, '@tallyEcho', @tallyEcho
 
@@ -150,7 +153,7 @@ begin
   
   -- post to the gl
   declare @test int = substring(@slink,2,14)
-  exec dbo.glPost @test, @styp, @smode
+  exec dbo.glPost @test, @styp, @smode, @verbose = @verbose
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 
