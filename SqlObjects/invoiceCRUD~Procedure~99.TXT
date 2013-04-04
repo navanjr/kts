@@ -4,7 +4,8 @@ create procedure dbo.invoiceCRUD(
  @postCheckOverride int = 1,
  @taxyear varchar(10) = null,
  @origin varchar(50) = null,
- @noGLDetailIssue varchar(5) = 'FALSE' 
+ @noGLDetailIssue varchar(5) = 'FALSE' ,
+ @ids ids readonly
 ) as
 /*
  remember
@@ -14,10 +15,37 @@ create procedure dbo.invoiceCRUD(
   D = 3
 */
 begin
+
+ set nocount on
+
  exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@taxyear', @taxyear
 
  declare @tokenId int, @tally int
  declare @wt table(invoiceid int)
+
+
+-- delete all invoices that were passed in the ids datatype
+ if @mode = 3 and @invoiceId is null and exists(select * from @ids)
+ begin
+
+  insert @wt select id from @ids
+
+  select @tally = count(*) from @wt
+  exec dbo.logit @@procid, 'deleting from ids... @tally', @tally
+
+  while exists(select * from @wt)
+  begin
+   exec dbo.logit @@procid, 'Countdown... @tally', @tally
+
+   select top 1 @tokenId = invoiceId from @wt 
+   exec dbo.invoiceCRUD @mode=3, @invoiceId = @tokenId, @postCheckOverride = 0
+   delete @wt where invoiceId = @tokenId
+ 
+   set @tally = @tally - 1
+
+  end
+  return
+ end
 
 
 -- delete all invoices in a tax year or just the ones with the no gl issue
