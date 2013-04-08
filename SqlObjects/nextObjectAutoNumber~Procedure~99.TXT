@@ -3,12 +3,20 @@ create procedure dbo.nextObjectAutoNumber(
  @seriesString varchar(50),
  @additionalWhereClause varchar(500) = null,
  @ignoreDeleted varchar(10) = 'FALSE',
+ @clobber varchar(50) = null,
  @debugMode varchar(5) = 'FALSE',
  @newNumber nvarchar(max) = null output 
 ) as
 -- this function looks for \0002 in the template code to know what format to return the next number as
 --  also, looks for @seriesField= to know what object column to find the series data
 begin
+
+ if @clobber is not null
+ begin
+  set @newNumber = @clobber
+  exec dbo.logit @@procid, '@newNumber', @newNumber, '@clobber', @clobber
+  return
+ end
 
  declare
   @padLength int,
