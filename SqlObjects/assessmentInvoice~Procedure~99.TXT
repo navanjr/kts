@@ -8,7 +8,10 @@ begin
   @slink varchar(15),
   @invoiceId int,
   @code int,
-  @message varchar(150) 
+  @message varchar(150),
+  @currentDate int 
+
+  select @currentDate = dbo.clariondate(getdate())
 
 -- we need to preform the check first
  exec dbo.taxrollCheckProc @assessmentId, 'S', 0, @code = @code output, @message = @message output
@@ -26,6 +29,7 @@ begin
   
   select @slink = slink from dbo.taxrollCheck(@assessmentId,'S',null)
 
+
  declare @feedescription varchar(60),
          @feesourceCode varchar(60),
          @feefundCode varchar(60),
@@ -41,7 +45,7 @@ begin
     @interestDate = interestDate
     from (select top 1 * from dbo.assessmentDetailCheck(@assessmentId)) data
 
-   exec dbo.subInvoiceCRUD @invoiceId, @interestDate, @feedescription, @feesourceCode, @feefundCode, 'F', @feeAmount,  0, ''
+   exec dbo.subInvoiceCRUD @invoiceId, @currentDate, @feedescription, @feesourceCode, @feefundCode, 'F', @feeAmount,  0, ''
 
 
   if dbo.glPostCheck(@slink) = 0
