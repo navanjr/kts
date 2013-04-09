@@ -11,11 +11,11 @@
   'typ=4771 and a18=''Treasurers Check'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17=''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17<>''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18=''Cancel Voucher'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Cancel Voucher'',''Void Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 like ''%Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
 
 
-@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''),'''') ';
+@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')),'''') ';
 
 @seriesField=a18;
 @gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
@@ -271,7 +271,7 @@ printSummary=
 \t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855;
 
 \t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
- \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''';
+ \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')';
 
 
 \t101Comment;
