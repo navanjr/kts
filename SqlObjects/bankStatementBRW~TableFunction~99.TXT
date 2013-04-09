@@ -21,7 +21,7 @@ create function dbo.bankStatementBRW(
  dbAmount money,
  crAmount money,
  rowType int,
- selectedFlag char(1),
+ selectedFlag char(50),
  ord varchar(150),
  comment varchar(50),
  comment2 varchar(50),
@@ -30,6 +30,9 @@ create function dbo.bankStatementBRW(
  dateCleared varchar(50) 
 )
 begin
+
+ declare @warrantBlob varchar(max)
+ select @warrantBlob = e1 from object where id = @id
 
  declare @showTable table(id int)
  insert @showTable select 0
@@ -194,6 +197,13 @@ begin
    and b.link1 = 0
   group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
   having sum(amount) > 0
+
+ update a set
+  rowType = 5, 
+  selectedFlag = dbo.splitF(b.data,':',3)
+ from @rt a, dbo.split(@warrantBlob,'|') b
+ where a.id = dbo.splitF(b.data,':',1) and origin = 10
+
  
 -- add header rows for fund
  insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
