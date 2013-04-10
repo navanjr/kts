@@ -1,0 +1,25 @@
+create function dbo.bankStatementCheck( 
+ @id int,
+ @accountCode varchar(60),
+ @statementDate varchar(50),
+ @endDate varchar(50))
+ returns varchar(5)
+ as
+ begin
+ 
+declare @allow varchar(5) = 'TRUE'
+
+ if exists(select * from object where typ=4780 and id <> @id and key1=@accountCode and @statementDate <= a2 and @statementDate >= a1)
+  set @allow = 'FALSE'
+  
+ if exists(select * from object where typ=4780 and id <> @id and key1=@accountCode and @endDate <= a2 and @endDate >= a1)
+  set @allow = 'FALSE'
+  
+ if exists(select * from object where typ=4780 and id <> @id and key1=@accountCode and a1 >= @statementDate and a1 <= @endDate)
+  set @allow = 'FALSE'
+  
+ if exists(select * from object where typ=4780 and id <> @id and key1=@accountCode and a2 >= @statementDate and a2 <= @endDate)
+  set @allow = 'FALSE'
+  
+ return @allow
+ end
