@@ -4,6 +4,50 @@
 @defaultbrowsekey=2;
 @save;
 
+@bb4=Ins Statements;
+@bbproc4=
+ iw('\t000Please Enter Date...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&';'),
+ break(gcretval='esc'),
+ gcBeginDate=obj7:key1,
+ sql('exec dbo.bankStatementCRUD '&gcBeginDate+0);
+
+@bb5=&Recon All;
+@bbproc5=
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='',
+ trreport('bankrec',5039,'printBankReconciliation='),
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='';
+
+@bb8=Open Warrants;
+@bbproc8=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval <> 'OK'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ), 
+ trreport('Outstanding Warrants',5032,'printOpenWarrants=');
+
+@bb9=Open Vouchers;
+@bbproc9=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval = 'esc'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
+
+@bb10=Paid Warrants;
+@bbproc10=
+  neww(4772);
+
+@bb11=Cancel Voucher;
+@bbproc11=do(5027,preCancelVoucherList=);
+
+@bb12=Cleared Vouchr;
+@bbproc12=do(5027,preClearedVoucherList=);
+
+
 \t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=update,refreshBRW=;
 \t003Description;  \d004; \d002obj:a4+0>0;
 
@@ -78,23 +122,6 @@
  gcEndDate=obj:a2,
  gcBankAccount=''
  ;
-
-@bb5=&Recon All;
-@bbproc5=
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='',
- trreport('bankrec',5039,'printBankReconciliation='),
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='';
-
-@bb6=Ins Statements;
-@bbproc6=
- iw('\t000Please Enter Date...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&';'),
- break(gcretval='esc'),
- gcBeginDate=obj7:key1,
- sql('exec dbo.bankStatementCRUD '&gcBeginDate+0);
 
 \t114Print All Cleared;
  @acc114=
