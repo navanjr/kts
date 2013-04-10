@@ -12,6 +12,7 @@ begin
   @sBDate int,
   @sEDate int,
   @tally int
+ 
 
  declare @priorBS table(id int)
 
@@ -25,9 +26,12 @@ begin
 
  select 
   @bBalance = isnull(sum(case when bsId = @id then 0 else amount end),0),
-  @eBalance = isnull(sum(amount),0),
-  @tally = count(*)
+  @eBalance = isnull(sum(amount),0)
  from glDetail where accountId = @accountId and bsId in (select id from @priorBS union all select @id)
+
+ select 
+  @tally = count(*)
+ from glDetail where accountId = @accountId and bsId = @id
 
  select @deposits = isnull(sum(amount),0) 
  from gldetail 
