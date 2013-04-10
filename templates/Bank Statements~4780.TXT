@@ -51,10 +51,19 @@
 \t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=update,refreshBRW=;
 \t003Description;  \d004; \d002obj:a4+0>0;
 
-\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=; \d008obj:a4+0>0;
-\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0;
+\t007Statement Date;  \w00850;  \t008@d2; @acc008=lcD=8,dateCheck=,refreshBRW=; \d008obj:a4+0>0;
+\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=;
 \t011Stated Ending Balance; @acc012=sums=; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
 \t013Count; \h013014;r
+
+@dateCheck=
+ lcDate=choose(lcD=8,obj:a1,obj:a2),
+ lcExists=kp('select dbo.bankStatementDateCheck('''&obj:key1&''','&lcDate+0&','&obj:id&')'),
+ if(lcExists='EXISTS',statementExists=);
+@statementExists=
+ m('The date entered overlaps with an existing statement||Please choose another date...','Date overlap!'),
+ set(lcD,''),
+ focus(lcD);
 
 \t037Fund; \h037038;r
 \t039Fund Desc; \l0404701;r038002040004; @lf040='typ=4701 and a1 in (select accountType from dbo.glBankFundTypes(''FUND'')) and b3!=1',2; \h039040obj:c2+0<>1;r
