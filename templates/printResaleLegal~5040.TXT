@@ -44,6 +44,9 @@
  lcy=0,
  lcTm=500,
  lcLm=1000,
+ lcE2='exec dbo.docFormLetter '&gcDocumentId2&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE2),
+ gcFoot=obj7:e1,
  lcE1='exec dbo.docFormLetter '&gcDocumentId&',@interestTo='''&lcInterestTo&'''',
  e1select(lcE1),
  tr(
@@ -56,8 +59,8 @@
  edt,
  nl,nl,
  prn(,lcLm,),
- bnd(,gcOfficial,3000),
- bnd(,gcCounty&' COUNTY TREASURER',3000);
+ if(len(gcFoot)>0),txt(gcFoot,lcLm,,5000,1000,1),
+ if(len(gcFoot)=0),do(bnd(,gcOfficial,3000),bnd(,gcCounty&' COUNTY TREASURER',3000)));
 
 @exportResaleForPub=
  ResaleForPubVars=,
@@ -82,6 +85,9 @@
  lcy=0,
  lcTm=500,
  lcLm=1000,
+ lcE2='exec dbo.docFormLetter '&gcDocumentId2&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE2),
+ gcFoot=obj7:e1,
  lcE1='exec dbo.docFormLetter '&gcDocumentId&',@interestTo='''&lcInterestTo&'''',
  e1select(lcE1),
  tr(
@@ -94,8 +100,8 @@
  edt,
  nl,nl,
  prn(,lcLm,),
- bnd(,gcOfficial,3000),
- bnd(,gcCounty&' COUNTY TREASURER',3000);
+ if(len(gcFoot)>0),txt(gcFoot,lcLm,,5000,1000,1),
+ if(len(gcFoot)=0),do(bnd(,gcOfficial,3000),bnd(,gcCounty&' COUNTY TREASURER',3000)));
 
 
 @setPersonalForPubVars=
@@ -139,9 +145,11 @@
  sqlloop('select 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,rowData from dbo.splitL('''&lcE1&''',70)',exportit=),
  lcE1='',
  sqlloop(lc5040sql,exportit=),
- send(lcfile,'',1),
- send(lcfile,gcOfficial,1),
- send(lcfile,gcCounty&' COUNTY TREASURER',1),
+ lcE1='exec dbo.docFormLetter '&gcDocumentId2&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE1),
+ lcE1=clip(obj7:e1),
+ if(len(lcE1)=0,lcE1=''&chr(13)&chr(10)&gcOfficial&chr(13)&chr(10)&gcCounty&' COUNTY TREASURER'),
+ sqlloop('select 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,rowData from dbo.splitL('''&lcE1&''',70)',exportit=),
  kpmc(),
  start(lcfile);
 

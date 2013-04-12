@@ -21,6 +21,7 @@ create proc dbo.paymentCRUD(
  @voidBatch varchar(5) = 'FALSE',
  @statusInput varchar(50) = null,
  @nextNumAdditionalWhere varchar(500) = '',
+ @clobberKey1 varchar(50) = null,
  @verbose varchar(5) = 'TRUE',
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
 ) as 
@@ -258,7 +259,13 @@ begin
   end
 
   if @paymentType not in ('Miscellaneous','Transfer')
-   exec dbo.nextObjectAutoNumber 4771, @paymentType, @ignoreDeleted = 'TRUE', @additionalWhereClause = @nextNumAdditionalWhere, @newNumber = @nextVoucherNumber output
+   exec dbo.nextObjectAutoNumber
+    4771,
+    @paymentType,
+    @ignoreDeleted = 'TRUE',
+    @additionalWhereClause = @nextNumAdditionalWhere,
+    @clobber = @clobberKey1,
+    @newNumber = @nextVoucherNumber output
 
 -- bail if we don't have all the accounts we need...
   if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant','Cancel MISCELLANEOUS')

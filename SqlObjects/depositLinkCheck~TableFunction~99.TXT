@@ -48,6 +48,18 @@ begin
   return 
  end
 
+ -- check to see if payment is a trust payment not linked to an official deposit.
+ if exists(select * from paid p, object r where p.id = @paymentId and dbo.slinkId(p.slink)=r.id and dbo.slinktype(p.slink)='o' and isnull(p.officialdepositId,0) < 1 and r.key3='TRUST') 
+ begin
+  insert @rettable select 1, 'Trust payment has not been linked to an official deposit.'
+  return 
+ end
+
+
+
+
+
+
  insert @rettable select 0, 'link should be good.' 
  return
 

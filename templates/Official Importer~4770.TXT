@@ -170,7 +170,6 @@
  gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&') order by ord';
 
 @refreshBRW=
- kpmo('Reloading import data','Please Wait...'),
  prop(000,'text',choose(obj:c1+0=1,'Register Vouchers','Register Warrants')),
  prop(108,'text',choose(obj:c1+0=1,'View Vouchers(F7)','View Warrants(F7)')),
  gcvars=,
@@ -178,8 +177,7 @@
   brwreload(1,gcsql4770,'40L(2)~Voucher #~#2#M|50R(2)~Date~@d2b@#3#M|195L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|50L(2)~DebitAcct~#6#M|50L(2)~CreditAcct~#7#M|40L(2)~Register #~#8#M|'),
   brwreload(1,gcsql4770,'50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|')
  ),
- tsc,
- kpmc();
+ tsc;
 
 @lbrw1forecolor=obj7:c10<0,255;
 @lbrw1color=obj7:c10='1',255,obj7:c10='2',2350115,obj7:c10='3',255; 2350115;
@@ -241,15 +239,15 @@
  break(lcCount+0<1),
  m(lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants')&' - '&format(lcAmount,@n$14.2)&'||Do you wish to insert these into the '&choose(obj:c1+0=1,clip(obj:a18),'warrant')&' register?','Insert '&choose(obj:c1+0=1,'Vouchers','Warrants')&'...',,6,2),
  break(gcretval<>2),
- kpmo('Importing '&lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants'),'Please wait...'),
+ pmo('Importing '&lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants'),'Please wait...'),
  d1select('exec dbo.paymentsImportBatch '''&choose(obj:c1+0=1,'official voucher','warrant')&''','&obj:id&','''&cur:ini&''''),
- kpmc(),
+ pmc(),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Oops...')),
  clearmemo=,
  acc102=;
 
 @clearmemo=
- m('Would you like for me to clear the workfield for you?','Clear Field',,6),
+ messagemdi('Would you like for me to clear the workfield for you?','Clear Field','question.ico',6),
  break(gcretval<>2),
  set(102,''),
  acc102=;

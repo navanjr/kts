@@ -4,13 +4,65 @@
 @defaultbrowsekey=2;
 @save;
 
-\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=update,refreshBRW=;
-\t003Description;  \d004;
+@bb4=Ins Statements;
+@bbproc4=
+ iw('\t000Please Enter Date...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&';'),
+ break(gcretval='esc'),
+ gcBeginDate=obj7:key1,
+ sql('exec dbo.bankStatementCRUD '&gcBeginDate+0);
 
-\t007Statement Date;  \w00850;  \t008@d2; @acc008=refreshBRW=; \d008obj:a4+0>0;
-\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0;
+@bb5=&Recon All;
+@bbproc5=
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='',
+ trreport('bankrec',5039,'printBankReconciliation='),
+ gcBeginDate=obj:a1,
+ gcEndDate=obj:a2,
+ gcBankAccount='';
+
+@bb8=Open Warrants;
+@bbproc8=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval <> 'OK'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ), 
+ trreport('Outstanding Warrants',5032,'printOpenWarrants=');
+
+@bb9=Open Vouchers;
+@bbproc9=
+ iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
+ break(gcretval = 'esc'),
+ gcEndDate=obj7:key2,
+ if(gcEndDate+0<1,gcEndDate=today() ),
+ trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
+
+@bb10=Paid Warrants;
+@bbproc10=
+  neww(4772);
+
+@bb11=Cancel Voucher;
+@bbproc11=do(5027,preCancelVoucherList=);
+
+@bb12=Cleared Vouchr;
+@bbproc12=do(5027,preClearedVoucherList=);
+
+\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=checkDates=,if(gcallow='FALSE',set(002,'')),if(gcallow='FALSE',set(004,'')),update,refreshBRW=;
+\t003Description;  \d004; \d002obj:a4+0>0;
+
+\t007Statement Date;  \w00850;  \t008@d2; @acc008=lcD=8,dateCheck=,refreshBRW=; \d008obj:a4+0>0;
+\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=;
 \t011Stated Ending Balance; @acc012=sums=; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
 \t013Count; \h013014;r
+
+@dateCheck=
+ lcDate=choose(lcD=8,obj:a1,obj:a2),
+ lcExists=kp('select dbo.bankStatementDateCheck('''&obj:key1&''','&lcDate+0&','&obj:id&')'),
+ if(lcExists='EXISTS',statementExists=);
+@statementExists=
+ m('The date entered overlaps with an existing statement||Please choose another date...','Date overlap!'),
+ set(lcD,''),
+ focus(lcD);
 
 \t037Fund; \h037038;r
 \t039Fund Desc; \l0404701;r038002040004; @lf040='typ=4701 and a1 in (select accountType from dbo.glBankFundTypes(''FUND'')) and b3!=1',2; \h039040obj:c2+0<>1;r
@@ -62,6 +114,7 @@
  sql('update object set typ=-4781 where typ=4781 and id='&gcid+0),
  brwreload(2);
 
+\t101PayBlob; \h101102;r
 
 \t105Refresh;
 @acc105=sums=,tsc;
@@ -78,17 +131,7 @@
  gcBankAccount=''
  ;
 
-@bb5=&Recon All;
-@bbproc5=
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='',
- trreport('bankrec',5039,'printBankReconciliation='),
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='';
-
-\t114Print Cleared;
+\t114Print All Cleared;
  @acc114=
  gcBeginDate=obj:a1,
  gcEndDate=obj:a2,
@@ -99,6 +142,9 @@
  gcBankStatementId=0,
  gcBankAccountId=0,
  gcBankDescription='';
+
+\t115Paid Warrants; @acc115=neww(4772);
+\t116Cleared Vouchers; @acc116=do(5027,preClearedVoucherList=);
 
 @acc550=refreshBRW=;
 @acc551=refreshBRW=;
@@ -122,7 +168,8 @@
 
 @brw1=
  bustItUp=,
- if(lcMode=1,bsToggle=);
+ if(lcMode=1,bsToggle=),
+ if(lcMode=9,bwWarrabtToggle=);
 
 @bustItUp=
  if(kpbrwid(1)=0,bustItUpReset=),
@@ -159,19 +206,39 @@
  if(lcPicked=15,cancelIt=);
  
 @warrOptions=
- m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy|E&xit'),
+ d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&',@method=''QUERY'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Warrant Options...')),
+ lcAmount=readstring(obj7:d1,'@amount='),
+ lcTotal=readstring(obj7:d1,'@total='),
+ lcOfferCheckNo=kp('select dbo.settingsF(''site.offerCheckNumberWhenBuyingWarrants'',''TRUE'')'),
+ m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Buy One - '&format(lcAmount,@n$12.2)&'|Buy &All - '&format(lcTotal,@n$12.2)&'|E&xit'),
  if(gcretval=1,change(lcid)),
- if(gcretval=2,buyWarrant=);
+ if(gcretval=2,buyWarrant=),
+ if(gcretval=3,buyManyWarrants=);
 
 @buyWarrant=
- iw(\t000Please fill in the following...;\t001Date;\t002@d2;\f002=gcbuydate;\t003Check #;\f004=gcbuycheckno;\000405;\w00200450;r),
+ lcIWString=',.t000Please fill in the following....,,.t001Date.,,.t002@d2.,,.f002=gcbuydate.,,.t003Check #.,,.f004=gcbuycheckno.,,.000405.,,.w00200450.,r'&choose(lcOfferCheckNo='TRUE',',.h003004.,r',''),
+ iw(lcIWString),
  break(gcretval<>'OK'),
- gcbuydate=obj7:key1,gcbuycheckno=obj7:key2,
- d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id&', @voucherDate='&obj7:key1&', @voucherNumber='''&obj7:key2&''''),
+ lcBuyDate=obj7:key1,lcBuyCheckno=obj7:key2,
+ d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id&', @voucherDate='&lcBuyDate&', @key3Number='''&lcBuyCheckno&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
  if(readstring(obj7:d1,'@code=')=2,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption='))),
  refreshBRW=;
 
+@buyManyWarrants=
+ lcIWString=',.t000Please fill in the following....,,.t001Date.,,.t002@d2.,,.f002=gcbuydate.,,.t003Check #.,,.f004=gcbuycheckno.,,.000405.,,.w00200450.,r'&choose(lcOfferCheckNo='TRUE',',.h003004.,r',''),
+ iw(lcIWString),
+ break(gcretval<>'OK'),
+ lcBuyDate=obj7:key1,lcBuyCheckno=obj7:key2,
+ d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&', @voucherDate='&lcBuyDate&', @key3Number='''&lcBuyCheckno&''', @method=''BUYMANY'''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
+ if(readstring(obj7:d1,'@code=')=2,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption='))),
+ refreshBRW=;
+
+@bwWarrabtToggle=
+ sql('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)),
+ refreshBRW=;
 @bsToggle=
  sql('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id),
  refreshBRW=;
@@ -201,21 +268,20 @@
  brw(150,1,gcsql,65,94,425,200,'118L(2)~    type~#3#M158L(2)~~#4#M|50R(2)~debit~@n-14.2b@#5#M|50R(2)~credit~@n-14.2b@#6#M|50R(2)~~#7#M',7,1),
  lccodeh=mh-200,
  prop(150,height,lccodeh),
+ prop(150,'Color',16777215),
  prop(150,'SelectedFillColor',65535),
  prop(150,'SelectedColor',0),
-gcbrw2sql='select id,key1,key2 from object where typ=4781 and link1='&obj:id&' order by id',
- brw(151,2,gcbrw2sql,380,33,110,58,
-'70L(2)~Item~#2#M|
-50R(2)~Amount~@n-19.2b@#3#M
-',7,1);;
+ gcbrw2sql='select id,key1,key2 from object where typ=4781 and link1='&obj:id&' order by id',
+ brw(151,2,gcbrw2sql,380,33,110,58,'70L(2)~Item~#2#M|50R(2)~Amount~@n-19.2b@#3#M',7,1);
 
+ rop(150,'SelectedFillColor',65535),13499135
  rop(150,7CFAH,13499135);
 
 lbrw1forecolor=obj7:c10<0,255;
 lbrw1color=obj7:c9='X',1959605; 2350115;
 
 @lbrw1forecolor=obj7:c10=1,255,obj7:c9<0,255; 1959605, 32768
-@lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135,obj7:c10='3',8308990,obj7:c9='X',1959605; 2157055; 1959605; 2350115; 7467519
+@lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135,obj7:c10='3',8308990,obj7:c10='5',13217535,obj7:c9='X',1959605; 2157055; 1959605; 2350115; 7467519
 
 
 @refreshBRW=

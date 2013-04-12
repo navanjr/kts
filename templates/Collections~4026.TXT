@@ -95,6 +95,7 @@
 
 @resaleForPub=
  gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
+ gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
  gcAbstracter='',
  gcBeginDate=obj:key1,
  gcDays=obj:a17,
@@ -105,6 +106,7 @@
 
 @resaleForPubSum=
  gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
+ gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
  gcAbstracter='',
  gcBeginDate=obj:key1,
  gcDays=obj:a17,
@@ -261,6 +263,7 @@
  lcReportName=kp('select reportName from dbo.documents where documentId = '&obj:link1),
  if(lcReportName<'  0',m('Report Control Name has not been specified...','Oops...')),
  break(lcReportName<'  0'),
+ gcDocumentId=obj:link1,
  lcTally=kp('select count(*) from dbo.collectionsBRW('''&gcDType&''','&obj:link1&','&obj:key1&','&obj:a17&',0) where charindex(''Printed'',documentStatus) = 0'),
  iw(',.t000Please Confirm the Print Count...., ,.t001Print Count., ,.f002='&lcTally&'., ,.w00230., ,.t003NOTE! Limit batch size to no greater than 2000..,,.h004.,,.w003180.,'),
  break(gcretval<>'OK'),
@@ -302,8 +305,14 @@
  lcMessage=readstring(obj7:d1,'@message='),
  lcTally=readstring(obj7:d1,'@tally='),
  break(lcTally+0<1 or readstring(obj7:d1,'@code=')>0),
- m(lcMessage&'||Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico',6,4),
- break(gcretval<>2),
+ m(lcMessage&'||Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico','&Yes|&No|&Remove'),
+ if(gcretval=1,processFeesYes=),
+ if(gcretval=3,processFeesRemove=);
+
+@processFeesRemove=
+ m('Sorry. Removing all processed fees is not yet supported.||Contact KellPro Support to remove all processed fees.','Remove Fees...');
+
+@processFeesYes=
  kpmo('Creating Fee Invoices...','Please Wait...'),
  d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),

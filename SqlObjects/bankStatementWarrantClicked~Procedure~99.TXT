@@ -1,0 +1,144 @@
+create procedure dbo.bankStatementWarrantClicked(
+ @bankStatementId int,
+ @brwId int,
+ @voucherDate int = null,
+ @key3Number varchar(50) = null,
+ @method varchar(50) = 'TOGGLE',
+ @verbose varchar(5) = 'TRUE',
+ @dump varchar(max) = null output
+) as
+begin
+
+ set nocount on
+
+ declare @buyWt table(
+  id int,
+  brwid int,
+  fundCode varchar(50),
+  paymentNumber varchar(50)
+ )
+
+ declare
+  @accountId int,
+  @fundCode varchar(50),
+  @nextPaymentNumber varchar(50),
+  @tokenPaymentNumber varchar(50),
+  @addWhere varchar(50),
+  @warrantsBlob varchar(max),
+  @log varchar(max),
+  @amount money,
+  @total money
+
+ select
+  @accountId = link1,
+  @warrantsBlob = e1 
+ from object
+ where id = @bankStatementId 
+
+ insert @buyWt
+ select
+  id,
+  dbo.splitF(data,':',1), 
+  dbo.splitF(data,':',2), 
+  dbo.splitF(data,':',3) 
+ from dbo.split(@warrantsBlob,'|')
+ where data > '  0'
+
+ if @method = 'BUYMANY'
+ begin
+
+  declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50))
+  declare @tokenId int
+
+  insert @warrants
+  select
+   dbo.brwidDecoderId(dbo.splitF(data,':',1)),
+   dbo.splitF(data,':',2),
+   dbo.splitF(data,':',3)
+  from dbo.split(@warrantsBlob,'|') where data > '  0'
+
+  exec dbo.logit @@procid, '@method', @method, 'warrants to process - @@rowCount', @@rowCount
+
+  while exists(select * from @warrants)
+  begin
+   select top 1
+    @tokenId = id,
+    @tokenPaymentNumber = paymentNumber
+   from @warrants order by id
+  
+   exec dbo.paymentCRUD
+    @mode = 0,
+    @paymentType = 'Buy Warrant',
+    @id = @tokenId,
+    @bankStatementId = @bankStatementId,
+    @voucherDate = @voucherDate,
+    @voucherNumber = @key3Number,
+    @clobberKey1 = @tokenPaymentNumber,
+    @verbose = 'FALSE'
+
+   delete @warrants where id = @tokenId
+  end
+
+  return
+ end
+
+ if @method = 'QUERY'
+ begin
+  select
+   @total = SUM(isnull(dbAmount,0) - isnull(crAmount,0)),
+   @amount = SUM(case when id = @brwid then isnull(dbAmount,0) - isnull(crAmount,0) else 0 end)
+  from dbo.bankStatementBRW(@bankStatementid,@accountId,0,1,0,0)
+  where id in (select brwid from @buyWt)
+  select @log = '@code=0;'
+   + '@total=' + cast(@total as varchar) + ';'
+   + '@amount=' + cast(@amount as varchar) + ';'
+  exec dbo.logit @@procid, '@brwid', @brwid, @log
+  select @log
+  return
+ end
+
+ if @method = 'TOGGLE'
+ begin
+
+  if exists (select * from @buyWt where brwid = @brwid)
+  begin
+   delete @buyWt where brwid = @brwid
+   set @log = 'deselected'
+  end
+  else
+  begin
+ 
+   select
+    @fundCode = g.targetAccountCode,
+    @addWhere = 'a8 = ''' + g.targetAccountCode + ''''
+   from object p
+    join dbo.glAccounts g on g.accountCode = p.a4
+   where p.ID = dbo.brwidDecoderId(@brwId)
+
+   exec dbo.nextObjectAutoNumber
+    4771, 'Treasurers Check', @ignoreDeleted = 'TRUE', @additionalWhereClause = @addWhere, @newNumber = @nextPaymentNumber output
+
+   select @nextPaymentNumber = case when cast(@nextPaymentNumber as int) >  isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode),'')
+   then @nextPaymentNumber
+   else isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode),'')
+   end
+
+   insert @buyWt
+   select 99999, @brwId, @fundCode, dbo.padLeft(@nextPaymentNumber,'0',5)
+
+   set @log = 'selected'
+  end
+
+  set @warrantsBlob = ''
+  select
+   @warrantsBlob = @warrantsBlob + cast(brwid as varchar) + ':' 
+   + rtrim(fundCode) + ':'
+   + rtrim(paymentNumber) + '|'
+  from @buyWt
+  update object set e1 = @warrantsBlob where id = @bankStatementId
+  exec dbo.logit @@procid, '@brwid', @brwid, 'action', @log
+
+  return
+ end
+
+end

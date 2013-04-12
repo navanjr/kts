@@ -11,11 +11,11 @@
   'typ=4771 and a18=''Treasurers Check'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17=''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17<>''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18=''Cancel Voucher'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 in (''Cancel Voucher'',''Void Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 like ''%Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
 
 
-@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''),'''') ';
+@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')),'''') ';
 
 @seriesField=a18;
 @gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
@@ -86,14 +86,7 @@ bbproc4=
  trreport('Warrants Paid',5032,'printsum=');
 
 @bb7=Cleared Vouchr;
-@bbproc7=
-iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
- break(gcretval = 'esc'),
- gcBeginDate=obj7:key1,
- gcEndDate=obj7:key2,
- if(gcBeginDate+0<1,gcBeginDate=10 ),
- if(gcEndDate+0<1,gcEndDate=today() ),
- trreport('Cleared Vouchers',5027,'printClearedVoucherList=');
+@bbproc7=do(5027,preClearedVoucherList=);
 
 @bb8=Open Warrants;
 @bbproc8=
@@ -116,46 +109,8 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
   neww(4772);
 
 
- iw(
-   \t000Please Enter Date Range...;
-   \t001Begin Date;
-   \t002@d2;
-   \w00250;
-   \t003End Date;
-   \t004@d2;
-   \w00450;
-   \t009File Location;
-   @loadwindow=create(150,12,3,30,'Detailed Report',80),create(151,12,3,45,'Export File',82),create(9,9);
-   @afterloadwindow=gcfilelocation=d1select('exec dbo.settingsCRUD @settingName='''', @method=''GET'', @verbose=''TRUE'''),set(010,gcfilelocation);
-   @acc009=filedialog('Select Export Folder...',,,34),set(010,gcretval),tsc;
- ),
-
-,
-  break(gcretval = 'esc'),
-  gcBeginDate=obj7:key1,
-  gcEndDate=obj7:key2,
-  gcExportFile=obj7:c3,
-  if(gcBeginDate+0<1,gcBeginDate=10 ),
-  if(gcEndDate+0<1,gcEndDate=today() ),
-  if(obj7:c2+0=1,printDetailed=,printSummary=),
-  if(gcExportFile+0=1,exportfile=)
-
-printDetailed=
-  trreport('Paid Warrants',5032,'printPaidWarrants=');
-
-printSummary=
-  trreport('Warrants Paid',5032,'printsum=');
-
-
 @bb11=Cancel Voucher;
-@bbproc11=
-iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
- break(gcretval = 'esc'),
- gcBeginDate=obj7:key1,
- gcEndDate=obj7:key2,
- if(gcBeginDate+0<1,gcBeginDate=10 ),
- if(gcEndDate+0<1,gcEndDate=today() ),
- trreport('Cancel Vouchers',5027,'printCancelVoucherList=');
+@bbproc11=do(5027,preCancelVoucherList=);
 
 @browsedelete=
  lcMethod='VOID',
@@ -285,7 +240,7 @@ iw(\t000Enter Dates;\t001Begin Date;\t002@d2;\t003End Date;\t004@d2;),
 \t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855;
 
 \t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
- \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18=''Cancel Voucher'' and '''&obj:a18&'''<>''Cancel Voucher''';
+ \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')';
 
 
 \t101Comment;
