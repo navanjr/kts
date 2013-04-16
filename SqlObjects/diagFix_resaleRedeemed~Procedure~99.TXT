@@ -13,11 +13,15 @@ begin
 ----gather the data
   declare @resaleTaxyear varchar(5) = ''
    select @resaleTaxyear = MAX(realTaxYear)-3 from AdTax 
-
+--Resale
 declare @wt table(taxrollId int,invoiceIdMain int,display varchar(50),keycode varchar(50),invoiceBlob varchar(max),unPaid int null)
 	insert @wt
 	select id,invoiceIdMain,display, keyCode, invoiceBlob,null 
 	 from dbo.collectionsBRW('RESALE',0,0,0,0) where id is not null order by display
+
+	insert @wt
+	select id,invoiceIdMain,display, keyCode, invoiceBlob,null 
+	 from dbo.collectionsBRW('taxwarrant',0,0,0,0) where id is not null order by display
 
 declare @tokenId int,@invoiceBlob varchar(max)
 --select * from @wt
@@ -31,10 +35,18 @@ while
     
   end
  end 
- 
- update @wt set invoiceIdMain=(select top 1 id from invoices where keycode=PARCEL order by taxYear asc) where unpaid=0
- 
 
+
+
+
+--taxWarrants
+     insert @wt
+    select id,invoiceIdMain,display, keyCode, invoiceBlob,0
+       from dbo.collectionsBRW('taxwarrant',0,0,0,0) where id is not null and isnull(totalDue,0)=0 order by display
+
+ 
+ update @wt set invoiceIdMain=(select top 1 id from invoices where keycode= case when PARCEL = '' then item else parcel end order by taxYear asc) where unpaid=0
+ 
 
 
  if @method = 'GET'
