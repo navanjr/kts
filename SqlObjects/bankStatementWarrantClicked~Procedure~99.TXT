@@ -47,14 +47,17 @@ begin
  if @method = 'BUYMANY'
  begin
 
-  declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50))
-  declare @tokenId int
+  declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50), brwId int)
+  declare
+   @tokenId int,
+   @tokenBrwId int
 
   insert @warrants
   select
    dbo.brwidDecoderId(dbo.splitF(data,':',1)),
    dbo.splitF(data,':',2),
-   dbo.splitF(data,':',3)
+   dbo.splitF(data,':',3),
+   dbo.splitF(data,':',1)
   from dbo.split(@warrantsBlob,'|') where data > '  0'
 
   exec dbo.logit @@procid, '@method', @method, 'warrants to process - @@rowCount', @@rowCount
@@ -63,7 +66,8 @@ begin
   begin
    select top 1
     @tokenId = id,
-    @tokenPaymentNumber = paymentNumber
+    @tokenPaymentNumber = paymentNumber,
+    @tokenBrwId = brwId
    from @warrants order by id
   
    exec dbo.paymentCRUD
@@ -77,6 +81,8 @@ begin
     @verbose = 'FALSE'
 
    delete @warrants where id = @tokenId
+-- remove warrant from the warrants blob
+   exec dbo.bankStatementWarrantClicked @bankStatementId = @bankStatementId, @brwId = @tokenBrwId
   end
 
   return
