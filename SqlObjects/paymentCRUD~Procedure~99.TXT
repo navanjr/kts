@@ -221,6 +221,12 @@ begin
 
   if @paymentType = 'Buy Warrant'
   begin
+-- bail if we are already bought...
+   if (select warrantLinkId from dbo.payments where id = @id) != 0
+   begin
+    exec dbo.logit @@procid, 'sorry already bought... nice try :)'
+    return
+   end
 -- if you are buying a warrant with a treasurers check, payment type needs to change, among other things
 -- Notice the DB and CR accounts are swapped.
    select
