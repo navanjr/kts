@@ -1,0 +1,25 @@
+create function dbo.myOptions() 
+returns varchar(max) as
+begin
+
+ declare 
+  @retMax varchar(max) = '',
+  @ini varchar(10),
+  @userOptions varchar(max),
+  @badChars varchar(max) = '13,10'
+ 
+ declare @myGroups table(name varchar(50))
+
+ select @ini = dbo.readstring('@ini=',dbo.whoami())
+ select @userOptions = Options from Users where Ini = @ini
+
+ insert @myGroups
+ select replace(ltrim(dbo.stripChars(data,@badChars)),'@group=','') from dbo.split(@userOptions,';') where data like '%@group=%'
+
+ set @retMax = isnull(@userOptions,'')
+
+ select @retMax = @retMax + isnull(cast(options as varchar(max)),'') from Users where name in (select name from @myGroups)
+
+ return @retMax
+
+end
