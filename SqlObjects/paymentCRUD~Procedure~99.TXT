@@ -41,7 +41,8 @@ begin
   @postedStatus varchar(50),
   @log varchar(max),
   @postDate int,
-  @newId int
+  @newId int,
+  @warrantPayee varchar(50) = ''
 
  select @postedStatus = status from dbo.glStatus(@slink)
 
@@ -239,7 +240,8 @@ begin
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
     @fiscalYear = c10,
-    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + ''''
+    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + '''',
+    @warrantPayee = a.a2
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
@@ -334,7 +336,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1
+   a7, a8, a9, c10, a16, e1, c5
   )
   output inserted.id into @newIdWt
   select 
@@ -353,7 +355,8 @@ begin
    isnull(@officialBankCode,''),
    @fiscalYear,
    @importStamp,
-   @comments
+   @comments,
+   @warrantPayee
  end try
  begin catch
   set @log = error_message()

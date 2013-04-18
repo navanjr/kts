@@ -1,6 +1,6 @@
 @gfbnr=1;
 @dk1;
-@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#6#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
+@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 \00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -16,6 +16,7 @@
 
 
 @browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')),'''') ';
+@browse8=choose(obj:a18='Treasurers Check',obj:c5,obj:a2);
 
 @seriesField=a18;
 @gfbrowse=prop(20,'7ca0h','Print Outstanding Warrants');
@@ -170,6 +171,7 @@ bbproc4=
  \w00200855;r2 \d006008obj:a1+0=1;r2
 
 \t009Payee;
+\t085Warrant Payee; \h085; \h086obj:a18<>'Treasurers Check'; \x086184; \w086117; \d086;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
 \t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
   \h013014obj:a18='Protest Voucher';r
@@ -237,7 +239,7 @@ bbproc4=
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
-\t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855;
+\t047Payment Number; \h047048obj:a18<>'Treasurers Check';r \00480500; \w04855; \x047308; \x048370;
 
 \t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
  \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')';
