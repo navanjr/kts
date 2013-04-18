@@ -1,0 +1,25 @@
+create function dbo.stripNonNumeric(@string varchar(max))
+returns varchar(max) as
+begin
+ declare
+  @retvar varchar(max) = '',
+  @position int = 0,
+  @length int = len(@string),
+  @suspect varchar(1)
+
+ declare @illegalCharacters table(character varchar(1))
+ insert @illegalCharacters select '$'
+
+ while @position < @length
+ begin
+  select
+   @position = @position + 1,
+   @suspect = substring(@string,@position,1)
+
+  if isnumeric(@suspect) = 1 and @suspect not in (select character from @illegalCharacters)
+   set @retvar = @retvar + substring(@string,@position,1)
+ end
+
+ return @retvar
+
+end
