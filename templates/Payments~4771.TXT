@@ -153,6 +153,8 @@ bbproc4=
  if(obj:a18='Trust Voucher' or obj:a18='Protest Voucher',getNextVoucherClerkNumber=),
  tsc;
 
+@select=010;
+
 @getNextVoucherClerkNumber=break(obj:key3>' 0'),lcNextNumber=kp('select max(dbo.popro6(case when isnumeric(key3)=1 then cast(key3 as int)+1 else 1 end,8,2)) from object where typ = 4771 and a4 = '''&obj:a4&''''),
   set(006,lcNextNumber);
 
@@ -210,7 +212,10 @@ bbproc4=
  postGL=,
  break(lcContinue<>'TRUE'),
  if(a18<>'Miscellaneous',print=),
- close('ok');
+ if(a18<>'Miscellaneous',close('ok'),miscCloseStuff=);
+@miscCloseStuff=
+ lcStatus=kp('select a17 from object where id='&obj:id),
+ set(040,lcStatus);
 
 @getVouNum=
  break(obj:key1>'  0'),
