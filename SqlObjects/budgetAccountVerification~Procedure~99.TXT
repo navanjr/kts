@@ -1,0 +1,26 @@
+create procedure dbo.budgetAccountVerification(
+  @accountNumber varchar(50), 
+  @fiscalYear varchar(10), 
+  @fundCode varchar(50),
+  @budgetAccountCode varchar(50) output,
+  @budgetFundCode varchar(50) output
+)
+ as 
+begin
+ declare @fundDesc varchar(50)
+
+  select @budgetAccountCode = @accountNumber+'_A'+substring(@fiscalYear,3,3)+right(@fiscalYear,2)+'_B',
+         @budgetFundCode = @fundCode+'_F'+substring(@fiscalYear,3,3)+right(@fiscalYear,2)+'_B'
+
+  select @fundDesc = isnull(accountdesc,'') from glaccounts where accountcode=@fundCode
+
+ if not exists(select * from object where typ=4705 and key1=@accountNumber)
+ begin
+  insert object (typ,key1,key3,a1)
+   select 4705,@accountNumber,@fundCode,@fundDesc
+ end
+
+ exec dbo.glaccountVerification @budgetAccountCode,'BUDGET','CREATE',@targetAccountCode=@fundCode
+ exec dbo.glaccountVerification @budgetFundCode,'BUDGET','CREATE',@targetAccountCode=@fundCode
+
+end

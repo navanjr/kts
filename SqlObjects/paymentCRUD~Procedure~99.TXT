@@ -23,7 +23,8 @@ create proc dbo.paymentCRUD(
  @nextNumAdditionalWhere varchar(500) = '',
  @clobberKey1 varchar(50) = null,
  @verbose varchar(5) = 'TRUE',
- @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
+ @skipSQLTransactionOnGlPost varchar(5) = 'FALSE',
+ @accountNumberBLOB varchar(max) = ''
 ) as 
 begin
  set nocount on
@@ -275,6 +276,7 @@ begin
     @clobber = @clobberKey1,
     @newNumber = @nextVoucherNumber output
 
+
 -- bail if we don't have all the accounts we need...
   if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant','Cancel MISCELLANEOUS')
   begin
@@ -380,7 +382,7 @@ begin
   return
  end
 
-  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
+ declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
 
  if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher','MISCELLANEOUS','Transfer')
  begin
@@ -417,6 +419,69 @@ begin
    where typ = 4771 and id = @id
 
   end
+  
+  if @paymentType='Warrant'
+  begin
+
+
+    declare @trackAppropriationLedger varchar(20),
+            @targetFundCodeToken varchar(50)
+
+     select @trackAppropriationLedger=settingValue from settings where settingName='site.trackAppropriationLedger'
+
+     select @targetFundCodeToken = targetAccountCode from glaccounts where accountCode = @debitAcct
+
+  
+    if @trackAppropriationLedger='TRUE'
+    begin
+     if @accountNumberBLOB > ' 0' and @fiscalYear > ' 0' and @targetFundCodeToken > ' 0'
+     begin
+      declare @budgetAccounts table(id int identity(1,1),
+                                  accountNumber varchar(50),
+                                  budgetAccountCode varchar(50),
+                                  budgetFundCode varchar(50),
+                                  amount money,
+                                  processCode int
+                                  )
+      insert @budgetAccounts (accountNumber,amount,processCode)
+       select dbo.splitf(data,':',1),cast(dbo.splitf(data,':',2) as money),0 from dbo.split(@accountNumberBLOB,'|')
+    
+      declare @budgetIdToken int,
+            @budgetAccountNumberToken varchar(50),
+            @budgetAccountCodeToken varchar(50),
+            @budgetFundCodeToken varchar(50)
+      
+      
+      while exists(select * from @budgetAccounts where processCode = 0)
+      begin
+       select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts where processCode = 0
+     
+       exec dbo.budgetAccountVerification
+            @budgetAccountNumberToken, 
+            @fiscalYear, 
+            @targetFundCodeToken, 
+            @budgetAccountCode = @budgetAccountCodeToken output,
+            @budgetFundCode = @budgetFundCodeToken output
+     
+       update @budgetAccounts 
+        set budgetAccountCode = @budgetAccountCodeToken,
+          budgetFundCode = @budgetFundCodeToken,
+          processCode = 1
+        where id = @budgetIdToken
+
+      end
+
+     insert @stageRows 
+       select budgetAccountCode, sum(amount), 'budgetAccountCode' from @budgetAccounts group by budgetAccountCode
+      union all
+       select budgetFundCode, sum(amount) * -1, 'budgetFundCode' from @budgetAccounts group by budgetFundCode
+
+
+
+     end
+    end
+  end
+
 
   declare @checkStyleWarrants varchar(20) = 'FALSE'
 
