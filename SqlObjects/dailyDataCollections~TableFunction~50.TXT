@@ -16,7 +16,8 @@ CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varch
  maxTicketNumber varchar(50),
  dptno varchar(50),
  electronicAmount varchar(50),
- otherAmount varchar(50)
+ otherAmount varchar(50),
+ blob varchar(max)
 )
 begin
 
@@ -132,7 +133,8 @@ insert @wt
 --insert main data
  insert @rt
  select
-  cast(case when description = 'Apportionment Receivable' then '8' else '9' end + cast(id as varchar) as int),
+--REMOVED By Nate  cast(case when description = 'Apportionment Receivable' then '8' else '9' end + cast(id as varchar) as int), 
+  cast(case when description = 'depository' then '8' else '9' end + cast(id as varchar) as int),
   @ordSeed + ord + 'b',
   case when description = 'Apportionment Receivable' 
    then '   ' + dbo.padRight(subDescription,' ',61) + dbo.padLeft('',' ',16)
@@ -159,7 +161,8 @@ insert @wt
   maxTicketNumber,
   dptno,
   dbo.padLeft(convert(varchar,electronicAmount,1),' ',16),
-  dbo.padLeft(convert(varchar,otherAmount,1),' ',16)
+  dbo.padLeft(convert(varchar,otherAmount,1),' ',16),
+  case when description = 'depository' then '@action=browse;@objectTyp=4522;@browseFilter=b1=''' + replace(subDescription,'''','''''') + ''';' else null end
  from @wt
 
 -- insert subtotals
@@ -173,7 +176,7 @@ insert @wt
   replicate('-',22),
   replicate('-',10),
   replicate('-',16),
-  'line',0,'','','','','','',''
+  'line',0,'','','','','','','',null
  from @wt 
  group by ord,description
 
@@ -191,7 +194,8 @@ insert @wt
   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
   'gFooter',0,'','','','','',
   dbo.padLeft(convert(varchar,sum(electronicAmount),1), ' ', 16),
-  dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16)
+  dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16),
+  null
  from @wt 
  group by ord,description
 
@@ -205,28 +209,28 @@ insert @wt
   '',
   '',
   '',
-  'lineFeed',0,'','','','','','',''
+  'lineFeed',0,'','','','','','','',null
  from @wt 
  group by ord,description
 
  -- headers
- insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','','','','','',''
- insert @rt select 0,@ordSeed+'00aa','  Collections','','  Collections','','','','sHeader',1,'','','','','','Electronic','Regular'
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','','','','','','',null
+ insert @rt select 0,@ordSeed+'00aa','  Collections','','  Collections','','','','sHeader',1,'','','','','','Electronic','Regular',null
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','','',null
 
  if exists(select * from @wt where description = 'Depository')
  begin
   declare @reportSub varchar(50)
   select @reportSub = max(ord) from @wt where description = 'Depository'
-  insert @rt select 0,@ordSeed+@reportSub+'a','','','','','','','lineFeed',0,'','','','','','',''
-  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers','','  Deposits by Officers','','','','sHeader',1,'','','','','','',''
-  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
+  insert @rt select 0,@ordSeed+@reportSub+'a','','','','','','','lineFeed',0,'','','','','','','',null
+  insert @rt select 0,@ordSeed+@reportSub+'aa','  Deposits by Officers','','  Deposits by Officers','','','','sHeader',1,'','','','','','','',null
+  insert @rt select 0,@ordSeed+@reportSub+'ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','','',null
  end
 
 -- insert grand total
  if exists(select * from @wt)
  begin
-  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','',''
+  insert @rt select 0,@ordSeed+'da',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','','','','','','',null
 
   insert @rt
   select
@@ -242,7 +246,8 @@ insert @wt
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
    'grandTotal',0,'','','','','',
    dbo.padLeft(convert(varchar,sum(electronicAmount),1), ' ', 16),
-   dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16)
+   dbo.padLeft(convert(varchar,sum(otherAmount),1), ' ', 16),
+   null
   from @wt 
  end
  return

@@ -8,7 +8,8 @@ CREATE function dbo.dailydata(@theDate int, @days int, @filterString varchar(50)
  sourceNo varchar(50),
  recordCnt varchar(50),
  sourceAmt varchar(50),
- brwBGColor int
+ brwBGColor int,
+ blob varchar(max)
 )
 begin
  declare @showDetail table(id int)
@@ -28,55 +29,55 @@ begin
 -- Collections
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
 
 -- Deposits & Disbursments
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataDeposits(@theDate, @days, 'G', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,null from dbo.dailyDataDeposits(@theDate, @days, 'G', @filterString)
 
 -- Vouchers
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Official Voucher','Official',@theDate, @days, 'H', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataPayments('Official Voucher','Official',@theDate, @days, 'H', @filterString)
 
 -- Cancelled Vouchers
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Cancel Voucher','Official',@theDate, @days, 'H', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataPayments('Cancel Voucher','Official',@theDate, @days, 'I', @filterString)
   union all
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Void Voucher','Official',@theDate, @days, 'H', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataPayments('Void Voucher','Official',@theDate, @days, 'J', @filterString)
 
 -- Journal
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataJournal(@theDate, @days, 'I', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,null from dbo.dailyDataJournal(@theDate, @days, 'K', @filterString)
 
 -- Warrants
  if substring(@filterString,2,1) = '1'
   insert @rt 
-  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Treasurers Check|Paid Warrant','Fund',@theDate, @days, 'J', @filterString)
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataPayments('Treasurers Check|Paid Warrant','Fund',@theDate, @days, 'L', @filterString)
     
 -- Miscellaneous Payments
 if substring(@filterString,2,1) = '1'
  insert @rt 
- select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataPayments('Miscellaneous|Miscellaneous Payments','Fund',@theDate, @days, 'K', @filterString) order by ord
+ select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob from dbo.dailyDataPayments('Miscellaneous|Miscellaneous Payments','Fund',@theDate, @days, 'M', @filterString) order by ord
 
 -- Miscellaneous Deposits
 if substring(@filterString,2,1) = '1'
  insert @rt 
- select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataMiscDeposit('Fund',@theDate, @days, 'L', @filterString) order by ord
+ select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,null from dbo.dailyDataMiscDeposit('Fund',@theDate, @days, 'N', @filterString) order by ord
 
 -- Suspense
 if substring(@filterString,1,1) = '1'
 begin
 
  insert @rt 
- select id,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor from dbo.dailyDataSuspense(@theDate, @days, 'C',@filterString) order by ord
+ select id,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,null from dbo.dailyDataSuspense(@theDate, @days, 'C',@filterString) order by ord
 
 --Pending Deposits
  insert @rt 
- select id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt,brwBGColor
+ select id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt,brwBGColor,null
  from dbo.dailyDataPendingDeposits(@theDate)
 
 end

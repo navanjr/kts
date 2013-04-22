@@ -35,7 +35,8 @@
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
- if(lcTyp=9 or lcTyp=8,menu9=),
+ if(lcTyp=9,menu9=),
+ if(lcTyp=8,menu8=),
  if(lcTyp=7,menu7=),
  if(lcTyp=6,menu6=),
  if(lcTyp=5,menu6=),
@@ -103,7 +104,8 @@
  create(551,12,gcDDChkBoxX,61,'Deposit Data',80),
  create(552,12,gcDDChkBoxX,74,'Daily Report Data',82);
 
- reate(553,12,gcDDChkBoxX,87,'DEPOSITS',84),
+ reate(553,12,gcDDChkBoxX,87,'Payments',84),
+
  reate(554,12,gcDDChkBoxX,100,'JOURNAL',86),
  reate(555,12,gcDDChkBoxX,113,'&VOUCHERS',88),
  reate(556,9,gcDDChkBoxX-4,125,'&View All');
@@ -136,16 +138,30 @@
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
- if(lcTyp=9,openType=),
- if(lcTyp=8,openGLAccount=),
+ if(lcTyp=9,openGLAccount=),
+ if(lcTyp=8,click8=),
  if(lcTyp=6,click6=),
  if(lcTyp=5,click6=),
  if(lcTyp=1,click1=);
 
-@openType=
+@menu8=
  break(lcid<1),
- browse(1,4502,'key2 between '&obj:key1&' and '&obj:c1);
- if(lcid > 0,m(kpbrwid(1)));
+ getBlob8=,
+ break(lcAction<>'browse'),
+ m('Please choose one of the following options...','Right Click Menu...','question.ico','&Browse|&Show|E&xit'),
+ if(gcretval=1,browse(1,lcObjectTyp,lcFilter)),
+ if(gcretval=2,m(lcBlob&'|lcAction:'&lcAction&'|lcObjectTyp:'&lcObjectTyp&'|lcBrowseFilter:'&lcFilter));
+@click8=
+ break(lcid<1),
+ getBlob8=,
+ break(lcAction<>'browse'),
+ if(gcretval=1,browse(1,lcObjectTyp,lcFilter));
+@getBlob8=
+ lcFilter='',
+ lcBlob=kp('select blob from dailydata('&gcStartDate&','&gcDays&','''&gcFilterString&''') where id = '&kpbrwid(1)),
+ lcAction=readstring(lcBlob,'@action='),
+ lcObjectTyp=readstring(lcBlob,'@objectTyp='),
+ lcFilter=readstring(lcBlob,'@browseFilter=');
 
 @openGLAccount=
  break(lcid<1),
