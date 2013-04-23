@@ -5,13 +5,22 @@ begin
   if @date = 0 
      select @date = dbo.nextbusinessdate(dbo.clariondate(getdate()))
 
+-- update the payment date for vouchers and warrants
+  if @receiptType = 'payments' and @date > 0
+  begin
+   exec dbo.settingsCRUD 'dashboard.paymentDate', @date
+   return
+  end
+
+-- update receipt dates
   if @date > 0
-     if @receiptType = 'All'
+  begin
+   if @receiptType = 'All'
+    update object set a17 = @date where typ = 4503 and c1! = '1'
+   else
+    update object set a17 = @date where typ = 4503 and key1 = @receiptType
+   return
+  end
 
-       update object set a17 = @date where typ = 4503 and c1! = '1'
-
-      else
-     
-       update object set a17 = @date where typ = 4503 and key1 = @receiptType
 
 end
