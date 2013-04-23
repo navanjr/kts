@@ -4,7 +4,7 @@ create procedure dbo.budgetAdjustmentCRUD(@mode int,
         @fiscalYear varchar(50),
         @adjustDate varchar(50),
         @amount money,
-        @newId int output)
+        @newId int = 0)
 as
 begin
 
@@ -34,8 +34,12 @@ begin
  
   if @resultcode <> 0
   begin
-   select @resultmessage
+   select '@code=1;@message='+@resultmessage+';'
    return
+  end
+  else
+  begin
+   select '@code=0;@message='+@resultmessage+';@newId='+cast(@newId as varchar)+';'
   end
   
   declare @budgetAccountCodeToken varchar(50),
@@ -66,5 +70,7 @@ begin
    exec dbo.glPost @newid, 'o', @resultString = @postResult output
    exec dbo.logit @@procid, 'glPost - @postResult', @postResult
  end
+
+ 
 
 end

@@ -1,4 +1,31 @@
+@afterloadwindow=brwstuff=;
+
+@brwstuff=brw(150,1,'select id,fiscalYear,budget,warrants,unexpended from dbo.budgetAccountBalances('''&clip(obj:key1)&''') order by fiscalYear desc',3,75,200,75,
+'50L(2)~Fiscal Year~#2#|M
+50R(2)~Budget~@n-19.2b@#3#|M
+50R(2)~Warrants~@n-19.2b@#4#|M
+50R(2)~Unexpended~@n-19.2b@#5#|M'),tsc;
+
 \t001Clerk Acct Code; \u002;
+@acc002=brwstuff=;
 \t003Description; 
 \t005Fund; \l0064701;r006002008004; @lf006='typ=4701 and a1=''FUND''',2; \d006;
 \t007Fund Desc; \l0084701;r006002008004; @lf008='typ=4701 and a1=''FUND''',2;
+
+
+\t108Adjust Budget;
+@acc108=iw('\t001Fiscal year; \w00200650;r2 \t003Adjust Date; \t004@d2; \t005Amount; \t006@n-19.2b;'),
+ gcfy=obj7:key1,
+ gcad=obj7:key2,
+ gcamount=obj7:key3,
+ break(gcretval='esc'),
+ if(obj:key1<' 0' or obj:key3<' 0' or len(gcfy)<2 or gcad<'5' or gcamount+0=0,m('Not enough information please fill in all available fields.')),
+ break(obj:key1<' 0' or obj:key3<' 0' or len(gcfy)<2 or gcad<'5' or gcamount+0=0),
+ d1select('exec dbo.budgetAdjustmentCRUD 0,'''&clip(obj:key1)&''','''&clip(obj:key3)&''','''&clip(gcfy)&''','''&gcad&''','''&gcamount+0&''',0'),
+ lcreturn=obj7:d1,
+ if(readstring(lcreturn,'@code=')=1,m(readstring(lcreturn,'@message='))),
+ brwstuff=
+;
+
+t109Adjust Payments;
+
