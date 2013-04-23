@@ -24,7 +24,8 @@ create proc dbo.paymentCRUD(
  @clobberKey1 varchar(50) = null,
  @verbose varchar(5) = 'TRUE',
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE',
- @accountNumberBLOB varchar(max) = ''
+ @accountNumberBLOB varchar(max) = '',
+ @reasonToCancel varchar(50) = null
 ) as 
 begin
  set nocount on
@@ -338,7 +339,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1, c5
+   a7, a8, a9, c10, a16, e1, c5, a14
   )
   output inserted.id into @newIdWt
   select 
@@ -358,7 +359,8 @@ begin
    @fiscalYear,
    @importStamp,
    @comments,
-   @warrantPayee
+   @warrantPayee,
+   @reasonToCancel
  end try
  begin catch
   set @log = error_message()
@@ -414,6 +416,7 @@ begin
 
 -- and mark the original warrant as bought!
    update object set 
+    a14 = @reasonToCancel,
     a19 = @nextVoucherNumber,
     link1 = @newId
    where typ = 4771 and id = @id
