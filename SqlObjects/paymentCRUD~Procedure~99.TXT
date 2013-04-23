@@ -202,8 +202,16 @@ begin
 
 -- TODO: add gl check here
 
-  declare @nextVoucherNumber varchar(50) = ''
-
+  declare
+   @nextVoucherNumber varchar(50) = '',
+   @whoami varchar(max) = dbo.whoami(),
+   @myIni varchar(50),
+   @myStation varchar(50)
+ 
+  select 
+   @myIni = dbo.readstring('@ini=',@whoami),
+   @myStation = dbo.readstring('@station=',@whoami)
+ 
  -- Issued from Trust or Protest Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
   if @paymentType = 'Trust Voucher'
   begin
@@ -339,7 +347,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1, c5, a14
+   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14
   )
   output inserted.id into @newIdWt
   select 
@@ -360,6 +368,8 @@ begin
    @importStamp,
    @comments,
    @warrantPayee,
+   @myIni,
+   @myStation,
    @reasonToCancel
  end try
  begin catch
