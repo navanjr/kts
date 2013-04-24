@@ -37,7 +37,8 @@
 
 @noupdate;
 
-@closewindow=sql('exec invoiceUpdate '&obj:link2+0);
+@closewindow=
+ sql('exec invoiceUpdate '&obj:link2+0);
 
 @loadwindow=
  gcfieldnum='',
@@ -54,15 +55,16 @@
 
 @createbrw=
  break(tier=2),
- gcsql='select id,key2,key3,original, corrected from taxrollCorrectionsView where taxrollId='&obj:link1&' order by key2 desc, id desc',
+ gcsql='select id*-1,key2,key3,original, corrected from taxrollCorrectionsView where taxrollId='&obj:link1&' order by key2 desc, id desc',
  brw(160,1,gcsql,305,175,195,70,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
  brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),;
+
 @lbrw3forecolor=obj7:c10='COMMENT',255;
 
 
-@lbrwclick160=
- lcId=kpbrwid(1),
+lbrwclick160=
+ lcId=kpbrwid(1)*-1,
  get(lcId),
  m(obj7:key3&'|  Original Value: '&obj7:a1&'|  New Value: '&obj7:a2&'||Choose from the following options...','Taxroll Correction...',,'&Edit|&Delete|&Cancel'),
  if(gcretval=1,change(lcId)),
@@ -148,31 +150,31 @@
 \t051Improvements;
 \t053Miscellaneous;
 \t055Mobile Home; 
-\t057Gross Assessed; \t050058@n9;r2 \w05005850;r2
+\t057Gross Assessed; \t050058@n-14.2;r2 \w05005850;r2
 \y049058+13;r
 
-\t059Free Port; \t060@n9; \w06050;
-\t061Base; \t062@n9; \w06250;
-\t063Double Exempt; \t064@n9; \w06450;
-\t065Exemption 1; \t066@n9; \w06650;
-\t067Exemption 2; \t068@n9; \w06850;
-\t069Exemption 3; \t070@n9; \w07050;
-\t071Net Assessed; \t072@n9; \w07250;
-\y059072+26;r
+\t059Free Port; \w06050;
+\t061Base; \w06250;
+\t063Double Exempt; \w06450;
+\t065Exemption 1; \w06650;
+\t067Exemption 2; \w06850;
+\t069Exemption 3; \w07050;
+\t071Net Assessed; \w07250;
+\y059072+26;r \t060072@n-14.2;r2
 
 \t073Millage; \t074@n14.7; \w07450;
-\t075Orig Tax Due; \t076@n14.2; \w07650;@acc076=calcrecord(); \q076; \d076;
+\t075Orig Tax Due; \t076@n-14.2; \w07650;@acc076=calcrecord(); \q076; \d076;
 \x073075=077;r2 \y073076-221;r
 \x074076=078;r2
 
-\t077Tax Due; \t078@n14.2; \w07850;\s078-'select dbo.taxCorrectionsSF('&obj:b15&','&obj:link1&',''078'')'; 
-\t079Unpaid; \t080@n14.2; \w08050;
+\t077Tax Due; \t078@n-14.2; \w07850;\s078-'select dbo.taxCorrectionsSF('&obj:b15&','&obj:link1&',''078'')'; 
+\t079Unpaid; \t080@n-14.2; \w08050;
 \t081Certificate #;
 \t083Paid Off; \t084@d2;
 \t085Lien Code 1;
-\t087Lien Amount 1; \t088@n9.2; \w08850;
+\t087Lien Amount 1; \t088@n-14.2; \w08850;
 \t089Lien Code 2;
-\t091Lien Amount 2; \t092@n9.2; \w09250;
+\t091Lien Amount 2; \t092@n-14.2; \w09250;
 
 \t093Flag 1;
 \t095Flag 2;
@@ -283,5 +285,6 @@
  gccorrectiodate=obj7:key1,
  gcNewValueSaved='Saved',
  gcoriginal=str_replace(gcoriginal,'''',''''''),
+ lcNewValue=str_replace(obj7:e2,'''',''''''),
  sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
-      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&obj7:e2&'''');
+      select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&lcNewValue&'''');

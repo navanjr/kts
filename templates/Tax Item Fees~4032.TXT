@@ -11,14 +11,25 @@
  break(lcId<1),
  d1select('exec dbo.invoiceUpdate '&lcId),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'InvoiceUpdate...')),
- m('options...','Tax Item Fee Options...',,'Reverse Fee|&Cancel'),
- if(gcretval=1,reversFee=),
- refreshBRW=;
+ m('options...','Tax Item Fee Options...',,'Adjust Fee|Reverse Fee|&Cancel'),
+ if(gcretval=1,adjustFee=),
+ if(gcretval=2,reversFee=);
 
 @reversFee=
  d1select('exec subInvoiceAdjust @subInvoiceId ='&lcId&', @newAmount = 0, @receiptId = 0, @mode = ''single'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Tax Item Reverse Fees...')),
- refreshbrw=;
+ refreshBRW=;
+
+@adjustFee=
+ gcid=lcid,
+ m('Would you like to adjust this Fee','Adjust amount?',,6),
+ break(gcretval<>2),
+ iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
+ break(gcretval='esc'),
+ lcnewamount=obj7:key1,
+ d1select('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&',0'),
+ d1select('exec invoiceUpdate '&gcinvoiceId+0),
+ refreshBRW=;
 
 @refreshBRW=
  brwreload(1);

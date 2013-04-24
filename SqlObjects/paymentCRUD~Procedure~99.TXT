@@ -23,7 +23,9 @@ create proc dbo.paymentCRUD(
  @nextNumAdditionalWhere varchar(500) = '',
  @clobberKey1 varchar(50) = null,
  @verbose varchar(5) = 'TRUE',
- @skipSQLTransactionOnGlPost varchar(5) = 'FALSE'
+ @skipSQLTransactionOnGlPost varchar(5) = 'FALSE',
+ @accountNumberBLOB varchar(max) = '',
+ @reasonToCancel varchar(50) = ''
 ) as 
 begin
  set nocount on
@@ -41,7 +43,8 @@ begin
   @postedStatus varchar(50),
   @log varchar(max),
   @postDate int,
-  @newId int
+  @newId int,
+  @warrantPayee varchar(50) = ''
 
  select @postedStatus = status from dbo.glStatus(@slink)
 
@@ -199,8 +202,16 @@ begin
 
 -- TODO: add gl check here
 
-  declare @nextVoucherNumber varchar(50) = ''
-
+  declare
+   @nextVoucherNumber varchar(50) = '',
+   @whoami varchar(max) = dbo.whoami(),
+   @myIni varchar(50),
+   @myStation varchar(50)
+ 
+  select 
+   @myIni = dbo.readstring('@ini=',@whoami),
+   @myStation = dbo.readstring('@station=',@whoami)
+ 
  -- Issued from Trust or Protest Receipt will finish posting from the voucher edit screen after entering additional info needed for trust receipts
   if @paymentType = 'Trust Voucher'
   begin
@@ -239,7 +250,8 @@ begin
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
     @fiscalYear = c10,
-    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + ''''
+    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + '''',
+    @warrantPayee = a.a2
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
@@ -272,6 +284,7 @@ begin
     @additionalWhereClause = @nextNumAdditionalWhere,
     @clobber = @clobberKey1,
     @newNumber = @nextVoucherNumber output
+
 
 -- bail if we don't have all the accounts we need...
   if (@debitAcct < '  0' or @creditAcct < '  0' or @officialBankCode < '  0' or @officialDepositCode < '  0') and @paymentType not in ('MISCELLANEOUS','Transfer','Trust Voucher','Warrant','Cancel MISCELLANEOUS')
@@ -334,7 +347,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1
+   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14
   )
   output inserted.id into @newIdWt
   select 
@@ -353,7 +366,11 @@ begin
    isnull(@officialBankCode,''),
    @fiscalYear,
    @importStamp,
-   @comments
+   @comments,
+   @warrantPayee,
+   @myIni,
+   @myStation,
+   @reasonToCancel
  end try
  begin catch
   set @log = error_message()
@@ -377,7 +394,7 @@ begin
   return
  end
 
-  declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
+ declare @stageRows table(acctCode varchar(50), amount money, glType varchar(50))
 
  if @mode = 0 and @paymentType not in ('Trust Voucher','Protest Voucher','MISCELLANEOUS','Transfer')
  begin
@@ -409,11 +426,75 @@ begin
 
 -- and mark the original warrant as bought!
    update object set 
+    a14 = @reasonToCancel,
     a19 = @nextVoucherNumber,
     link1 = @newId
    where typ = 4771 and id = @id
 
   end
+  
+  if @paymentType='Warrant'
+  begin
+
+
+    declare @trackAppropriationLedger varchar(20),
+            @targetFundCodeToken varchar(50)
+
+     select @trackAppropriationLedger=settingValue from settings where settingName='site.trackAppropriationLedger'
+
+     select @targetFundCodeToken = rtrim(targetAccountCode) from glaccounts where accountCode = @debitAcct
+
+  
+    if @trackAppropriationLedger='TRUE'
+    begin
+     if @accountNumberBLOB > ' 0' and @fiscalYear > ' 0' and @targetFundCodeToken > ' 0'
+     begin
+      declare @budgetAccounts table(id int identity(1,1),
+                                  accountNumber varchar(50),
+                                  budgetAccountCode varchar(50),
+                                  budgetFundCode varchar(50),
+                                  amount money,
+                                  processCode int
+                                  )
+      insert @budgetAccounts (accountNumber,amount,processCode)
+       select rtrim(dbo.splitf(data,':',1)),cast(dbo.splitf(data,':',2) as money),0 from dbo.split(@accountNumberBLOB,'|')
+    
+      declare @budgetIdToken int,
+            @budgetAccountNumberToken varchar(50),
+            @budgetAccountCodeToken varchar(50),
+            @budgetFundCodeToken varchar(50)
+      
+      
+      while exists(select * from @budgetAccounts where processCode = 0)
+      begin
+       select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts where processCode = 0
+     
+       exec dbo.budgetAccountVerification
+            @budgetAccountNumberToken, 
+            @fiscalYear, 
+            @targetFundCodeToken, 
+            @budgetAccountCode = @budgetAccountCodeToken output,
+            @budgetFundCode = @budgetFundCodeToken output
+     
+       update @budgetAccounts 
+        set budgetAccountCode = @budgetAccountCodeToken,
+          budgetFundCode = @budgetFundCodeToken,
+          processCode = 1
+        where id = @budgetIdToken
+
+      end
+
+     insert @stageRows 
+       select budgetAccountCode, sum(amount), 'budgetAccountCode' from @budgetAccounts group by budgetAccountCode
+      union all
+       select budgetFundCode, sum(amount) * -1, 'budgetFundCode' from @budgetAccounts group by budgetFundCode
+
+
+
+     end
+    end
+  end
+
 
   declare @checkStyleWarrants varchar(20) = 'FALSE'
 

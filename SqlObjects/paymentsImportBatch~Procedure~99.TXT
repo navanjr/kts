@@ -25,7 +25,8 @@ begin
    @fiscalYear varchar(50) = '',
    @theDate datetime = getdate(),
    @importStamp varchar(50),
-   @tally int
+   @tally int,
+   @accountNumberBLOB varchar(max)
 
   select @importStamp = @ini + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
@@ -40,7 +41,8 @@ begin
    creditAcct varchar(500),
    officialsFundCode varchar(50),
    accountBlob varchar(1000),
-   fiscalYear varchar(50)
+   fiscalYear varchar(50),
+   accountNumberBLOB varchar(max)
   )
 
   declare @results table( code int, message varchar(100) )
@@ -78,6 +80,7 @@ begin
    creditAcct,
    null,
    null,
+   null,
    null
   from dbo.voucherImportBRW(@batchId)
   where rowType = 0 and postCheck = 0
@@ -96,7 +99,8 @@ begin
    creditAcct,
    clerksFund,
    null,
-   fiscalYear
+   fiscalYear,
+   accountNumberBLOB
   from dbo.warrantImportBRW(@batchId)
   where rowType = 0 and postCheck = 0
  end
@@ -134,7 +138,8 @@ begin
      @comments = comments,
      @debitAcct = debitAcct,
      @creditAcct = creditAcct,
-     @fiscalYear = fiscalYear
+     @fiscalYear = fiscalYear,
+     @accountNumberBLOB = accountNumberBLOB
     from @wt order by id
 
    exec dbo.logit @@procid, '=============> @tally', @tally, '@payee', @payee, '@debitAcct', @debitAcct, '@creditAcct', @creditAcct
@@ -179,7 +184,8 @@ begin
        @fiscalYear = @fiscalYear,
        @importStamp = @importStamp,
        @verbose = 'FALSE',
-       @postResult = @resultStringToken output
+       @postResult = @resultStringToken output,
+       @accountNumberBLOB = @accountNumberBLOB
      end
     end
 -- VOUCHER   

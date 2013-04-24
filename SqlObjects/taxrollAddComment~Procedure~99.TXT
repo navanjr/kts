@@ -1,26 +1,42 @@
-create procedure dbo.taxrollAddComment (@invoiceId int, @initials varchar(5)) as 
-
-if @invoiceId<9000000
+create procedure dbo.taxrollAddComment(
+ @invoiceId int,
+ @initials varchar(5)
+) as 
 begin
-insert into object (typ,key1,key2,key3,a1,a2,attributes)
-select 4002,
+
+ declare @privateInt varchar(1) = '0'
+
+-- check the site setting
+ if dbo.settingsF('site.commentsDefaultToPrivate','FALSE') = 'TRUE'
+  set @privateInt = '1'
+
+-- check the user/group settings
+ if dbo.readstring('@privateComments=',dbo.myOptions()) = '1'
+  set @privateInt = '1'
+
+ if @invoiceId < 9000000
+  insert into object (typ,key1,key2,key3,a1,a2,attributes,a4)
+  select 4002,
        item,
        parcel,
        name,
        taxyear,
        dbo.clariondate(getdate()),
-       @initials
- from invoices where id = @invoiceId
-end
-else
-begin
-insert into object (typ,key1,key2,key3,a1,a2,attributes)
-select 4002,
+       @initials,
+       @privateInt
+  from invoices where id = @invoiceId
+
+ else
+  insert into object (typ,key1,key2,key3,a1,a2,attributes,a4)
+  select 4002,
        ITEMNUMBER,
        FULLPIDNUMBER,
        ownername,
        realtaxyear,
        dbo.clariondate(getdate()),
-       @initials
- from adtax where id = @invoiceId-9000000
+       @initials,
+       @privateInt
+  from adtax where id = @invoiceId-9000000
+
+
 end

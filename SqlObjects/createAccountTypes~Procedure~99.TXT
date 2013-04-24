@@ -1,0 +1,41 @@
+create proc dbo.createAccountTypes
+as
+begin
+ set nocount on
+ 
+ declare @accountTypes table(
+  code varchar(50),
+  description varchar(50),
+  reportcode varchar(50),
+  dailydescription varchar(50)
+ )
+
+ insert @accountTypes
+  select 'ACCRUED PAYABLE','Accrued Payable','ACP',''
+  union select 'ACCRUED RECEIVABLE','Accrued Receivable','ACR',''
+  union select 'BANK','Bank Accounts','B1','Deposits & Disbursements'
+  union select 'BUDGET','Fiscal Year Budget','B2',''
+  union select 'CITY','City','A4',''
+  union select 'COLLECTION','Collection Account','',''
+  union select 'EXPENSE','Expense Account','E1',''
+  union select 'FUND','Fund','A1',''
+  union select 'OFFICIAL','Official Depository','B2','Depository'
+  union select 'PAYABLE','Payables Account','AP',''
+  union select 'PURPOSE','Trust Receipt Purpose','P1',''
+  union select 'RECEIVABLE','Receivables Account','AR',''
+  union select 'SCHOOL','School District','A2',''
+  union select 'SOURCE','Source Of Revenue','S1',''
+  union select 'SUSPENSE','Suspense Account','',''
+  union select 'VOTECH','Votech','A5',''
+  union select 'WARRANT','Warrants','W1',''
+
+
+-- insert missing
+ insert object (typ, key1, key2, key3, a1)
+ select 4702, code, description, reportCode, dailyDescription 
+ from @accountTypes
+ where code not in (select key1 from object where typ = 4702)
+
+ exec dbo.logit @@procid, 'Just inserted GL AccountTypes into Object... @@rowCount', @@rowCount
+
+end

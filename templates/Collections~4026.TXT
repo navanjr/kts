@@ -130,12 +130,14 @@
  if(gcretval=2,do(5040,exportPersonalForPub=));
 
 @invoiceOptions=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|Send to Abstracter|Print UnPaid Summary|Attach Personal|&Cancel'),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|&Send to Abstracter|Print &UnPaid Summary|Attach &Personal|&Cancel'),
  if(gcretval=1,manageAddress=),
  if(gcretval=2,removeFromCollection=),
  if(gcretval=3,flagforAbstracter=),
  if(gcretval=4,printUnpaidSum=),
  if(gcretval=5,attachPersonal=);
+
+
 
 @manageAddress=
  gcInvoiceId=kp('select invoiceIdMain from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&obj:key1&','&obj:a17&','&kpbrwid(1)*-1&')'),
@@ -174,10 +176,11 @@
  if(lc151Typ=9,menu9=);
 
 @menu9=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Remove|&Add Fee|&View Fees|&Cancel'),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Remove|&Add Fee|&View Fees|V&iew/Correct|&Cancel'),
  if(gcretval=2,addFee=),
  if(gcretval=1,removeIt=),
- if(gcretval=3,feeBrw=);
+ if(gcretval=3,feeBrw=),
+ if(gcretval=4,viewCor=);
 
 @feeBrw=
  gcInvoiceId=lc151id,
@@ -199,6 +202,12 @@
  if(readstring(lctempmess,'@code=')=1,m(lctempmess)),
  refreshbrw=;
  
+@viewCor=
+ break(lc151id+0<1),
+ lcSource='INVOICES',
+ sql('dbo.taxRolladdressCheck '&lc151id),
+ d1select('exec dbo.taxrollScreen '&lc151id&','''&cur:ini&''','''&lcSource&''''),
+ change(obj7:d1);
 
 \t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;
 \t039(+) Days; \t040@p###p; \w04030; \f0400; @acc040=changeDate=; @selected040=gcdr1=1; \x039040-90;r \x040-30; \p0407c0ch,1;

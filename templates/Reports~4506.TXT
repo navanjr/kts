@@ -18,7 +18,7 @@
 
 @brw1=
  update,
- lcreportId=kpbrwid()*-1,
+ setvars=,
  break(lcreportId+0<1),
  gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
@@ -35,6 +35,25 @@
  lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId),
  gcaccountcode='',
  trreport(lcreportName,lcreportTemplate+0,lcreportTemplateCommand);
+
+
+@setvars=
+ lcreportId=kpbrwid()*-1,
+ break(lcreportId+0<1),
+ lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
+ lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
+ lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId);
+
+@lbrwclick150=
+ break(instring('@group=developer;',cur:options,1,1)=0),
+ setvars=,
+ break(lcreportId+0<1),
+ lcReportOptions=kp('select dbo.reportControlBlob('''&lcreportName&''')'),
+ lcReportModuleId=readstring(lcReportOptions,'@reportControlId='),
+ m('Report Control Options:|'&lcReportOptions&'||Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit Report|Change &Report Control|&Cancel'),
+ if(gcretval=1,updtmpl(lcReportTemplate)),
+ if(gcretval=2,change(lcReportModuleId));
+
 
 \x001012+115;r
 \t001Begin Date; \t002@d2; \w00250; @accr0020122=update;

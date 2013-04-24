@@ -1,0 +1,175 @@
+create function dbo.officialDepositBRW(
+ @id int,
+ @showGL int
+) returns @rt table(
+ ord varchar(80),
+ id int,
+ description varchar(100), 
+ subdescription varchar(100), 
+ amount money,
+ sName varchar(50),
+ fName Varchar(50),
+ origin int,
+ colorFlag int,
+ subDescription2 varchar(125)  
+)
+begin
+
+ declare @styp char(1) = 'o'
+ declare @slink varchar(15) = @styp + cast(@id as varchar),
+         @receiptTyp int,
+         @receiptAccount varchar(60),
+         @trustAccount varchar(60)
+
+ select
+  @receiptTyp = typ,
+  @receiptAccount = a2
+ from object where id = @id
+
+ select top 1
+  @trustAccount = key3
+ from object where typ = 4503 and key1 = 'TRUST'
+
+ insert @rt (ord,id,description,subdescription,amount,origin)
+ select
+  'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,0
+ from receiptDetail where slink = @slink 
+ 
+ update @rt set
+  sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),
+  subDescription2 = dbo.padright(accountDesc,' ',12)
+ from glaccounts
+ where accountCode = SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
+
+ update @rt set
+  fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),
+  subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12)
+ from glaccounts
+ where accountCode = SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+
+ update @rt set subDescription = subDescription2
+
+ if exists(select * from dbo.receiptLink where receiptId = @id)
+ begin
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
+   max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
+   max(c.parcel),
+   sum(b.amount), 1
+  from receiptLink a, receiptDetail b, invoices c
+  where 't'+CAST(a.invoiceId as varchar) = b.slink
+   and a.invoiceId = c.ID
+   and receiptId = @id
+   and c.invoiceId < 1
+  group by c.invoiceId, c.id, a.protestAmount
+
+  insert @rt (ord,id,description,subdescription,origin)
+  select 'aa'+cast(c.id as varchar)+'aa',cast('6'+cast(c.id as varchar) as int)*-1,
+   'Tax Year: '+cast(c.taxyear as varchar(4)),
+   'Tax Receipt: '+a.receiptNumber, 2
+  from receiptLink a, receiptDetail b, invoices c
+  where 't'+CAST(a.invoiceId as varchar) = b.slink
+   and a.invoiceId = c.ID
+   and receiptId = @id
+   and c.invoiceId < 1
+  group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
+
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(max(c.id) as varchar) as int)*-1,
+   max('   '+b.description),
+   max('   '+lower(b.subDescription)),
+   sum(b.amount),3
+   from receiptLink a, receiptDetail b, invoices c
+   where 't'+CAST(a.invoiceId as varchar) = b.slink
+    and a.invoiceId = c.ID
+    and receiptId = @id
+    and c.invoiceId > 0
+   group by c.invoiceId, c.typ
+
+  update @rt set
+   sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),
+   subDescription2 = dbo.padright(accountDesc,' ',12)
+  from glaccounts
+  where accountCode = ltrim(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)) and  RIGHT(ord,2) = 'az' 
+
+  update @rt set
+   fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),
+   subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12)
+  from glaccounts
+  where accountCode = SUBSTRING(subdescription,charindex('/',subdescription)+1,50) and RIGHT(ord,2) = 'az' 
+
+  update @rt set subDescription = subDescription2 where RIGHT(ord,2) = 'az'   
+ end
+
+ if exists(select * from dbo.paid where slink = @slink)
+ begin
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'ba',0,'','',0,4
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bb',0,'Payment(s)','',0,5
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,
+   '   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6
+  from dbo.paid where slink = @slink
+ end
+
+ if exists(select * from dbo.paid where officialDepositId = @id)
+ begin
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bda',0,'','',0,7
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bdb',0,'Payment(s) - via Trust Receipt','',0,8
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bdc',cast('4'+cast(p.id as varchar) as int)*-1,
+   '  ' + o.key1 + ' - ' + paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9
+  from dbo.paid p
+  left join object o on 'o'+cast(o.id as varchar) = p.slink
+  where officialDepositId = @id
+ end
+
+ if @showGl = 1
+ begin
+  if exists(select * from dbo.glDetailStage where slink = @slink)
+  begin
+   insert @rt (ord,id,description,subdescription,amount,origin)
+   select 'ca',0,'','',0,10
+   insert @rt (ord,id,description,subdescription,amount,colorFlag,origin)
+   select 'cb',0,'GL Detail (staged)','',0,2,11
+
+   declare @stageScratch table(accountId int, amount money, accountType varchar(50), accountDesc varchar(50), ord varchar(50))
+   insert @stageScratch
+   select accountId, sum(amount),'','','' 
+    from dbo.glDetailStage 
+    where slink in (select slink from dbo.receiptSLinks(@id) where dbo.slinkType(slink)!='t')
+    group by accountId 
+   update a set
+    a.accountType = b.accountType,
+    a.accountDesc = b.accountDesc,
+    a.ord = 'cc' + b.accountType
+   from @stageScratch a, dbo.glAccounts b where a.accountId = b.accountId
+   update @stageScratch set accountType = 'suspense', accountDesc = 'Temporary Suspense', ord = 'ccZsuspense' where isnull(accountId,0) = 0
+
+   insert @rt (ord,id,description,subdescription,amount,origin)
+   select ord,0,'   '+accountDesc,lower(accountType),sum(amount),12
+   from @stageScratch
+   group by accountType, accountDesc, ord
+
+  end
+
+  if exists(select * from dbo.glDetail where slink = @slink)
+  begin
+   insert @rt (ord,id,description,subdescription,amount,origin)
+   select 'ca',0,'','',0,13
+   insert @rt (ord,id,description,subdescription,amount,colorFlag,origin)
+   select 'cb',0,'GL Detail (posted)','',0,2,14
+   insert @rt (ord,id,description,subdescription,amount,origin)
+   select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount),15
+   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
+    and a.slink in (select slink from dbo.receiptSLinks(@id) where dbo.slinkType(slink) not in ('t','j'))
+   group by b.subord,a.accountDesc,lower(b.accountType)
+  end
+
+ end
+
+ return
+end

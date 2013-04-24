@@ -1,0 +1,83 @@
+create function dbo.appropriationLedgerDetail(@begindate varchar(20),@enddate varchar(20)) 
+returns @rt table(accountCode varchar(60),
+                  detailDate varchar(60),
+                  warrantNumber varchar(60),
+                  person varchar(60),
+                  purpose varchar(60),
+                  budget money,
+                  payments money,
+                  balance money,
+                  accountNumber varchar(60),
+                  FundDesc varchar(60),
+                  fiscalYear varchar(20),
+                  ord varchar(10))
+as
+begin
+insert @rt
+ select accountCode,
+  @begindate as sourceDate,
+  '' as sourcekey3,
+  '' as person,
+  'BeginBalance' as purpose, 
+  sum(case when sourceType='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
+  sum(case when sourceType<>'4512' or sourcea18='Budget Payment' then amount else 0 end) as payments,
+  sum(amount*-1) as balance,
+  '' as accountNumber,
+  0 as accountDesc,
+  '' as fiscalYear,
+  'a' as ord 
+ from dbo.gldetailreports 
+ where sourceDate<@begindate 
+  and accounttype='BUDGET'
+  and accountcode like '%_A%'
+ group by accountCode
+
+insert @rt
+select accountCode,
+   sourcedate,
+   case when sourcetype='4771' then sourcekey3 else sourcekey1 end as sourcekey1,
+   case when sourcetype='4771' then sourcea2 else '' end as person,
+   left(sourcee1,50) as purpose,
+   0 as budget,
+   amount as payments,
+   amount*-1 as balance, 
+   '' as accountNumber,
+   '' as accountDesc,
+   '' as fiscalYear,
+   'da'
+   from dbo.gldetailreports 
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and (sourceType<>'4512' or sourcea18='Budget Payment')
+     and accounttype='BUDGET'
+  and accountcode like '%_A%'
+     
+insert @rt
+select accountCode,
+   sourcedate,
+   sourcekey1,
+   'Budget Adjustment' as person,
+   left(sourcee1,50) as purpose,
+   amount*-1 as budget,
+   0 as payments,
+   amount*-1 as balance, 
+   '' as accountNumber,
+   '' as accountDesc,
+   '' as fiscalYear,
+   'da'
+   from dbo.gldetailreports 
+   where sourceDate>=@begindate 
+     and sourceDate<=@enddate
+     and (sourceType='4512' and sourcea18<>'Budget Payment')
+     and accounttype='BUDGET'
+  and accountcode like '%_A%'
+     
+update r
+ set accountNumber=o.key1,
+     FundDesc=o.a1,
+     fiscalYear=dbo.validateFiscalYear(substring(dbo.splitf(accountcode,'_',2),2,5))
+ from @rt r, object o where o.typ=4705 and o.key1=left(r.accountCode,charindex('_',r.accountCode)-1)
+
+
+return
+end     

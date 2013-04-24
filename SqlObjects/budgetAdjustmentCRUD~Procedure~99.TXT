@@ -1,0 +1,78 @@
+create procedure dbo.budgetAdjustmentCRUD(@mode int,
+        @accountNumber varchar(60),
+        @fundCode varchar(60),
+        @fiscalYear varchar(50),
+        @adjustDate varchar(50),
+        @amount money,
+        @newId int = 0,
+        @jeType varchar(50)='',
+        @description varchar(50)='')
+as
+begin
+
+if @mode = 0        
+begin
+ -- Bail if not enough info
+  if isnull(@accountNumber,'') < ' 0' or isnull(@fundCode,'') < ' 0' or len(isnull(@fiscalYear,''))<2 or isnull(@adjustDate,'')<' 0' or isnull(@amount,0) = 0.00 
+  begin
+   select 'Not enough data for this budget adjustment...'
+   return
+  end
+
+
+  declare @resultCode int,
+         @resultMessage varchar(50),
+         @postResult varchar(50)
+         
+         
+  exec dbo.journalEntryCRUD 0, 
+       @postdate=@adjustDate, 
+       @description=@description, 
+       @jeType=@jeType, 
+       @resultCode=@resultCode output,
+       @resultMessage=@resultMessage output, 
+       @newId=@newId output
+
+ 
+  if @resultcode <> 0
+  begin
+   select '@code=1;@message='+@resultmessage+';'
+   return
+  end
+  else
+  begin
+   select '@code=0;@message='+@resultmessage+';@newId='+cast(@newId as varchar)+';'
+  end
+  
+  declare @budgetAccountCodeToken varchar(50),
+          @budgetFundCodeToken varchar(50),
+          @slink varchar(16) = 'o'+cast(@newId as varchar)
+      
+      
+        exec dbo.budgetAccountVerification
+             @accountNumber, 
+             @fiscalYear, 
+             @fundCode, 
+             @budgetAccountCode = @budgetAccountCodeToken output,
+             @budgetFundCode = @budgetFundCodeToken output
+     
+     
+      
+      insert gldetailstage (slink,accountid,accountcode,accountdesc,date,amount)
+       select @slink,a.accountid,a.accountcode,a.accountdesc,@adjustDate,@amount*-1 
+        from glaccounts a  
+        where a.accountcode = @budgetAccountCodeToken 
+
+      insert gldetailstage (slink,accountid,accountcode,accountdesc,date,amount)
+       select @slink,a.accountid,a.accountcode,a.accountdesc,@adjustDate,@amount
+        from glaccounts a 
+        where a.accountcode = @budgetFundCodeToken
+   
+   -- post gl
+   exec dbo.glPost @newid, 'o', @resultString = @postResult output
+   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
+ end
+
+ 
+
+end

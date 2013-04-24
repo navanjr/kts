@@ -115,8 +115,8 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Update Account Balances...')),
  refreshbrw=;
 
-@filtername=All,Bank Accounts,Suspense Accounts,Source Accounts,Fund Accounts,Accural Accounts,Warrants Registered,Official Accounts,Trust Purposes, Schools, Cities,In-Active;
-@filter='1=1 and b3!=1','a1 in (select accountType from dbo.glBankFundTypes(''BANK'') where accountType<>''SUSPENSE'') and b3!=1','a1=''SUSPENSE'' and b3!=1','a1=''SOURCE'' and b3!=1','a1=''FUND'' and b3!=1','a1 in (''ACCRUED PAYABLE'',''RECEIVABLE'',''ACCRUED RECEIVABLE'') and b3!=1','a1=''WARRANT'' and b3!=1','a1=''OFFICIAL'' and b3!=1','a1=''PURPOSE'' and b3!=1','a1=''SCHOOL'' and b3!=1','a1=''CITY'' and b3!=1','b3=1';
+@filtername=All,Bank Accounts,Suspense Accounts,Source Accounts,Fund Accounts,Accural Accounts,Warrants Registered,Official Accounts,Trust Purposes, Schools, Cities, Budget,In-Active;
+@filter='1=1 and b3!=1','a1 in (select accountType from dbo.glBankFundTypes(''BANK'') where accountType<>''SUSPENSE'') and b3!=1','a1=''SUSPENSE'' and b3!=1','a1=''SOURCE'' and b3!=1','a1=''FUND'' and b3!=1','a1 in (''ACCRUED PAYABLE'',''RECEIVABLE'',''ACCRUED RECEIVABLE'') and b3!=1','a1=''WARRANT'' and b3!=1','a1=''OFFICIAL'' and b3!=1','a1=''PURPOSE'' and b3!=1','a1=''SCHOOL'' and b3!=1','a1=''CITY'' and b3!=1','a1=''BUDGET'' and b3!=1','b3=1';
 @ordername=Account #,Description,Report Order;
 @key2=obj:key2;
 @key3=obj:a9;
@@ -263,6 +263,16 @@ sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),
  trreport('MillageBreakdown=',5038,'printMillageBreakdown='),
  gcAmount=0,
  gcAccountId=0,;
+
+\h119obj:a1<>'ACCRUED RECEIVABLE';
+\t119Special Apportion;
+@acc119=m('Are you sure you want to Special Apportion the money in this account?','Apportion?',,6,4),
+  break(gcretval<>2),
+  gc4794id=obj:id,
+  gcApportionToDate=today()-1,
+  lcApportionStage=kp('select max(id) from object where typ = 4794'),
+  if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
+
 
 @bb4=Import Funds,,,gcadmin=1;
 @bbproc4=

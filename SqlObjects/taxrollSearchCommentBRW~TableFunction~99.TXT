@@ -43,9 +43,14 @@ if @pubFlag = 'FALSE'
  begin 
 -- comments from object
   insert @rt
-  select cast('-8'+cast(id as varchar) as int),a2,a3,case when a4 = '1' then '<private> ' else '' end + cast(e1 as varchar(max)),'COMMENT',1
+  select 
+   cast('-8'+cast(id as varchar) as int),
+   a2,
+   a3,
+   case when a4 = '1' then '<private> ' else '' end + rtrim(left(Attributes,5)) + ' - ' + cast(e1 as varchar(max)),'COMMENT',1
   from dbo.object
   where typ=4002 
+   and cast(e1 as varchar(max)) > '  0'
    and (key3=left(@name,len(key3)) or len(key3)<1) 
    and (key2=left(@parcel,len(key2)) or len(key2)<1) 
    and (case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end=@item 
@@ -85,6 +90,7 @@ if @pubFlag = 'FALSE'
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('RESALE','BANKRUPT','PROBATE')
   insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5
    from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('item','BANKRUPT','PROBATE')
+    and cast('-1'+cast(id as varchar) as int) not in (select id from @rt)
 
 insert @rt
     select	cast('-1'+cast(id as varchar) as int),

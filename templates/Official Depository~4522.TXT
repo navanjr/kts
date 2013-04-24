@@ -15,7 +15,13 @@ lmode=2;
  setMiscReceiptAcct=,
  brwstuff=,
  gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST'''),
- if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id));
+ if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id)),
+ if(obj:key1<'  0' and obj:a17<>'Posted',displayNextNumber=);
+@displayNextNumber=
+ d1select('exec dbo.nextObjectAutoNumber 4522, '''', @verbose = ''true'''),
+ lcNextNumber=obj7:d1,
+ create(550,10,130,3,lcNextNumber),prop(550,'7c13h',700);
+
 @select=008;
 
 @browsedelete=
@@ -27,13 +33,10 @@ lmode=2;
  
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
- gcbrw1sql='select id,description,subdescription,amount from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&',0)order by ord',
- brw(150,1,gcbrw1sql,65,95,270,200,
-  '138L(2)~~#2#M
-80L(2)~~#3#M
-50R(2)~Amount~@n-14.2b@#4#M
-',7,1),
+ gcbrw1sql='select id,description,subdescription,amount from dbo.officialDepositBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&')order by ord',
+ brw(150,1,gcbrw1sql,65,95,270,200,'138L(2)~~#2#M80L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1),
  prop(150,7CFAH,13499135);
+
 @lbrw1forecolor=obj7:c10<0,255;
 
 @afterloadwindow=
@@ -53,11 +56,17 @@ lmode=2;
 \t007Received From;  \l0084601,2; \d008obj:a17='Posted'; @lf008=,3; \q008;
 @acc008=
  get(obj:link2),
+ lcCode=kp('select key3 from object where typ = 4701 and key1 = '''&obj7:a3&''''),
+ if(lcCode='TRUST',trustWarning=),
  set(8,obj7:key2),
  set(10,obj7:a3),
  set(48,obj7:b2),
  tsc,
  focus(050);
+
+@trustWarning=
+ m('NOTE: TRUST RECEIPTS ARE DEPOSITED FROM THE BOOKKEEPERS DASHBOARD.||DO NOT USE THIS OFFICIAL DEPOSIT TO DEPOSIT TRUST INTO THE TREASURERS OFFICIAL FUND.','Treasurers Official Fund...','question.ico','Cancel|Continue'),
+ if(gcretval=1,close('cancel+'));
 
 \t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2; \q010;
  \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151;
