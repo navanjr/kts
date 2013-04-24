@@ -333,9 +333,13 @@ begin
   declare @registerDateOverride varchar(20) = 'FALSE'
 
   if @paymentType = 'official Voucher'
+  begin
    set @registerDateOverride = dbo.settingsF('site.voucherPostDateEqualsVoucherDate','FALSE')
 
-  set @postDate = case when @registerDateOverride = 'TRUE' and isnull(@voucherDate,'') > ' 0' then isnull(@voucherDate,'') else dbo.clarionDate(getDate()) end
+-- set the post date
+   select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
+
+  end
 
   exec dbo.logit @@procid, '@nextVoucherNumber=',@nextVoucherNumber, '@paymentType', @paymentType, '@postDate', @postDate
 
@@ -353,7 +357,7 @@ begin
   select 
    4771,
    @nextVoucherNumber,
-   coalesce(nullif(@postDate,''),dbo.clarionDate(getdate())),
+   coalesce(nullif(@postDate,''),cast(dbo.clarionToday() as varchar)),
    @voucherNumber,
    isnull(@voucherDate,''), -- needs isnull because we use a datatype of int inside our procs, therefore we cant default to ''
    @payee,
