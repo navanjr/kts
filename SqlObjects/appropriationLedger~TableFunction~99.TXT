@@ -4,7 +4,8 @@ returns @rt table(FundDesc varchar(60),
                   warrants varchar(50),
                   budget varchar(50),
                   balance varchar(50),
-                  ord varchar(250))
+                  ord varchar(250),
+                  fiscalYear varchar(20))
 as
 begin
            
@@ -15,8 +16,9 @@ insert @rt
   SUM(payments),
   SUM(budget),
   sum(balance),
-  fundDesc+accountnumber+'bbb'
-  from dbo.appropriationLedgerDetail(@begindate,@enddate) group by funddesc,accountNumber
+  fiscalYear+fundDesc+accountnumber+'bbb',
+  fiscalYear
+  from dbo.appropriationLedgerDetail(@begindate,@enddate) group by fiscalYear,funddesc,accountNumber
 
 insert @rt
   select 
@@ -25,12 +27,19 @@ insert @rt
   SUM(cast(warrants as money)),
   SUM(cast(budget as money)),
   sum(cast(balance as money)),
-  fundDesc+'zzzzz'+'ccc' from @rt group by FundDesc
+  fiscalYear+fundDesc+'zzzzz'+'ccc',
+  fiscalYear from @rt group by fiscalYear,FundDesc
 
 insert @rt (FundDesc,ord)
   select 
   fundDesc,
-  fundDesc+'     '+'aaa' from @rt group by FundDesc
+  fiscalYear+fundDesc+'     '+'aaa' from @rt group by fiscalYear,FundDesc
+
+insert @rt (FundDesc,ord)
+  select 
+  'Fiscal Year: '+fiscalYear,
+  fiscalYear+'          '+'aa1' from @rt group by fiscalYear
+
 
 update @rt
   set
