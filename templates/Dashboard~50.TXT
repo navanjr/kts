@@ -18,27 +18,29 @@
 @brw1=
  lcId=kpbrwid(1),
  clickPrep=,
- if(gcReceiptType<>'ALL',browseReceipts=),
- break(gcReceiptType<>'ALL'),
+ if(lcDefaultAction='browse',browseReceipts=),
  gcReceiptType='',
- printMyBalanceReport=;
+ if(lcDefaultAction='report',printMyBalanceReport=);
 
 @lbrwclick150=
  lcId=kpbrwid(1),
- rightClickLinkOptions=,
+ clickPrep=,
+ if(lcMenu=1,menu1=),
+ if(lcMenu=2,menu2=),
+ if(lcMenu=3,menu3=),
  refreshbrw=;
+
+ if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
 
 @clickPrep=
  lcWhoAmI=kp('select blob from dbo.posBrw() where id = '&lcId),
  gcReceiptType=readstring(lcWhoAmI,'@receiptType='),
+ lcDefaultAction=readstring(lcWhoAmI,'@defaultAction='),
  lcIni=readstring(lcWhoAmI,'@ini='),
+ lcMenu=readstring(lcWhoAmI,'@menu='),
  gcNextBusinessDay=kp('select dbo.nextBusinessDay('&today()&')');
 
-@rightClickLinkOptions=
- clickPrep=,
- if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
-
-@rightClickLinkOptionsDate=
+@menu1=
  gcReceiptType='',
  m('Choose from the following options...','Right Click Options...','question.ico','My &Balance Report|My Receipts Report|B&rowse All Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&' All|&Manual Date All|&Cancel'),
  if(gcretval=1,printMyBalanceReport=),
@@ -47,13 +49,17 @@
  if(gcretval=4,changeDateAll=),
  if(gcretval=5,depositdatemanualAll=); 
 
-@rightClickLinkOptionsRecType=
+@menu2=
  m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
  if(gcretval=1,browseReceipts=),
  if(gcretval=2,changeDate=),
  if(gcretval=3,depositdatemanual=); 
 
- if(gcretval=3,printMyReceiptList=),
+@menu3=
+ gcReceiptType='payments',
+ m('Please choose one of the following options...','Payments - Right Click Menu...','question.ico','Change &Date'&format(gcNextBusinessDay,@d2)&'|&Manual Date|E&xit'),
+ if(gcretval=1,changeDate=),
+ if(gcretval=2,depositdatemanual=); 
 
 @browseReceiptsAll=
  writecurdata(@BrowFil4502=,'3'),
@@ -105,8 +111,8 @@
   if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
 
 \t109O&fficial Deposit; @acc109=new(4522);
-\t110&Vouchers; @acc110=gcVoucher=1,do(4770,menuprocess=);
-\t111&Warrants; @acc111=gcVoucher=0,do(4770,menuprocess=);
+\t110&Vouchers; @acc110=gcVoucher=1,openImporter=;
+\t111&Warrants; @acc111=gcVoucher=0,openImporter=;
 \t113&Miscellaneous; @acc113=newRecLog=,do(4502,'newMisc=');
 \t114Mort&gage; @acc114=newRecLog=,do(4502,'newMort=');
 \t115&Trust; @acc115=newRecLog=,do(4502,'newTrust=');
@@ -117,13 +123,25 @@
 @newRecLog=
  sql('exec dbo.logit null,''NewReceipt'','''&gcretval&'''');
 
+@openImporter=
+ lcPaymentLogic=kp('select dbo.paymentPostDateLogic(0)'),
+ lcLabel=readstring(lcPaymentLogic,'@label='),
+ lcPPostDate=readstring(lcPaymentLogic,'@postDate='),
+ if(lcLabel>'  0' and lcPPostDate<today(),offerPaymentDate=,do(4770,menuprocess=));
+@offerPaymentDate=
+ m(lcLabel&'||I noticed the Register Date is past.|Would you like to change the Date these payments will be registered?','Change Payment Date...','question.ico','Change &Date to '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&No, Continue with this Date|E&xit'),
+ if(gcretval=1,changeDate=),
+ if(gcretval=2,depositdatemanual=),
+ if(gcretval=3,do(4770,menuprocess=)),
+ refreshbrw=;
+
 @generate=
  d1select('exec dbo.posAccountMaintenance'),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Maintenance...')),
  refreshbrw=;
 
 @brwstuff=
- gcbrwsql50='select id,display,blob,accountId,rowType from dbo.posBRW() order by ord',
+ gcbrwsql50='select id,display,blob,rowColor,rowType from dbo.posBRW() order by ord',
  brw(150,1,gcbrwsql50,3,3,285,250,'285L(5)~~#2#M135R(30)~~#3#|M200L(20)~~#3#|M',7,1),
  prop(150,'Color',13499135),
  rop(150,7cfah,13499135),
@@ -137,6 +155,6 @@
 
 @refreshbrw=brwreload(1),focus(106);
 @gfwindow=refreshbrw=;
-@lbrw1color=obj7:c9+0=0,255,obj7:c10=1,13428479;
+@lbrw1color=obj7:c9+0=1,255,obj7:c9=2,13428479;
 255,230,204
 \t037ShowAll; \h037038;r
