@@ -1,0 +1,43 @@
+create function dbo.appropriationLedger(@begindate varchar(20),@enddate varchar(20)) 
+returns @rt table(FundDesc varchar(60),
+                  accountNumber varchar(60),
+                  warrants varchar(50),
+                  budget varchar(50),
+                  balance varchar(50),
+                  ord varchar(250))
+as
+begin
+           
+insert @rt
+ select 
+  fundDesc,
+  accountNumber,
+  SUM(payments),
+  SUM(budget),
+  sum(balance),
+  fundDesc+accountnumber+'bbb'
+  from dbo.appropriationLedgerDetail(@begindate,@enddate) group by funddesc,accountNumber
+
+insert @rt
+  select 
+  fundDesc,
+  '',
+  SUM(cast(warrants as money)),
+  SUM(cast(budget as money)),
+  sum(cast(balance as money)),
+  fundDesc+'zzzzz'+'ccc' from @rt group by FundDesc
+
+insert @rt (FundDesc,ord)
+  select 
+  fundDesc,
+  fundDesc+'     '+'aaa' from @rt group by FundDesc
+
+update @rt
+  set
+  warrants = dbo.formatcurr(warrants),
+  budget = dbo.formatcurr(budget),
+  balance = dbo.formatcurr(balance)
+                  
+
+return
+end     
