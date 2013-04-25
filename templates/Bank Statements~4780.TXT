@@ -153,6 +153,22 @@
 \t115Paid Warrants; @acc115=neww(4772);
 \t116Cleared Vouchers; @acc116=do(5027,preClearedVoucherList=);
 
+\h119120cur:securitylevel<100;r
+\t119Clear Deposits;
+@acc119=gcClearWhere='where typ=4513',gcClearType='Deposits',doclear=;
+\t120Clear Treas Chks;
+@acc120=gcClearWhere='where typ=4771 and a18=''Treasurers Check''',gcClearType='Treasurers Checks',doclear=;
+
+@doclear=break(len(gcClearWhere)<13),
+ iw('\t000Clear '&gcClearType&'; \t001Begin Date; \t002@d2; \w00250; \t003End Date; \t004@d2; \w00450;'),
+ break(gcretval='esc'),
+ gcbegindate=obj7:key1,
+ gcenddate=obj7:key2,
+ if(gcenddate>obj:a2,gcenddate=obj:a2),
+ d1select('update gldetail set bsId='&obj:id&' where accountcode='''&obj:key1&''' and isnull(bsId,0)=0 and date >='&gcbegindate&' and date <='&gcenddate&' 
+ and slink in (select ''o''+cast(id as varchar(15)) from object '&gcClearWhere&')')
+;
+
 @acc550=refreshBRW=;
 @acc551=refreshBRW=;
 @acc553=if(obj:c3+0=1,set(076,0)),update,refreshBRW=;
