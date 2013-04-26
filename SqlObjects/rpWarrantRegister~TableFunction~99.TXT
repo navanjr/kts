@@ -18,7 +18,74 @@ debitCode varchar(60),
 reportOrder varchar(60)
 )
 as begin
-insert @rt 
+
+declare @wt table(
+RegNo varchar(60),
+RegDateNo varchar(60),
+RegDate varchar(60),
+WarNo varchar(60),
+WarDateNo varchar(60),
+WarDate varchar(60),
+Payee varchar(60),
+amount money,
+FundCode varchar(60),
+FundDesc varchar(60),
+PayNo varchar(60),
+PayDateNo varchar(60),
+PayDate varchar(60),
+PayAmount money,
+fiscalYear varchar(60),
+debitCode varchar(60),
+reportOrder varchar(60)
+)
+
+
+
+
+insert @wt 
+select controlNumber
+      ,postDate
+      ,dbo.date1(postDate)
+      ,foreignNumber
+      ,foreignDate
+      ,dbo.date1(foreignDate)
+      ,payee
+      ,naturalAmount
+      ,FundCode
+      ,FundDesc
+      ,case when contraPaymentType='Treasurers Check' then contraControlNumber else contraPaymentType end
+      ,contraPostDate
+      ,dbo.date1(contraPostDate)
+      ,contraAmount*-1
+      ,right(fiscalYear,2)
+      ,accountCode
+      ,ord 
+ from dbo.paymentReports('Warrant',@enddate,'TRUE') 
+ where postDate <= @endDate
+
+insert @wt 
+select contraControlNumber
+      ,contraPostDate
+      ,dbo.date1(contraPostDate)
+      ,contraForeignNumber
+      ,contraForeignDate
+      ,dbo.date1(contraForeignDate)
+      ,case when isnull(contraPaymentType,'NULL') not in ('Treasurers Check','NULL') then contraPaymentType + ' ' + foreignNumber + ' ' + payee else payee end
+      ,contraAmount
+      ,FundCode
+      ,FundDesc
+      ,''
+      ,''
+      ,''
+      ,0.00
+      ,right(fiscalYear,2)
+      ,accountCode
+      ,ord 
+ from dbo.paymentReports('Warrant',@enddate,'TRUE') 
+ where contraPostDate <= @endDate
+
+
+/*
 select [RegNo]
       ,[RegDateNo]
       ,[RegDate]
@@ -38,9 +105,56 @@ select [RegNo]
       ,[reportOrder] 
  from warrants 
  where RegDateNo >= @beginDate and RegDateNo <= @endDate
- 
+*/ 
+
+insert @rt
+select [RegNo]
+      ,[RegDateNo]
+      ,[RegDate]
+      ,[WarNo]
+      ,[WarDateNo]
+      ,[WarDate]
+      ,[Payee]
+      ,[amount]
+      ,[FundCode]
+      ,[FundDesc]
+      ,[PayNo]
+      ,[PayDateNo]
+      ,[PayDate]
+      ,[PayAmount]
+      ,right([fiscalYear],2)
+      ,[debitCode]
+      ,[reportOrder] 
+  from @wt where RegDateNo >= @beginDate and RegDateNo <= @endDate
+
+
+
+
+
  insert @rt 
  select ''
+      ,''
+      ,''
+      ,''
+      ,''
+      ,''
+      ,'Total Carried Forward'
+      ,sum(isnull(amount,0))
+      ,FundCode
+      ,FundDesc
+      ,''
+      ,''
+      ,''
+      ,0.00
+      ,right(fiscalYear,2)
+      ,''
+      ,reportOrder
+ from @wt
+ where RegDateNo < @beginDate
+ and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
+ group by right(fiscalYear,2),fundCode,FundDesc,reportOrder
+
+/* select ''
       ,''
       ,''
       ,''
@@ -60,7 +174,7 @@ select [RegNo]
  from warrants 
  where RegDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
  group by right(fiscalYear,2),fundCode,FundDesc,reportOrder
- 
+*/ 
  update @rt set fiscalyear = cast(cast('20'+fiscalyear as int)-1 as varchar(4))+'-'+'20'+fiscalyear where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
 
 return
