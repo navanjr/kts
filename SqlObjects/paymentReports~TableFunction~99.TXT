@@ -27,7 +27,10 @@ create function dbo.paymentReports(
  contraForeignDate int,
  ord varchar(100),
  bsId int,
- dateCleared varchar(50)
+ dateCleared varchar(50),
+ fundCode varchar(50),
+ fundDesc varchar(50),
+ fiscalYear varchar(50)
 ) as
 begin
 
@@ -56,7 +59,10 @@ begin
   null,null,null,null,null,null,null,null,
   rtrim(a.targetAccountCode) + ' - ' + a.targetAccountDesc,
   max(g.bsId),
-  max(case when @accountType='Bank' then dateCleared else @asofDate end)
+  max(case when @accountType='Bank' then dateCleared else @asofDate end),
+  a.targetAccountCode,
+  a.targetAccountDesc,
+  null
  from glDetail g
  join @accounts a on a.accountCode =g.accountCode 
   where @includeAsOfBalanceZeros = 'TRUE' or (case when @accountType='Bank' then dateCleared else 99999 end > @asofDate 
@@ -80,7 +86,8 @@ begin
   a.payee = b.a2,
   a.foreignNumber = b.key3,
   a.foreignDate = b.a1,
-  a.fundAccount = case when b.a18 like '%Voucher%' then b.b3 else '' end
+  a.fundAccount = case when b.a18 like '%Voucher%' then b.b3 else '' end,
+  a.fiscalYear = case when b.a18 like '%Warrant%' then b.c10 else '' end
  from @rt a
  join object b on dbo.slinkId(a.slink) = b.id
  where b.typ=4771
