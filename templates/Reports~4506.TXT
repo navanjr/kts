@@ -11,35 +11,70 @@
  gcPhone=readstring(gcSiteBlob,'@phone='),
  gcOfficeAdd=kp('select dbo.parseAddress('''&gcSiteBlob&''')');
 
-@loadwindow=brwstuff=;
+@loadwindow=
+ prop(106,text,'Close'),
+ brwstuff=;
 
-@brwstuff=gcSQL4506='select id*-1,reportName from dbo.reportList() order by ord',
-  brw(150,1,gcSQL4506,3,3,110,110,'100L(2)~Report~#2#');
+@brwstuff=
+ lcMh=mh-200,
+ gcSQL4506='select id,reportName,reportTemplate from dbo.reportList() order by ord',
+ brw(150,1,gcSQL4506,3,3,260,lcMh,'260L(2)~Press Enter or Double Click to run Report~#2#'),
+ prop(150,'Color',16777215),
+ prop(150,7c11h,10),
+ prop(150,7c10h,'verdana'),
+ prop(150,'BevelOuter',10),
+ prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0),
+ prop(150,'linewidth',10),
+ prop(150,'LineHeight',11);
+
+@regularFont=
+ brw(150,1,gcsql,65,94,425,200,'118L(2)~    type~#3#M158L(2)~~#4#M|50R(2)~debit~@n-14.2b@#5#M|50R(2)~credit~@n-14.2b@#6#M|50R(2)~~#7#M',7,1);
+
+@largeFont=
+ brw(150,1,gcsql,65,94,650,200,'173L(2)~    type~#3#M253L(2)~~#4#M|75R(2)~debit~@n-14.2b@#5#M|75R(2)~credit~@n-14.2b@#6#M|50R(2)~~#7#M',7,1),
+ prop(150,7c11h,12),
+ prop(150,'LineHeight',12);
+
+@lbrw1color=obj7:c10=0,13428479;
+
+@afterloadwindow=
+ newselbrw150=;
+
+@newselbrw150=
+ lcreportId=kpbrwid(1),
+ lcInputOptions=kp('select inputOptions from dbo.reportList() where id = '&lcreportId),
+ lcBegin=readstring(lcInputOptions,'@begin='),
+ lcEnd=readstring(lcInputOptions,'@end='),
+ lcReceiptType=readstring(lcInputOptions,'@receiptType='),
+ lcDeputy=readstring(lcInputOptions,'@deputy='),
+ lcPrintDetail=readstring(lcInputOptions,'@printDetail='),
+ lcStation=readstring(lcInputOptions,'@station='),
+ lcFund=readstring(lcInputOptions,'@fund='),
+ tsc;
 
 @brw1=
  update,
  setvars=,
- break(lcreportId+0<1),
+ break(lcreportId+0=0 or lcReportTemplate=0),
  gcBeginDate=obj:key1,
  gcEndDate=obj:key2,
  gcD1=obj:key1,
  gcD2=obj:key2,
- gcReceiptType=obj:key3,
- gcDeputy=obj:a1,
+ gcReceiptType=choose(lcReceiptType='','',obj:key3),
+ gcDeputy=choose(lcDeputy='','',obj:a1),
  gcDepId=0,
- gcPrintDetail=obj:a2,
- gcStation=obj:a3,
+ gcPrintDetail=choose(lcPrintDetail='','',obj:a2),
+ gcStation=choose(lcStation=='','',obj:a3),
  gcBankAccount='',
- lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
- lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
- lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId),
  gcaccountcode='',
+ gcFundCode=choose(lcFund='','',obj:b3),
  trreport(lcreportName,lcreportTemplate+0,lcreportTemplateCommand);
 
 
 @setvars=
- lcreportId=kpbrwid()*-1,
- break(lcreportId+0<1),
+ lcreportId=kpbrwid(1),
+ break(lcreportId+0=0),
  lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
  lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
  lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId);
@@ -47,18 +82,25 @@
 @lbrwclick150=
  break(instring('@group=developer;',cur:options,1,1)=0),
  setvars=,
- break(lcreportId+0<1),
+ break(lcreportId+0=0 or lcReportTemplate=0),
  lcReportOptions=kp('select dbo.reportControlBlob('''&lcreportName&''')'),
  lcReportModuleId=readstring(lcReportOptions,'@reportControlId='),
- m('Report Control Options:|'&lcReportOptions&'||Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit Report|Change &Report Control|&Cancel'),
+ m('Report Control Options:|'&lcReportOptions&'||Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit|&Report Control|Report &List|&Cancel'),
  if(gcretval=1,updtmpl(lcReportTemplate)),
- if(gcretval=2,change(lcReportModuleId));
+ if(gcretval=2,change(lcReportModuleId)),
+ if(gcretval=3,change(kp('select id from object where typ=451 and key1=''reportList''')));
 
 
-\x001012+115;r
-\t001Begin Date; \t002@d2; \w00250; @accr0020122=update;
-\t003End Date; \t004@d2; \w00450;
-\t005Receipt Type; \l0064503; \w00650;
-\t007Deputy; \w00850;
-\t009Print Detail; \u010; @choose010:YNS; \w01012; \f010N;
-\t011Station; \w01250;
+\x001014+265;r  \w00201475;r2
+\t001Begin Date; \t002@d2; @accr0020122=update; \h001002lcBegin='';r
+\t003End Date; \t004@d2; \h003004lcEnd='';r
+\t005Receipt Type; \l0064503; \h005006lcReceiptType='';r
+\t007Deputy; \h007008lcDeputy='';r
+\t009Print Detail; \u010; @choose010:YNS; \f010N; \h009010lcPrintDetail='';r
+\t011Station; \h011012lcStation='';r
+\t013Fund; \l0144701;r014004052002; @lf014='a1=''FUND''',2; \h013014lcFund='';r @acc014=if(obj:a4='',set(052,''))
+ \t051FundCode; \h051052;r 
+
+
+
+\h107;
