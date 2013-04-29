@@ -56,7 +56,7 @@ select controlNumber
       ,case when contraPaymentType='Treasurers Check' then contraControlNumber else contraPaymentType end
       ,contraPostDate
       ,dbo.date1(contraPostDate)
-      ,contraAmount*-1
+      ,case when contraPaymentType='Treasurers Check' then contraAmount*-1 else 0 end
       ,right(fiscalYear,2)
       ,accountCode
       ,ord 
@@ -82,7 +82,7 @@ select contraControlNumber
       ,accountCode
       ,ord 
  from dbo.paymentReports('Warrant',@enddate,'TRUE') 
- where contraPostDate <= @endDate
+ where contraPostDate <= @endDate and isnull(contraPaymentType,'NULL') not in ('Treasurers Check','NULL')
 
 
 /*
