@@ -60,6 +60,7 @@ begin
   from object where typ = @receiptTyp and id = @receiptId
  end
 
+
  if right(rtrim(@fundcode),3)='_ACR'
  begin
   set @fundcode=isnull((select accountCode from glaccounts where accountId=dbo.latestReceivableAccount(@fundcode)),@fundcode)
@@ -86,6 +87,10 @@ begin
 
     exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
    end
+
+  if @receiptType = 'TRUST' 
+   select @altContraId = t.accountid from glaccounts a, glaccounts t where a.accountcode=@fundCode and a.targetaccountcode=t.accountcode
+
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount,altContraId) 
     select

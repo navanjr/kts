@@ -1,0 +1,36 @@
+create function dbo.paymentPostDateLogic(
+ @voucherDate int
+) 
+returns varchar(max) as
+begin
+
+ declare
+  @retMax varchar(max),
+  @label varchar(100),
+  @postDate int
+
+-- if the switch site.showPaymentsOnDashboard is on we use the dashboard.paymentDate
+  if dbo.settingsF('site.showPaymentsOnDashboard','FALSE') = 'TRUE'
+  begin
+   set @postDate = dbo.settingsF('dashboard.PaymentDate', cast(dbo.clarionToday() as varchar))
+   set @label = 'Date Registered: ' + dbo.date1(@postDate)
+   set @retMax = '@postDate=' + cast(@postDate as varchar) + ';@label=' + @label + ';'
+   return @retMax
+  end
+
+-- else if we have the switch site.voucherPostDateEqualsVoucherDate on then we use the voucher date for the post date
+  if dbo.settingsF('site.voucherPostDateEqualsVoucherDate','FALSE') = 'TRUE' and isnull(@voucherDate,0) > 0
+  begin
+   set @postDate = @voucherDate
+   set @label = ''
+   set @retMax = '@postDate=' + cast(@postDate as varchar) + ';@label=' + @label + ';'
+   return @retMax
+  end
+
+-- otherwise we use dbo.clarionToday()
+  set @postDate = dbo.clarionToday()
+  set @label = ''
+  set @retMax = '@postDate=' + cast(@postDate as varchar) + ';@label=' + @label + ';'
+  return @retMax
+
+end

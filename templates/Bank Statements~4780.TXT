@@ -12,41 +12,8 @@
  gcBeginDate=obj7:key1,
  sql('exec dbo.bankStatementCRUD '&gcBeginDate+0);
 
-@bb5=&Recon All;
-@bbproc5=
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='',
- trreport('bankrec',5039,'printBankReconciliation='),
- gcBeginDate=obj:a1,
- gcEndDate=obj:a2,
- gcBankAccount='';
-
-@bb8=Open Warrants;
-@bbproc8=
- iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
- break(gcretval <> 'OK'),
- gcEndDate=obj7:key2,
- if(gcEndDate+0<1,gcEndDate=today() ), 
- trreport('Outstanding Warrants',5032,'printOpenWarrants=');
-
-@bb9=Open Vouchers;
-@bbproc9=
- iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
- break(gcretval = 'esc'),
- gcEndDate=obj7:key2,
- if(gcEndDate+0<1,gcEndDate=today() ),
- trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
-
-@bb10=Paid Warrants;
-@bbproc10=
-  neww(4772);
-
-@bb11=Cancel Voucher;
-@bbproc11=do(5027,preCancelVoucherList=);
-
-@bb12=Cleared Vouchr;
-@bbproc12=do(5027,preClearedVoucherList=);
+@filter='1=1','dbo.clariondate(getdate()) between a1 and a2','a1>=dbo.clariondate(getdate())-90';
+@filtername=All,Current,Recent;
 
 \t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=checkDates=,if(gcallow='FALSE',set(002,'')),if(gcallow='FALSE',set(004,'')),update,refreshBRW=;
 \t003Description;  \d004; \d002obj:a4+0>0;
@@ -152,6 +119,22 @@
 
 \t115Paid Warrants; @acc115=neww(4772);
 \t116Cleared Vouchers; @acc116=do(5027,preClearedVoucherList=);
+
+\h119120cur:securitylevel<100;r
+\t119Clear Deposits;
+@acc119=gcClearWhere='where typ=4513',gcClearType='Deposits',doclear=;
+\t120Clear Treas Chks;
+@acc120=gcClearWhere='where typ=4771 and a18=''Treasurers Check''',gcClearType='Treasurers Checks',doclear=;
+
+@doclear=break(len(gcClearWhere)<13),
+ iw('\t000Clear '&gcClearType&'; \t001Begin Date; \t002@d2; \w00250; \t003End Date; \t004@d2; \w00450;'),
+ break(gcretval='esc'),
+ gcbegindate=obj7:key1,
+ gcenddate=obj7:key2,
+ if(gcenddate>obj:a2,gcenddate=obj:a2),
+ d1select('update gldetail set bsId='&obj:id&' where accountcode='''&obj:key1&''' and isnull(bsId,0)=0 and date >='&gcbegindate&' and date <='&gcenddate&' 
+ and slink in (select ''o''+cast(id as varchar(15)) from object '&gcClearWhere&')')
+;
 
 @acc550=refreshBRW=;
 @acc551=refreshBRW=;

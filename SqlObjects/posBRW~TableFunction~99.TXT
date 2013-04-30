@@ -8,11 +8,15 @@ create function dbo.posBRW() returns @rt table(
  blob varchar(1000) default '',
  postDate int,
  ord varchar(50),
- rowType int
+ rowType int,
+ rowColor int
 ) as 
 begin
 
- declare @whoAmI varchar(500) = dbo.whoAmI()
+ declare
+  @whoAmI varchar(500) = dbo.whoAmI(),
+  @voucherTotal money,
+  @warrantTotal money
 
  insert @rt (depositDate,receiptType,amount,accountId,ord,rowType,blob,postDate)
  select
@@ -22,7 +26,8 @@ begin
   min(accountId),
   cast(max(depositDate) as varchar) + 'b',
   0,
-  @whoamI
+  '@defaultAction=browse;@menu=2;'
+   + @whoamI
    + '@receiptType='+receiptType+';@receiptMaxDate='
    + cast((select max(p.depositDate) from dbo.posTF() p where p.receiptType = receiptType) as varchar)+';@Date='
    + cast(max(depositDate) as varchar)+';',
@@ -34,14 +39,15 @@ begin
 -- having sum(amount) != 0
 
 -- depositDate grouping
- insert @rt (depositDate,amount,accountId,ord,blob,rowType)
+ insert @rt (depositDate,amount,accountId,ord,blob,rowType,rowColor)
  select
   depositdate,
   sum(amount),
   1, 
   cast(depositDate as varchar) + 'a',
-  @whoamI+'@Date='+cast(depositDate as varchar)+';'+'@receiptType=ALL;',
-  1 
+  '@defaultAction=report;@menu=1;'
+  + @whoamI + '@Date='+cast(depositDate as varchar)+';'+'@receiptType=ALL;',
+  1,2 
  from @rt
  where depositDate is not null
  group by depositDate
@@ -50,17 +56,33 @@ begin
   dbo.padRight(dbo.date1(depositDate),' ',21) + dbo.padLeft('$ ' + convert(varchar,isnull(amount,0),1),' ',20)
  where rowType = 1
 
-
- update @rt set display = 
-    dbo.padRight('  ' + receiptType,' ',9) 
-  + dbo.padright(case when isnull(postdate,0) > isnull(depositDate,0) and  dbo.readstring('@receiptMaxDate=',blob) = isnull(depositDate,0) then '  '+dbo.date1(postdate) else '' end,' ',12) 
-  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',20) else '' end
- where rowType = 0
-
 -- update @rt set displayAmount = convert(varchar,amount,1) where rowType = 0
 --  '   ' + dbo.padRight(receiptType,' ',10) + dbo.padLeft('$ ' + convert(varchar,sum(amount),1),' ',20),
 
+-- add payment totals
+ if dbo.settingsF('site.showPaymentsOnDashboard','FALSE') = 'TRUE'
+ begin
+  declare @paymentDate int = cast(dbo.settingsF('dashboard.paymentDate',cast(dbo.clarionToday() as varchar)) as int)
+  insert @rt (display,ord) select '', 'za'
+  insert @rt (display,rowColor,ord,blob) select 'Payment Date: ' + dbo.date1(@paymentDate), 2, 'zb', '@menu=3;'
+  insert @rt (receiptType,rowType,ord,amount)
+  select paymentType, 2, 'zc' + paymentType, sum(amount)
+   from dbo.payments
+   where createdIni = dbo.readstring('@ini=',@whoami) and dateRegistered = @paymentDate
+   group by paymentType
+ end
 
+ update @rt set display = 
+    dbo.padRight('  ' + receiptType,' ',10) 
+  + dbo.padright(case when isnull(postdate,0) > isnull(depositDate,0) and  dbo.readstring('@receiptMaxDate=',blob) = isnull(depositDate,0) then '  '
+  + dbo.date1(postdate) else '' end,' ',12) 
+  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',19) else '' end
+ where rowType = 0
+ update @rt set display = 
+    dbo.padRight('  ' + receiptType,' ',22) 
+  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',19) else '' end
+ where rowType = 2
+ update @rt set rowColor = case when accountId > 0 then 0 else 1 end where rowType = 0
 
  return
 end
