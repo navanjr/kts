@@ -73,61 +73,10 @@
  if(kpbrwid(1)=0,mainOptions=);
 
 @mainOptions=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','Print Resale Legal|Print Abstract Legal|Print Resale for Publication|Print Resale Sum for Publication|Print List of Delinquent|Personal For Publication|&Cancel'),
- if(gcretval=1,resaleLegal=),
- if(gcretval=2,resaleLegalAbstracter=),
- if(gcretval=3,resaleForPub=),
- if(gcretval=4,resaleForPubSum=),
- if(gcretval=5,listOfDelinquent=),
- if(gcretval=6,personalForPubSum=);
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','Collection Reports|&Cancel'),
+ if(gcretval=1,acc120=);
 
-@resaleLegal=
- gcAbstracter='',
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- trreport(printResaleLegal,5040,printResalelegal=);
 
-@resaleLegalAbstracter=
- gcAbstracter=1,
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- trreport(printResaleLegal,5040,printResalelegal=);
-
-@resaleForPub=
- gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
- gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
- gcAbstracter='',
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- m('Please Choose one of the following options...','Please choose','question.ico','&Print|&Export|&Cancel'),
- if(gcretval=1,trreport(printResaleForPub,5040,printResaleForPub=)),
- if(gcretval=2,do(5040,exportResaleForPub=));
- 
-
-@resaleForPubSum=
- gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Header'''),
- gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
- gcAbstracter='',
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- m('Please Choose one of the following options...','Please choose','question.ico','&Print|&Export|&Cancel'),
- if(gcretval=1,trreport(printResaleForPubSum,5040,printResaleForPubSum=)),
- if(gcretval=2,do(5040,exportResaleForPubSum=)); 
-
-@listOfDelinquent=
- gcAbstracter='',
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- trreport(delinquentTaxList,5041,delinquentTaxList=);
-
-@personalForPubSum=
- gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice Of Delinquent Personal Header'''),
- gcAbstracter='',
- gcBeginDate=obj:key1,
- gcDays=obj:a17,
- m('Please Choose one of the following options...','Please choose','question.ico','&Print|&Export|&Cancel'),
- if(gcretval=1,trreport(printPersonalForPub,5040,printPersonalForPub=)),
- if(gcretval=2,do(5040,exportPersonalForPub=));
 
 @invoiceOptions=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|&Send to Abstracter|Print &UnPaid Summary|Attach &Personal|&Cancel'),
@@ -332,8 +281,14 @@
 \t119Mana&ge Docs;
 @acc119=browse(1,4900);
 
-\t120&List;
+\t120Collection Re&ports;
 @acc120=
+  gcReportGroup='collections',
+  lcReportId=kp('select id from object where typ=4506 and lasteditini='''&cur:ini&''''),
+  if(lcReportId+0>0,sql('update object set key1='''&obj:key1&''',key2='''&obj:key1+obj:a17&''' where id='&lcReportId)),
+  if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
+
+
  gcvars=,
  trreport('collectionList',4026,'collectionList=');
 
