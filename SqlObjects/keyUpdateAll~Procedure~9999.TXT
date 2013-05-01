@@ -1,5 +1,6 @@
 create procedure dbo.keyUpdateAll (
- @mode varchar(50) = 'legacy'
+ @mode varchar(50) = 'legacy',
+ @includeTemplates varchar(5) = 'TRUE'
 ) 
 as
 begin
@@ -41,7 +42,7 @@ begin
  )
  
 -- select @path = dbo.readString('@gitPath=', b13) from object where typ = 0 and link1 = -1
- select @path = dbo.settingsF('git.gitPath','') 
+ select @path = dbo.settingsF('git.gitPath','')
 
  insert @wt
  select
@@ -165,8 +166,9 @@ begin
 
  select cast(processFlag as varchar) + ' - ' + objectType +' '+ objectName + ' - ' + left(ltrim(rtrim(dbo.readstring('@message=',data))),30) from @wt where processFlag != 1 order by cast(objectOrder as int), objectName
 
--- upate templates
- exec dbo.keyTemplateUpdateFromRepo null
+-- update templates
+ if @includeTemplates = 'TRUE'
+  exec dbo.keyTemplateUpdateFromRepo null
  
 
 end
