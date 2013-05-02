@@ -4,6 +4,7 @@ create function dbo.diagnosticsBRW(
 )
  returns @rt table(
   id int,
+  class varchar(50),
   display varchar(max),
   method varchar(50),
   code int,
@@ -17,9 +18,10 @@ begin
 
  if @mode = 'INSPECT'
  begin
-  insert @rt (id, method, code, tally, message, timeStamp)
+  insert @rt (id, class, method, code, tally, message, timeStamp)
   select
    id,
+   class,
    replace(method,'diagFix_',''),
    code,
    tally,
@@ -34,9 +36,10 @@ begin
   if not isnull(@id,0) > 0
    select @id = max(trialId) from dbo.diagnosticResults where mode = @mode
 
-  insert @rt (id, method, code, tally, message, timeStamp)
+  insert @rt (id, class, method, code, tally, message, timeStamp)
   select
    id,
+   class,
    replace(method,'diagFix_',''),
    code,
    tally,
