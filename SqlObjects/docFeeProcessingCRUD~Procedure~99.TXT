@@ -82,11 +82,13 @@ begin
   begin
    
    declare @fees varchar(max) = 'The Following Fees will be added'
-    + case when (select dbo.settingsF('site.CollectionsAttachFeesNewest','FALSE')) = 'TRUE' then
-     ' to the Newest Open Invoice...|'
-    else
-     '...|'
-    end
+    + case when (@dtype = 'TaxWarrant' and (select dbo.settingsF('site.CollectionsAttachFeesNewestTaxWarrant','FALSE')) = 'TRUE') 
+       or (@dtype = 'resale' and (select dbo.settingsF('site.CollectionsAttachFeesNewestResale','FALSE')) = 'TRUE') 
+      then
+       ' to the Newest Open Tax Item...|'
+      else
+       ' to the Oldest Open Tax Item...|'
+      end
    select @fees = @fees + display + '|' from dbo.docFeesBRW(@documentId) where ord < 'c' order by ord
 
    select '@code=0;@message=' + @documentName + '||' + @fees+';@tally=' + cast(@tally as varchar) + ';'
