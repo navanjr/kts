@@ -132,11 +132,18 @@ bbproc4=
 @getNextVoucherClerkNumber=break(obj:key3>' 0'),lcNextNumber=kp('select max(dbo.popro6(case when isnumeric(key3)=1 then cast(key3 as int)+1 else 1 end,8,2)) from object where typ = 4771 and a4 = '''&obj:a4&''''),
   set(006,lcNextNumber);
 
-@closewindow=if(obj:a17<'  0' and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),tsc;
+@closewindow=
+ if((obj:a17<'  0' or obj:c9<>obj:a3) and (obj:a18='Trust Voucher' or obj:a18='Protest Voucher'),set(012,obj:c9)),
+ update,
+ tsc;
 
 @brwstuff=brw(150,1,'select id,a1,key3 from object where typ=4775 and link1='&obj:id,320,35,90,70,'50L(2)~Receipt~#2#|M50R(2)~Amount~@n-19.2@#3#|M');
 
-@refreshbrw=brwreload(1),calcfld(094),tsc;
+@refreshbrw=
+ brwreload(1),
+ calcfld(094),
+ set(012,obj:c9),
+ tsc;
 
 @seriesField=a18;
 
@@ -181,20 +188,23 @@ bbproc4=
 
 @print=
  gcVouchId=obj:id,
- trreport(voucher,4506,voucher=,,,,,voucher);
+ trreport(voucher,4506,voucherBr=,,,,,voucher);
 
 @postandprint=
  lcContinue='TRUE',
  update,
  postGL=,
  break(lcContinue<>'TRUE'),
- if(a18<>'Miscellaneous',print=),
- if(a18<>'Miscellaneous',close('ok'),miscCloseStuff=);
+ if(obj:a18<>'Miscellaneous',closeIt=,miscCloseStuff=);
+
+@closeIt=
+ print=,
+ close('ok');
 
 @miscCloseStuff=
  lcStatus=kp('select a17 from object where id='&obj:id),
  set(040,lcStatus),
- tsc,;
+ tsc;
 
 @getVouNum=
  break(obj:key1>'  0'),
@@ -221,7 +231,7 @@ bbproc4=
  break(obj:a15+0=1),
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'));
 
 \t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
  \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')';
