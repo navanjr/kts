@@ -46,14 +46,15 @@
  if(gcretval=1,printMyBalanceReport=),
  if(gcretval=2,printMyReceiptList=),
  if(gcretval=3,browseReceiptsAll=),
- if(gcretval=4,changeDateAll=),
- if(gcretval=5,depositdatemanualAll=); 
+ if(gcretval=4,changeDateAll=);
+ 
 
 @menu2=
- m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|My &Balance Report|&Cancel'),
  if(gcretval=1,browseReceipts=),
  if(gcretval=2,changeDate=),
- if(gcretval=3,depositdatemanual=); 
+ if(gcretval=3,depositdatemanual=),
+ if(gcretval=4,printMyBalanceReportFiltered=);
 
 @menu3=
  gcReceiptType='payments',
@@ -69,7 +70,7 @@
  writecurdata(@BrowFil4502=,'3'),
  browse(1,4502,'typ=4502 and key3='''&gcReceiptType&'''');
 
-@printBalanceReport==
+@printBalanceReport=
  setvars=,
  trreport('depositBalance',5018,'printDepositBalance');
 
@@ -82,7 +83,13 @@
  setvars=,
  trreport('balanceReport',5018,'printBalanceReport=');
 
+@printMyBalanceReportFiltered=
+ setvars=,
+ gcReceiptType=kp('select receiptType from dbo.posBRW() where id = '&lcId),
+ trreport('balanceReport',5018,'printBalanceReport=');
+
 @setvars=
+ gcReceiptType='',
  gcDepId=0,
  gcBeginDate=readstring(lcWhoAmI,'@Date='),
  gcEndDate=readstring(lcWhoAmI,'@Date='),
