@@ -20,57 +20,61 @@ begin
    name varchar(50),
    value varchar(50),
    description varchar(500),
-   parentId varchar(15)
+   parentId varchar(15),
+   removeSettingName varchar(200) default ''
   )
 
   declare @siteId int
   select top 1 @siteId = id from object where typ = 40 order by id
 
   insert @defaultSettings 
-  select 'site.voucherPostDateEqualsVoucherDate', 'FALSE', 'Default the Vouchers postdate to the VoucherDate', 'o' + cast(@siteId as varchar)
+  select 'site.voucherPostDateEqualsVoucherDate', 'FALSE', 'Default the Vouchers postdate to the VoucherDate', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.pbStuffer', 'FALSE', 'Use ownerNumber for sorting of tax Statements. PitneyBowes', 'o' + cast(@siteId as varchar)
+  select 'site.pbStuffer', 'FALSE', 'Use ownerNumber for sorting of tax Statements. PitneyBowes', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.dailyDataPendingDepositsShowBankAccounts', 'FALSE',
-   'Group the pending deposits on the bookkeepers dashboard by Bank Account', 'o' + cast(@siteId as varchar)
+  select 'site.dailyDataPendingDepositsShowBankAccounts', 'FALSE','Group the pending deposits on the bookkeepers dashboard by Bank Account', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.checkStyleWarrants', 'FALSE', 'Warrants clear automatically when paid', 'o' + cast(@siteId as varchar)
-  union
-  select 'site.filterWarrantsByBank', 'FALSE', 'Bank Statements only show warrants to be cleared through that bank.', 'o' + cast(@siteId as varchar)
+  select 'site.checkStyleWarrants', 'FALSE', 'Warrants clear automatically when paid', 'o' + cast(@siteId as varchar),''
   union 
-  select 'site.collectionsAttachFeesNewest', 'FALSE', 'Fees are attached by default to the Newest Tax Item', 'o' + cast(@siteId as varchar)
+  select 'site.collectionsAttachFeesNewestResale', 'FALSE', 'Fees are attached by default to the Newest Tax Item', 'o' + cast(@siteId as varchar),''
+  union 
+  select 'site.collectionsAttachFeesNewestTaxWarrant', 'FALSE', 'Fees are attached by default to the Newest Tax Item', 'o' + cast(@siteId as varchar),'site.collectionsAttachFeesNewest'
   union
-  select 'site.collectionsUseAllAddressess', 'FALSE', 'Default collections to use all addressses', 'o' + cast(@siteId as varchar)
+  select 'site.collectionsUseAllAddressess', 'FALSE', 'Default collections to use all addressses', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.glDetailSync', 'FALSE', 'Use Object Trigger to sync changes to glDetail', 'o' + cast(@siteId as varchar)
+  select 'site.glDetailSync', 'FALSE', 'Use Object Trigger to sync changes to glDetail', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.advancedSearchDefaultsOff', 'TRUE', 'the advanced search featue will default to the unchecked position when tax inquiry loads', 'o' + cast(@siteId as varchar)
+  select 'site.advancedSearchDefaultsOff', 'TRUE', 'the advanced search featue will default to the unchecked position when tax inquiry loads', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.voidOnlyOnPostDate', 'TRUE', 'only allow Void on the same day of posting', 'o' + cast(@siteId as varchar)
+  select 'site.voidOnlyOnPostDate', 'TRUE', 'only allow Void on the same day of posting', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.displayPaymentNumber', 'TRUE', 'display Payment Number after Buying a warant', 'o' + cast(@siteId as varchar)
+  select 'site.displayPaymentNumber', 'TRUE', 'display Payment Number after Buying a warant', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.offerDecalOnReceipt', 'TRUE', 'Offer Mobile Home Decal routines when receitpt applies to MFG Home', 'o' + cast(@siteId as varchar)
+  select 'site.offerDecalOnReceipt', 'TRUE', 'Offer Mobile Home Decal routines when receitpt applies to MFG Home', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.offerCheckNumberWhenBuyingWarrants', 'FALSE', 'Offer the next Treasurers Check Number (key3) when buying warrants from the bank statement', 'o' + cast(@siteId as varchar)
+  select 'site.offerCheckNumberWhenBuyingWarrants', 'FALSE', 'Offer the next Treasurers Check Number (key3) when buying warrants from the bank statement', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.largeFontOnBrw', 'FALSE', 'Increase Font Size on Configured Browses', 'o' + cast(@siteId as varchar)
+  select 'site.largeFontOnBrw', 'FALSE', 'Increase Font Size on Configured Browses', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.commentsDefaultToPrivate', 'FALSE', 'if True all new comments will default to PRIVATE if no user/group override: (ie @privateComments=1)', 'o' + cast(@siteId as varchar)
+  select 'site.commentsDefaultToPrivate', 'FALSE', 'if True all new comments will default to PRIVATE if no user/group override: (ie @privateComments=1)', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.trackAppropriationLedger', 'FALSE', 'if True the detail for tracking the appropriation ledger will be created on import of warrants', 'o' + cast(@siteId as varchar)
+  select 'site.trackAppropriationLedger', 'FALSE', 'if True the detail for tracking the appropriation ledger will be created on import of warrants', 'o' + cast(@siteId as varchar),''
   union
-  select 'site.showPaymentsOnDashboard', 'FALSE', 'Display payment summary and payment date on dashboard', 'o' + cast(@siteId as varchar)
+  select 'site.showPaymentsOnDashboard', 'FALSE', 'Display payment summary and payment date on dashboard', 'o' + cast(@siteId as varchar),''
 
   update a set a.description = b.description
   from settings a, @defaultSettings b
   where a.settingName = b.name
 
+--remove Unused settings
+  delete from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
+
+
   if @@rowcount > 0
    exec dbo.logit @@procid, 'updated default settings descriptions... @@rowCount', @@rowcount
 
   insert settings (settingName,settingValue,description,parentId)
-  select * from @defaultSettings where name not in (select settingName from settings where settingName is not null)
+  select name,value,description,parentId from @defaultSettings where name not in (select settingName from settings where settingName is not null)
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'inserted default settings... @@rowCount', @@rowcount
