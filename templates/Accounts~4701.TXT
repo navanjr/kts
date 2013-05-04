@@ -287,53 +287,6 @@ sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),
   lcApportionStage=kp('select max(id) from object where typ = 4794'),
   if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
 
-
-@bb4=Import Funds,,,gcadmin=1;
-@bbproc4=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
- if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name from dbo.mike_fund()',impFunds=);
-@impFunds=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@bb5=Import Sources,,,gcadmin=1;
-@bbproc5=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''SOURCE'''),
- if(gcAcctTypeId<1,m('oops... you need to create a SOURCE account type before you import sources.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select srcinc,name,seca from dbo.mike_source()',impSource=);
-@impSource=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,044=obj5:a3,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@bb7=Import GL,,,gcadmin=1;
-@bbproc7=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''BANK'''),
- if(gcAcctTypeId<1,m('oops... you need to create a BANK account type before you import Bank Accounts.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
- if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
-@impBanks=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-@impGLFunds=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@getAcctType=
- gcAcctTypeCode=kp('select key1 from object where typ=4702 and id='&gcAcctTypeId),
- gcAcctTypeDesc=kp('select key2 from object where typ=4702 and id='&gcAcctTypeId),
- gcAcctTypeRepo=kp('select key3 from object where typ=4702 and id='&gcAcctTypeId);
-
 @bb9=Import Schools,,,gcadmin=1;
 @bbproc9=sql('exec  dbo.pullRatesSchools');
 
