@@ -33,8 +33,8 @@ begin
  if @method = 'light'
   select @method = 'all', @mode = 'light'
 
- if @method in ('all','conversion_')
-  declare routines cursor for select name from dbo.sysobjects where name like case when @method = 'all' then 'diagFix%' else @method + '%' end
+ if @method in ('all')
+  declare routines cursor for select name from dbo.sysobjects where name like case when @mode in ('heavy','light') then 'diagFix%' else @mode + '%' end
  else
   declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%' and name like '%' + @method
 
@@ -43,7 +43,7 @@ begin
  while @@FETCH_STATUS = 0
  begin
 
-  if @method in ('all', 'conversion_', @methodUnit)
+  if @method in ('all', 'conversion', @methodUnit)
   begin
 -- reset output vars
    select
@@ -79,6 +79,7 @@ begin
     select @methodUnit, @class, @code, @message, @tally, 'none', getDate(), '@procName=' + @methodUnit + ';@guide=' + @guide + ';'  
 
    exec dbo.logit @@procId, 'proc', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+   exec dbo.logit @@procId, '@mode', @mode
 
   end
 

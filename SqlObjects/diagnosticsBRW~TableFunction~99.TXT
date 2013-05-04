@@ -1,8 +1,9 @@
 create function dbo.diagnosticsBRW(
- @mode varchar(10),
+ @mode varchar(50),
  @id int
 )
  returns @rt table(
+  brwid int identity(1,1),
   id int,
   class varchar(50),
   display varchar(max),
@@ -12,7 +13,9 @@ create function dbo.diagnosticsBRW(
   message varchar(250),
   timeStamp datetime,
   ord varchar(50),
-  colorFlag int
+  colorFlag int,
+  menuInt int,
+  fixProc varchar(1000)
 ) as 
 begin
 
@@ -31,12 +34,12 @@ begin
   where id = @id
  end
 
- if @mode in ('HEAVY','LIGHT')
+ if @mode in ('HEAVY','LIGHT','conversion')
  begin
   if not isnull(@id,0) > 0
    select @id = max(trialId) from dbo.diagnosticResults where mode = @mode
 
-  insert @rt (id, class, method, code, tally, message, timeStamp)
+  insert @rt (id, class, method, code, tally, message, timeStamp, fixProc)
   select
    id,
    class,
@@ -44,12 +47,14 @@ begin
    code,
    tally,
    message,
-   timeStamp
+   timeStamp,
+   method
   from dbo.diagnosticResults
   where trialId = @id
   order by testId
 
   update @rt set 
+   menuInt = brwid,
    display = dbo.padRight(' ' + method, ' ',50) + case when tally > 0 then dbo.padLeft(convert(varchar, tally,1), ' ', 12) else '' end,
    ord = 'a' + method
 
@@ -57,20 +62,22 @@ begin
    colorFlag = 1 
   where tally > 0
 
-  insert @rt (id, display, ord, class, colorFlag)
+  insert @rt (id, display, ord, class, tally, colorFlag)
   select 
    id,
    '   ~ ' + message,
    'a' + method + 'z',
    class,
+   tally,
    1 
   from @rt
   where colorFlag = 1
 
-  insert @rt (display, ord)
+  insert @rt (display, ord, tally)
   select
    upper(@mode) + ' - ' + cast(max(timeStamp) as varchar) + ' (' + dbo.formatAge(max(timeStamp),getdate()) + ' old)',
-   'a' 
+   'a',
+   1 
   from @rt 
  end
 
