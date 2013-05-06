@@ -24,16 +24,19 @@ create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(50))
 	begin						
 
 declare @taxYear varchar(4),
-		@item varchar(50),
-		@parcel varchar(50),
-		@name varchar(50),
-        @interestDateInt int = dbo.clariondate(@interestDate)
+	@item varchar(50),
+	@parcel varchar(50),
+	@name varchar(50),
+        @interestDateInt int = dbo.clariondate(@interestDate),
+        @Type varchar(10),
+        @limitToCurrentDelinquent varchar(50) = dbo.settingsF('site.collectionsLimitTaxwarrantPub1Year','FALSE') 
 
 select	@taxYear = taxYear, 
-		@item = ITEM, 
-		@parcel = PARCEL,
-		@name = NAME
-		from invoices where ID = @invoiceID
+	@item = ITEM, 
+	@parcel = PARCEL,
+	@name = NAME,
+        @type = typ
+	from invoices where ID = @invoiceID
 		
 		
 declare @wt table(
@@ -50,8 +53,7 @@ declare @wt table(
                 perTyp varchar(10),
                 sec varchar(10),
                 twp varchar(10),
-                rng varchar(10)
-)
+                rng varchar(10))
 	
 insert @wt
 	select	id,
@@ -68,7 +70,7 @@ insert @wt
                 '',
                 '',
                 ''   					
-		from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0
+		from invoices where (ITEM = @item or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0 and case when @type in ('b','i','p') and @limitToCurrentDelinquent = 'True' then @taxYear else taxYear end = taxYear
 
 if @Parcel>'  0'
 
