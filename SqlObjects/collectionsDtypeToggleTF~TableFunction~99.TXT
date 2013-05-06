@@ -1,6 +1,7 @@
 create function dbo.collectionsDtypeToggleTF(
  @dtype varchar(50),
- @taxrollDetailId int
+ @taxrollDetailId int,
+ @taxYear int
 ) returns @rt table(
  id int,
  invoiceIdMain int,
@@ -21,6 +22,8 @@ create function dbo.collectionsDtypeToggleTF(
  ord varchar(250)
 ) as
 begin
+
+ declare @limitToCurrentDelinquent varchar(50) = dbo.settingsF('site.collectionsLimitTaxwarrantPub1Year','FALSE') 
 
  if @dtype = 'RESALE'
   insert @rt(id,taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
@@ -70,13 +73,14 @@ begin
       + isnull(ii.subInvoiceDue,0) 
       + isnull(ii.taxRuleDue,0) as varchar)
     from invoices ii
-    where ii.item = d.itemNumber and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
+    where ii.item = d.itemNumber and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0 and case when @dtype = 'taxwarrant' and @limitToCurrentDelinquent = 'True' then @taxYear else ii.taxYear end = ii.taxYear
     order by ii.taxyear desc
     for xml path('')
    ),1,1,''),
    0 
   from taxrollDetail d
-  left outer join invoices i on d.itemNumber = i.item and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
+  left outer join invoices i on d.itemNumber = i.item and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0  
+   and case when @dtype = 'taxwarrant' and @limitToCurrentDelinquent = 'True' then @taxYear else i.taxYear end = i.taxYear
   where d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.itemNumber
 

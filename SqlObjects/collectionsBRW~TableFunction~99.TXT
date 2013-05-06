@@ -28,7 +28,10 @@ create function dbo.collectionsBRW(
 ) as
 begin
 
-declare @AddFeeNewest varchar(50) = case when @dtype='taxwarrant' then dbo.settingsF('site.collectionsAttachFeesNewestTaxwarrant','FALSE') else dbo.settingsF('site.collectionsAttachFeesNewestResale','FALSE') end
+declare 
+ @AddFeeNewest varchar(50) = case when @dtype='taxwarrant' then dbo.settingsF('site.collectionsAttachFeesNewestTaxwarrant','FALSE') else dbo.settingsF('site.collectionsAttachFeesNewestResale','FALSE') end,
+ @taxYear int = datepart(year,dbo.date1(77436))-1
+
 
  declare @printed table(keyCode varchar(50))
  insert @printed select keyCode from dbo.collectionsPrintedTF(@dtype,@documentId,@date, @days)
@@ -52,7 +55,7 @@ declare @AddFeeNewest varchar(50) = case when @dtype='taxwarrant' then dbo.setti
   a.invoiceBlob,
   a.rowType,
   case when c.keyCode is null then '' else 'Fees Added' end + case when b.keyCode is null then '' else case when c.keyCode is null then '' else ',' end + 'Printed' end 
- from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId) a
+ from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId,@taxYear) a
  left outer join @printed b on a.keyCode = b.keyCode
  left outer join @fees c on a.keyCode = c.keyCode
 
