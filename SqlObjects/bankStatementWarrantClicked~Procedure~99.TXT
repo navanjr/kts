@@ -27,11 +27,13 @@ begin
   @warrantsBlob varchar(max),
   @log varchar(max),
   @amount money,
-  @total money
+  @total money,
+  @showAllWarrants int
 
  select
   @accountId = link1,
-  @warrantsBlob = e1 
+  @warrantsBlob = e1,
+  @showAllWarrants = b13
  from object
  where id = @bankStatementId 
 
@@ -93,7 +95,7 @@ begin
   select
    @total = SUM(isnull(dbAmount,0) - isnull(crAmount,0)),
    @amount = SUM(case when id = @brwid then isnull(dbAmount,0) - isnull(crAmount,0) else 0 end)
-  from dbo.bankStatementBRW(@bankStatementid,@accountId,0,1,0,0)
+  from dbo.bankStatementBRW(@bankStatementid,@accountId,0,1,0,0,@showAllWarrants)
   where id in (select brwid from @buyWt)
   select @log = '@code=0;'
    + '@total=' + cast(@total as varchar) + ';'

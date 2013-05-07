@@ -36,16 +36,18 @@
 
 @bb2=Ca&ncel;  
 @bbproc2=
- lcMethod='CANCEL',
+ gcPaymentId=obj:id,
+ gcMethod='CANCEL',
  cancelProcedure=;
 
 @cancelProcedure=
- d1select('exec dbo.paymentCancel '&obj:id&', @method='''&lcMethod&''''),
+ d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''''),
  lcCode=readstring(obj7:d1,'@code='),
  break(lcCode+0=0),
  lcMessage=readstring(obj7:d1,'@message='),
  lcCaption=readstring(obj7:d1,'@caption='),
  if(lcCode=1,m(lcMessage,lcCaption),cancelProcedureSir=);
+
 @cancelProcedureSir=
  m(lcMessage,lcCaption,'question.ico',6,4),
  break(gcretval<>2),
@@ -53,12 +55,8 @@
  break(gcretval<>'OK'),
  lcComment=obj7:d1,
  lcResonToCancel=obj7:key2,
- d1select('exec dbo.paymentCancel '&obj:id&', @method='''&lcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''', @reasonToCancel='''&lcResonToCancel&''''),
+ d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''', @reasonToCancel='''&lcResonToCancel&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
-
- lcPaymentType=obj:a18,
- if(lcPaymentType='Trust Voucher',lcPaymentType='Official Voucher'),
- if(lcPaymentType='Official Voucher',cancelRoutineV=);
 
 @cancelRoutineV=
  lcPaymentType='Voucher',

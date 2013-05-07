@@ -17,7 +17,8 @@ begin
   @amount money,
   @total money,
   @paycodeBlob varchar(max) = '',
-  @idBlob varchar(max) = ''
+  @idBlob varchar(max) = '',
+  @showAllWarrants int
 
  declare @electronicPaycodes table(paycode varchar(50))
  insert @electronicPaycodes select paycode from dbo.paycodes where depositType in ('E','C')
@@ -28,6 +29,13 @@ begin
   paycode varchar(50)
  )
 
+ 
+
+ select
+  @showAllWarrants = b13
+ from object
+ where id = @bankStatementId
+
  select
   @origin = origin,
   @template = template,
@@ -35,7 +43,7 @@ begin
   @slink = slink,
   @depositDate = depositDate,
   @amount = abs(isnull(dbAmount,0) - isnull(crAmount,0))  
- from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0,@showAllWarrants)
  where id = @brwid
 
  insert @relatedItems
@@ -43,7 +51,7 @@ begin
   id,
   abs(isnull(dbAmount,0) - isnull(crAmount,0)),
   dbo.splitF(subDescription,'-',1)
- from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0)
+ from dbo.bankStatementBRW(@bankStatementId,@accountId,@showLinks,1,0,0,@showAllWarrants)
  where origin = @origin
   and template = @template
   and depositDate = @depositDate 
