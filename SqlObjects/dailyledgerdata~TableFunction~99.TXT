@@ -38,6 +38,23 @@ select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup 
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
 and sourceType in ('4771') 
+and left(sourcea18,4) not in ('CANC','VOID','STOP')
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, tranin, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+and sourceType in ('4771') 
+and left(sourcea18,4) in ('CANC','VOID','STOP')
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, tranin, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(amount)*-1 as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and sourceType in ('4771') 
+and left(sourcea18,4) in ('CANC','VOID','STOP')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, deposits, accountType, ledgerGroup)
