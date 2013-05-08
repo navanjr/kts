@@ -35,6 +35,7 @@ class ktsMenu():
         self.createCommand('importSQLObject',['importsqlobject','importsql'],'import a named sql object from the repo',self.command_importSqlObject)
         self.createCommand('diagnostics',['d','diag','diagnostic','diagnostics'],'access all diagnostic options',self.command_diagnostics)
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
+        self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs light diagnostic battery',self.diagnostic_run,'diagnostics')
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
@@ -83,9 +84,9 @@ class ktsMenu():
             print sqlcmd, self.sqlQuery(sqlcmd,True)['code']
 
     def diagnostics_show(self,theClass=None):
-        sqlcmd = "select display, menuInt from dbo.diagnosticsBRW('%s',0) where tally > 0 order by ord" % theClass
+        sqlcmd = "select display, menuInt from dbo.diagnosticsBRW('%s',0) where code = 1 order by ord" % theClass
         result = self.sqlQuery(sqlcmd)
-        if len(result['rows']) > 1:
+        if len(result['rows']) > 0:
             for row in result['rows']:
                 print isnull(row[1]).rjust(5),row[0].ljust(30)
         else:
@@ -96,7 +97,18 @@ class ktsMenu():
         print 'run %s diagnostic battery...' % mode, self.sqlQuery("exec dbo.diagnostics @mode='%s', @storeResults='TRUE', @verbose='FALSE'" % mode,True)['code']
         if show:
             self.diagnostics_show(mode)
+
+    def command_backup(self):
+        backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
+        print "do you wish to backup the DB to..."
+        if self.ask("%s?" % backupFileName) in ('yes','y'):
+            print "THIS IS NOT WORKING YET!!! back up SQL data...", self.sqlQuery("backup database %s to disk='%s' with retaindays=0, INIT, compression" % (self.settings['database'],backupFileName),True)['code']
+#            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup",True)
             
+    def ask(self,question='what do you need?'):
+        commandEntered = raw_input("     %s ===> " % question).lower()
+        return commandEntered
+
     def command_diagnostics(self,mode='light'):
         menuName = self.getMenuName(self.command[0],self.commands)
         subMenu = self.commands[menuName]['subMenu']
@@ -164,7 +176,9 @@ class ktsMenu():
         if len(self.command) > 1:
             setupStep = self.command[1]
             if setupStep in ('db','database'):
-                setup_db(self.settings['database'])
+                print "This routine will attempt to drop the database %s" % self.settings['database']
+                if self.ask("are you sure you want to proceed?") in ('yes','y'):
+                   setup_db(self.settings['database'])
             elif setupStep in ('login'):
                 setup_login(self.settings['database'])
             elif setupStep in ('advanced'):
@@ -250,7 +264,7 @@ class ktsMenu():
     def command_testConnection(self,display=True):
         result = {}
         gitDict = {}
-        rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','logging')")['rows']
+        rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','conversion','logging')")['rows']
         if len(rows) > 0 and rows[0][0] != 'execution failed':
             result['code'] = 0
             for row in rows:
@@ -276,16 +290,18 @@ class ktsMenu():
     def command_displayMenu(self):
         self.display()
 
-    def command_gitSetting(self):
+    def command_setSetting(self,prefix):
         if not len(self.command) > 1:
             return
         if len(self.command) > 2:
             newValue = self.command[2]
         else:
             newValue = raw_input('Enter %s ==> ' % self.command[1])
-        self.sqlQuery("exec dbo.settingsCRUD 'git.%s','%s'" % (self.command[1],newValue),True)
+        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix,self.command[1],newValue),True)
         
     def command_serverSettings(self):
+        if len(self.command) < 2:
+            return
         if len(self.command) > 2:
             commandArguement = self.command[2]
         else:
@@ -296,8 +312,10 @@ class ktsMenu():
             self.setVars('uid',commandArguement)
         elif self.command[1] in ('server','location','url'):
             self.setVars('server',commandArguement)
-        elif self.command[1] in ('gitpath','gitcommitter','mikepath'):
-            self.command_gitSetting()
+        elif self.command[1] in ('gitpath','gitcommitter'):
+            self.command_setSetting('git')
+        elif self.command[1] in ('mikepath','mikepathtax','taxyear'):
+            self.command_setSetting('conversion')
 
     def command_logging(self):
         print self.command
