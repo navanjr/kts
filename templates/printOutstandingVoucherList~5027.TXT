@@ -1,8 +1,6 @@
 @bb7=&Print;
 @bbproc7=
-gcBeginDate=77405,
-gcEndDate=77480,
-printOutstandingVoucherList=;
+printClearedVoucherList=;
 
 @preCancelVoucherList=
  getTwoDates=,
@@ -27,7 +25,7 @@ printOutstandingVoucherList=;
   if(gcAsOfDate+0<5,gcAsOfDate=today()),
   lcLm=350,
   lcTm=350,
-  lcFont='',
+  lcFont='Arial',
   lcHeaderFontSize=12,
   gcsql5022='select registerDate,controlNumber,registerNumber,toWhom,fundAccount,paidAmount,vType,actionDate,ord from dbo.outStandingVoucherReport('&gcAsOfDate&') order by ord',
   lcBoxColor=14539482,
@@ -67,7 +65,7 @@ printOutstandingVoucherList=;
   lcCw=2250,
   lcAw=(lcCw*1.5)+(lcM*4),
   lcFont='',
-  lcHeaderFontSize=8,
+  lcHeaderFontSize=12,
   lcsql='select 
     treasurersNumber,
     dateRegistered,    
@@ -104,72 +102,38 @@ tr(
 @printClearedVoucherList=
  do(452,getSiteInfo=),
   lcLm=400,
-  lcTm=350,
+  lcTm=250,
+ lcHeaderFontSize=12,
   lcVouchGrTot=0,
   lcVoucherTot=0,
   lcVoucherCreditTot=0,
   lcVoucherCreditTotGr=0,
-  lcsql='select
-    dbo.popro6(clerksNumber,6,1),
-    clerksDate,
-    dbo.popro6(treasurersNumber,6,1),
-    dateRegistered,    
-    case when amount>0 then amount else 0 end,    
-    payee,
-    creditAccountDesc,
-    debitAccountDesc,
-    comment,
-    dateCleared,
-    case when amount<=0 then amount*-1 else 0 end    
-      from dbo.payments where paymentType like ''%VOUCHER%'' and slink in 
-      (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes(''BANK'')) 
-      and bsId > 0 and dateCleared between '''&gcBeginDate+0&''' and '''&gcEndDate+0&''') order by dateCleared,debitAccountDesc, dbo.popro6(clerksNumber,6,1)  ',
-
- tr(landscape,
+  lcFont='Arial',
+  lcsql='select * from dbo.clearedVouchers('&gcBeginDate+0&','&gcEndDate+0&') order by ord',
+ lcBoxColor=14539482,
+ tr(
+ landscape,
+  box(350,350,4000,850,6,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',1400,400,lcHeaderFontSize-2,regular,lcFont),
+  prn(gcOfficial,1400,600),
   prn(printed),
   prn(page),
-  prn('Cleared Voucher List',t1),
-  prn(gcCounty&' County',t2), 
-  prn(gcCity&', '&gcState,t3), 
-  prn('Vouchers Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
-  prn(,lcLm,lcTm+1000),
+  prn(,,900,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'Cleared Voucher List',10300C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Vouchers Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),10300C),
+  bnd(,gcCounty&' County',10300C),
+  bnd(,gcCity&', '&gcState,10300C),
+  prn(,lcLm,lcTm+1300,9),
+  nl, 
+  box(pagex-100,pagey-50,pagex+10300,pagey+330,,lcBoxColor),
+ bnd('H','VOUCH',500,'VOUCHER',650,'REGIST',500,'REGISTER',650,'AMOUNT',800C,'AMOUNT',800C,'TO WHOM PAID',1500,'BANK',1500,'FUND',1000,'COMMENTS',1500),
+ bnd('H','No.',500,'DATE',650,'No.',500,'DATE',650,'PAID',800C,'CREDIT',800C,' ',1500,' ',1500,' ',1000,' ',1500),
   nl,
-  
-    bnd('H','VOUCH',500,'VOUCHER',650,'REGIST',500,'REGISTER',650,'AMOUNT',800C,'AMOUNT',800C,'TO WHOM PAID',1500,'BANK',1500,'FUND',1000,'COMMENTS',1500 ),
-      bnd('HU','No.',500,'DATE',650,'No.',500,'DATE',650,'PAID',800C,'CREDIT',800C,' ',1500,' ',1500,' ',1000,' ',1500),
-nl,
-grp(1,obj5:a10,
-      do(
-      bnd('H','Cleared Date: '&format(obj5:a10,@d2),10000),
-  
-      nl,
-      ),do(
-      nl,
-      bnd('H','Total:',2400R,format(lcVoucherTot,@n$14.2),1000R,format(lcVoucherCreditTot,@n$14.2),800R,),
-      lcVoucherTot=0,
-      lcVoucherCreditTot=0,
-      nl,
-    ) ),
-
   det(lcsql),
-    bnd(,
-      obj5:a1,500,
-      format(obj5:a2,@d1),650,
-      obj5:a3,500,
-      format(obj5:a4,@d1),650,
-      format(obj5:a5,@n$-14.2b),800R,
-      format(obj5:a11,@n$-14.2b),800R,
-      format(obj5:a6,@s18),1500,
-      format(obj5:a7,@s19),1500,
-      format(obj5:a8,@s18),1000,
-      format(obj5:a9,@s16),1500 ),
-      lcVoucherTot=lcVoucherTot+obj5:a5,
-      lcVouchGrTot=lcVouchGrTot+obj5:a5,
-      lcVoucherCreditTot=lcVoucherCreditTot+obj5:a11,
-      lcVoucherCreditTotGr=lcVoucherCreditTotGr+obj5:a11,
-   edt,
-   nl,
-   bnd('H','',100,'Grand Total:',2200R,format(lcVouchGrTot,@n$14.2),1000R,format(lcVoucherCreditTotGr,@n$14.2),800R,),
-
-);
-
+   if(right(obj5:a12,1)='a'),do(bnd('H',obj5:a1,10000),nl),
+   if(right(obj5:a12,1)='b'),do(prn(,,,8,regular,'courier new'),bnd(,obj5:a1,500,obj5:a2,650,obj5:a3,500,obj5:a4,650,obj5:a5,800R,obj5:a6,800R,format(obj5:a7,@s18),1500,format(obj5:a8,@s19),1500,format(obj5:a9,@s15),1000,left(obj5:a10,22),1500)),
+   if(right(obj5:a12,1)='c'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R),nl),
+   if(right(obj5:a12,1)='d'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R),nl),
+   if(right(obj5:a12,1)='e'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R)),
+   edt);
