@@ -171,9 +171,16 @@
 
 \t039Change Acct #;  \w03970;  \x039-10;  \u040;
 @acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&obj:a17&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
-@p039y=lcCnt=kp('select count(*) from glDetail where accountId='&obj:id),m('There are '&lcCnt&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&obj:a17&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y=d1select('select count(*) from glDetail where accountCode='''&clip(obj:key1)&''''),
+lcCnt=obj7:d1,
+d1select('select count(*) from glAccounts where targetAccountCode='''&clip(obj:key1)&''''),
+lcCntAc=obj7:d1,
+if(lcCntAc+0>0,lcTargetMessage=' and '&lcCntAc&' accounts ',lcTargetMessage=''),
+lcMString='This account is referenced by '&lcCnt&' GL Detail records'&lcTargetMessage&'.'&chr(13)&chr(10)&
+          'Are you sure you want them changed to '&obj:a17&'?',
+m(lcMString,'Are you sure?',,6,4),if(gcretval=2,'p039y2=');
 @p039y2=
- d1select('exec dbo.glAccountCodeChange '&obj:id&','''&obj:a17&''''),
+ d1select('exec dbo.glAccountCodeChange '&obj:key1&','''&obj:a17&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Code Change...')),
  close('ok');
 
