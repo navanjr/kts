@@ -5,6 +5,10 @@
  gcwhere5017=' and accountcode in (select a4 from object where typ=4601) and accountType=''BANK'' ',trreport('printDailyLedger',5017,'glreport='),
  gcwhere5017='';
 
+@excludeAppSQL=gcDet5017='select left(accountDesc,27),rtrim(beginbalance),rtrim(paid),rtrim(tranout),rtrim(tranin),rtrim(deposits),rtrim(elecdeposits),rtrim(endBalance+appout-appin),accountType from dbo.dailyledgerdata('&gcD1+0&','&gcD2+0&') 
+where (isnull(deposits,0)<>0 or isnull(paid,0)<>0 or isnull(beginbalance,0)<>0 or isnull(endbalance,0)<>0 or isnull(tranout,0)<>0 or isnull(appout,0)<>0 or isnull(tranin,0)<>0 or isnull(appin,0)<>0 or accountcode not in (select accountcode from glaccounts where inActive=1))
+'&gcwhere5017&' order by accountType, reportOrder';
+
 @glreport=
  if(gcD2+0<1,gcD2=gcD1),
  if(gcwhere5017<' 0',gcwhere5017=''),
@@ -15,9 +19,12 @@
  lcFont='Arial',
  lcDetFont='Courier New',
  lcHeaderFontSize=12,
+ if(gcApportionOnly='1',appReport=),
+ break(gcApportionOnly='1'),
  gcDet5017='select left(accountDesc,27),rtrim(beginbalance),rtrim(paid),rtrim(tranout+appout),rtrim(tranin+appin),rtrim(deposits),rtrim(elecdeposits),rtrim(endBalance),accountType from dbo.dailyledgerdata('&gcD1+0&','&gcD2+0&') 
 where (isnull(deposits,0)<>0 or isnull(paid,0)<>0 or isnull(beginbalance,0)<>0 or isnull(endbalance,0)<>0 or isnull(tranout,0)<>0 or isnull(appout,0)<>0 or isnull(tranin,0)<>0 or isnull(appin,0)<>0 or accountcode not in (select accountcode from glaccounts where inActive=1))
 '&gcwhere5017&' order by accountType, reportOrder', 
+ if(gcApportionExclude='1',excludeAppSQL=),
 lcBoxColor=14539482,
 tr(
   landscape,
@@ -114,6 +121,94 @@ prn(,,,lcHeaderFontSize-4,'Regular',lcDetFont),
    edt,
  );
 
+@appReport=
+ gcDet5017='select left(accountDesc,27),rtrim(endBalance+appout-appin),0,rtrim(appout),rtrim(appin),0,0,rtrim(endBalance),accountType from dbo.dailyledgerdata('&gcD1+0&','&gcD2+0&') 
+where (isnull(deposits,0)<>0 or isnull(paid,0)<>0 or isnull(beginbalance,0)<>0 or isnull(endbalance,0)<>0 or isnull(tranout,0)<>0 or isnull(appout,0)<>0 or isnull(tranin,0)<>0 or isnull(appin,0)<>0 or accountcode not in (select accountcode from glaccounts where inActive=1))
+and accounttype=''FUND''
+'&gcwhere5017&' order by accountType, reportOrder', 
+ if(gcApportionExclude='1',excludeAppSQL=),
+lcBoxColor=14539482,
+tr(
+  box(lcLm-100,450,4000,950,6,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,1500,700),
+  prn(printed),
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'COUNTY TREASURER`S APPORTIONMENT LEDGER',8500C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,format(gcD1,@d2)&' - '&format(gcD2,@d2),8500C),
+  prn(,lcLm,1500,,,lcFont),
+ if(curpag<>1),do(
+  prn(,lcLm,,lcHeaderFontSize,,lcFont),
+    lcLineStart=pagey-50,
+    box(pagex-100,pagey-50,pagex+6650,pagey+330,,lcBoxColor),
+    bnd('H','',2000,'Beginning',1050C,'Apportion',1050C,'Apportion',1050C,'Ending',1050C),
+    bnd('H',obj5:a9&' Account',2000,'Balance',1050C,'Out',1050C,'In',1050C,'Balance',1050C),
+    nl,
+   lin(pagex+2050,lcLineStart,pagex+2050,pagey),
+   lin(pagex+3200,lcLineStart,pagex+3200,pagey),
+   lin(pagex+4350,lcLineStart,pagex+4350,pagey),
+   lin(pagex+5500,lcLineStart,pagex+5500,pagey),
+   lin(pagex+6650,lcLineStart,pagex+6650,pagey),
+  ),
+  grp(1,obj5:a9,
+   do(
+   lcbBal=0,
+   lctIn=0,
+   lctOut=0,
+   lcBal=0,
+   lcPaid=0,
+   lcDep=0,
+   lcElecDep=0,
+    prn(,lcLm,,lcHeaderFontSize,,lcFont),
+    lcLineStart=pagey-50,
+    box(pagex-100,pagey-50,pagex+6650,pagey+330,,lcBoxColor),
+    bnd('H','',2000,'Beginning',1050C,'Apportion',1050C,'Apportion',1050C,'Ending',1050C),
+    bnd('H',obj5:a9&' Account',2000,'Balance',1050C,'Out',1050C,'In',1050C,'Balance',1050C),
+    nl,
+   lin(pagex+2050,lcLineStart,pagex+2050,pagey),
+   lin(pagex+3200,lcLineStart,pagex+3200,pagey),
+   lin(pagex+4350,lcLineStart,pagex+4350,pagey),
+   lin(pagex+5500,lcLineStart,pagex+5500,pagey),
+   lin(pagex+6650,lcLineStart,pagex+6650,pagey),
+   ),
+   do(
+    lcLineStart=pagey,
+    nl,
+   lin(pagex+2050,lcLineStart,pagex+2050,pagey),
+   lin(pagex+3200,lcLineStart,pagex+3200,pagey),
+   lin(pagex+4350,lcLineStart,pagex+4350,pagey),
+   lin(pagex+5500,lcLineStart,pagex+5500,pagey),
+   lin(pagex+6650,lcLineStart,pagex+6650,pagey),
+    prn(,pagex+2100),
+    bnd('HO',,4500),
+prn(,,,lcHeaderFontSize-4,'Regular',lcDetFont),
+    prn(,lcLm),
+    bnd('H',,2100,format(lcbBal,@n-16.2b),1050R,format(lctIn,@n-16.2b),1050R,format(lctOut,@n-16.2b),1050R,format(lcBal,@n-16.2b),1050R),
+    prn(,lcRm),
+    nl,nl,nl
+   )
+  ),
+  det(gcDet5017),
+   prn(,,,lcHeaderFontSize-4,'Regular',lcDetFont),
+   lcLineStart=pagey,
+   bnd(,obj5:a1,2100,format(obj5:a2,@n-14.2b),1050R,format(obj5:a4,@n-14.2b),1050R,format(obj5:a5,@n-14.2b),1050R,format(obj5:a8,@n-14.2b),1050R),
+   if(pagey=9810 or pagey=9810),lin(pagex+2050,pagey+130,pagex+6650,pagey+130),
+   lin(pagex+2050,lcLineStart,pagex+2050,pagey),
+   lin(pagex+3200,lcLineStart,pagex+3200,pagey),
+   lin(pagex+4350,lcLineStart,pagex+4350,pagey),
+   lin(pagex+5500,lcLineStart,pagex+5500,pagey),
+   lin(pagex+6650,lcLineStart,pagex+6650,pagey),
+   lcbBal=lcbBal+obj5:a2,
+   lcPaid=lcPaid+obj5:a3,
+   lctIn=lctIn+obj5:a4,
+   lctOut=lctOut+obj5:a5,
+   lcDep=lcDep+obj5:a6,
+   lcElecDep=lcElecDep+obj5:a7,
+   lcBal=lcBal+obj5:a8,
+   edt,
+ );
 
 
 @glreportGr=
