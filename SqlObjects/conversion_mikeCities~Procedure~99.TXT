@@ -1,0 +1,139 @@
+create proc dbo.conversion_mikeCities(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @apportionLookup table(
+  TYPE varchar(1),
+  DISTRICT varchar(30),
+  NAME varchar(30),
+  FUNDCODEGEN varchar(30),
+  FUNDCODEBUILD varchar(30),
+  FUNDCODESINK varchar(30),
+  ADA money,
+  pop money,
+  popalco money,
+  popmvt money
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'appora2',
+  @mikePath varchar(max),
+  @sql nvarchar(max),
+  @fields nvarchar(max) = 'type,dist,name,fcgen,fcbld,fcsink,ada,pop,popalco,popmvt'
+
+ select
+  @mikePath = dbo.settingsF('git.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select ' + @fields + ' from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+
+ insert @apportionLookup exec(@sql)
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'mike_apportionLookup not found in KTS'
+  from @apportionLookup
+  where type = 'C' and name not in (select accountCode from dbo.glAccounts)
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @apportionLookup
+  where type = 'C' and name not in (select accountCode from dbo.glAccounts)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  declare
+   @acctTypeId int,
+   @acctTypeCode varchar(50),
+   @acctTypeDesc varchar(50),
+   @acctTypeRepo varchar(50),
+   @taxYear varchar(10)
+
+  select
+   @acctTypeId = id,
+   @acctTypeCode = key1,
+   @acctTypeDesc = key2,
+   @acctTypeRepo = key3,
+   @taxYear = dbo.settingsF('conversion.taxyear','')
+  from object where typ = 4702 and key1 = 'CITY'
+  if not isnull(@acctTypeId,0) > 0
+  begin
+   select @code=1, @message='Sorry you are missing a CITY account type'
+   exec dbo.logit @@procid, '@code',@code,'@message',@message
+   return
+  end
+
+  if @taxYear < '  0'
+  begin
+   exec dbo.logit @@procid, 'you are missing a taxyear setting... sorry'
+   return
+  end
+
+-- insert city accounts
+  insert object (typ,key1,key2,a1,a2,link1,a3)
+  select 4701, name, name, @acctTypeCode, @acctTypeDesc, @acctTypeId, @acctTypeRepo
+   from @apportionLookup where type = 'C' and name not in (select accountCode from dbo.glAccounts)
+  select @code=0, @message='Imported into object...', @tally = @@rowCount
+  exec dbo.logit @@procid, '@code', @code, '@message', @message, '@tally', @tally
+
+-- insert population data
+  insert object (typ,key1,key2,key3,a2)
+  select 4014, @taxYear, a.accountcode, case when c.popalco > 0.00 then c.popalco else c.pop end,'A'
+  from glaccounts a, (select * from @apportionLookup where type='C') c
+  where
+   a.accountCode = c.name
+   and accountCode not in (select key2 from object where typ = 4014 and key1 = @taxYear and a2 = 'A')
+  exec dbo.logit @@procid, 'Inserted pop data...A... @@rowCount', @@rowCount
+
+-- pop fund receivables
+  exec dbo.populationFundReceivableVerification @taxYear, 'A'
+
+  insert object (typ,key1,key2,key3,a2)
+  select 4014, @taxYear, a.accountcode, case when c.popmvt > 0.00 then c.popmvt else c.pop end, 'M'
+  from glaccounts a, (select * from @apportionLookup where type='C') c
+  where a.accountCode = c.name
+   and accountCode not in (select key2 from object where typ = 4014 and key1 = @taxYear and a2 = 'M')
+  exec dbo.logit @@procid, 'Inserted pop data...M... @@rowCount', @@rowCount
+
+  exec dbo.populationFundReceivableVerification @taxYear, 'M'
+
+  return 
+ end
+
+end
+
+/*
+ iw('\t001Year; \t002@n4; \w00230;'),
+ lcyear=obj7:key1,
+ if(lcyear+0<1,lcyear=year(today())),
+
+ sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popalco>0.00 then c.popalco else c.pop end,''A'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''A'')'),
+
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''A'''),
+
+ sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popmvt>0.00 then c.popmvt else c.pop end,''M'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''M'')'),
+
+ sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''M''');
+
+*/

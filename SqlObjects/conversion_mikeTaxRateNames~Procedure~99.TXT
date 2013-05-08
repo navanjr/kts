@@ -1,0 +1,72 @@
+create proc dbo.conversion_mikeTaxRateNames(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(distinct ltrim(schooldistricttaxrate)),  
+   @message = 'some tax rate names not found in KTS'
+   from adtax
+   where ltrim(schooldistricttaxrate) not in (select key1 from OBJECT where typ=4011)
+    and schooldistricttaxrate > '  0'
+ end
+
+ if @method = 'SHOW'
+ begin  
+  select
+   ltrim(schooldistricttaxrate)
+  from adtax
+  where ltrim(schooldistricttaxrate) not in (select key1 from OBJECT where typ=4011)
+   and schooldistricttaxrate > '  0'
+  group by ltrim(schooldistricttaxrate)
+ end
+
+ if @method = 'FIX'
+ begin  
+
+/*
+ @bbproc4=
+  sqlloop('select schooldistricttaxrate from adtax where schooldistricttaxrate not in (select key1 from OBJECT where typ=4011) and schooldistricttaxrate>''  0'' group  by schooldistricttaxrate',imp=);
+ @imp=
+  lcid=kp('select id from object where typ=4011 and key1='''&obj5:a1&''''),
+  if(lcid+0<1,fastinsert(-02=4011,002=obj5:a1));
+*/
+
+  insert object(typ, key1)
+  select 4011, ltrim(schooldistricttaxrate)
+  from adtax
+  where schooldistricttaxrate not in (select key1 from OBJECT where typ=4011)
+   and schooldistricttaxrate > '  0'
+  group by ltrim(schooldistricttaxrate)
+
+  exec dbo.logit @@procid, 'just inserted rows into object 4011... @@rowcount', @@rowcount
+
+  return
+
+ end
+
+end
+
+
+
+
+
+
+
+

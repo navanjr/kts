@@ -1,0 +1,83 @@
+create proc dbo.conversion_mikeOfficers(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @officers table(
+  dptno varchar(50),
+  name varchar(50),
+  title varchar(50),
+  bcode varchar(50),
+  fcode varchar(50),
+  lvchnbr int
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'OFICRS',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select * from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+
+ insert @officers exec(@sql)
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'officers not found in KTS'
+  from @officers
+  where title not in (select key1 from object where typ = 4601)
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @officers
+  where title not in (select key1 from object where typ = 4601)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  insert object (typ,key1,key2,key3,a1)
+  select 4601, title, name, title, dptno
+   from @officers where title not in (select key1 from object where typ = 4601)
+
+  exec dbo.logit @@procid, 'Inserted officers @@rowcount', @@rowCount
+  
+  return
+
+ end
+
+end
+
+/*
+ select title,name,dptno from dbo.mike_officers()
+ @imp5=
+  lcid=kp('select id from object where typ=4601 and key1='''&obj5:a1&''''),
+  -02=4601,
+  002=obj5:a1,
+  004=obj5:a2,
+  006=obj5:a1,
+  008=obj5:a3
+*/
+

@@ -1,0 +1,96 @@
+create proc dbo.conversion_mikeAdtax(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ if @method = 'GET'
+ begin  
+  exec dbo.logit @@procid, 'hi mom'
+ 
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @message = 'adTax records not found in KTS'
+
+  if exists(select top 10 * from adtax) 
+   select 
+    @tally = COUNT(*),  
+    @code = 0
+   from adtax
+  else
+   select 
+    @tally = 1,  
+    @code = 1
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from adtax
+--  where fundCode not in (select accountCode from dbo.glAccounts)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  declare
+   @mikeTableName varchar(50) = 'TAXROLL',
+   @mikePath varchar(max),
+   @sql1 nvarchar(max),
+   @sql2 nvarchar(max),
+   @sql nvarchar(max),
+   @fields nvarchar(max)
+
+  select @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeTableName + '.dbf'
+
+  set @sql1 = 'INSERT INTO [AdTax]
+           ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+           ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+           ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+           ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+           ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+           ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+           ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
+           ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn])'
+  set @sql2 = 'select a.typ,a.parcel,cast(a.itm_nbr as numeric(7,1)),cast(a.taxyear as numeric(5,0)),a.name,a.addl1,a.addl2,a.addl3,a.city,a.[state],a.zip_1,a.zip_2
+           ,a.sch_n,b.postdist,a.sch_c,a.c_cityc
+           ,0,a.acres,a.mobile_hm,cast(a.g_per as money)+cast(a.g_lv as money)+cast(a.g_imp as money),cast(a.exemp as numeric(9,0)),cast(a.net_assd as numeric (8,0)),cast(a.levy as numeric(9,7)),cast(a.tax_due as numeric(19,2)),cast(a.ctax_due as numeric(19,2)),cast(a.unpaid as numeric(19,2))
+           ,left(a.cert_asgn,6),a.leg_l1+a.leg_l2+a.leg_l3+a.leg_l4+a.leg_l5+a.leg_l6,'''','''','''','''','''','''',''''
+           ,'''','''','''','''','''',0,0,0,0,0,0,0,0,'''',0,'''',0,0,0,'''','''','''','''',a.[pertyp],a.proploc,a.[mort_cd]
+           ,a.[morleg],a.[bankrupt],a.[treamort],a.[chg_asmt],a.[cur_adr],a.[trcode],a.[c_schn]
+  FROM openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted() and unpaid > 0.00'') a, dbo.mike_taxAppsch01() b
+  where a.c_schn=b.sch_n and a.c_cityc=b.city_c and a.taxyear=b.year'
+
+  select
+--   @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeTableName + '.dbf',
+--   @sql = 'insert adtax ('+@fields+') select top 1000 ' + @fields + ' from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+   @sql = @sql1 + @sql2
+
+  exec(@sql)
+
+  
+  return
+
+ end
+
+end
+
+
+
+
+
