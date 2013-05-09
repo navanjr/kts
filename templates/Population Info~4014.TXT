@@ -38,23 +38,3 @@
 \u150; @choose150:AMS;
 
 @closewindow=update,sql('exec dbo.populationFundReceivableVerification '''&obj:key1&''','''&obj:a2&'''');
-
-
-@bb4=Import Cities,,,gcadmin=1;
-@bbproc4=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''CITY'''),
- if(gcAcctTypeId<1,m('oops... you need to create a CITY account type before you import funds.','Import Error...')),
- break(gcAcctTypeId<1),
- do(4701,getAcctType=),
- sqlloop('select name,name from dbo.mike_apportionLookup() where [type]=''C''',impFunds=),
- iw('\t001Year; \t002@n4; \w00230;'),
- lcyear=obj7:key1,
- if(lcyear+0<1,lcyear=year(today())),
- sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popalco>0.00 then c.popalco else c.pop end,''A'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''A'')'),
- sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''A'''),
- sql('insert object (typ,key1,key2,key3,a2) select 4014,'''&lcyear&''',a.accountcode,case when c.popmvt>0.00 then c.popmvt else c.pop end,''M'' from glaccounts a, (select * from dbo.mike_apportionLookup() where type=''C'') c where a.accountCode=c.name and accountCode not in (select key2 from object where typ=4014 and key1='''&lcyear&''' and a2=''M'')'),
- sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''M''');
-@impFunds=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''' and b3!=1'),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
