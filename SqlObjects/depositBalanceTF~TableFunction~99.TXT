@@ -1,4 +1,4 @@
-create function dbo.depositBalanceTF(@d1 int,@d2 int,@deputy varchar(50),@depositId int,@station varchar(50),@recTyp varchar(50)) returns @rt
+create function dbo.depositBalanceTF(@d1 int,@d2 int,@deputy varchar(50),@depositId int,@station varchar(50),@recTyp varchar(50),@bankAccount varchar(50)) returns @rt
 		table (	receivedOf varchar(60),
 			Amount varchar(50),
 			ref varchar(50),
@@ -39,22 +39,23 @@ if @depositId = 0
      and deputy like case when @deputy!='0' then '%'+@deputy+'%' else deputy end 
      and station like case when @station!='0' then @station else station end
      and receiptType = case when @recTyp!='0' then @recTyp else receiptType end
+     and receipttype in (select code from receiptType where depositAccount = case when @bankAccount>'  0' then @bankAccount else depositAccount end)
      and receiptPostDate between @d1 and @d2
      order by receiptType, deputy, paycode, receiptNo
 
 
 
   insert @rt (receivedOf,ord)
-	select  '',Deputy+recTyp+'bbbccc'
-	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp
+	select  '',Deputy+'zzzz'+'bbbccc'
+	from @rt  where RIGHT(ord,3)='bbb' group by deputy--,recTyp
          
   insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select Deputy+' '+paycode,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode
-	from @rt  where RIGHT(ord,3)='bbb' group by deputy,paycode,recTyp
+	select Deputy+' '+paycode,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+'zzzz'+paycode+'ccc1',Deputy+' '+paycode
+	from @rt  where RIGHT(ord,3)='bbb' group by deputy,paycode--,recTyp
 
   insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select Deputy+' Total','',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+'zzzzccc3',Deputy+' Total'
-	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp		
+	select Deputy+' Total','',dbo.formatCurr(SUM(cast(amount as money))),Deputy+'zzzz'+'zzzzccc3',Deputy+' Total'
+	from @rt  where RIGHT(ord,3)='bbb' group by deputy--,recTyp		
 
   insert @rt (receivedOf,ref,Amount,ord,paycode)
 	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ddd1',paycode
@@ -63,6 +64,7 @@ if @depositId = 0
   insert @rt (receivedOf,ref,Amount,ord)
 	select 'Report Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzeee'
 	from @rt  where RIGHT(ord,3)='bbb' 	
+	
 
  end
  else
