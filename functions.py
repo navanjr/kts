@@ -24,7 +24,7 @@ class ktsMenu():
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
         self.createCommand('help',['h','help'],'',self.command_help)
-        self.createCommand('testConnection',['test','t','testConnection'],'tests the connection to your sql server',self.command_testConnection)
+        self.createCommand('testConnection',['test','t','testconnection'],'tests the connection to your sql server',self.command_testConnection)
         self.createCommand('serverSettings',['set','s'],'modify server settings',self.command_serverSettings)
         self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu)
         self.createCommand('gitCommands',['git'],'run git command',self.command_git)
@@ -364,7 +364,13 @@ class ktsMenu():
             connection = pyodbc.connect(connectionString, autocommit=True)
         except pyodbc.ProgrammingError:
             package['code'] = [1,'Failed to connect to %s' % connDatabase]
-        cursor = connection.cursor()
+
+        try:
+            cursor = connection.cursor()
+        except UnboundLocalError:
+            package['code'] = [1,'Failed to connect to %s' % connDatabase]
+            return package
+
         try:
             cursor.execute(sqlString)
         except pyodbc.ProgrammingError:
