@@ -33,17 +33,17 @@ begin
  if @method = 'light'
   select @method = 'all', @mode = 'light'
 
- if @method != 'all'
-  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%' and name like '%' + @method
+ if @method in ('all')
+  declare routines cursor for select name from dbo.sysobjects where name like case when @mode in ('heavy','light') then 'diagFix%' else @mode + '%' end
  else
-  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%'
+  declare routines cursor for select name from dbo.sysobjects where name like 'diagFix%' and name like '%' + @method
 
  open routines
  fetch next from routines into @methodUnit
  while @@FETCH_STATUS = 0
  begin
 
-  if @method in ('all', @methodUnit)
+  if @method in ('all', 'conversion', @methodUnit)
   begin
 -- reset output vars
    select
@@ -53,19 +53,33 @@ begin
     @fixProc = '',
     @guide = ''
 
-   exec @methodUnit
-    @mode = @mode,
-    @class = @class output,
-    @code = @code output,
-    @tally = @tally output,
-    @message = @message output,
-    @fixProc = @fixProc output,
-    @guide = @guide output
+   begin try
+    exec @methodUnit
+     @mode = @mode,
+     @class = @class output,
+     @code = @code output,
+     @tally = @tally output,
+     @message = @message output,
+     @fixProc = @fixProc output,
+     @guide = @guide output
+   end try
+
+   begin catch
+    select
+     @mode = @mode,
+     @class = '',
+     @code = 1,
+     @tally = 0,
+     @message = 'SQL Error in diagnostic',
+     @fixProc = '',
+     @guide = ''
+   end catch
 
    insert @results
     select @methodUnit, @class, @code, @message, @tally, 'none', getDate(), '@procName=' + @methodUnit + ';@guide=' + @guide + ';'  
 
    exec dbo.logit @@procId, 'proc', @methodUnit, '@code', @code, '@message', @message, '@tally', @tally   
+   exec dbo.logit @@procId, '@mode', @mode
 
   end
 

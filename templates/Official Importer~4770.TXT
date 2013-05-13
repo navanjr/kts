@@ -116,10 +116,11 @@
  create(553,10,370,3,lcPaymentDisplay),prop(553,'7c13h',700),
  update,
  bankaccount=, 
- brwstuff=;
+ brwstuff=,
+ prop(111,'color',65280);
 
 @afterloadwindow=
- refreshBRW=;
+ labels=;
 
 @bankaccount=if(obj:b15+0=1,bankaccountWarrant=),
              if(obj:c1+0=1,bankaccountVoucher=);
@@ -164,21 +165,25 @@
  if(lcid+0>0,change(lcid));
 
 @gcvars=
- if(obj:c1+0=1,gcvarsVouchers=,gcvarsWarrants=),
+ if(obj:c1+0=1,gcvarsVouchers=,gcvarsWarrants=);
+
 @gcvarsVouchers=
+ gcformat4770='40L(2)~Voucher #~#2#M|50R(2)~Date~@d2b@#3#M|195L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|50L(2)~DebitAcct~#6#M|50L(2)~CreditAcct~#7#M|40L(2)~Register #~#8#M|',
  gcsql4770='select id,voucherNumber,voucherDate,payee,amount,debitAcct,creditAcct,registerNumber,postCheck from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by ord';
+
 @gcvarsWarrants=
+ gcformat4770='50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|',
  gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&') order by ord';
 
 @refreshBRW=
- prop(000,'text',choose(obj:c1+0=1,'Register Vouchers','Register Warrants')),
- prop(108,'text',choose(obj:c1+0=1,'View Vouchers(F7)','View Warrants(F7)')),
+ labels=,
  gcvars=,
- if(obj:c1+0=1,
-  brwreload(1,gcsql4770,'40L(2)~Voucher #~#2#M|50R(2)~Date~@d2b@#3#M|195L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|50L(2)~DebitAcct~#6#M|50L(2)~CreditAcct~#7#M|40L(2)~Register #~#8#M|'),
-  brwreload(1,gcsql4770,'50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|')
- ),
+ brwreload(1,gcsql4770,gcformat4770),
  tsc;
+
+@labels=
+ prop(000,'text',choose(obj:c1+0=1,'Register Vouchers','Register Warrants')),
+ prop(108,'text',choose(obj:c1+0=1,'View Vouchers(F7)','View Warrants(F7)'));
 
 @lbrw1forecolor=obj7:c10<0,255;
 @lbrw1color=obj7:c10='1',255,obj7:c10='2',2350115,obj7:c10='3',255; 2350115;
@@ -235,10 +240,12 @@
 \t114&Import;
 @acc114=
  update,
- lcCount=kp('select count(*) from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&') where amount > ''  0'' and postCheck = 0'),
- lcAmount=kp('select sum(cast(amount as money)) from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&') where amount > ''  0'' and postCheck = 0'),
+ lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 and CAST(amount as money)<>0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 and CAST(amount as money)<>0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&')'),
+ lcCount=readstring(lcMsgBlob,'@count='),
+ lcAmount=readstring(lcMsgBlob,'@amount='),
+ lcRed=readstring(lcMsgBlob,'@red='),
  break(lcCount+0<1),
- m(lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants')&' - '&format(lcAmount,@n$14.2)&'||Do you wish to insert these into the '&choose(obj:c1+0=1,clip(obj:a18),'warrant')&' register?','Insert '&choose(obj:c1+0=1,'Vouchers','Warrants')&'...',,6,2),
+ m(choose(lcRed+0>0,'WARNING!!****There are '&lcRed&' '&choose(obj:c1+0=1,'Vouchers','Warrants')&' that will not be imported!!!!!||','')&lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants')&' - '&format(lcAmount,@n$14.2)&'||Do you wish to insert these into the '&choose(obj:c1+0=1,clip(obj:a18),'warrant')&' register?','Insert '&choose(obj:c1+0=1,'Vouchers','Warrants')&'...',,6,2),
  break(gcretval<>2),
  pmo('Importing '&lcCount&' '&choose(obj:c1+0=1,'Vouchers','Warrants'),'Please wait...'),
  d1select('exec dbo.paymentsImportBatch '''&choose(obj:c1+0=1,'official voucher','warrant')&''','&obj:id&','''&cur:ini&''''),

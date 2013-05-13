@@ -13,10 +13,10 @@ create function dbo.reportList()
 as 
 begin
 ---input options use a 1 to unhide
----@begin=1;@end=1;@receiptType=1;@deputy=1;@printDetail=1;@station=1;@fund=1;
+---@begin=1;@end=1;@receiptType=1;@deputy=1;@printDetail=1;@station=1;@fund=1;@bank=1;
 
 insert @rt
- select '','Balancing','Balance Report','balanceReport',5018,'printBalanceReport=','@begin=1;@end=1;@receiptType=1;@deputy=1;@station=1;'
+ select '','Balancing','Balance Report','balanceReport',5018,'printBalanceReport=','@begin=1;@end=1;@receiptType=1;@deputy=1;@station=1;@printDetail=1;@bank=1;'
 insert @rt
  select '','Depository','Official Account Query','officialAccountQuery',5034,'printOfficialAccountQuery=','@begin=1;@end=1;'
 insert @rt
@@ -34,13 +34,13 @@ insert @rt
 insert @rt
  select '','Balancing','Misc Receipts by Receipt','printMiscReceiptbyReceipt',5025,'printMiscReceiptbyReceipt=','@begin=1;@end=1;'
 insert @rt
- select '','Balancing','All Receipts Sorted by Type','receiptList',5019,'printReceiptList=','@begin=1;@end=1;@receiptType=1;'
+ select '','Balancing','All Receipts Sorted by Type','receiptList',5019,'printReceiptList=','@begin=1;@end=1;@receiptType=1;@bank=1;'
 insert @rt
  select '','Balancing','All Receipts Sorted by User','bookReceiptList',5019,'printBookReceiptList=','@begin=1;@end=1;@receiptType=1;'
  --insert @rt
  --select '','Balancing','Daily Report','glDaily',5013,'gldaily=','@begin=1;@end=1;'
- --insert @rt
- --select '','Balancing','Daily GL','printDailyLedger',5017,'glreport=','@begin=1;@end=1;'
+insert @rt
+ select '','Balancing','Daily GL','printDailyLedger',5017,'glreport=','@begin=1;@end=1;@apportion=1;'
  --insert @rt
  --select '','Balancing','Reprint Days Tax Receipts','DailyTaxReceiptPrint',5002,'DailyTaxReceiptPrint=','@begin=1;@end=1;'
 insert @rt
@@ -65,8 +65,11 @@ insert @rt
  select '','Quarterly','Mobile Home Decal','MobileHomeDecalReport',5046,'printMobileHomeDecalReport=','@begin=1;@end=1;'
 insert @rt 
  select '','Comments','Comment Report','CommentReport',5047,'printComments=','@begin=1;@end=1;'
-insert @rt 
- select '','Budgets','Appropriation Ledger','appropriationLedger',5051,'printAppropriationLedger=','@begin=1;@end=1;'
+if (select dbo.settingsF('site.trackAppropriationLedger','FALSE')) = 'TRUE'
+ begin
+  insert @rt 
+   select '','Budgets','Appropriation Ledger','appropriationLedger',5051,'printAppropriationLedger=','@begin=1;@end=1;'
+ end
 insert @rt
  select '','Payments','Warrant Register','WarrantRegister',5010,'warrantRegister=','@begin=1;@end=1;@fund=1;'
 insert @rt
@@ -76,21 +79,34 @@ insert @rt
 insert @rt
  select '','Payments','Cleared Vouchers','Cleared Vouchers',5027,'printClearedVoucherList=','@begin=1;@end=1;'
 insert @rt
- select '','Payments','Open Warrants','Outstanding Warrants',5032,'printOpenWarrants=','@end=1;'
+ select '','Payments','OutStanding Warrants','Outstanding Warrants',5032,'printOpenWarrants=','@end=1;'
 insert @rt
  select '','Payments','Cancel Vouchers','Cancel Vouchers',5027,'printCancelVoucherList=','@begin=1;@end=1;'
 insert @rt
  select '','Payments','Official Voucher List','officialVoucherList',5022,'printOfficialVoucherList=','@begin=1;@end=1;'
 insert @rt
- select '','Payments','Open Vouchers','outstandingVoucherList',5027,'printOutstandingVoucherList=','@end=1;'
+ select '','Payments','OutStanding Vouchers','outstandingVoucherList',5027,'printOutstandingVoucherList=','@end=1;'
 insert @rt
  select '','Payments','Paid Voucher','paidVoucher',5049,'paidVoucher=','@begin=1;@end=1;'
+
+insert @rt
+ select '','Collections','Resale Legal','resaleLegal',5040,'resaleLegal=',''
+insert @rt
+ select '','Collections','Resale Legal for Abstracter','resaleLegalAbstracter',5040,'resaleLegalAbstracter=',''
+insert @rt
+ select '','Collections','Resale For Publication','resaleForPub',5040,'resaleForPub=',''
+insert @rt
+ select '','Collections','Resale For Publication Summary','resaleForPubSum',5040,'resaleForPubSum=',''
+insert @rt
+ select '','Collections','Print List of Delinquent','listOfDelinquent',5041,'listOfDelinquent=',''
+insert @rt
+ select '','Collections','Personal For Publication','personalForPubSum',5040,'personalForPubSum=',''
 
 
  update @rt set reportName = ' -' + reportName, ord = reportGroup + reportName
 
- insert @rt (reportName,reportTemplate,ord)
-  select reportGroup,0,reportGroup from @rt group by reportGroup
+ insert @rt (reportName,reportTemplate,ord,reportGroup)
+  select reportGroup,0,reportGroup,reportGroup from @rt group by reportGroup
 
 
 

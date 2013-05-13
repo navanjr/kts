@@ -19,6 +19,7 @@
  lcId=kpbrwid(1),
  clickPrep=,
  if(lcDefaultAction='browse',browseReceipts=),
+ if(lcDefaultAction='browseOfficial',browseOfficial=),
  gcReceiptType='',
  if(lcDefaultAction='report',printMyBalanceReport=);
 
@@ -28,6 +29,7 @@
  if(lcMenu=1,menu1=),
  if(lcMenu=2,menu2=),
  if(lcMenu=3,menu3=),
+ if(lcMenu=4,menu4=),
  refreshbrw=;
 
  if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
@@ -47,19 +49,27 @@
  if(gcretval=2,printMyReceiptList=),
  if(gcretval=3,browseReceiptsAll=),
  if(gcretval=4,changeDateAll=),
- if(gcretval=5,depositdatemanualAll=); 
+ if(gcretval=5,depositdatemanualAll=);
 
 @menu2=
- m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ m(gcReceiptType&' RECEIPT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Receipts|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|My &Balance Report|&Cancel'),
  if(gcretval=1,browseReceipts=),
  if(gcretval=2,changeDate=),
- if(gcretval=3,depositdatemanual=); 
+ if(gcretval=3,depositdatemanual=),
+ if(gcretval=4,printMyBalanceReportFiltered=);
 
 @menu3=
  gcReceiptType='payments',
  m('Please choose one of the following options...','Payments - Right Click Menu...','question.ico','Change &Date'&format(gcNextBusinessDay,@d2)&'|&Manual Date|E&xit'),
  if(gcretval=1,changeDate=),
  if(gcretval=2,depositdatemanual=); 
+
+@browseOfficial=browse(1,4522);
+@menu4=
+ m(gcReceiptType&' OFFICIAL DEPOSIT ||   Choose from the following options...','Right Click Options...','question.ico','B&rowse Official Deposits|Change &Date '&format(gcNextBusinessDay,@d2)&'|&Manual Date|&Cancel'),
+ if(gcretval=1,browseOfficial=),
+ if(gcretval=2,changeDate=),
+ if(gcretval=3,depositdatemanual=);
 
 @browseReceiptsAll=
  writecurdata(@BrowFil4502=,'3'),
@@ -69,7 +79,7 @@
  writecurdata(@BrowFil4502=,'3'),
  browse(1,4502,'typ=4502 and key3='''&gcReceiptType&'''');
 
-@printBalanceReport==
+@printBalanceReport=
  setvars=,
  trreport('depositBalance',5018,'printDepositBalance');
 
@@ -82,7 +92,13 @@
  setvars=,
  trreport('balanceReport',5018,'printBalanceReport=');
 
+@printMyBalanceReportFiltered=
+ setvars=,
+ gcReceiptType=kp('select receiptType from dbo.posBRW() where id = '&lcId),
+ trreport('balanceReport',5018,'printBalanceReport=');
+
 @setvars=
+ gcReceiptType='',
  gcDepId=0,
  gcBeginDate=readstring(lcWhoAmI,'@Date='),
  gcEndDate=readstring(lcWhoAmI,'@Date='),
@@ -106,9 +122,11 @@
  if(obj7:key1+0>2,sql('exec dbo.advanceDate ''All'','&obj7:key1&''));
 
 \t105&Reports;
- @acc105=lcReportId=kp('select id from object where typ=4506 and lasteditini='''&cur:ini&''''),
-  if(lcReportId+0>0,sql('update object set key1='''&today()&''',key2='''&today()&''' where id='&lcReportId)),
-  if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
+ @acc105=
+ gcReportGroup='',
+ lcReportId=kp('select id from object where typ=4506 and lasteditini='''&cur:ini&''''),
+ if(lcReportId+0>0,sql('update object set key1='''&today()&''',key2='''&today()&''' where id='&lcReportId)),
+ if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
 
 \t109O&fficial Deposit; @acc109=new(4522);
 \t110&Vouchers; @acc110=gcVoucher=1,openImporter=;

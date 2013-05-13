@@ -1,7 +1,15 @@
 @noupdate;
 @nosave;
-   @loadwindow=create(150,12,3,30,'Detailed Report',80),create(9,9),d1select('exec dbo.settingsCRUD @settingName=''PaidWarrantsExportPath'', @method=''GET'', @verbose=''TRUE'''),gcfilelocation=obj7:d1;
-   @afterloadwindow=set(010,gcfilelocation),set(002,gcBeginDate),set(004,gcEndDate);
+@loadwindow=
+ create(150,12,3,30,'Detailed Report',80),
+ create(9,9),
+ d1select('exec dbo.settingsCRUD @settingName=''PaidWarrantsExportPath'', @method=''GET'', @verbose=''TRUE'''),
+ gcfilelocation=obj7:d1;
+@afterloadwindow=
+ set(010,gcfilelocation),
+ set(002,gcBeginDate),
+ set(004,gcEndDate);
+
 \t000Please Enter Date Range...;
 \t001Begin Date;
 \t002@d2;
@@ -10,18 +18,21 @@
 \t004@d2;
 \w00450;
 \t009File Location;
-   @acc009=filedialog('Select Export Folder...',,,34),set(010,gcretval),d1select('exec dbo.settingsCRUD @settingName=''PaidWarrantsExportPath'', @method=''POST'', @settingValue='''&gcretval&''''),tsc;
+@acc009=
+ filedialog('Select Export Folder...',,,34),
+ set(010,gcretval),
+ d1select('exec dbo.settingsCRUD @settingName=''PaidWarrantsExportPath'', @method=''POST'', @settingValue='''&gcretval&''''),
+ tsc;
 
 \t105Export File;
 @acc105=
-  gcBeginDate=obj:key1,
-  gcEndDate=obj:key2,
-  if(gcBeginDate+0<1,gcBeginDate=today()-10),
-  if(gcEndDate+0<1,gcEndDate=today()),
+ gcBeginDate=obj:key1,
+ gcEndDate=obj:key2,
+ if(gcBeginDate+0<1,gcBeginDate=today()-10),
+ if(gcEndDate+0<1,gcEndDate=today()),
  sqlexport('select fiscalyear, fund, WarNo, PayDate,cast(amount as varchar(30)) as amount,cast(Interest as varchar(30)) as Interest,PayNo from dbo.warrantExport('''&gcBeginDate&''','''&gcEndDate&''')','CTPRO.TXT',4),
  filecopy('CTPRO.TXT',obj:a2),
- m('Warrants Exported for Clerk')
-; 
+ m('Warrants Exported for Clerk'); 
 
 \t108View File;
 @acc108=runw('start notepad.exe '&obj:a2&'CTPRO.TXT');
@@ -34,7 +45,7 @@
   if(obj:c2+0=1,printDetailed=,printSummary=);
 
 @printDetailed=
-  trreport('Paid Warrants',5032,'printPaidWarrants=');
+  trreport('Paid Warrants Detail',5032,'printPaidWarrants=');
 
 @printSummary=
   trreport('Warrants Paid',5032,'printsum=');

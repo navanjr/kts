@@ -27,6 +27,7 @@ printBookReceiptList=;
  lcReportSort=choose(lcSusMethod='S',1,0),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
+ if(gcBankAccount>'  0',lcWhere=choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''')',lcWhere=lcWhere),
  lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
@@ -70,7 +71,7 @@ printBookReceiptList=;
      ),
    do(
       prn(,,,lcFontSize,,lcFont),
-      bnd('H',,600,,700,lcgrpToken&' Total',2000R,format(lcgPaid,@n14.2),700R,format(lcgPenalty,@n14.2),700R,format(lcgFee,@n14.2),700R,format(lcgTotPaid,@n14.2),700R),
+      bnd('H',,600,,700,lcgrpToken&' Total',2000R,format(lcgPaid,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgFee,@n-14.2),700R,format(lcgTotPaid,@n-14.2),700R),
       nl,
       lcgTotPaid=0,
       lcgPaid=0,
@@ -84,10 +85,10 @@ printBookReceiptList=;
   det(lcsql),
    prn(,,,lcFontSize-2,,lcDetFont),
    if(lcReportSort=0),do(
-     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a6,800),
+     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a9,@n-14.2),700R,format(obj5:a5,@n-14.2),700R,obj5:a6,800),
      ),
    if(lcReportSort=1),do(
-     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a9,@n14.2),700R,format(obj5:a5,@n14.2),700R,obj5:a14,800),
+     bnd('D8',obj5:a2,600,obj5:a3,700,left(obj5:a4,27),2000,format(obj5:a7,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a9,@n-14.2),700R,format(obj5:a5,@n-14.2),700R,obj5:a14,800),
      ),
    if(gcPrintDetail='Y'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
    lcTotPaid=lcTotPaid+obj5:a5,
@@ -101,7 +102,7 @@ printBookReceiptList=;
    lcgrpToken=obj5:a1,
   edt,
   nl,
-  bnd('H',,600,'Report Total',700,,2000,format(lcPaid,@n14.2),700R,format(lcPenalty,@n14.2),700R,format(lcFee,@n14.2),700R,format(lcTotPaid,@n14.2),700R),
+  bnd('H',,600,'Report Total',700,,2000,format(lcPaid,@n-14.2),700R,format(lcPenalty,@n-14.2),700R,format(lcFee,@n-14.2),700R,format(lcTotPaid,@n-14.2),700R),
  );
 
 @receiptList=
@@ -137,7 +138,7 @@ printBookReceiptList=;
   if(curpag=1),
   grp(1,obj5:a1,
    do(bnd('H',obj5:a1,1000)),
-   do(bnd('H',,600,,700,lcgrpToken&' Total',2000R,format(lcgPaid,@n14.2),800R,format(lcgFee,@n14.2),800R,format(lcgTotPaid,@n14.2),1000R),
+   do(bnd('H',,600,,700,lcgrpToken&' Total',2000R,format(lcgPaid,@n-14.2),800R,format(lcgFee,@n-14.2),800R,format(lcgTotPaid,@n-14.2),1000R),
       nl,
       lcgTotPaid=0,
       lcgPaid=0,
@@ -149,9 +150,9 @@ printBookReceiptList=;
   nl,
   det(lcsql),
    if(lcReportSort=0),do(
-     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a6,800)),
+     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),800R,format(obj5:a5,@n-14.2),1000R,obj5:a6,800)),
    if(lcReportSort=1),do(
-     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),800R,format(obj5:a5,@n14.2),1000R,obj5:a14,800)),
+     bnd('D8',obj5:a2,600,obj5:a3,700,format(obj5:a4,@s30),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),800R,format(obj5:a5,@n-14.2),1000R,obj5:a14,800)),
    if(gcPrintDetail='Y' and left(obj5:a1,3)='TAX'),bnd('D7',,1000,obj5:a13,500,'Item: '&obj5:a10,600,'Parcel: '&obj5:a11,1000),
    lcTotPaid=lcTotPaid+obj5:a5,
    lcPaid=lcPaid+obj5:a7,
@@ -164,7 +165,7 @@ printBookReceiptList=;
    lcgrpToken=obj5:a1,
   edt,
   nl,
-  bnd('H',,600,'',700,'Report Total',2000R,format(lcPaid,@n14.2),800R,format(lcFee,@n14.2),800R,format(lcTotPaid,@n14.2),800R)
+  bnd('H',,600,'',700,'Report Total',2000R,format(lcPaid,@n-14.2),800R,format(lcFee,@n-14.2),800R,format(lcTotPaid,@n-14.2),800R)
   );
 
 /***needs updating if we are going to use - currently using printReceiptListGr***/
@@ -187,17 +188,17 @@ printReceiptList=
   if(curpag=1),
   grp(1,obj5:a1,
    do(bnd('H',obj5:a1,1000)),
-   do(  bnd('H',,400,lcgrpToken&' Total',500,,3500,format(lcg4,@n$14.2b),700R),nl,lcg4=0),
+   do(  bnd('H',,400,lcgrpToken&' Total',500,,3500,format(lcg4,@n-14.2b),700R),nl,lcg4=0),
   ),
   bnd('HU',,400,'Date',500,'',3500,'Amount',700R,'Deputy',1000),
   det(lcsql),
-   bnd('D',obj5:a2,400,obj5:a3,500,obj5:a4,3500,format(obj5:a5,@n14.2),700R,obj5:a6,1000),
+   bnd('D',obj5:a2,400,obj5:a3,500,obj5:a4,3500,format(obj5:a5,@n-14.2),700R,obj5:a6,1000),
    lca4=lca4+obj5:a5,
    lcg4=lcg4+obj5:a5,
    lcgrpToken=obj5:a1,
   edt,
   nl,
-  bnd('H',,400,'Report Total',500,,3500,format(lca4,@n$14.2b),700R), 
+  bnd('H',,400,'Report Total',500,,3500,format(lca4,@n-14.2b),700R), 
  );
 
 
@@ -252,7 +253,7 @@ printReceiptList=
       bnd('H',obj5:a1,1000) ),
    do(
       prn(,,,lcFontSize,,lcFont),
-      bnd('H',,700,,700,lcgrpToken&' Total',2500R,format(lcgPaid,@n14.2),800R,format(lcgPenFees,@n14.2),800R,format(lcgTotPaid,@n14.2),800R),
+      bnd('H',,700,,700,lcgrpToken&' Total',2500R,format(lcgPaid,@n-14.2),800R,format(lcgPenFees,@n-14.2),800R,format(lcgTotPaid,@n-14.2),800R),
       nl,
       lcgTotPaid=0,
       lcgPaid=0,
@@ -264,7 +265,7 @@ printReceiptList=
   nl,
   prn(,,,lcFontSize-2,,lcDetFont),
   det(lcsql),
-    bnd('D8',obj5:a2,700,obj5:a3,700,left(obj5:a4,27),2500,format(obj5:a6,@n14.2),800R,format(obj5:a7,@n14.2),800R,format(obj5:a5,@n14.2),800R),
+    bnd('D8',obj5:a2,700,obj5:a3,700,left(obj5:a4,27),2500,format(obj5:a6,@n-14.2),800R,format(obj5:a7,@n-14.2),800R,format(obj5:a5,@n-14.2),800R),
     if(left(obj5:a1,3)='TAX'),
        bnd('D7',,1000,obj5:a11,500R,'Item: '&obj5:a8,600,'Parcel: '&obj5:a9,1000),
     lcTotPaid=lcTotPaid+obj5:a5,
@@ -276,7 +277,7 @@ printReceiptList=
     lcgrpToken=obj5:a1,
   edt,
   nl,
-  bnd('H','',700,'',700,'Report Total',2500R,format(lcPaid,@n14.2),800R,format(lcPenFees,@n14.2),800R,format(lcTotPaid,@n14.2),800R))
+  bnd('H','',700,'',700,'Report Total',2500R,format(lcPaid,@n-14.2),800R,format(lcPenFees,@n-14.2),800R,format(lcTotPaid,@n-14.2),800R))
  ;
 
 
@@ -328,7 +329,7 @@ printReceiptList=
     if(curpag=1),
      grp(1,obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2400R,format(lcgAmtPaid,@n14.2),900R,format(lcgFees,@n14.2),800R,format(lcgTotAmt,@n14.2),900R),
+      do(bnd('H',,600,'',700,'Station Total',2400R,format(lcgAmtPaid,@n-14.2),900R,format(lcgFees,@n-14.2),800R,format(lcgTotAmt,@n-14.2),900R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -338,7 +339,7 @@ printReceiptList=
      if(curpag=1),
      grp(1,obj5:a15,
       do(bnd('H','Deputy: '&obj5:a15,1000)),
-      do(bnd('H',,600,'',700,'Deputy Total',2400R,format(lcgAmtPaid,@n14.2),900R,format(lcgFees,@n14.2),800R,format(lcgTotAmt,@n14.2),900R),
+      do(bnd('H',,600,'',700,'Deputy Total',2400R,format(lcgAmtPaid,@n-14.2),900R,format(lcgFees,@n-14.2),800R,format(lcgTotAmt,@n-14.2),900R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -346,9 +347,9 @@ printReceiptList=
   nl,
   det(lcsql),
      if(lcReportSort=1),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n14.2),900R,format(obj5:a9,@n14.2),800R,format(obj5:a6,@n14.2),900R,obj5:a1,400)),
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
      if(lcReportSort=0),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n14.2),900R,format(obj5:a9,@n14.2),800R,format(obj5:a6,@n14.2),900R,obj5:a1,400)),
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
      lcAmtPaid=lcAmtPaid+obj5:a7,
      lcFees=lcFees+obj5:a9,
      lcTotAmt=lcTotAmt+obj5:a6,
@@ -357,7 +358,7 @@ printReceiptList=
      lcgTotAmt=lcgTotAmt+obj5:a6,
   edt,
   nl,
-  bnd('H','',600,'',700,'Report Totals',2400R,format(lcAmtPaid,@n14.2),900R,format(lcFees,@n14.2),800R,format(lcTotAmt,@n14.2),900R)
+  bnd('H','',600,'',700,'Report Totals',2400R,format(lcAmtPaid,@n-14.2),900R,format(lcFees,@n-14.2),800R,format(lcTotAmt,@n-14.2),900R)
 
 );
 
@@ -394,7 +395,7 @@ printReceiptList=
     if(curpag=1),
      grp(1,obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2000R,format(lcgAmtPaid,@n14.2),800R,format(lcgFees,@n14.2),700R,format(lcgPenalty,@n14.2),700R,format(lcgTotAmt,@n14.2),800R),
+      do(bnd('H',,600,'',700,'Station Total',2000R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -405,7 +406,7 @@ printReceiptList=
      if(curpag=1),
      grp(1,obj5:a15,
       do(bnd('H','Deputy: '&obj5:a15,1000)),
-      do(bnd('H',,600,'',700,'Deputy Total',2000R,format(lcgAmtPaid,@n14.2),800R,format(lcgFees,@n14.2),700R,format(lcgPenalty,@n14.2),700R,format(lcgTotAmt,@n14.2),800R),
+      do(bnd('H',,600,'',700,'Deputy Total',2000R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -414,11 +415,11 @@ printReceiptList=
   nl,
   det(lcsql),
      if(lcReportSort=1),do(
-        bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a6,@n14.2),800R,obj5:a1,400),
+        bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400),
         if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                           ),
          if(lcReportSort=0),do(
-       bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n14.2),800R,format(obj5:a9,@n14.2),700R,format(obj5:a8,@n14.2),700R,format(obj5:a6,@n14.2),800R,obj5:a1,400)
+       bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400)
        if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                               ),
      lcAmtPaid=lcAmtPaid+obj5:a7,
@@ -431,5 +432,5 @@ printReceiptList=
      lcgPenalty=lcgPenalty+obj5:a8,
   edt,
   nl,
-  bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n14.2),800R,format(lcFees,@n14.2),700R,format(lcPenalty,@n14.2),700R,format(lcTotAmt,@n14.2),800R)
+  bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n-14.2),800R,format(lcFees,@n-14.2),700R,format(lcPenalty,@n-14.2),700R,format(lcTotAmt,@n-14.2),800R)
 );

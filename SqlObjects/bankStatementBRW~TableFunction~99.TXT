@@ -4,7 +4,8 @@ create function dbo.bankStatementBRW(
  @showFlag int, 
  @warrantFlag int,
  @orderByVoucherFlag int,
- @orderByClearedFlag int  
+ @orderByClearedFlag int,
+ @showAllWarrants int  
 ) returns @rt table(
  id int,
  fpid int,
@@ -38,6 +39,110 @@ begin
  insert @showTable select 0
  if @showFlag = 1
   insert @showTable select @id
+
+
+-- add Warrants
+ if @warrantFlag = 1
+  begin
+ 
+ declare @limitfundcode varchar(50),
+         @defaultBank varchar(5),
+         @bankCode varchar(60),
+         @filterWarrantsByBank varchar(5)
+ 
+ select @filterWarrantsByBank = isnull(settingValue,'FALSE') from settings where settingName='site.filterWarrantsByBank'
+
+ select @bankCode = b.accountcode from object a, glaccounts b where a.id=@id and a.key1=b.accountcode and a.key1>' 0'
+
+ select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
+
+ if @bankCode in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('BANK')) and code='WARRANT')
+  begin
+   set @defaultBank = 'TRUE'
+  end
+ else
+  begin
+   set @defaultBank = 'FALSE'
+  end 
+
+ --insert @rt (id,description,ord,origin) select 0,'','w',6 
+ insert @rt (id,description,ord,rowType,origin) select 0,'Warrants: ','ww',3,7 
+ declare @glAccountIds table (id int)
+
+
+ if @showAllWarrants = 1 or @filterWarrantsByBank = 'FALSE'
+  begin
+   insert into @glAccountIds
+      select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode)
+  end
+ else
+  begin
+   if @defaultBank = 'FALSE'
+    begin
+     insert into @glAccountIds
+      select w.accountId from glAccounts w, glaccounts f 
+       where w.accountType = 'WARRANT' 
+         and f.accounttype = 'FUND' 
+         and w.targetaccountcode = f.accountcode 
+         and f.targetaccountcode = @bankCode
+         and (isnull(@limitfundcode,'ALL')='ALL' or w.accountCode=@limitfundcode)
+    end
+   else
+    begin
+     insert into @glAccountIds
+      select w.accountId from glAccounts w, glaccounts f 
+       where w.accountType = 'WARRANT' 
+         and f.accounttype = 'FUND' 
+         and w.targetaccountcode = f.accountcode 
+         and f.targetaccountcode <= ' 0'
+         and (isnull(@limitfundcode,'ALL')='ALL' or w.accountCode=@limitfundcode)
+    end
+  end
+ --insert @rt (id,description,ord,origin) select 0,'','w',8
+-- insert @rt (id,description,ord,origin) select 0,'Warrants: ','ww',9
+
+-- get the warrants
+ insert @rt (id, description, subDescription, dbAmount, ord, fundGrouping, paymentType, origin)
+  select dbo.brwidEncoder(9,b.id),
+   '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
+   b.a2,
+   sum(a.amount),
+   'ww' + isnull((select top 1 accountdesc from dbo.targetfund(a.accountCode)),'') + b.key3,
+   accountCode,
+   b.a18,
+   10
+  from dbo.glDetail a, object b
+  where a.slink = 'o' + cast(b.id as varchar)
+   and a.accountId in (select id from @glAccountIds)
+   and b.link1 = 0
+  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
+  having sum(amount) > 0
+
+ update a set
+  rowType = 5, 
+  selectedFlag = dbo.splitF(b.data,':',3)
+ from @rt a, dbo.split(@warrantBlob,'|') b
+ where a.id = dbo.splitF(b.data,':',1) and origin = 10
+
+ 
+-- add header rows for fund
+ insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
+ select 
+  0,
+  '-- ' /*+ fundGrouping */+ ' - ' + t.accountDesc,
+  dbo.padLeft('Balance: $' + dbo.formatCurr(abs(dbo.glAccountBalance('target->' + fundGrouping))),' ',50),
+  'ww' + isnull((select top 1 accountdesc from dbo.targetfund(fundGrouping)),''),
+  2,
+  sum(dbAmount),
+  sum(crAmount),
+  11
+ from @rt r
+ left join glAccounts g on g.accountcode = r.fundGrouping
+ left join glAccounts t on t.accountcode = g.targetAccountCode
+ where r.origin = 10
+ group by r.fundGrouping, t.accountDesc
+  return
+ end
 
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
  insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
@@ -164,63 +269,6 @@ begin
    end
   end
 
--- add Warrants, Maybe
- if not @warrantFlag = 1
-  return
- 
- declare @limitfundcode varchar(50)
- 
- select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
-
- insert @rt (id,description,ord,origin) select 0,'','w',6 
- insert @rt (id,description,ord,rowType,origin) select 0,'Warrants: ','ww',3,7 
- declare @glAccountIds table (id int)
- insert into @glAccountIds
-      select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode)
- 
- insert @rt (id,description,ord,origin) select 0,'','w',8
--- insert @rt (id,description,ord,origin) select 0,'Warrants: ','ww',9
-
--- get the warrants
- insert @rt (id, description, subDescription, dbAmount, ord, fundGrouping, paymentType, origin)
-  select dbo.brwidEncoder(9,b.id),
-   '   ' + dbo.date1(b.key2) + ' - #' + b.key3,
-   b.a2,
-   sum(a.amount),
-   'ww' + isnull((select top 1 accountdesc from dbo.targetfund(a.accountCode)),'') + b.key3,
-   accountCode,
-   b.a18,
-   10
-  from dbo.glDetail a, object b
-  where a.slink = 'o' + cast(b.id as varchar)
-   and a.accountId in (select id from @glAccountIds)
-   and b.link1 = 0
-  group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
-  having sum(amount) > 0
-
- update a set
-  rowType = 5, 
-  selectedFlag = dbo.splitF(b.data,':',3)
- from @rt a, dbo.split(@warrantBlob,'|') b
- where a.id = dbo.splitF(b.data,':',1) and origin = 10
-
- 
--- add header rows for fund
- insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
- select 
-  0,
-  '-- ' /*+ fundGrouping */+ ' - ' + t.accountDesc,
-  dbo.padLeft('Balance: $' + dbo.formatCurr(abs(dbo.glAccountBalance('target->' + fundGrouping))),' ',50),
-  'ww' + isnull((select top 1 accountdesc from dbo.targetfund(fundGrouping)),''),
-  2,
-  sum(dbAmount),
-  sum(crAmount),
-  11
- from @rt r
- left join glAccounts g on g.accountcode = r.fundGrouping
- left join glAccounts t on t.accountcode = g.targetAccountCode
- where r.origin = 10
- group by r.fundGrouping, t.accountDesc
 
  return
 end

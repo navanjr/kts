@@ -1,0 +1,126 @@
+create proc dbo.conversion_mikeGLedgerBanks(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @st table(
+  TYP varchar(1),
+  NAME varchar(45),
+  FUNDCODE varchar(8),
+  GLCODE varchar(8),
+  ORDERBY varchar(4),
+  BBAL money,
+  MTY money,
+  CHKSWAR money,
+  TRIN money,
+  TROUT money,
+  DEPOSITS money,
+  MEAPP money,
+  MEAPOUT money,
+  TYPBANK varchar(1),
+  MEORD varchar(4),
+  MTTRIN money,
+  MTTROUT money,
+  MTDEPOSITS money,
+  MTCHKSWAR money,
+  SUMCOL varchar(1),
+  SUMGL varchar(1),
+  ACCTNO varchar(25),
+  MEMO text,
+  AMORTAPP money,
+  AMISCAPP money,
+  ATAXAPP money,
+  AOTHR money
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'GLEDGER',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select * from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+
+ insert @st exec(@sql)
+exec dbo.logit @@procid, '@@rowCount', @@rowcount
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'mike_GLSource Banks not found in KTS'
+  from @st
+  where typ = 'B' and fundcode not in (select accountCode from dbo.glAccounts where accountType = 'bank')
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @st
+  where fundcode not in (select accountCode from dbo.glAccounts where accountType = 'bank')
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  declare
+   @acctTypeId int,
+   @acctTypeCode varchar(50),
+   @acctTypeDesc varchar(50),
+   @acctTypeRepo varchar(50)
+  
+  select
+   @acctTypeId = id,
+   @acctTypeCode = key1,
+   @acctTypeDesc = key2,
+   @acctTypeRepo = key3
+  from object where typ = 4702 and key1 = 'bank'
+
+  if not isnull(@acctTypeId,0) > 0
+  begin
+   select @code=1, @message='Sorry you are missing a BANK account type'
+   exec dbo.logit @@procid, '@code',@code,'@message',@message
+   return
+  end
+  insert object (typ,key1,key2,a1,a2,link1,a3)
+  select 4701, fundcode, name, @acctTypeCode, @acctTypeDesc, @acctTypeId, @acctTypeRepo
+   from @st where fundcode not in (select accountCode from dbo.glAccounts where accountType = 'bank')
+  select @code=0, @message='Sorry you are missing a FUND account type', @tally = @@rowCount
+  exec dbo.logit @@procid, '@code', @code, '@message', @message, '@tally', @tally
+
+/*
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
+-02=4701,
+002=obj5:a1,
+004=obj5:a2,
+008=gcAcctTypeCode,
+010=gcAcctTypeDesc,
+-07=gcAcctTypeId,
+012=gcAcctTypeRepo
+
+ sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
+@impGLFunds=
+ lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
+ if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
+*/
+  
+  return
+
+ end
+
+end

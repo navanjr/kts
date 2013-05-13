@@ -6,7 +6,7 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  warrantDate varchar(50),
  accountNumber varchar(50),
  amount varchar(50),
- vendorCode varchar(50),
+ vendorCode varchar(max),
  accountBlob varchar(1000),
  debitAcct varchar(50),
  creditAcct varchar(50),
@@ -29,7 +29,7 @@ begin
   warrantDate varchar(50),
   accountNumber varchar(50),
   amount varchar(50),
-  vendorCode varchar(50),
+  vendorCode varchar(max),
   accountBlob varchar(1000),
   debitAcct varchar(50),
   creditAcct varchar(50),
@@ -46,7 +46,8 @@ begin
   @debitAcct varchar(50),
   @creditAcct varchar(50),
   @officalLink int,
-  @lastNumber int
+  @lastNumber int,
+  @payee varchar(max) = ''
 
  select
   @officalLink = link2,
@@ -74,6 +75,8 @@ begin
    @idToken = id,
    @dataToken = rowData
   from @rows order by id
+  
+  select @payee = @payee +', ' + data from dbo.split(@dataToken,',') where id > 6
 
   if (select data from dbo.split(@dataToken,',') where id = 4) > '  0'
    insert @wt select 
@@ -84,9 +87,9 @@ begin
     (select dbo.clarionDate(data) from dbo.split(@dataToken,',') where id = 4),
     (select data from dbo.split(@dataToken,',') where id = 5),
     dbo.stripNonNumeric((select data from dbo.split(@dataToken,',') where id = 6)),
-    (select data from dbo.split(@dataToken,',') where id = 7),
+    substring(@payee,3,50),
     null,null,null,null,null
-
+  set @payee = ''
   delete @rows where id = @idToken
  end
 
@@ -137,6 +140,8 @@ begin
 
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
+ update @rt set postCheck = 1 where isnull(vendorCode,'')=''
+
  update r set postcheck = 2, registerNumber=w.RegNo from @rt r, warrants w where r.postcheck = 0 and r.warrantNumber=w.WarNo and w.debitcode=r.debitAcct and w.fiscalYear=r.fiscalYear
 
  update r set fundCode = f.accountCode, fundDesc = f.accountDesc from @rt r, glaccounts a, glaccounts f where r.debitacct = a.accountCode and f.accountCode = a.targetAccountCode

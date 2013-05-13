@@ -22,32 +22,6 @@
  gcEndDate=obj:a2,
  gcBankAccount='';
 
-@bb8=Open Warrants;
-@bbproc8=
- iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
- break(gcretval <> 'OK'),
- gcEndDate=obj7:key2,
- if(gcEndDate+0<1,gcEndDate=today() ), 
- trreport('Outstanding Warrants',5032,'printOpenWarrants=');
-
-@bb9=Open Vouchers;
-@bbproc9=
- iw(\t000Please Enter As Of Date...;\t003As Of Date;\t004@d2;\w00250;),
- break(gcretval = 'esc'),
- gcEndDate=obj7:key2,
- if(gcEndDate+0<1,gcEndDate=today() ),
- trreport('outstandingVoucherList',5027,'printOutstandingVoucherList=');
-
-@bb10=Paid Warrants;
-@bbproc10=
-  neww(4772);
-
-@bb11=Cancel Voucher;
-@bbproc11=do(5027,preCancelVoucherList=);
-
-@bb12=Cleared Vouchr;
-@bbproc12=do(5027,preClearedVoucherList=);
-
 @filter='1=1','dbo.clariondate(getdate()) between a1 and a2','a1>=dbo.clariondate(getdate())-90';
 @filtername=All,Current,Recent;
 
@@ -94,13 +68,16 @@
 @loadwindow=
  fontSizeCheck=,
  lcXCord=choose(lcLargeFontSize='FALSE',500,725),
- create(550,12,lcXCord,88,'Show &Links',78),
- create(551,12,lcXCord,100,'Show &Warrants',80),
+ create(550,12,lcXCord,76,'Show &Links',78),
+ create(551,12,lcXCord,88,'Show &Warrants',80),
+ create(555,12,lcXCord+15,100,'&Show All',72),
  create(552,2,380,3,'Variance Items'),prop(552,'7c13h',700),
  create(553,12,lcXCord,112,'Order By &Voucher',82),
  create(554,12,lcXCord,124,'Order By Cleared',76),
  create(33,9,380,18,'&Add Item',4),
  create(35,9,440,18,'&Rem Item',4),
+ prop(119,'Color',65280),
+ prop(120,'Color',65280),
  brwstuff=,
  sums=;
 
@@ -157,7 +134,7 @@
 \t116Cleared Vouchers; @acc116=do(5027,preClearedVoucherList=);
 
 \h119120cur:securitylevel<100;r
-\t119Clear Deposits;
+\t119Clear Deposits; 
 @acc119=gcClearWhere='where typ=4513',gcClearType='Deposits',doclear=;
 \t120Clear Treas Chks;
 @acc120=gcClearWhere='where typ=4771 and a18=''Treasurers Check''',gcClearType='Treasurers Checks',doclear=;
@@ -176,6 +153,7 @@
 @acc551=refreshBRW=;
 @acc553=if(obj:c3+0=1,set(076,0)),update,refreshBRW=;
 @acc554=if(obj:b15+0=1,set(082,0)),if(obj:b15+0=1,set(078,1)),update,refreshBRW=;
+@acc555=refreshBRW=;
 @gfwindow=refreshBRW=;
 
 @sums=
@@ -191,7 +169,7 @@
 
 @gcvars=
  lcShowFlag=obj:c1,
- gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&','&obj:b15+0&') order by ord';
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&','&obj:b15+0&','&obj:b13+0&') order by ord';
 
 @brw1=
  bustItUp=,
@@ -237,10 +215,11 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Warrant Options...')),
  lcAmount=readstring(obj7:d1,'@amount='),
  lcTotal=readstring(obj7:d1,'@total='),
- m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Pay One - '&format(lcAmount,@n$12.2)&'|Pay &All - '&format(lcTotal,@n$12.2)&'|E&xit'),
+ m('Please select one of the following...','Warrant Options...','question.ico','&Open|&Pay One - '&format(lcAmount,@n$12.2)&'|Pay &All - '&format(lcTotal,@n$12.2)&'|&Cancel Warrant|E&xit'),
  if(gcretval=1,change(lcid)),
  if(gcretval=2,buyWarrant=),
- if(gcretval=3,buyManyWarrants=);
+ if(gcretval=3,buyManyWarrants=),
+ if(gcretval=4,cancelWarrant=);
 
 @buyQuestions=
  if(gcbuydate<'  0',gcbuydate=today()),
@@ -267,6 +246,11 @@
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
  if(readstring(obj7:d1,'@code=')=2,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption='))),
  refreshBRW=;
+
+@cancelWarrant=
+ gcPaymentId=lcid,
+ gcMethod='CANCEL',
+ do(4771,cancelProcedure=);
 
 @bwWarrabtToggle=
  sql('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)),

@@ -3,9 +3,16 @@
 @save;
 @gfbnr=1;
 
-@loadbrowse=if(tier=-3,dbrowse=);
-@format=100L(2)~Account Code~#1#|M150L(2)~Description~#2#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
-@format2=150L(2)~Description~#2#|M100L(2)~Account Code~#1#|M75L(2)~Type~#5#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
+@loadbrowse=
+ if(tier=-3,dbrowse=),
+ prop(016,'color',65280),
+ prop(017,'color',65280),
+ prop(019,'color',65280),
+ prop(021,'color',65280),
+ prop(023,'color',65280);
+
+@format=100L(2)~Account Code~#1#|M150L(2)~Description~#2#|M75L(2)~Type~#5#|M75L(2)~Account#~#18#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
+@format2=150L(2)~Description~#2#|M100L(2)~Account Code~#1#|M75L(2)~Type~#5#|M75L(2)~Account#~#18#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Report Order~#32#|M;
 
 @bb1=&Insert,,WIZINS.ICO;
 @bbproc1=
@@ -164,9 +171,16 @@
 
 \t039Change Acct #;  \w03970;  \x039-10;  \u040;
 @acc039=if(obj:a17>'  0','p039=');  @p039=m('Do you want to change this account number to '&obj:a17&'?','Change Account Number',,6,4),if(gcretval=2,'p039y='),set(40,''),;
-@p039y=lcCnt=kp('select count(*) from glDetail where accountId='&obj:id),m('There are '&lcCnt&' GL Detail records with the old account #.'&chr(13)&chr(10)&'Are you sure you want them changed to '&obj:a17&'?','Are you sure?',,6,4),if(gcretval=2,'p039y2=');
+@p039y=d1select('select count(*) from glDetail where accountCode='''&clip(obj:key1)&''''),
+lcCnt=obj7:d1,
+d1select('select count(*) from glAccounts where targetAccountCode='''&clip(obj:key1)&''''),
+lcCntAc=obj7:d1,
+if(lcCntAc+0>0,lcTargetMessage=' and '&lcCntAc&' accounts ',lcTargetMessage=''),
+lcMString='This account is referenced by '&lcCnt&' GL Detail records'&lcTargetMessage&'.'&chr(13)&chr(10)&
+          'Are you sure you want them changed to '&obj:a17&'?',
+m(lcMString,'Are you sure?',,6,4),if(gcretval=2,'p039y2=');
 @p039y2=
- d1select('exec dbo.glAccountCodeChange '&obj:id&','''&obj:a17&''''),
+ d1select('exec dbo.glAccountCodeChange '&obj:key1&','''&obj:a17&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Account Code Change...')),
  close('ok');
 
@@ -272,53 +286,6 @@ sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),
   gcApportionToDate=today()-1,
   lcApportionStage=kp('select max(id) from object where typ = 4794'),
   if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
-
-
-@bb4=Import Funds,,,gcadmin=1;
-@bbproc4=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
- if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name from dbo.mike_fund()',impFunds=);
-@impFunds=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@bb5=Import Sources,,,gcadmin=1;
-@bbproc5=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''SOURCE'''),
- if(gcAcctTypeId<1,m('oops... you need to create a SOURCE account type before you import sources.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select srcinc,name,seca from dbo.mike_source()',impSource=);
-@impSource=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,044=obj5:a3,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@bb7=Import GL,,,gcadmin=1;
-@bbproc7=
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''BANK'''),
- if(gcAcctTypeId<1,m('oops... you need to create a BANK account type before you import Bank Accounts.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''B''',impBanks=),
- gcAcctTypeId=kp('select id from object where typ=4702 and key1=''FUND'''),
- if(gcAcctTypeId<1,m('oops... you need to create a FUND account type before you import funds.','Import Error...')),
- break(gcAcctTypeId<1),
- getAcctType=,
- sqlloop('select fundcode,name,orderby,acctno from dbo.mike_gledger() where typ=''F''',impGLFunds=);
-@impBanks=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-@impGLFunds=
- lcid=kp('select id from object where typ=4701 and key1='''&obj5:a1&''''),
- if(lcid<1,fastinsert(-02=4701,002=obj5:a1,004=obj5:a2,008=gcAcctTypeCode,010=gcAcctTypeDesc,-07=gcAcctTypeId,012=gcAcctTypeRepo));
-
-@getAcctType=
- gcAcctTypeCode=kp('select key1 from object where typ=4702 and id='&gcAcctTypeId),
- gcAcctTypeDesc=kp('select key2 from object where typ=4702 and id='&gcAcctTypeId),
- gcAcctTypeRepo=kp('select key3 from object where typ=4702 and id='&gcAcctTypeId);
 
 @bb9=Import Schools,,,gcadmin=1;
 @bbproc9=sql('exec  dbo.pullRatesSchools');
