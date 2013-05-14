@@ -137,3 +137,66 @@ tr(
    if(right(obj5:a12,1)='d'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R),nl),
    if(right(obj5:a12,1)='e'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R)),
    edt);
+
+/*The report is run for a month at a time.  When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
+
+@printTreasMemorandumCredit=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=350,
+  lcM=1000,
+  lcCw=2250,
+  lcAw=(lcCw*1.5)+(lcM*4),
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcsql='select 
+    a.foreignNumber,
+    a.postDate,    
+    a.payee,
+    a.fundAccount,
+    a.contraAmount*-1,
+    a.contraPostDate,
+    left(a.contraPaymentType,charindex('' '',a.contraPaymentType)),
+    cv.e1
+     from 
+      (select * from dbo.paymentreports(''OFFICIAL'','&gcEndDate+0&',''TRUE'') where contraPostDate >= '&gcBeginDate+0&' and contraPostDate <= '&gcEndDate+0&' and paymenttype like ''%VOUCHER%'') a,
+      object cv 
+     where cv.typ=4771
+      and cv.id=dbo.slinkId(a.contraSLink) order by a.fundAccount,a.postDate,a.foreignNumber ',   
+  lcGrandTotal=0,
+tr(
+  prn(printed),
+  prn(page),
+  prn('Treasurers Memorandum of Credit',t1),
+  prn(gcCounty&' County - '&gcCity&', '&gcState,t2), 
+  prn(format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),t3),
+  prn(,lcLm,lcTm+1000),
+  lcAccTotal=0,
+  nl, 
+  bnd('H','VOUCHER',600,'DATE',700,'',700,'TO WHOM ISSUED',1800,'WHOM DRAWN',1400,'AMOUNT',1000R,'COMMENT',800),
+  bnd('HU','  No.',600,'RGSTRD',700,'',700,'',2300,'',1700,'',1000R),
+  nl,
+  grp(1,obj5:a4,do(
+    bnd(,'OFFICIAL ACCOUNT: '&obj5:a4,5000),
+    nl,nl,
+     ), do(
+    bnd('O',,600,,700,'',700,'',2300,'',1700,'',1000R),
+    prn(,,,11,bold,'courier new'),
+    bnd(,'',4700,'Account Totals:',1200R,format(lcAccTotal,@n-14.2),1000R, '',200R,'',900R),
+    lcAccTotal=0,
+    detendpage)
+     ),
+  det(lcsql),
+   bnd(,
+     obj5:a1,600,
+     format(obj5:a2,@d1),700,
+     left(obj5:a7&' - '&format(obj5:a6,@d1),20),700,
+     left(format(obj5:a3,@s30),25),1800,
+     left(format(obj5:a4,@s30),17),1400,
+     format(obj5:a5,@n$-19.2),1000R,
+     obj5:a8,1000 ),
+     lcAccTotal=lcAccTotal+obj5:a5,
+     lcGrandTotal=lcGrandTotal+obj5:a5,
+   edt,
+    bnd(,'',4700,'Grand Total:',1200R,format(lcGrandTotal,@n-14.2),1000R, '',200R,'',900R),
+ );
