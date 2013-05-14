@@ -20,78 +20,136 @@ create function dbo.rpMonthEndDetail(
 ) as
 begin
 
- insert @rt 
- select
-  b.accountType,
-  a.accountId,
-  a.accountCode,
-  a.accountDesc,
-  comment,
-  a.comment2,
-  a.sourceCode,
-  sum(amount) as amount,
-  c.journalType,
-  '' as sourceDesc,
-  '' as  sourceSECA,
-  o.key3 as journalDesc,
-  '' as monthEndCategory,
-  o.key2 as apportiondate
- from gldetail a, glAccounts b, (select * from dbo.rpMonthEndSLinks(@beginDate,@endDate)) c, object o  
- where o.typ=4512
-  and left(slink,1)='o' and dbo.slinkId(slink)=o.id
-  and a.accountCode=b.accountCode 
-  and slink = c.journalSlink
-  and accountType not in ('EXPENSE')
- group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3, o.key2
- having sum(amount)<>0.00
 
- if @includeUnapportioned = 'TRUE'
+ if @includeUnapportioned = 'PROTEST'
+  begin
+   declare @protestAccountId int
+   select top 1 @protestAccountId = accountId 
+    from glaccounts 
+    where right(accountcode,7)='PROTEST' 
+      and accountId in (select contraId from gldetail where isnull(bsId,0)=0)
+      and isnumeric(left(accountcode,4))=1
+    order by accountcode desc
+
+   insert @rt 
+   select
+    b.accountType,
+    a.accountId,
+    a.creditCode as accountCode,
+    b.accountDesc,
+    comment,
+    a.stepDesc as comment2, 
+    a.sourceCode,
+    sum(amount*-1) as amount,
+    'APPORTIONMENT' as journalType,
+    '' as sourceDesc,
+    '' as  sourceSECA,
+    left(a.contraAccountDesc,4)+' ADVALOREM' as journalDesc,
+    '' as monthEndCategory,
+    @enddate as apportiondate
+   from (select * from apportioncollectionsWT(@protestAccountId,@endDate,'', null, null)) a, glAccounts b
+   where a.creditCode=b.accountCode
+    and b.accountType not in ('EXPENSE')
+   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   having sum(amount)<>0.00
+ 
+   insert @rt 
+   select
+    b.accountType,
+    a.accountId, 
+    a.debitCode as accountCode,
+    b.accountDesc,
+    comment,
+    a.stepDesc as comment2, 
+    a.sourceCode,
+    sum(amount*-1) as amount,
+    'APPORTIONMENT' as journalType,
+    '' as sourceDesc,
+    '' as  sourceSECA,
+    left(a.contraAccountDesc,4)+' ADVALOREM' as journalDesc,
+    '' as monthEndCategory,
+    @enddate as apportiondate
+   from (select * from apportioncollectionsWT(@protestAccountId,@endDate,'', null, null)) a, glAccounts b
+   where a.debitCode=b.accountCode
+    and b.accountType not in ('EXPENSE')
+   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   having sum(amount)<>0.00 
+
+  end
+ else
  begin
-
   insert @rt 
   select
    b.accountType,
    a.accountId,
-   a.creditCode as accountCode,
-   b.accountDesc,
+   a.accountCode,
+   a.accountDesc,
    comment,
-   a.stepDesc as comment2, 
+   a.comment2,
    a.sourceCode,
    sum(amount) as amount,
-   'APPORTIONMENT' as journalType,
+   c.journalType,
    '' as sourceDesc,
    '' as  sourceSECA,
-   a.contraAccountDesc as journalDesc,
+   o.key3 as journalDesc,
    '' as monthEndCategory,
-   @enddate as apportiondate
-  from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
-  where a.creditCode=b.accountCode
-   and b.accountType not in ('EXPENSE')
-  group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
-  having sum(amount)<>0.00
- 
-  insert @rt 
-  select
-   b.accountType,
-   a.accountId, 
-   a.debitCode as accountCode,
-   b.accountDesc,
-   comment,
-   a.stepDesc as comment2, 
-   a.sourceCode,
-   sum(amount) as amount,
-   'APPORTIONMENT' as journalType,
-   '' as sourceDesc,
-   '' as  sourceSECA,
-   a.contraAccountDesc as journalDesc,
-   '' as monthEndCategory,
-   @enddate as apportiondate
-  from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
-  where a.debitCode=b.accountCode
-   and b.accountType not in ('EXPENSE')
-  group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
-  having sum(amount)<>0.00
+   o.key2 as apportiondate
+  from gldetail a, glAccounts b, (select * from dbo.rpMonthEndSLinks(@beginDate,@endDate)) c, object o  
+  where o.typ=4512
+   and left(slink,1)='o' and dbo.slinkId(slink)=o.id
+   and a.accountCode=b.accountCode 
+   and slink = c.journalSlink
+   and accountType not in ('EXPENSE')
+  group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3, o.key2
+  having sum(amount)<>0.00  
 
+  if @includeUnapportioned = 'TRUE'
+  begin 
+
+   insert @rt 
+   select
+    b.accountType,
+    a.accountId,
+    a.creditCode as accountCode,
+    b.accountDesc,
+    comment,
+    a.stepDesc as comment2, 
+    a.sourceCode,
+    sum(amount) as amount,
+    'APPORTIONMENT' as journalType,
+    '' as sourceDesc,
+    '' as  sourceSECA,
+    a.contraAccountDesc as journalDesc,
+    '' as monthEndCategory,
+    @enddate as apportiondate
+   from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
+   where a.creditCode=b.accountCode
+    and b.accountType not in ('EXPENSE')
+   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   having sum(amount)<>0.00
+ 
+   insert @rt 
+   select
+    b.accountType,
+    a.accountId, 
+    a.debitCode as accountCode,
+    b.accountDesc,
+    comment,
+    a.stepDesc as comment2, 
+    a.sourceCode,
+    sum(amount) as amount,
+    'APPORTIONMENT' as journalType,
+    '' as sourceDesc,
+    '' as  sourceSECA,
+    a.contraAccountDesc as journalDesc,
+    '' as monthEndCategory,
+    @enddate as apportiondate
+   from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
+   where a.debitCode=b.accountCode
+    and b.accountType not in ('EXPENSE')
+   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   having sum(amount)<>0.00 
+  end
  end
 
  update a set
