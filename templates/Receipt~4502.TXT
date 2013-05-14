@@ -188,7 +188,8 @@ close('ok');
  if(obj:key3='OFFICIAL' or obj:key3='TRUST',doofficial=),
  if(obj:key3='INDIV' and obj:b3>' 0',acc113=),
  gcRecType=obj:key3,
- if(obj:a17<>'Posted' and obj:key2<'  0',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),
+ lcPostDate=kp('select dbo.depositDate('''&gcRecType&''')'),
+ if(obj:a17<>'Posted' and obj:key2<>lcPostDate,set(4,lcPostDate)),
  update;
 
 @doofficial=prop(016,7C02H,64),
@@ -665,7 +666,7 @@ gcPrintOneTaxReceiptId=0,
  lccashreturned=kp('select amount*-1 from paid where slink=''o'&obj:id&''' and checkno=''CASH RETURNED'''),
  if(lccashreturned+0>0,m(clip(format(lccashreturned,@n$-19.2))&' Cash Due To Customer. Continue?','Continue?',,6)),
  break(lccashreturned+0>0 and gcretval<>2),
- if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),update,
+ update,
  getRecNum=,
  if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
@@ -673,6 +674,8 @@ gcPrintOneTaxReceiptId=0,
  gccertId=0,
  lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
  if(lccheck+0 > 0,dodecal=);
+
+ if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),
 
 @dodecal=m('There appears to be at least one mobile home related to this receipt would you like to record decal(s)?','Record Decals?',,6),
  break(gcretval+0<>2),
