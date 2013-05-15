@@ -27,8 +27,8 @@ begin
  insert @rt
  select
   id,
-  dbo.padRight(key1,' ',25) 
-  + dbo.padRight(key2,' ',25), 
+  dbo.padRight(left(key1,25),' ',25) 
+  + dbo.padRight(left(key2,25),' ',25), 
   1,
   dbo.padLeft(cast(id as varchar),'0',10) + 'a' 
  from object
@@ -38,8 +38,20 @@ begin
 
  insert @rt
  select
+  id*-1,
+  dbo.padRight(left(mortgagor,25),' ',25) 
+  + dbo.padRight(left(mortgagee,25),' ',25), 
+  1,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'a' 
+ from mortgageInfo
+ where receiptId = @receiptId 
+ order by id
+
+
+ insert @rt
+ select
   id,
-  '  Desc: ' + d1,
+  '  Desc: ' + left(d1,92),
   0,
   dbo.padLeft(cast(id as varchar),'0',10) + 'b' 
  from object
@@ -49,8 +61,19 @@ begin
 
  insert @rt
  select
+  id*-1,
+  '  Desc: ' + left(description,92),
+  0,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'b' 
+ from mortgageInfo
+ where receiptId = @receiptId 
+ order by id
+
+
+ insert @rt
+ select
   id,
-  replace('   STR: ' + key3 + '/' + a1 + '/' + a2,'//','/'),
+  left(replace('   STR: ' + key3 + '/' + a1 + '/' + a2,'//','/'),99),
   0,
   dbo.padLeft(cast(id as varchar),'0',10) + 'c' 
  from object
@@ -61,13 +84,34 @@ begin
 
  insert @rt
  select
+  id*-1,
+  left(replace('   STR: ' + section + '/' + township + '/' + range,'//','/'),99),
+  0,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'c' 
+ from mortgageInfo
+ where receiptId = @receiptId 
+  and (len(section+township+range)>0)
+ order by id
+
+ insert @rt
+ select
   id,
-  '  Lend: ' + a3,
+  '  Lend: ' + left(a3,92),
   0,
   dbo.padLeft(cast(id as varchar),'0',10) + 'd' 
  from object
  where typ=4507
   and link1 = @receiptId 
+ order by id
+
+ insert @rt
+ select
+  id,
+  '  Lend: ' + left(lender,92),
+  0,
+  dbo.padLeft(cast(id as varchar),'0',10) + 'd' 
+ from mortgageInfo
+ where receiptId = @receiptId 
  order by id
 
  return
