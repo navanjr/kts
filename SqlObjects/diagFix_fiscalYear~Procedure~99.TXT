@@ -1,0 +1,74 @@
+create proc dbo.diagFix_fiscalYear(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(o.id),  
+   @message = 'object records with the wrong fiscalyear.'
+  from object o
+   join gldetail g on dbo.slinkId(g.slink)=o.id and dbo.slinktype(g.slink)='o'
+   join dbo.fiscalCalendar f on f.fpCode = g.fpCode
+  where o.olink1 <> f.fiscalYear
+   and f.fiscalYear > ' 0'
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   o.*,
+   g.slink,
+   g.fpCode, f.fpCode,
+   g.fpid, f.fpid,
+   f.startDate, f.endDate, g.date,
+   dbo.date1(g.date)
+  from object o
+   join gldetail g on dbo.slinkId(g.slink)=o.id and dbo.slinktype(g.slink)='o'
+   join dbo.fiscalCalendar f on f.fpCode = g.fpCode
+  where o.olink1 <> f.fiscalYear
+   and f.fiscalYear > ' 0'
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  declare @ids table(id int, fiscalYear varchar(12))
+  insert @ids
+  select distinct
+   o.id,
+   f.fiscalYear
+  from object o
+   join gldetail g on dbo.slinkId(g.slink)=o.id and dbo.slinktype(g.slink)='o'
+   join dbo.fiscalCalendar f on f.fpCode = g.fpCode
+  where o.olink1 <> f.fiscalYear
+   and f.fiscalYear > ' 0'
+  
+  update o set
+   o.olink1 = i.fiscalYear
+  from object o, @ids i
+  where o.id=i.id
+
+  return  
+ end
+
+
+end

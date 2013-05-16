@@ -44,7 +44,8 @@ begin
   @log varchar(max),
   @postDate int,
   @newId int,
-  @warrantPayee varchar(50) = ''
+  @warrantPayee varchar(50) = '',
+  @vfiscalYear varchar(20)
 
  select @postedStatus = status from dbo.glStatus(@slink)
 
@@ -261,6 +262,20 @@ begin
 
   end
 
+  declare @registerDateOverride varchar(20) = 'FALSE'
+
+  if dbo.nextObjectAutoNumberControl(4771,@paymentType)='Official Voucher'
+  begin
+   set @registerDateOverride = dbo.settingsF('site.voucherPostDateEqualsVoucherDate','FALSE')
+
+-- set the post date
+   select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
+
+   select @vfiscalYear = fiscalYear from dbo.fiscalCalendar where coalesce(nullif(@postDate,''),cast(dbo.clarionToday() as varchar)) between startDate and endDate
+   set @nextNumAdditionalWhere = 'olink1 = ''' + @vfiscalYear + ''' '
+  end
+
+
   if left(@paymentType,7) = 'Cancel ' or left(@paymentType,5) = 'Void '
   begin
    select
@@ -330,16 +345,8 @@ begin
    return
   end
 
-  declare @registerDateOverride varchar(20) = 'FALSE'
 
-  if @paymentType = 'official Voucher'
-  begin
-   set @registerDateOverride = dbo.settingsF('site.voucherPostDateEqualsVoucherDate','FALSE')
 
--- set the post date
-   select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
-
-  end
 
   exec dbo.logit @@procid, '@nextVoucherNumber=',@nextVoucherNumber, '@paymentType', @paymentType, '@postDate', @postDate
 
