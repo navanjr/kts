@@ -23,13 +23,13 @@ begin
  if @method = 'GET'
  begin 
 
-insert @wt
- select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
- from receiptdetail rd, glaccounts a 
- where left(slink,1)='t'
-  and rd.fundcode=a.accountcode
-  and a.apyear > ' 0'
- group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
 
   select 
    @class = 'Taxroll',
@@ -57,19 +57,19 @@ insert @wt
  if @method = 'SHOW'
  begin  
 
-insert @wt
- select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
- from receiptdetail rd, glaccounts a 
- where left(slink,1)='t'
-  and rd.fundcode=a.accountcode
-  and a.apyear > ' 0'
- group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
 
-select * from invoices i, @wt id--, adtax a
-  where i.id=id.invoiceid
-   and isnull(i.invoiceid,0)=0 
-   and i.typ <> 'S'
-   and i.origin < ' 0'
+ select * from invoices i, @wt id--, adtax a
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
 --   and i.taxrollid = a.id
 --   and i.typ=a.recordtype
 --   and i.parcel=a.FULLPIDNUMBER
@@ -84,33 +84,35 @@ select * from invoices i, @wt id--, adtax a
  if @method = 'FIX'
  begin  
 
-insert @wt
- select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
- from receiptdetail rd, glaccounts a 
- where left(slink,1)='t'
-  and rd.fundcode=a.accountcode
-  and a.apyear > ' 0'
- group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+ exec dbo.diagFix_adtaxMissingOrigin @method='FIX'
 
-update invoices set origin = a.origin from invoices i, @wt id, adtax a
-  where i.id=id.invoiceid
-   and isnull(i.invoiceid,0)=0 
-   and i.typ <> 'S'
-   and i.origin < ' 0'
-   and i.taxrollid = a.id
-   and i.typ=a.recordtype
-   and i.parcel=a.FULLPIDNUMBER
-   and i.taxyear=a.realtaxyear
-   and i.item=a.ITEMNUMBER
-   and id.apdistrict=a.ORGSCHOOLDISTRICTMAIN
-   and id.aprate=ORGSCHOOLDISTRICTTAXRATE
-   and id.amount=ORIGINALTOTALDUE
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
 
-update invoices set origin = 'Taxroll Correction' from invoices i, @wt id
-  where i.id=id.invoiceid
-   and isnull(i.invoiceid,0)=0 
-   and i.typ <> 'S'
-   and i.origin < ' 0'
+ update invoices set origin = a.origin from invoices i, @wt id, adtax a
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
+    and i.taxrollid = a.id
+    and i.typ=a.recordtype
+    and i.parcel=a.FULLPIDNUMBER
+    and i.taxyear=a.realtaxyear
+    and i.item=a.ITEMNUMBER
+    and id.apdistrict=a.ORGSCHOOLDISTRICTMAIN
+    and id.aprate=ORGSCHOOLDISTRICTTAXRATE
+    and id.amount=ORIGINALTOTALDUE
+
+ update invoices set origin = 'Taxroll Correction' from invoices i, @wt id
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
 
   return
 
