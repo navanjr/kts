@@ -1,0 +1,233 @@
+
+declare @det varchar(max) ='',
+		@det2 varchar(max) ='',
+		@tokenId varchar(20),
+		@invoiceBlob varchar(max),
+		@address varchar(max),
+		@siteBlob varchar(max) = dbo.getSiteblob(0),
+		@mill varchar(50),
+		@half2 varchar(50),
+		@total2 varchar(50),
+		@DocumentId int = 0,
+		@taxYear varchar(10) = '2012',
+		@fileName varchar(1000) = 'c:\client\pbstuff.txt',
+		@text varchar(max) = ''
+		
+declare @rt table(
+    id int,
+	title varchar (100),
+	
+	countyName varchar(50),
+	countyadd1 varchar(50),
+	countyadd2 varchar(50),
+	countyadd3 varchar(50),
+	countyadd4 varchar(50),
+	
+	name varchar(50),
+	add1 varchar(50),
+	add2 varchar(50),
+	add3 varchar(50),
+	add4 varchar(50),
+	add5 varchar(50),
+	
+	taxRollItemNumber varchar(50),
+	taxYear varchar(10),
+	parcelNumber varchar(50),
+	taxType varchar(50),
+
+	schoolDistrict varchar(50),
+	TaxRate varchar(50),
+	acres varchar(50),
+	mfgHomes varchar(50),
+	VIN varchar(50),
+	gross varchar(50),
+	exemptions varchar(50),
+	net varchar(50),
+	legalDescription varchar(4000),
+	row1Distribution varchar(50),
+	row1Mills varchar(50),
+	row1amount varchar(50),
+	row2Distribution varchar(50),
+	row2Mills varchar(50),
+	row2amount varchar(50),
+	row3Distribution varchar(50),
+	row3Mills varchar(50),
+	row3amount varchar(50),
+	row4Distribution varchar(50),
+	row4Mills varchar(50),
+	row4amount varchar(50),
+	row5Distribution varchar(50),
+	row5Mills varchar(50),
+	row5amount varchar(50),
+	row6Distribution varchar(50),
+	row6Mills varchar(50),
+	row6amount varchar(50),
+	row7Distribution varchar(50),
+	row7Mills varchar(50),
+	row7amount varchar(50),
+	row8Distribution varchar(50),
+	row8Mills varchar(50),
+	row8amount varchar(50),
+	row9Distribution varchar(50),
+	row9Mills varchar(50),
+	row9amount varchar(50),
+	row10Distribution varchar(50),
+	row10Mills varchar(50),
+	row10amount varchar(50),
+	row11Distribution varchar(50),
+	row11Mills varchar(50),
+	row11amount varchar(50),
+	row12Distribution varchar(50),
+	row12Mills varchar(50),
+	row12amount varchar(50),
+	TotalDue varchar(50),
+	stubTitle varchar(100),
+	barcode varchar(50),
+	ownerId varchar(50),
+	MrtgCode varchar(50),
+	row1BackTax varchar(50),
+	row1Year varchar(50),
+	row2BackTax varchar(50),
+	row2Year varchar(50),
+	row3BackTax varchar(50),
+	row3Year varchar(50),
+	row4BackTax varchar(50),
+	row4Year varchar(50),
+	halfTax varchar(50))
+
+ select @text = 	'"title","countyName","countyadd1","countyadd2","countyadd3","countyadd4","name","add1","add2","add3","add4","add5","taxRollItemNumber","taxYear","parcelNumber","taxType","schoolDistrict","TaxRate","acres","mfgHomes","VIN","gross","exemptions","net","legalDescription","row1Distribution","row1Mills","row1amount","row2Distribution","row2Mills","row2amount","row3Distribution","row3Mills","row3amount","row4Distribution","row4Mills","row4amount","row5Distribution","row5Mills","row5amount","row6Distribution","row6Mills","row6amount","row7Distribution","row7Mills","row7amount","row8Distribution","row8Mills","row8amount","row9Distribution","row9Mills","row9amount","row10Distr","row10Mills","row10amount","row11Distribution","row11Mills","row11amount","row12Distribution","row12Mills","row12amount","TotalDue","stubTitle","barcode","ownerId","MrtgCode","row1BackTax","row1Year","row2BackTax","row2Year","row3BackTax","row3Year","row4BackTax","row4Year","halfTax"' + CHAR(13) + CHAR(10)
+ exec spOverwriteTextFile @fileName,@text,@append = 'FALSE'
+
+ select @address = dbo.parseAddress(@siteBlob)+CHAR(13)+CHAR(10)+dbo.readstring('Phone=',@siteBlob)
+ 
+insert @rt (id,name,taxRollItemNumber,parcelNumber,taxyear,taxType,countyName,countyadd1,countyadd2,countyadd3,countyadd4,barcode,ownerId)
+ select top 10000
+  i.ID, NAME, ITEM, PARCEL, taxYear, case when typ='R' then 'REAL ESTATE' else 'PERSONAL' end,
+  dbo.readstring('@county=',@siteBlob)+' County Treasurer',
+  dbo.splitf(@address,CHAR(13)+CHAR(10),1),
+  dbo.splitf(@address,CHAR(13)+CHAR(10),2),
+  dbo.splitf(@address,CHAR(13)+CHAR(10),3),
+  dbo.splitf(@address,CHAR(13)+CHAR(10),4),
+  '*'+cast(taxyear as varchar)+cast(ITEM as varchar)+'*',
+  a.OWNERNUMBER
+  
+   from invoices i
+    inner join AdTax a on a.ID=i.taxrollid
+    where i.TAXYEAR=@taxYear and i.invoiceAmount>0 order by a.OWNERNUMBER
+
+declare @wt table (id int)
+ insert @wt
+  select id from @rt order by ownerId
+ 
+ 
+while exists (select ID from @wt)
+ begin		
+ select top 1 @tokenId = ID from @wt  order by id desc
+ if @tokenId>0
+  begin
+   select @det = '',@det2 = ''
+   select @invoiceBlob = dbo.getTaxInvoiceBlob(@tokenId)
+   select @address=dbo.parseAddress(@invoiceBlob)
+   select @det = @det + alternateDescription+':'+subdescription+':'+cast(amount as varchar)+'|' from dbo.glDetailBRW('t'+@tokenId,1) where id<0 order by ord
+   select @half2 = cast(SUM(case when trcode='half tax' and trSection = 2 then invoiceDue else 0 end) as varchar),@total2 = cast(SUM(case when trcode='Current Yr Tax' and trSection = 2 then invoiceDue else 0 end) as varchar)  from dbo.unpaidTFNew(@tokenId)
+   select @det2 = @det2 + cast(sum(invoiceDue + penalty) as varchar) + ':' + cast(year as varchar) + '|' from dbo.unpaidTF(@tokenId,@DocumentId) where trcode = 'Past Due' and year is not null group by year
+    
+   if len(@invoiceBlob)>0
+   update @rt set
+    title = taxYear+' '+dbo.readstring('@county=',@siteBlob)+' County Tax Statement',
+    add1 = dbo.splitf(@address,CHAR(13)+CHAR(10),1),
+    add2 = dbo.splitf(@address,CHAR(13)+CHAR(10),2),
+    add3 = dbo.splitf(@address,CHAR(13)+CHAR(10),3),
+    add4 = dbo.splitf(@address,CHAR(13)+CHAR(10),4),
+    add5 = dbo.splitf(@address,CHAR(13)+CHAR(10),5),
+    gross = dbo.readstring('@GROSSASSESSED=',@invoiceBlob),
+    exemptions = dbo.readstring('@EXEMPTION3=',@invoiceBlob),
+    net = dbo.readstring('@NETASSESSEDVALUE=',@invoiceBlob),
+    schoolDistrict = dbo.readstring('@SCHOOLDISTRICTTAXRATE=',@invoiceBlob),
+    TaxRate = (select SUM(cast(dbo.splitf(data,':',2) as money)) from dbo.split(@det,'|')),
+    legalDescription = dbo.readstring('@LEGALDESCRIPTION=',@invoiceBlob),
+    ownerId =  dbo.readstring('@OwnerNumber=',@invoiceBlob),
+    acres = dbo.readstring('@ACRES=',@invoiceBlob),
+    mfgHomes = dbo.readstring('@MFGHOMEASSESSED=',@invoiceBlob),
+    MrtgCode = dbo.readstring('@MortgageCode=',@invoiceBlob),
+    VIN = dbo.readstring('@VIN=',@invoiceBlob),
+    
+    row1Distribution = dbo.splitf(dbo.splitF(@det,'|',1),':',1),
+    row1Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',1),':',2)),
+    row1amount = dbo.splitf(dbo.splitF(@det,'|',1),':',3),
+    row2Distribution = dbo.splitf(dbo.splitF(@det,'|',2),':',1),
+    row2Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',2),':',2)),
+    row2amount = dbo.splitf(dbo.splitF(@det,'|',2),':',3),
+    row3Distribution = dbo.splitf(dbo.splitF(@det,'|',3),':',1),
+    row3Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',3),':',2)),
+    row3amount = dbo.splitf(dbo.splitF(@det,'|',3),':',3),
+    row4Distribution = dbo.splitf(dbo.splitF(@det,'|',4),':',1),
+    row4Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',4),':',2)),
+    row4amount = dbo.splitf(dbo.splitF(@det,'|',4),':',3),
+    row5Distribution = dbo.splitf(dbo.splitF(@det,'|',5),':',1),
+    row5Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',5),':',2)),
+    row5amount = dbo.splitf(dbo.splitF(@det,'|',5),':',3),
+    row6Distribution = dbo.splitf(dbo.splitF(@det,'|',6),':',1),
+    row6Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',6),':',2)),
+    row6amount = dbo.splitf(dbo.splitF(@det,'|',6),':',3),
+    row7Distribution = dbo.splitf(dbo.splitF(@det,'|',7),':',1),
+    row7Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',7),':',2)),
+    row7amount = dbo.splitf(dbo.splitF(@det,'|',7),':',3),
+    row8Distribution = dbo.splitf(dbo.splitF(@det,'|',8),':',1),
+    row8Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',8),':',2)),
+    row8amount = dbo.splitf(dbo.splitF(@det,'|',8),':',3),
+    row9Distribution = dbo.splitf(dbo.splitF(@det,'|',9),':',1),
+    row9Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',9),':',2)),
+    row9amount = dbo.splitf(dbo.splitF(@det,'|',9),':',3),
+    row10Distribution = dbo.splitf(dbo.splitF(@det,'|',10),':',1),
+    row10Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',10),':',2)),
+    row10amount = dbo.splitf(dbo.splitF(@det,'|',10),':',3),
+    row11Distribution = dbo.splitf(dbo.splitF(@det,'|',11),':',1),
+    row11Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',11),':',2)),
+    row11amount = dbo.splitf(dbo.splitF(@det,'|',11),':',3),
+    row12Distribution = dbo.splitf(dbo.splitF(@det,'|',12),':',1),
+    row12Mills = dbo.formatcurr(dbo.splitf(dbo.splitF(@det,'|',12),':',2)),
+    row12amount = dbo.splitf(dbo.splitF(@det,'|',12),':',3),
+
+    stubTitle = 'Make checks payable to: ' + dbo.readstring('@county=',@siteBlob) + 'County Treasurer',
+    TotalDue = @total2,
+    halfTax = @half2,
+    
+    row1BackTax = dbo.splitf(dbo.splitF(@det2,'|',1),':',1),
+    row1Year = dbo.splitf(dbo.splitF(@det2,'|',1),':',2),
+    row2BackTax = dbo.splitf(dbo.splitF(@det2,'|',2),':',1),
+    row2Year = dbo.splitf(dbo.splitF(@det2,'|',2),':',2),
+    row3BackTax = dbo.splitf(dbo.splitF(@det2,'|',3),':',1),
+    row3Year = dbo.splitf(dbo.splitF(@det2,'|',3),':',2),
+    row4BackTax = dbo.splitf(dbo.splitF(@det2,'|',4),':',1),
+    row4Year = dbo.splitf(dbo.splitF(@det2,'|',4),':',2)
+    where id = @tokenId
+ 
+   select @text =    '"'+ title + '","'+ countyName + '","'+ countyadd1 + '","'+ countyadd2 + '","'+ countyadd3 + '","'+ countyadd4 + '","'+ name + '","'+ add1 + '","'+ add2 + '","'+ add3 + '","'+ add4 + '","'+ add5 + '","'+ taxRollItemNumber + '","'+ taxyear  + '","'+ parcelNumber + '","'+ taxType + '","'+ schoolDistrict + '","'+ TaxRate + '","'+ acres + '","'+ mfgHomes  + '","'+ VIN  + '","'+ gross + '","'+ exemptions + '","'+ net + '","'+ legalDescription + '","'+ 
+    row1Distribution + '","'+ row1Mills + '","'+ row1amount  + '","'+ 
+    row2Distribution + '","'+ row2Mills + '","'+ row2amount  + '","'+ 
+    row3Distribution + '","'+ row3Mills + '","'+ row3amount  + '","'+ 
+    row4Distribution + '","'+ row4Mills + '","'+ row4amount  + '","'+ 
+    row5Distribution + '","'+ row5Mills + '","'+ row5amount  + '","'+ 
+    row6Distribution + '","'+ row6Mills + '","'+ row6amount  + '","'+ 
+    row7Distribution + '","'+ row7Mills + '","'+ row7amount  + '","'+ 
+    row8Distribution + '","'+ row8Mills + '","'+ row8amount  + '","'+ 
+    row9Distribution + '","'+ row9Mills + '","'+ row9amount  + '","'+ 
+    row10Distribution + '","'+ row10Mills + '","'+ row10amount  + '","'+ 
+    row11Distribution + '","'+ row11Mills + '","'+ row11amount  + '","'+ 
+    row12Distribution + '","'+ row12Mills + '","'+ row12amount  + '","'+ 
+    TotalDue + '","'+ stubTitle + '","'+ barcode + '","'+ ownerId + '","'+ MrtgCode + '","'+ 
+    row1BackTax + '","'+ row1Year + '","'+ 
+    row2BackTax + '","'+ row2Year + '","'+ 
+    row3BackTax + '","'+ row3Year + '","'+ 
+    row4BackTax + '","'+ row4Year + '","'+
+    halfTax + '"' + CHAR(13) + CHAR(10)
+   from @rt where id = @tokenId
+
+   exec spOverwriteTextFile @fileName,@text,@append = 'TRUE'
+    
+    delete from @wt where ID = @tokenId
+  end
+ end
+ 
+

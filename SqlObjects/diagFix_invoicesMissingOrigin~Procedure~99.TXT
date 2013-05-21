@@ -1,0 +1,121 @@
+create proc dbo.diagFix_invoicesMissingOrigin(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(invoiceId int, 
+                  fundcode varchar(60),
+                  amount money,
+                  apyear varchar(50),
+                  apdistrict varchar(50),
+                  aprate varchar(50)
+)
+
+
+ if @method = 'GET'
+ begin 
+
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+
+  select 
+   @class = 'Taxroll',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Origin Missing on Invoices Record'
+  from invoices i, @wt id--, adtax a
+  where i.id=id.invoiceid
+   and isnull(i.invoiceid,0)=0 
+   and i.typ <> 'S'
+   and i.origin < ' 0'
+--   and i.taxrollid = a.id
+--   and i.typ=a.recordtype
+--   and i.parcel=a.FULLPIDNUMBER
+--   and i.taxyear=a.realtaxyear
+--   and i.item=a.ITEMNUMBER
+--   and id.apdistrict=a.ORGSCHOOLDISTRICTMAIN
+--   and id.aprate=ORGSCHOOLDISTRICTTAXRATE
+--   and id.amount=ORIGINALTOTALDUE
+
+   
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+
+ select * from invoices i, @wt id--, adtax a
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
+--   and i.taxrollid = a.id
+--   and i.typ=a.recordtype
+--   and i.parcel=a.FULLPIDNUMBER
+--   and i.taxyear=a.realtaxyear
+--   and i.item=a.ITEMNUMBER
+--   and id.apdistrict=a.ORGSCHOOLDISTRICTMAIN
+--   and id.aprate=ORGSCHOOLDISTRICTTAXRATE
+--   and id.amount=ORIGINALTOTALDUE
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+ exec dbo.diagFix_adtaxMissingOrigin @method='FIX'
+
+ insert @wt
+  select dbo.slinkid(rd.slink) as invoiceId,rd.fundCode,sum(rd.amount) as amount, a.apyear, a.apdistrict, a.aprate
+  from receiptdetail rd, glaccounts a 
+  where left(slink,1)='t'
+   and rd.fundcode=a.accountcode
+   and a.apyear > ' 0'
+  group by rd.slink, rd.fundcode, a.apyear, a.apdistrict, a.aprate
+
+ update invoices set origin = a.origin from invoices i, @wt id, adtax a
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
+    and i.taxrollid = a.id
+    and i.typ=a.recordtype
+    and i.parcel=a.FULLPIDNUMBER
+    and i.taxyear=a.realtaxyear
+    and i.item=a.ITEMNUMBER
+    and id.apdistrict=a.ORGSCHOOLDISTRICTMAIN
+    and id.aprate=ORGSCHOOLDISTRICTTAXRATE
+    and id.amount=ORIGINALTOTALDUE
+
+ update invoices set origin = 'Taxroll Correction' from invoices i, @wt id
+   where i.id=id.invoiceid
+    and isnull(i.invoiceid,0)=0 
+    and i.typ <> 'S'
+    and i.origin < ' 0'
+
+  return
+
+ end
+
+end

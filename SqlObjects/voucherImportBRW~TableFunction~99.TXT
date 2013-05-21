@@ -21,13 +21,16 @@ begin
   @debitAcct varchar(50),
   @creditAcct varchar(50),
   @officalLink int,
-  @lastNumber int
+  @lastNumber int,
+  @fiscalYear varchar(20)
 
  select
   @officalLink = link2,
   @debitAcct = key2,
   @csv = e1
  from object where typ = 4770 and id = @id
+
+ select @fiscalYear = fiscalYear from dbo.fiscalCalendar where dbo.clariondate(getdate()) between startDate and endDate
 
  -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
  select 
@@ -81,7 +84,11 @@ begin
 
 --  select @lastNumber = cast(@nextNumber as int)-1
 
- select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and dbo.nextObjectAutoNumberControl(4771,a18) = dbo.nextObjectAutoNumberControl(4771,'Official Voucher') order by key2 desc, key1 desc
+ select top 1 @lastNumber = cast(key1 as int) from object 
+  where typ = 4771 
+   and dbo.nextObjectAutoNumberControl(4771,a18) = dbo.nextObjectAutoNumberControl(4771,'Official Voucher') 
+   and olink1 = @fiscalYear
+  order by key2 desc, key1 desc
  declare @reg table(regSeed int identity(1,1), id int)
  insert @reg select id from @rt where postCheck = 0 order by voucherNumber
  update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id

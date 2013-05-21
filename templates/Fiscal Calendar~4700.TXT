@@ -40,7 +40,7 @@ fastinsert;
  
 @sel106=if(obj:a17=0,set(40,'',1));
 
-@format=30L(2)~Code~#1#|M100L(2)~Description~#2#|M40R(2)~Start~@d1@#3#|M40R(2)~End~@d1@#5#|M35C(0)~Locked~#4#|M70R(2)~Debits~@n14.2b@#17#|M70R(2)~Credits~@n14.2b@#18#|M30L(2)~~#8#|M;
+@format=30L(2)~Code~#1#|M100L(2)~Description~#2#|M40R(2)~Start~@d1@#3#|M40R(2)~End~@d1@#5#|M50L(2)~Fiscal Year~#30#|M35C(0)~Locked~#4#|M70R(2)~Debits~@n14.2b@#17#|M70R(2)~Credits~@n14.2b@#18#|M30L(2)~~#8#|M;
 @browse4=choose(obj:a17=1,'X','');
 @browse8=choose(obj:a5+0=obj:a6+0,'','X');
 
@@ -49,6 +49,8 @@ fastinsert;
  iw(',.t000Please enter the 4 digit year...., ,.t001Year., ,.w00235., ,.t002p####p.,'),
  break(gcretval<>'OK'),
  gcfyr=obj7:key1,
+ d1select('select dbo.validateFiscalYear('''&gcfyr&''')'),
+ gcfyrfmt=obj7:d1,
  gcfyoffset=-1,
  gcfmo='01',gcfmoname='July',createfy=,
  gcfmo='02',gcfmoname='August',createfy=,
@@ -66,7 +68,7 @@ fastinsert;
 @createfy=
  gcfyy=gcfyr+gcfyoffset,
  lcid=kp('select id from object where typ=4700 and key1 = '''&gcfyr&gcfmo&''''),
- if(lcid<1,fastinsert(-02=4700,002=gcfyr&gcfmo,004=gcfmoname&' '&gcfyy,006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4))));
+ if(lcid<1,fastinsert(-02=4700,002=gcfyr&gcfmo,004=gcfmoname&' '&gcfyy,006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4)),042=gcfyrfmt));
 
 @bb5=&Lock Period;  
 @bbproc5=if(obj:a17=1,fastmodify(obj:id,040=0),fastmodify(obj:id,040=1));
@@ -94,5 +96,7 @@ t009Working Days;  t010@n-12;   w01025;
 \t015Debits;  \w01670;  \t016@n14.2; \p0167cfah,13499135; \p0167c13h,700; \p0167c0ch,1; \s016+'select sum(amount) from glDetail where amount > 0 and fpId='&obj:id;
 \t017Credits;  \w01870;  \t018@n14.2; \p0187cfah,13499135; \p0187c13h,700; \p0187c0ch,1; \s018+'select abs(sum(amount)) from glDetail where amount < 0 and fpId='&obj:id;
 \t019Details;  \h020; \h019gcadmin<>1;
+
+\t041Fiscal Year; \w04255; \y041042=001;r
 
 \t039&Lock Period;  \h040; @acc039=update;

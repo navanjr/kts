@@ -7,9 +7,13 @@ begin
 
  declare
   @accountId int,
-  @tokenId int
+  @tokenId int,
+  @clearDate int = dbo.bankStatementClearDate(@bsId)
 
- select @accountId = link1 from object where id = @bsId
+ select 
+  @accountId = link1
+  from object where id = @bsId
+ 
 
  if @id is null
   declare ids cursor for select data from dbo.split(@idsBlob,'|')
@@ -30,7 +34,7 @@ begin
   begin
 -- link the item to the BankStatement only if it is not linked already
    if exists(select * from dbo.glDetail where id = @tokenId and accountId = @accountId and isnull(bsId,0) = 0)
-    update dbo.glDetail set bsId = @bsId, dateCleared = dbo.clariondate(getdate()) where accountId = @accountId and id = @tokenId
+    update dbo.glDetail set bsId = @bsId, dateCleared = @clearDate where accountId = @accountId and id = @tokenId
   end
 
   fetch next from ids into @tokenId

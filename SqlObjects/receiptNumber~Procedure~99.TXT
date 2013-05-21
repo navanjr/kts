@@ -5,12 +5,22 @@ create procedure dbo.receiptNumber(
 begin
   declare 
     @retval nvarchar(max),
-    @objectType int
+    @objectType int,
+    @date varchar(20),
+    @fiscalYear varchar(20),
+    @additionalWhereClause varchar(250)=null
 
-  select @objectType=typ from object where id=@receiptId
-   
+   select @objectType=typ from object where id=@receiptId
 
-  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @newNumber = @retval output
+  if @objectType = 4522
+  begin
+   select @date = key2 from object where id = @receiptId
+   select @fiscalYear = fiscalYear from dbo.fiscalCalendar where @date between startDate and endDate
+
+   set @additionalWhereClause = ' olink1 = '''+@fiscalYear+''' '
+  end
+
+  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @additionalWhereClause=@additionalWhereClause, @newNumber = @retval output
 
   update object set key1=@retval where typ=@objectType and id=@receiptId
 end

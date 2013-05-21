@@ -362,7 +362,7 @@ class ktsMenu():
         package['sqlString'] = sqlString
         try:
             connection = pyodbc.connect(connectionString, autocommit=True)
-        except pyodbc.ProgrammingError:
+        except (pyodbc.ProgrammingError, pyodbc.Error):
             package['code'] = [1,'Failed to connect to %s' % connDatabase]
 
         try:

@@ -17,6 +17,7 @@ begin
   end
   
   update object set typ = -4507 where typ = 4507 and id = @receiptTyp -- hijacked this variable for deleting mortgage detail record
+  delete from mortgageInfo where receiptId = @receiptId
 
  end
 
@@ -24,13 +25,13 @@ begin
  begin
   declare 
    @MortgageNameId int,
-   @mortgagor varchar(50),
-   @mortgagee varchar(50),
-   @description varchar(50),
-   @section varchar(50),
-   @township varchar(50),
-   @range varchar(50),
-   @lender varchar(50)
+   @mortgagor varchar(100),
+   @mortgagee varchar(100),
+   @description varchar(100),
+   @section varchar(100),
+   @township varchar(100),
+   @range varchar(100),
+   @lender varchar(100)
 
  -- retrieve the specifics from the mortgageInfo in object
   select
@@ -46,9 +47,8 @@ begin
 
   if isnull(@MortgageNameId,0) = 0
   begin
-   insert object (typ,link1,key1,key2,d1,key3,a1,a2,a3) 
+   insert mortgageInfo (receiptId,mortgagor,mortgagee,description,section,township,range,lender) 
     select
-     4507,
      @receiptId,
      @mortgagor,
      @mortgagee,
@@ -60,14 +60,14 @@ begin
    end
   else
    begin 
-   update object set 
-     key1 = @mortgagor,
-     key2 = @mortgagee,
-     d1 = @description,
-     key3 = @section,
-     a1 = @township,
-     a2 = @range,
-     a3 = @lender
+   update mortgageInfo set 
+     mortgagor = @mortgagor,
+     mortgagee = @mortgagee,
+     description = @description,
+     section = @section,
+     township = @township,
+     range = @range,
+     lender = @lender
     where id = @MortgageNameId
    end
  end

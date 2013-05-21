@@ -5,7 +5,8 @@ create procedure dbo.bankStatementWarrantClicked(
  @key3Number varchar(50) = null,
  @method varchar(50) = 'TOGGLE',
  @verbose varchar(5) = 'TRUE',
- @dump varchar(max) = null output
+ @dump varchar(max) = null output,
+ @ini varchar(10) = null
 ) as
 begin
 
@@ -52,7 +53,11 @@ begin
   declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50), brwId int)
   declare
    @tokenId int,
-   @tokenBrwId int
+   @tokenBrwId int,
+   @importStamp varchar(50),
+   @theDate datetime = getdate()
+
+  select @importStamp = isnull(@ini,'') + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
   insert @warrants
   select
@@ -80,7 +85,8 @@ begin
     @voucherDate = @voucherDate,
     @voucherNumber = @key3Number,
     @clobberKey1 = @tokenPaymentNumber,
-    @verbose = 'FALSE'
+    @verbose = 'FALSE',
+    @importStamp = @importStamp 
 
    delete @warrants where id = @tokenId
 -- remove warrant from the warrants blob
