@@ -1,0 +1,35 @@
+create view dbo.taxrollAuditDetail 
+ as 
+select *,
+ case when accountType = 'SOURCE' and origin like '%Origin%' then '1. Original Tax'
+      when accountType = 'SOURCE' and origin = 'mike_taxroll' then '1. Original Tax'
+      when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' then '2. Taxroll Correction' 
+      when sourceType = '4502' then '3. Receipt'
+      when sourceType = '4512' and isnull(contraId,0) <> 0 then '5. Receipt Adjustment'
+      when sourceType = '4512' and isnull(contraId,0) = 0 then '6. Apportioned'
+      else 'Unidentified - '+origin end as auditOrigin
+from dbo.gldetailreports 
+where apdistrict > ' 0'
+union all 
+select a.*,
+ case when right(b.accountDesc,7) = 'PROTEST' then '7. Unppportioned Protest'
+      else '8. Pending Apportionment' 
+      end as auditOrigin
+from dbo.gldetailreports a, glaccounts b
+where a.contraId = b.accountId
+  and a.apdistrict > ' 0' 
+  and a.accounttype='ACCRUED RECEIVABLE'
+  and isnull(a.contraId,0) > 0
+  and isnull(a.bsId,0) = 0
+
+/*
+--This Code is for pulling the audit report
+select apdistrict,aprate,apyear,auditOrigin,sum(amount) as amount
+from dbo.taxrollAuditDetail
+where apyear='2012'
+group by apdistrict,aprate,apyear,auditOrigin
+order by apyear,apdistrict,aprate,auditOrigin
+
+
+
+*/
