@@ -272,9 +272,14 @@ t005Fund; l0064701,2;r006002044004008014; lf006='a1 in (''FUND'',''OFFICIAL'') a
 
 @postGL=
  break(obj:a17='Posted'),
- lccheck=kp('select count(*) from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') where rowType=1'),
+ d1select('select count(*) from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') where rowType=1'),
+ lccheck=obj7:d1,
  if(lccheck+0>0,m('You have one or more accrued receivable item that is not linked to a collection account.')),
  break(lccheck+0>0),
+ d1select('select sum(amount) from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') where accountType in (select accounttype from dbo.glbankfundtypes(''BOTH''))'),
+ lccheck=obj7:d1,
+ if(lccheck+0<>0,m('This journal entry will cause your banks and funds to be out of balance. Correct this and then post.')),
+ break(lccheck+0<>0),
  m('Are you sure you want to Post this to the General Ledger?','Posting...',,6,4),
  break(gcretval<>2),
  update,
