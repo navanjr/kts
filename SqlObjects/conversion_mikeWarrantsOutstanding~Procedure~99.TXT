@@ -1,0 +1,106 @@
+create proc dbo.conversion_mikeWarrantsOutstanding(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+
+/*
+
+  select wfy,fundid,warno,dteissue,dtepaid,amnt,intpaid,paymntno,;
+         paywhom  ;
+         from warrant  ;
+         where dtepaid = '  ' and amnt != 0.00
+
+
+ as
+begin
+
+ insert @rt
+ select * from 
+    openrowset('VFPOLEDB','c:\client\dosdata\ctpro\online\warrant.dbf';'';
+    '','SELECT * FROM warrant where !deleted() and dtePaid < ''  0'' and amnt > 0 order by dtePaid')
+
+ return
+
+*/
+
+ declare @st table(
+  wfy varchar(2),
+  fundid varchar(8),
+  altfund varchar(8),
+  altbank varchar(8),
+  cityacct varchar(8),
+  f4 int,
+  f5 char(1),
+  warno varchar(5),
+  dteissue varchar(8),
+  dteregis varchar(8),
+  paywhom varchar(30),
+  amnt numeric(11,2),
+  intpaid numeric(11,2),
+  payable char(1),
+  dtepaid varchar(8),
+  paymtno varchar(5),
+  trchkno  varchar(20),
+  bank varchar(30),
+  f6 char(1),
+  dtecancl varchar(8),
+  pfy varchar(2),
+  f8 char(1),
+  csv varchar(max)
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'warrant',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where dtePaid < "  0" and amnt != 0.00 and !deleted()'')'
+
+ insert @st exec(@sql)
+
+ update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + dteIssue + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Outstanding Warrants not found in KTS'
+  from @st
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @st
+  order by fundId, Warno
+
+ end
+
+ if @method = 'FIX'
+ begin
+
+--  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
+  
+  return
+
+ end
+
+end
