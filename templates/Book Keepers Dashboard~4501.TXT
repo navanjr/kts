@@ -227,9 +227,16 @@ m(lcPicked);
  refreshbrw=;
 
 @menu1=
- m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Balance Report|&Receipt Report|&Cancel'),
+ lcMenu1Options='&Balance Report|&Receipt Report|&Cancel'&choose(cur:securitylevel>90,'|Browse Suspense',''),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico',lcMenu1Options),
  if(gcretval=1,balanceReport=),
- if(gcretval=2,receiptReport=);
+ if(gcretval=2,receiptReport=),
+ if(gcretval=4,browseSuspenseAccounts=);
+
+@browseSuspenseAccounts=
+ d1select('select dbo.splitF(accountCode,CHAR(46),1) from dbo.glAccounts where accountId='&lcid),
+ lcPrefix=obj7:d1,
+ browse(1,4701,'typ=4701 and key1 in (select accountCode from dbo.posAccounts('''&lcPrefix&'''))');
 
 @setvars=
  gcBankAccount='',
