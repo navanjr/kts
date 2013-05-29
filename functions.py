@@ -262,12 +262,19 @@ class ktsMenu():
                 printStatus()
 
     def command_git(self):
-        print subprocess.check_output(' '.join(self.command), shell=True)
+        try:
+            print subprocess.check_output(' '.join(self.command), shell=True)
+        except subprocess.CalledProcessError:
+            print 'error running subprocess...'
 
     def command_testConnection(self,display=True):
         result = {}
         gitDict = {}
-        rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','conversion','logging')")['rows']
+        try:
+            rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','conversion','logging')")['rows']
+        except KeyError:
+            print 'unable to locate settings, probably because the SQL environment is not working yet.'
+            return
         if len(rows) > 0 and rows[0][0] != 'execution failed':
             result['code'] = 0
             for row in rows:
@@ -372,6 +379,7 @@ class ktsMenu():
             cursor = connection.cursor()
         except UnboundLocalError:
             package['code'] = [1,'Failed to connect to %s' % connDatabase]
+            connection.close()
             return package
 
         try:
@@ -379,6 +387,7 @@ class ktsMenu():
         except pyodbc.ProgrammingError:
             package['code'] = [1,'execution failed']
             package['rows'] = [('','')]
+            connection.close()
             return package
 
         if isProc:
