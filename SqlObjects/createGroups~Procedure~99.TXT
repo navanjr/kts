@@ -1,5 +1,8 @@
-create proc dbo.createGroups as
+create proc dbo.createGroups(
+    @defaultUsersBlob varchar(max) = null
+) as
 begin
+ set nocount on
  exec dbo.logit @@procid, 'updating Groups...'
 -- this proc is used to store the master group settings. Any changes to your group settings in KTS will be overwritten!
 
@@ -52,6 +55,19 @@ begin
    @lookup4000;@lookup4010;@lookup4011;@lookup4012;@lookup4022;@lookup4030;@lookup4300;@lookup4301;',
   null
 
+-- add any users passed in via the defaultUsersBlob
+ declare @defaultUsersWT splitWt
+ insert @defaultUsersWT
+ select * from dbo.split(@defaultUsersBlob, ',')
+
+ insert @groups
+ select
+   dbo.splitF(data,' ',1),
+   left(dbo.splitF(data,' ',1),1) + left(dbo.splitF(data,' ',2),1),
+   data,
+   80, 'key', '@tim;@group=admin;@group=tax;@group=officalbookkeeping;@group=bookkeeping;', null
+ from @defaultUsersWT
+ where data > '  0'
 
 -- support users
  insert @groups
