@@ -57,17 +57,20 @@ begin
 
 -- add any users passed in via the defaultUsersBlob
  declare @defaultUsersWT splitWt
- insert @defaultUsersWT
- select * from dbo.split(@defaultUsersBlob, ',')
+ declare @defaultUsersWT2 table(name varchar(50), initials varchar(50), fullName varchar(50))
+ insert @defaultUsersWT select * from dbo.split(@defaultUsersBlob, ',')
+ insert @defaultUsersWT2(fullName) select dbo.proper(data) from @defaultUsersWT where data > '  0'
+ update @defaultUsersWT2 set
+   name = dbo.splitF(fullName,' ',1),
+   initials = dbo.getInitialsFromFullName(fullName)
 
  insert @groups
  select
-   dbo.splitF(data,' ',1),
-   left(dbo.splitF(data,' ',1),1) + left(dbo.splitF(data,' ',2),1),
-   data,
+   name,
+   initials,
+   fullName,
    80, 'key', '@tim;@group=admin;@group=tax;@group=officalbookkeeping;@group=bookkeeping;', null
- from @defaultUsersWT
- where data > '  0'
+ from @defaultUsersWT2
 
 -- support users
  insert @groups
