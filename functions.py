@@ -133,7 +133,8 @@ class ktsMenu():
                 print 'no default user configuration... (%s)' % self.defaultFileName
                 self.sendCommand('user set')
             else:
-                print self.settings['defaultUsers']
+                for fullName in self.settings['defaultUsers'].split(','):
+                    print fullName
         elif self.command[1] == 'set':
             usernames = self.ask('enter the default user names (first last, first last, etc...)')
             self.configStuff(self.settings['database'], 'defaultUsers', 'PUT', usernames)
@@ -276,7 +277,6 @@ class ktsMenu():
                 print 'running dbo.createGroups with defaultUsers', self.sqlQuery("exec dbo.createGroups '%s'" % self.settings['defaultUsers'],True)['code']
             else:
                 print 'running dbo.createGroups', self.sqlQuery("exec dbo.createGroups",True)['code']
-
 
         connTest = self.command_testConnection(False)
         if connTest['code'] == 1:
