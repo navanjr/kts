@@ -2,6 +2,7 @@ import os
 import sys
 import pyodbc
 import subprocess
+import ConfigParser
 
 def isnull(what,convertTo=''):
     if what is None:
@@ -15,9 +16,9 @@ class ktsMenu():
 #TODO be sure to get these setting from ini file
         self.settings['server'] = '.'
         if len(sysArgs) > 1:
-            self.settings['database'] = sysArgs[1] or 'bryan'
+            self.dbSettings(sysArgs[1] or 'bryan')
         else:
-            self.settings['database'] = 'kts'
+            self.dbSettings('kts')
         self.settings['uid'] = 'sa'
         self.settings['password'] = 'America#1'
 
@@ -36,6 +37,7 @@ class ktsMenu():
         self.createCommand('diagnostics',['d','diag','diagnostic','diagnostics'],'access all diagnostic options',self.command_diagnostics)
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
         self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
+        self.createCommand('users',['user','users'],'display or define default users',self.command_users)
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs light diagnostic battery',self.diagnostic_run,'diagnostics')
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
@@ -47,6 +49,12 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
+
+    def dbSettings(self, dbName=None):
+        if dbName:
+            self.settings['database'] = dbName
+        self.defaultFileName = "..\\ktsConfig.ini"
+        self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
         self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
@@ -98,15 +106,50 @@ class ktsMenu():
         if show:
             self.diagnostics_show(mode)
 
+    def configStuff(self, section, setting, method='GET', newValue=None):
+        if method == 'GET':
+            returnValue = ''
+            self.defaultUserConfig = ConfigParser.RawConfigParser()
+            self.defaultUserConfig.read(self.defaultFileName)
+            try:
+                returnValue = self.defaultUserConfig.get(section, setting)
+            except ConfigParser.NoSectionError:
+                returnValue = ''
+            return returnValue
+        elif method == 'PUT':
+            try:
+                self.defaultUserConfig.add_section(section)
+            except ConfigParser.DuplicateSectionError:
+                pass
+            self.defaultUserConfig.set(section, setting, newValue)
+            with open(self.defaultFileName, 'wb') as configfile:
+                self.defaultUserConfig.write(configfile)
+            self.dbSettings()
+
+
+    def command_users(self):
+        if len(self.command) == 1:
+            if not self.settings['defaultUsers'] > '':
+                print 'no default user configuration... (%s)' % self.defaultFileName
+                self.sendCommand('user set')
+            else:
+                print self.settings['defaultUsers']
+        elif self.command[1] == 'set':
+            usernames = self.ask('enter the default user names (first last, first last, etc...)')
+            self.configStuff(self.settings['database'], 'defaultUsers', 'PUT', usernames)
+
     def command_backup(self):
         backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
         print "do you wish to backup the DB to..."
-        if self.ask("%s?" % backupFileName) in ('yes','y'):
+        if self.ask("%s?" % backupFileName) in ('yes', 'y'):
             print "THIS IS NOT WORKING YET!!! back up SQL data...", self.sqlQuery("backup database %s to disk='%s' with retaindays=0, INIT, compression" % (self.settings['database'],backupFileName),True)['code']
 #            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup",True)
             
-    def ask(self,question='what do you need?'):
-        commandEntered = raw_input("     %s ===> " % question).lower()
+    def ask(self, question='what do you need?'):
+        try:
+            commandEntered = raw_input("     %s ===> " % question).lower()
+        except KeyboardInterrupt:
+            self.command_exit()
         return commandEntered
 
     def command_diagnostics(self,mode='light'):
@@ -175,6 +218,12 @@ class ktsMenu():
             print 'keyTemplateWriteToRepoTR...', self.sqlAlterProc('keyTemplateWriteToRepoTR','Trigger')
             print 'keySQLObjectCreateAll...', self.sqlAlterProc('keySQLObjectCreateAll','Procedure','3')
             print 'paths...', self.sqlAlterProc('paths','TableFunction','99')
+            print 'proper...', self.sqlAlterProc('proper', 'ScalarFunction', '99')
+            print 'getInitialsFromFullName...', self.sqlAlterProc('getInitialsFromFullName', 'ScalarFunction', '99')
+
+            self.sendCommand('set gitpath')
+            if self.ask('Ready for initial import?') in ('y', 'yes'):
+                self.command_import(True)
 
         if len(self.command) > 1:
             setupStep = self.command[1]
@@ -206,12 +255,12 @@ class ktsMenu():
         else:
             return False
 
-    def sendCommand(self,command):
+    def sendCommand(self, command):
         self.command = command.split()
         self.runMenuFunction(self.command[0],self.commands)
         return True
 
-    def command_import(self):
+    def command_import(self, initialSetup=False):
         def theMeat():
             print 'ok here goes...'
             self.sqlAlterProc("keySQLObjectDispatcher")
@@ -223,7 +272,11 @@ class ktsMenu():
             self.sqlAlterProc("createIndexes","Procedure","99")
             print 'running dbo.createIndexes', self.sqlQuery("exec dbo.createIndexes",True)['code']
             self.sqlAlterProc("createGroups","Procedure","99")
-            print 'running dbo.createGroups', self.sqlQuery("exec dbo.createGroups",True)['code']
+            if initialSetup and self.settings['defaultUsers'] > '':
+                print 'running dbo.createGroups with defaultUsers', self.sqlQuery("exec dbo.createGroups '%s'" % self.settings['defaultUsers'],True)['code']
+            else:
+                print 'running dbo.createGroups', self.sqlQuery("exec dbo.createGroups",True)['code']
+
 
         connTest = self.command_testConnection(False)
         if connTest['code'] == 1:
@@ -300,14 +353,16 @@ class ktsMenu():
     def command_displayMenu(self):
         self.display()
 
-    def command_setSetting(self,prefix):
+    def command_setSetting(self, prefix, defaultValue=None):
         if not len(self.command) > 1:
             return
         if len(self.command) > 2:
             newValue = self.command[2]
         else:
+            if defaultValue:
+                print 'leave blank for default value (%s)' % defaultValue
             newValue = raw_input('Enter %s ==> ' % self.command[1])
-        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix,self.command[1],newValue),True)
+        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue or defaultValue), True)
         
     def command_serverSettings(self):
         if len(self.command) < 2:
@@ -317,12 +372,15 @@ class ktsMenu():
         else:
             commandArguement = ''
         if self.command[1] in ('db','database'):
-            self.setVars('database',commandArguement)
+            self.dbSettings(commandArguement)
+            # self.setVars('database',commandArguement)
         elif self.command[1] in ('user','username','uid'):
             self.setVars('uid',commandArguement)
         elif self.command[1] in ('server','location','url'):
             self.setVars('server',commandArguement)
-        elif self.command[1] in ('gitpath','gitcommitter'):
+        elif self.command[1] == 'gitpath':
+            self.command_setSetting('git', 'c:\client\key\kts')
+        elif self.command[1] == 'gitcommitter':
             self.command_setSetting('git')
         elif self.command[1] in ('mikepath','mikepathtax','taxyear'):
             self.command_setSetting('conversion')
@@ -363,7 +421,7 @@ class ktsMenu():
         print '     ==================================================='
         print
 
-    def sqlQuery(self,sqlString,isProc=False,alternateDatabase=None):
+    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None):
         connDatabase = alternateDatabase or self.settings['database']
         connectionString = 'DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (self.settings['server'],connDatabase,self.settings['uid'],self.settings['password'])
         package = {}
@@ -379,7 +437,6 @@ class ktsMenu():
             cursor = connection.cursor()
         except UnboundLocalError:
             package['code'] = [1,'Failed to connect to %s' % connDatabase]
-            connection.close()
             return package
 
         try:
