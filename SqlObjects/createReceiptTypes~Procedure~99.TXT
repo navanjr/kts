@@ -1,0 +1,30 @@
+create proc dbo.createReceiptTypes
+as
+begin
+ set nocount on
+
+ declare @receiptTypes table(
+  code varchar(50),
+  hide int
+ )
+
+ insert @receiptTypes
+   select 'ASSESSMENT', 1
+   union select 'INDIV', 0
+   union select 'MISC', 0
+   union select 'MTG', 0
+   union select 'OFFICIAL', 0
+   union select 'TAX', 0
+   union select 'TAXASSESS', 1
+   union select 'TAXSPECIAL', 1
+   union select 'TRUST', 0
+
+-- insert missing
+ insert object (typ, key1, c1)
+ select 4503, code, cast(hide as varchar)
+ from @receiptTypes
+ where code not in (select key1 from object where typ = 4503)
+
+ exec dbo.logit @@procid, 'Just inserted receiptTypes into Object... @@rowCount', @@rowCount
+
+end

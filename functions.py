@@ -201,6 +201,7 @@ class ktsMenu():
             print 'logit...', self.sqlAlterProc('logit','Procedure','3')
             print 'object dispatcher...', self.sqlAlterProc('keySQLObjectDispatcher')
             print 'createAccountTypes...', self.sqlAlterProc('createAccountTypes','Procedure','99')
+            print 'createReceiptTypes...', self.sqlAlterProc('createReceiptTypes','Procedure','99')
             print 'createReasonsToCancel...', self.sqlAlterProc('createReasonsToCancel','Procedure','99')
             print 'paymentTypes...', self.sqlAlterProc('paymentTypes','TableFunction','99')
             print 'journalTypes...', self.sqlAlterProc('journalTypes','TableFunction','99')
