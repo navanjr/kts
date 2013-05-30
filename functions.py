@@ -18,7 +18,7 @@ class ktsMenu():
             self.dbSettings(sysArgs[1])
         else:
             self.dbSettings(self.configStuff('importDefaults', 'database') or 'kts')
-        print self.settings['database']
+
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
         self.settings['uid'] = self.configStuff('importDefaults', 'uid') or 'sa'
         self.settings['password'] = self.configStuff('importDefaults', 'password') or 'America#1'
@@ -44,6 +44,7 @@ class ktsMenu():
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs conversion diagnostic battery',[self.diagnostic_run,'conversion'],'conversion')
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
+        self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
 
         self.command = []
 
@@ -81,6 +82,22 @@ class ktsMenu():
                 function()
             elif hasattr(function[0],'__call__'):
                 function[0](function[1])
+
+    def diagnostic_auto(self):
+        conversionProcs = [
+            'mikeGLedgerBanks',
+            'mikeGLedgerFunds',
+            'mikeSource',
+            'mikeClerksFundList',
+            # mikeFund
+            # mikeOfficers
+            # mikeTaxRates
+            # mikeTaxroll
+            # mikeVouchersOutstanding
+            # mikeWarrantsOutstanding
+        ]
+        for step in conversionProcs:
+            print '  ===> %s ===> ' % step, self.sqlQuery("exec dbo.conversion_%s @method = 'fix'" % step, True)['code']
 
     def diagnostic_fix(self,mode='light'):
         if len(self.command) == 3:
@@ -384,7 +401,9 @@ class ktsMenu():
             self.command_setSetting('git', defaultValue='c:\client\key\kts')
         elif self.command[1] == 'gitcommitter':
             self.command_setSetting('git')
-        elif self.command[1] in ('mikepath','mikepathtax','taxyear'):
+        elif self.command[1] in ('mikepath', 'mikepathtax'):
+            self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
+        elif self.command[1] == 'taxyear':
             self.command_setSetting('conversion')
 
     def command_logging(self):
