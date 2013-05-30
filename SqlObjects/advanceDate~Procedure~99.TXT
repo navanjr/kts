@@ -1,14 +1,14 @@
 create procedure dbo.advanceDate(@receiptType varchar(50),@date int = 0) as
 
 begin
-
   if @date = 0 
      select @date = dbo.nextbusinessdate(dbo.clariondate(getdate()))
 
 -- update the payment date for vouchers and warrants
   if @receiptType = 'payments' and @date > 0
   begin
-   exec dbo.settingsCRUD 'dashboard.paymentDate', @date
+   declare @settingName varchar(100) = 'dashboard.' + dbo.readstring('@station=',dbo.whoami()) + '.paymentDate' 
+   exec dbo.settingsCRUD @settingName, @date
    return
   end
 
