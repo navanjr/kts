@@ -13,15 +13,15 @@ class ktsMenu():
     def __init__(self):
         sysArgs = sys.argv
         self.settings = {}
-#TODO be sure to get these setting from ini file
-        self.settings['server'] = '.'
+        self.defaultFileName = "..\\ktsConfig.ini"
         if len(sysArgs) > 1:
-            self.dbSettings(sysArgs[1] or 'bryan')
+            self.dbSettings(sysArgs[1])
         else:
-            self.dbSettings('kts')
-        self.settings['uid'] = 'sa'
-        self.settings['password'] = 'America#1'
-
+            self.dbSettings(self.configStuff('importDefaults', 'database') or 'kts')
+        print self.settings['database']
+        self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
+        self.settings['uid'] = self.configStuff('importDefaults', 'uid') or 'sa'
+        self.settings['password'] = self.configStuff('importDefaults', 'password') or 'America#1'
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
         self.createCommand('help',['h','help'],'',self.command_help)
@@ -53,7 +53,6 @@ class ktsMenu():
     def dbSettings(self, dbName=None):
         if dbName:
             self.settings['database'] = dbName
-        self.defaultFileName = "..\\ktsConfig.ini"
         self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
@@ -113,7 +112,7 @@ class ktsMenu():
             self.defaultUserConfig.read(self.defaultFileName)
             try:
                 returnValue = self.defaultUserConfig.get(section, setting)
-            except ConfigParser.NoSectionError:
+            except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
                 returnValue = ''
             return returnValue
         elif method == 'PUT':
@@ -374,13 +373,15 @@ class ktsMenu():
             commandArguement = ''
         if self.command[1] in ('db','database'):
             self.dbSettings(commandArguement)
-            # self.setVars('database',commandArguement)
+            self.configStuff('importDefaults', 'database', 'PUT', commandArguement)
         elif self.command[1] in ('user','username','uid'):
             self.setVars('uid',commandArguement)
+            self.configStuff('importDefaults', 'uid', 'PUT', commandArguement)
         elif self.command[1] in ('server','location','url'):
             self.setVars('server',commandArguement)
+            self.configStuff('importDefaults', 'server', 'PUT', commandArguement)
         elif self.command[1] == 'gitpath':
-            self.command_setSetting('git', 'c:\client\key\kts')
+            self.command_setSetting('git', defaultValue='c:\client\key\kts')
         elif self.command[1] == 'gitcommitter':
             self.command_setSetting('git')
         elif self.command[1] in ('mikepath','mikepathtax','taxyear'):
