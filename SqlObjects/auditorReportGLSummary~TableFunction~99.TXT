@@ -17,24 +17,24 @@ insert @wttypes
 
 insert @wtdetail
 	select 
-		auditorReportGroup,
+		case when accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%') then 'COLLECTIONS' else auditorReportGroup end,
 		amount*-1,
 		reportOrder
 		from gldetailreports g, @wttypes w
 	where sourceDate between @beginDate and @endDate
 		and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
-		and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+		--and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
 		and g.sourcea18 = w.sourceType
 
 insert @wtdetail
 	select 
-		case when auditReportGroup>' 0' then auditReportGroup when accountType='OFFICIAL' then 'OFFICIAL' else 'FUND' end,
+		case when accountCode in (select accountCode from glaccounts where bsSummary like '%Ad V%') then 'COLLECTIONS' when auditReportGroup>' 0' then auditReportGroup when accountType='OFFICIAL' then 'OFFICIAL' else 'FUND' end,
 		amount*-1,
 		reportOrder
 		from gldetailreports 
 	where sourceDate between @beginDate and @endDate
 		and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
-		and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+		--and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
 		and sourcea18 not in (select sourceType from @wttypes)
 ---insert detail
 insert @rt
@@ -55,7 +55,7 @@ insert @rt
 		from gldetailreports 
 	where sourceDate < @beginDate
 	and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
-	and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
+	--and accountCode not in (select accountCode from glaccounts where bsSummary like '%Ad V%')
  
 ----insert subtotals
 insert @rt
