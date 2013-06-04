@@ -394,6 +394,9 @@ class ktsMenu():
         elif self.command[1] in ('user','username','uid'):
             self.setVars('uid',commandArguement)
             self.configStuff('importDefaults', 'uid', 'PUT', commandArguement)
+        elif self.command[1] in ('pwd','pass','password'):
+            self.setVars('password',commandArguement)
+            self.configStuff('importDefaults', 'password', 'PUT', commandArguement)
         elif self.command[1] in ('server','location','url'):
             self.setVars('server',commandArguement)
             self.configStuff('importDefaults', 'server', 'PUT', commandArguement)
