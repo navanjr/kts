@@ -1,18 +1,43 @@
-create procedure dbo.bankStatementCRUD (@date varchar(20)) as 
+create procedure dbo.bankStatementCRUD(
+ @date varchar(20),
+ @accountId int = null,
+ @newBSId int = null output
+) as 
 
 begin
 
-declare @datetime datetime = dbo.date1(@date)
-declare @firstDay varchar(20),
-        @lastDay varchar(20)
+ declare @datetime datetime = dbo.date1(@date)
+ declare @firstDay varchar(20),
+         @lastDay varchar(20)
 
-select @firstDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime), 0))
-select @lastDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime) + 1, 0) - 1)
+ select @firstDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime), 0))
+ select @lastDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime) + 1, 0) - 1)
 
-insert object (typ,link1,key1,key2,a1,a2,k2)
- select 4780,accountid,accountcode,accountdesc,@firstDay,@lastDay,left(cast(999999-cast(@firstDay as int) as varchar)+accountcode,29) 
+ if isnull(@accountId,0) > 0
+ begin
+
+  declare @newIdWt newIdWt
+
+  insert object (typ,link1,key1,key2,a1,a2,k2)
+  output inserted.id into @newIdWt
+  select 4780,accountid,accountcode,accountdesc,@firstDay,@lastDay,left(cast(999999-cast(@firstDay as int) as varchar)+accountcode,29) 
+  from glaccounts 
+  where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE','CASH')) 
+   and accountCode not in (select key1 from object where typ=4780 and a1=@firstDay)
+   and accountId = @accountId
+
+  select @newBSId = max(id) from @newIdWt
+  exec dbo.logit @@procid, '@newBSId', @newBSId
+
+ end
+ else
+ begin
+
+  insert object (typ,link1,key1,key2,a1,a2,k2)
+  select 4780,accountid,accountcode,accountdesc,@firstDay,@lastDay,left(cast(999999-cast(@firstDay as int) as varchar)+accountcode,29) 
   from glaccounts 
   where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE','CASH')) 
    and accountCode not in (select key1 from object where typ=4780 and a1=@firstDay)
 
+ end
 end
