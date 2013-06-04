@@ -10,7 +10,8 @@ begin
   @accountId int,
   @tokenId int,
   @bsDate1 int,
-  @bsDate2 int
+  @bsDate2 int,
+  @amiLinked varchar(5) = 'FALSE'
 
  select
   @accountId = link1,
@@ -18,14 +19,36 @@ begin
   @bsDate2 = a2
  from object
  where id = @bsId
+
+
+ if exists (select * from dbo.glDetail where id = @id and isnull(bsId,0) > 0)
+  set @amiLinked = 'TRUE'
  
  set @clearedDate = coalesce(@clearedDate, dbo.clariondate(getdate()))
 
--- ok lets check to see what bank statements need to get this link
- if not @clearedDate between @bsDate1 and @bsDate2
+ exec dbo.logit @@procid, '@id', @id, '@bsid', @bsid, '@clearedDate', @clearedDate, '@amiLinked', @amiLinked
+ exec dbo.logit @@procid, '@accountId', @accountId, '@bsDate1', @bsDate1, '@bsDate2', @bsDate2
+
+ if @amiLinked = 'FALSE'
  begin
-  exec dbo.logit @@procid, 'we will have to attach this to another bank statement. this one wont do.'
-  return
+-- ok lets check to see what bank statements need to get this link
+  if not @clearedDate between @bsDate1 and @bsDate2
+  begin
+   exec dbo.logit @@procid, 'we will have to attach this to another bank statement. this one wont do.'
+   set @bsId = null
+   select @bsId = id from object where typ = 4780 and link1 = @accountId and @clearedDate between a1 and a2
+   if not isnull(@bsId,0) > 0
+   begin
+    exec dbo.logit @@procid, 'Failed to locate a bank statement, I will have to create a new one...'
+    exec dbo.bankStatementCRUD @clearedDate, @accountId, @newBSId = @bsId output
+    select '@code=1;@message=This item was cleared to a new bank statement;'
+   end
+   else 
+   begin
+    exec dbo.logit @@procid, 'ok we found one... @bsid', @bsid
+    select '@code=1;@message=This item was cleared to another bank statement;'
+   end
+  end
  end
 
  if @id is null
