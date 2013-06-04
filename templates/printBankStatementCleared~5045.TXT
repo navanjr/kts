@@ -11,10 +11,14 @@ printBankStatementCleared=;
 
 @printBankStatementCleared=
  do(452,getSiteInfo=),
- gcDet5045='select depositDate, dateCleared,paymentType,left(instrumentNumber,6),subDescription,dbAmount,crAmount from dbo.bankStatementBRW('&gcBankStatementId&','&gcBankAccountId&',1,0,0,1,0) where dateCleared>0 order by ord',
+ gcDet5045='select dateCleared,depositDate,paymentType,left(instrumentNumber,6),subDescription,dbAmount,crAmount from dbo.bankStatementBRW('&gcBankStatementId&','&gcBankAccountId&',1,0,0,1,0) where dateCleared>0 order by paymentType desc,dateCleared,dbAmount,crAmount',
  lcdebits=0,
  lccredits=0,
+ lcdebits1=0,
+ lccredits1=0,
  lcBoxColor=14539482,
+ lcgrp1='',
+ lcdaily=0,
 
  tr(
   lcCw=1200,
@@ -38,14 +42,25 @@ printBankStatementCleared=;
   lcTm=lcTm+1000,
   box(lcRm-50,lcTm,lcRm+7500,lcTm+200,0,lcBoxColor),
   prn(,lcRm,lcTm+25,,,),
-  bnd('D','Deposited',600C,'Cleared',600C,'Type',900,'Id No.',400,'Debit',850C,'Credit',850C,'Description',2800),
+  grp(1,obj5:a3,
+   bnd('HU',obj5:a3,7000),
+   do(bnd('HO',,500C,,500C,lcgrp1&' Total',900,,400,format(lcdebits1,@n-19.2b),850R,format(lccredits1,@n-19.2b),850R,,850R,,850R),lcdebits1=0,lccredits1=0)
+  ),
+  grp(2,obj5:a1,
+   ,
+   do(prn(,,pagey-130),bnd('H',,500,,500,,900,,400,,850R,,850R,format(lcdaily,@n-19.2b),850R),lcdaily=0)
+  ),
+  bnd('D','Deposited',500C,'Cleared',500C,'Type',900,'Id No.',400,'Debit',850C,'Credit',850C,'DaySum',850C,'Description',2800),
   nl,
   det(gcDet5045),
-   bnd('D',format(obj5:a1,@d1),600,format(obj5:a2,@d1),600,format(obj5:a3,@s13),900,obj5:a4,400,format(obj5:a6,@n-19.2b),850R,format(obj5:a7,@n-19.2b),850R,format(obj5:a5,@s40),2800),
-  lcdebits=lcdebits+obj5:a6,
-  lccredits=lccredits+obj5:a7,
+   lcdaily=lcdaily+obj5:a6-obj5:a7,
+   bnd('D',format(obj5:a1,@d1),500,format(obj5:a2,@d1),500,format(obj5:a3,@s13),900,obj5:a4,400,format(obj5:a6,@n-19.2b),850R,format(obj5:a7,@n-19.2b),850R,,850R,format(obj5:a5,@s40),2800),
+   lcdebits=lcdebits+obj5:a6,
+   lccredits=lccredits+obj5:a7,
+   lcdebits1=lcdebits1+obj5:a6,
+   lccredits1=lccredits1+obj5:a7,
+   lcgrp1=obj5:a3,
   edt, 
-   nl,
-   bnd('HO','',600,'',600,'',900,'Total: ',400,format(lcdebits,@n-19.2b),850R,format(lccredits,@n-19.2b),850R),
-
-);
+  nl,
+  bnd('H','',500,'',500,'',500,'Report Total: ',800,format(lcdebits,@n-19.2b),850R,format(lccredits,@n-19.2b),850R,,850R),
+ );
