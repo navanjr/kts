@@ -1,19 +1,32 @@
 create procedure dbo.bankStatementItemSelected(
  @id int,
  @bsId int,
- @idsBlob varchar(max) = null
+ @idsBlob varchar(max) = null,
+ @clearedDate int = null
 ) as
 begin
 
  declare
   @accountId int,
   @tokenId int,
-  @clearDate int = dbo.bankStatementClearDate(@bsId)
+  @bsDate1 int,
+  @bsDate2 int
 
- select 
-  @accountId = link1
-  from object where id = @bsId
+ select
+  @accountId = link1,
+  @bsDate1 = a1,
+  @bsDate2 = a2
+ from object
+ where id = @bsId
  
+ set @clearedDate = coalesce(@clearedDate, dbo.clariondate(getdate()))
+
+-- ok lets check to see what bank statements need to get this link
+ if not @clearedDate between @bsDate1 and @bsDate2
+ begin
+  exec dbo.logit @@procid, 'we will have to attach this to another bank statement. this one wont do.'
+  return
+ end
 
  if @id is null
   declare ids cursor for select data from dbo.split(@idsBlob,'|')
@@ -34,7 +47,7 @@ begin
   begin
 -- link the item to the BankStatement only if it is not linked already
    if exists(select * from dbo.glDetail where id = @tokenId and accountId = @accountId and isnull(bsId,0) = 0)
-    update dbo.glDetail set bsId = @bsId, dateCleared = @clearDate where accountId = @accountId and id = @tokenId
+    update dbo.glDetail set bsId = @bsId, dateCleared = @clearedDate where accountId = @accountId and id = @tokenId
   end
 
   fetch next from ids into @tokenId
