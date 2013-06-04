@@ -1,0 +1,92 @@
+create proc dbo.conversion_mikeVouchersOutstanding(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+
+/*
+set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as varchar)+'',''comment FROM openrowset(''VFPOLEDB'',''' + @mikePath
+ + ''';'''';'''',''select * from ovoureg where !deleted() and pcdate = " " and vchamt != 0.00'')  order by dptno,vchno'
+
+--vchno,vchdate,paywhom,vchamt,dptno + '' - '' + comment
+*/
+
+ declare @st table(
+  dptno varchar(50),
+  officialAccountCode varchar(50),
+  vchno varchar(50),
+  vchdate varchar(50),
+  paywhom varchar(50),
+  vchamt money,
+  comment varchar(1000),
+  ktsPaymentId int,
+  ktsAmount money
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'ovoureg',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where pcdate = " " and vchamt != 0.00 and !deleted()'') order by dptno, vchno'
+
+ insert @st exec(@sql)
+
+ update a set a.officialAccountCode = b.officialDepositAccountcode
+ from @st a, dbo.officers b
+ where a.dptno = b.departmentNumber
+ 
+ update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
+ from @st a, dbo.payments b
+ where a.officialAccountCode = b.debitAccountCode 
+  and cast(a.vchno as int) = cast(b.clerksNumber as int)
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Outstanding Vouchers not found in KTS'
+  from @st
+  where ktsPaymentId is null
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @st
+--  where kpofund not in (select clerksFundCode from dbo.clerksFundList)
+
+ end
+
+ if @method = 'FIX'
+ begin
+
+--  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
+  
+  return
+
+ end
+
+end
+
+
+
+
+

@@ -1,0 +1,33 @@
+create function dbo.docBidSheetSF(@invoiceId int,@interestTo varchar(20))
+ returns varchar(max)
+ as
+begin
+
+declare @rt varchar(max) = '',
+	@totalTax varchar(20),
+	@fees varchar(20),
+	@twoThirds varchar(20) = ((100.00/3)*2)/100,
+	@assessed money,
+	@newestInvoiceId int
+		
+
+ select 
+  @fees = dbo.formatcurr(max(case when RIGHT(ord,1)='e' then fees else '' end)),
+  @totalTax = dbo.formatcurr(max(case when RIGHT(ord,1)='e' then Total else '' end)), 
+  @newestInvoiceId = max(case when RIGHT(ord,1)='c' and invoiceType = 'R' then invoiceId else 0 end)
+  from dbo.docUnpaidTF(@invoiceId,@interestTo) where RIGHT(ord,1) in ('e','c')
+
+ select
+  @assessed = dbo.taxCorrectionsSF([GROSSASSESSED],a.id,'058')
+  from invoices i, AdTax a where i.TAXROLLID = a.ID and i.ID = @newestInvoiceId
+ 
+ 
+ select @rt = 
+		'TOTAL TAXES DUE:  '+dbo.formatCurr(@totalTax) + CHAR(13) + CHAR(10)
+		+ CHAR(13) + CHAR(10)
+		+ 'FEES (  ' + dbo.formatCurr(@fees) + '  ) + 2/3  (  ' + dbo.formatCurr(ROUND(@assessed*@twoThirds,2)) + '  ) = ' + dbo.formatCurr(@fees+ROUND(@assessed*@twoThirds,2))
+		
+		
+		
+ return @rt
+end

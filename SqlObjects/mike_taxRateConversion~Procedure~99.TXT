@@ -1,3 +1,16 @@
+set nocount on
+declare @invalidMillageNames table(name varchar(50))
+insert @invalidMillageNames
+ select 'TREASURERTOTALMILLS'
+ union select 'ASSESSORTOTALMILLS'
+ union select 'PERCENTCOUNTY4MILL'
+ union select 'PERCENTCOUNTYGENERAL'
+ union select 'PERCENTCOUNTYHEALTH'
+ union select 'PERCENTSCHDISTGENERAL'
+ union select 'PERCENTSCHDISTBULDING'
+ union select 'PERCENTSCHDISTSINKING'
+ union select 'PERCENTVOTECHGENERAL'
+ union select 'PERCENTVOTECHBUILDING'
 declare
  @tableName varchar(50),
  @sql nvarchar(500),
@@ -5,7 +18,7 @@ declare
  @idToken varchar(150),
  @rateToken numeric(9,6)
 
-set @tableName = 'mat2011txlv' 
+set @tableName = 'txlv2012' 
 
 declare @districtNames table(
  id int identity(1,1),
@@ -18,7 +31,9 @@ declare @rateNames table(
 declare @rates table(
  id int identity(1,1),
  district varchar(50),
+ districtId int,
  rateName varchar(50),
+ rateNameId int,
  rateCol varchar(50),
  rate decimal(19,10),
  processFlag int
@@ -28,13 +43,13 @@ insert @rateNames
 SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @tableName and COLUMN_NAME not like '%other%' ORDER BY ORDINAL_POSITION ASC; 
 delete @rateNames where name in ('SCHOOLDISTRICTTAXRATE','SCHOOLDISTIRCTMAIN')
 insert @districtNames 
-select SCHOOLDISTIRCTMAIN,SCHOOLDISTRICTTAXRATE from mat2011txlv
+select SCHOOLDISTIRCTMAIN,SCHOOLDISTRICTTAXRATE from txlv2012
 delete @districtNames where district = 'apphead'
 
 while exists(select * from @districtNames)
 begin
  select top 1 @idToken = id from @districtNames
- insert @rates select a.district,a.rateName,b.name,0.0,0 from @districtNames a, @rateNames b where a.id = @idToken
+ insert @rates select a.district,null,a.rateName,null,b.name,0.0,0 from @districtNames a, @rateNames b where a.id = @idToken
  delete @districtNames where id = @idToken
 end 
 
@@ -53,7 +68,7 @@ begin
   @rToken = rateName 
  from @rates where id = @idToken
 
- SET @sql = N'select @rateOut='+@colToken+' from mat2011txlv where SCHOOLDISTIRCTMAIN = @dist and SCHOOLDISTRICTTAXRATE = @rName'
+ SET @sql = N'select @rateOut='+@colToken+' from txlv2012 where SCHOOLDISTIRCTMAIN = @dist and SCHOOLDISTRICTTAXRATE = @rName'
  SET @parm = N'@table varchar(50),@dist varchar(50),@rName varchar(50),@rateOUT numeric(9,6) OUTPUT'
 
  EXECUTE sp_executesql @sql, @parm,@table=@tableName,@dist=@distToken,@rName=@rToken,@rateOUT=@rateToken OUTPUT;
@@ -64,10 +79,80 @@ end
 
 delete @rates where rate = 0
 
-select * from @rates
+-- school district
+/*
+insert object (typ,key1)
+select 4010,district from @rates
+ where district > '  0' and district not in (select key1 from object where typ = 4010)
+ group by district
+*/
+
+update a set a.districtId = b.id
+from @rates a, object b
+where a.district = b.Key1 and b.Typ = 4010
+
+-- rate names
+insert object (typ,key1)
+select 4011,rateName from @rates
+ where rateName > '  0' and rateName not in (select key1 from object where typ = 4011)
+ group by rateName
+
+update a set a.rateNameId = b.id
+from @rates a, object b
+where a.rateName = b.Key1 and b.Typ = 4011
+
+--millage names 
+if 1=1
+ insert object (typ,key1)
+ select 4008,rateCol
+ from @rates 
+ where rateCol > '  0'
+  and rateCol not in (select name from @invalidMillageNames)
+  and rateCol not in (select key1 from object where typ = 4008)
+ group by rateCol  
+
+-- taxRates
+declare @yearToken int = 2009
+if 1=2
+ insert object (typ,key1,link1,key2,link2,key3,a1,a2,a3)
+ select 4012,ltrim(rtrim(district)),districtId,ltrim(rtrim(rateName)),rateNameId,cast(@yearToken as varchar),rateCol,cast(rate as varchar(50)),''
+ from @rates 
+ where 
+  rateCol not in (select name from @invalidMillageNames)
+  and ltrim(rtrim(district)) + ltrim(rtrim(rateName)) + cast(@yearToken as varchar) not in (select key1 + key2 + key3 from object where typ = 4012)
+-- create gl accrual accounts for the district rate and year 
+declare @acrGlAccounts table(accountCode varchar(50),district varchar(50),ratename  varchar(50))
+insert @acrGlAccounts
+select district+'_'+rateName+'_'+CAST(@yearToken AS VARCHAR)+'_ACR',district,ratename from @rates
+ where rateCol not in (select name from @invalidMillageNames)
+ GROUP BY district, rateName
+declare
+ @tdist varchar(50),
+ @tratename varchar(50),
+ @tacct varchar(50)
+while exists(select * from @acrGlAccounts)
+begin
+ select top 1
+  @tacct = accountCode,
+  @tdist = district,
+  @tratename = ratename
+ from @acrGlAccounts
+ exec glAccountVerification @tacct,'ACCRUED RECEIVABLE','CREATE',@district=@tdist,@rate=@tratename,@year=@yearToken,@TABLETYPE='M'
+ delete @acrGlAccounts where accountCode = @tacct
+end
+
+
+--substring(dbo.splitF(cast(rate as varchar),'.',2),3,10) > 0
+
+-- delete object where typ = 4012
+-- delete object where typ = 4008
+
 /*
 select district,rateName,SUM(rate) from @rates
  where rateCol not in ('TREASURERTOTALMILLS','ASSESSORTOTALMILLS')
   and rateCol not like '%percent%'
   group by district,rateName
   */
+-- select COUNT(*) from object
+-- exec glAccountVerification 'I-1_ALVA CITY_2012_ACR','ACCRUED RECEIVABLE','CREATE',@district='I-1',@rate='CAPRON CITY',@year='2012',@TABLETYPE='M'
+-- select COUNT(*) from object

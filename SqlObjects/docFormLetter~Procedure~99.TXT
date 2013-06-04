@@ -55,7 +55,7 @@ if @interestTo>'  0'
 insert @fields select  'settings',null,'<' + dbo.splitF(settingName,'.',2) + '>',settingValue from settings where dbo.splitf(settingName,'.',1) = @documentName
 
 ---check to see if interestTo is needed
-if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0) and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY' and not exists(select * from settings where settingName = @documentName+'.interestTo')
+if (charindex('<docUnpaid>',@rawText) > 0 or charindex('<docUnPaidSum>',@rawText) > 0 or charindex('<totDue>',@rawText) > 0 or charindex('<resaleLegal>',@rawText) > 0)  or charindex('<docBidSheet>',@rawText) > 0  and  charindex('<InterestTo>',@rawText)=0 and @method = 'VERIFY' and not exists(select * from settings where settingName = @documentName+'.interestTo')
   set @needInterestTo = '1'
 
 insert @fields select  'fees',null,'<' + Key1+'.'+key2 + '>',dbo.formatCurrZero(a2)  from object where typ = 4902  and link1 = @documentId
@@ -80,6 +80,10 @@ insert @fields select null,null,'<line>',dbo.padleft('','_',62)
 
 if charindex('<resaleLegal>',@rawText) > 0 or @method = 'VERIFY'
   insert @fields select null,null,'<resaleLegal>',case when @method = 'VERIFY' then '' else dbo.docCollectionDescResale(@interestTo) end
+
+ if charindex('<docBidSheet>',@rawText) > 0 or @method = 'VERIFY'
+  insert @fields select null,null,'<docBidSheet>',case when @method = 'VERIFY' then '' else dbo.docBidSheetSF(@invoiceId,@interestTo) end
+
 
 
  declare @tables table(id int identity(1,1),tableToken varchar(50),whereFrom varchar(200))

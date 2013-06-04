@@ -1,5 +1,8 @@
-create proc dbo.createGroups as
+create proc dbo.createGroups(
+    @defaultUsersBlob varchar(max) = null
+) as
 begin
+ set nocount on
  exec dbo.logit @@procid, 'updating Groups...'
 -- this proc is used to store the master group settings. Any changes to your group settings in KTS will be overwritten!
 
@@ -52,10 +55,30 @@ begin
    @lookup4000;@lookup4010;@lookup4011;@lookup4012;@lookup4022;@lookup4030;@lookup4300;@lookup4301;',
   null
 
+-- add any users passed in via the defaultUsersBlob
+ declare @defaultUsersWT splitWt
+ declare @defaultUsersWT2 table(name varchar(50), initials varchar(50), fullName varchar(50))
+ insert @defaultUsersWT select * from dbo.split(@defaultUsersBlob, ',')
+ insert @defaultUsersWT2(fullName) select dbo.proper(data) from @defaultUsersWT where data > '  0'
+ update @defaultUsersWT2 set
+   name = dbo.splitF(fullName,' ',1),
+   initials = dbo.getInitialsFromFullName(fullName)
+
+ insert @groups
+ select
+   name,
+   initials,
+   fullName,
+   80, 'key', '@tim;@group=admin;@group=tax;@group=officalbookkeeping;@group=bookkeeping;', null
+ from @defaultUsersWT2
 
 -- support users
  insert @groups
  select 'nate','ANA','nate anderson',100,'Key','@tim;@group=admin;@group=developer;',null
+
+-- now remove any non support users that are already in users
+-- this way we don't mess up any normal kts users during an import/update
+ delete @groups where name in (select name from users where securityLevel between 1 and 99)
 
 -- now we overwrite the real settings in the users table
  insert users (name) select name from @groups where name not in (select name from users)

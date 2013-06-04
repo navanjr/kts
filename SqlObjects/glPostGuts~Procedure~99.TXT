@@ -25,7 +25,8 @@ begin
   @fpid int,
   @fpCode varchar(50),
   @fpDesc varchar(50),
-  @sql varchar(500)
+  @sql varchar(500),
+  @invoiceId int
 
 -- make sure the fiscal period is open
  exec dbo.glGetPostDateFromSlink @slink, @postDate output, @fpid output, @fpCode output, @fpDesc output, @styp output, @id output 
@@ -74,6 +75,8 @@ begin
  if @styp = 't' and @updateInvoice = 'TRUE'
  begin
   exec dbo.invoiceUpdate @id
+  select @invoiceId = invoiceId from invoices where id = @id
+  exec dbo.invoiceUpdate @invoiceId
  end
 
 -- if your a receipt then update all the related invoices
