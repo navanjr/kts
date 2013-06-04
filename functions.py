@@ -164,7 +164,7 @@ class ktsMenu():
             
     def ask(self, question='what do you need?'):
         try:
-            commandEntered = raw_input("     %s ===> " % question).lower()
+            commandEntered = raw_input("     %s ===> " % question)
         except KeyboardInterrupt:
             self.command_exit()
         return commandEntered
@@ -434,6 +434,7 @@ class ktsMenu():
         print '     ==================================================='
         print '      kts menu'
         print '          server : %s ' % self.settings['server']
+        # print '          password : %s ' % self.settings['password']
         print '          database : %s ' % self.settings['database']
         print '          uid : %s ' % self.settings['uid']
         print
