@@ -43,40 +43,40 @@ begin
 
 -- add Warrants
  if @warrantFlag = 1
-  begin
+ begin
  
- declare @limitfundcode varchar(50),
-         @defaultBank varchar(5),
-         @bankCode varchar(60),
-         @filterWarrantsByBank varchar(5)
- 
- select @filterWarrantsByBank = isnull(settingValue,'FALSE') from settings where settingName='site.filterWarrantsByBank'
+   declare @limitfundcode varchar(50),
+           @defaultBank varchar(5),
+           @bankCode varchar(60),
+           @filterWarrantsByBank varchar(5)
 
- select @bankCode = b.accountcode from object a, glaccounts b where a.id=@id and a.key1=b.accountcode and a.key1>' 0'
+   select @filterWarrantsByBank = isnull(settingValue,'FALSE') from settings where settingName='site.filterWarrantsByBank'
 
- select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
+   select @bankCode = b.accountcode from object a, glaccounts b where a.id=@id and a.key1=b.accountcode and a.key1>' 0'
 
- if @bankCode in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('BANK')) and code='WARRANT')
-  begin
-   set @defaultBank = 'TRUE'
-  end
+   select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
+
+   if @bankCode in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('BANK')) and code='WARRANT')
+    begin
+     set @defaultBank = 'TRUE'
+    end
+   else
+    begin
+     set @defaultBank = 'FALSE'
+    end
+
+   --insert @rt (id,description,ord,origin) select 0,'','w',6
+   insert @rt (id,description,ord,rowType,origin) select 0,'Warrants: ','ww',3,7
+   declare @glAccountIds table (id int)
+
+
+   if @showAllWarrants = 1 or @filterWarrantsByBank = 'FALSE'
+    begin
+     insert into @glAccountIds
+        select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode)
+ end
  else
-  begin
-   set @defaultBank = 'FALSE'
-  end 
-
- --insert @rt (id,description,ord,origin) select 0,'','w',6 
- insert @rt (id,description,ord,rowType,origin) select 0,'Warrants: ','ww',3,7 
- declare @glAccountIds table (id int)
-
-
- if @showAllWarrants = 1 or @filterWarrantsByBank = 'FALSE'
-  begin
-   insert into @glAccountIds
-      select accountId from glAccounts where accountType = 'WARRANT' and (isnull(@limitfundcode,'ALL')='ALL' or accountCode=@limitfundcode)
-  end
- else
-  begin
+ begin
    if @defaultBank = 'FALSE'
     begin
      insert into @glAccountIds
