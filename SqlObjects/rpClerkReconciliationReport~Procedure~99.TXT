@@ -1,0 +1,80 @@
+create function dbo.rpClerkReconciliationReport(@enddate varchar(20))
+returns @rt table(
+id int identity(1,1),
+fundcode varchar(60),
+fundDesc varchar(50),
+fiscalYear varchar(50),
+registered money,
+paid money,
+cancelled money,
+outstanding money
+)
+as
+begin
+declare @wt table(
+id int identity(1,1),
+slink varchar(16),
+contraslink varchar(16),
+naturalAmount money,
+contraAmount money,
+balanceAsOf money,
+postDate int,
+contraPostDate int,
+fundcode varchar(60),
+fundDesc varchar(50),
+fiscalYear varchar(50),
+contraPaymentType varchar(50)
+)
+
+declare @wt2 table(
+id int identity(1,1),
+fundcode varchar(60),
+fundDesc varchar(50),
+fiscalYear varchar(50),
+paymentType varchar(50),
+amount money,
+reportColumn int
+)
+
+insert @wt
+select slink,contraslink,naturalAmount,contraAmount,balanceAsOf,postDate,contraPostDate,fundcode,fundDesc,dbo.validateFiscalYear(fiscalYear),contraPaymentType 
+  from paymentreports('Warrant',@enddate,'TRUE') 
+  where paymentType='WARRANT'
+  order by fundcode,controlnumber
+
+insert @wt2
+select fundcode, fundDesc, fiscalYear, 
+ case when contraPaymentType = 'Treasurers Check' then 'Warrants Paid' else 'Stop/Cancelled/Void' end,
+ sum(contraAmount*-1) as Amount,
+ case when contraPaymentType = 'Treasurers Check' then 2 else 3 end
+ from @wt
+ where isnull(contraPaymentType,'NULL')!='NULL' and contraPostDate <= @enddate
+ group by fundcode, fundDesc, fiscalYear, contraPaymentType
+ 
+insert @wt2
+select fundcode, fundDesc, fiscalYear, 'OutStanding', sum(naturalAmount) as Amount,4
+ from @wt
+ where (isnull(contraPaymentType,'NULL')='NULL' or contraPostDate>@enddate) and postDate <= @enddate
+ group by fundcode, fundDesc, fiscalYear, contraPaymentType
+
+insert @wt2
+select fundcode, fundDesc, fiscalYear, 'Warrants Registered', sum(naturalAmount) as Amount,1
+ from @wt
+ where postDate <= @enddate
+ group by fundcode, fundDesc, fiscalYear
+
+insert @rt
+select fundcode,
+fundDesc,
+fiscalYear,
+sum(case when reportcolumn = 1 then amount else 0 end) as registered,
+sum(case when reportcolumn = 2 then amount else 0 end) paid,
+sum(case when reportcolumn = 3 then amount else 0 end) cancelled,
+sum(case when reportcolumn = 4 then amount else 0 end) outstanding
+from @wt2
+group by fundcode,
+fundDesc,
+fiscalYear
+ 
+return
+end
