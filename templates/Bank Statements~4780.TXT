@@ -225,9 +225,10 @@
  if(gcretval=4,cancelWarrant=);
 
 @buyQuestions=
+ lcCSWar=kp('select dbo.settingsF(''site.checkStyleWarrants'',''unknown'')'),
  if(gcbuydate<'  0',gcbuydate=today()),
  lcOfferCheckNo=kp('select dbo.settingsF(''site.offerCheckNumberWhenBuyingWarrants'',''TRUE'')'),
- lcIWString=',[acc002=if(obj:key1>today(),prop(005,text,''Are you sure you wish to use a future date?''),prop(005,text,'' '')).,,.t000Please fill in the following....,,.t001Date.,,.t002@d2.,,.f002=gcbuydate.,,.t003Check #.,,.f004=gcbuycheckno.,,.000405.,,.w00200450.,r'&choose(lcOfferCheckNo='TRUE','',',.h003004.,r')&',.t005.,,.p0057c13h,700.,,.p0057c12h,255.,,.w005200.,,.h005obj:key1<''  0''.,,.h006.,';
+ lcIWString=',[acc002=if(obj:key1>today(),prop(005,text,''Are you sure you wish to use a future date?''),prop(005,text,'' '')).,,.t000Please fill in the following....,,.t001Date.,,.t002@d2.,,.f002=gcbuydate.,,.t003Check #.,,.f004=gcbuycheckno.,,.000405.,,.w00200450.,r'&choose(lcOfferCheckNo='TRUE','',',.h003004.,r')&',.t005.,,.p0057c13h,700.,,.p0057c12h,255.,,.w005200.,,.h005obj:key1<''  0''.,,.h006.,'&choose(lcCSWar<>'TRUE','',',.t009Clearing Date.,,.t010@d2.,,.f010'&obj:a5&'.,,.w01050.,,.t007Please check your Clearing Date. This is the date these transactions will use on your banks paper statement..,,.h008.,,.w007200.,,.z00725.,,.y007-13.,');
 
 @buyWarrant=
  buyQuestions=,
@@ -235,7 +236,8 @@
  break(gcretval<>'OK'),
  lcBuyDate=obj7:key1,lcBuyCheckno=obj7:key2,
  gcBuyDate=lcBuyDate,
- d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id&', @voucherDate='&lcBuyDate&', @voucherNumber='''&lcBuyCheckno&''''),
+ lcClearingDate=obj7:a2,
+ d1select('exec dbo.paymentCRUD @mode=0, @paymentType=''Buy Warrant'', @id='&lcid&', @bankStatementId='&obj:id&', @voucherDate='&lcBuyDate&', @voucherNumber='''&lcBuyCheckno&''', @clearingDate='&choose(lcClearingDate+0>0,lcClearingDate,'NULL')),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
  if(readstring(obj7:d1,'@code=')=2,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption='))),
  refreshBRW=;
@@ -245,7 +247,8 @@
  iw(lcIWString),
  break(gcretval<>'OK'),
  lcBuyDate=obj7:key1,lcBuyCheckno=obj7:key2,
- d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&', @voucherDate='&lcBuyDate&', @key3Number='''&lcBuyCheckno&''', @method=''BUYMANY'', @ini='''&cur:ini&''''),
+ lcClearingDate=obj7:a2,
+ d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&', @voucherDate='&lcBuyDate&', @key3Number='''&lcBuyCheckno&''', @method=''BUYMANY'', @ini='''&cur:ini&''', @clearingDate='&choose(lcClearingDate+0>0,lcClearingDate,'NULL')),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Error Buying Warrant...')),
  if(readstring(obj7:d1,'@code=')=2,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption='))),
  refreshBRW=;
