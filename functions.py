@@ -26,7 +26,7 @@ class ktsMenu():
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
         self.createCommand('help',['h','help'],'',self.command_help)
         self.createCommand('testConnection',['test','t','testconnection'],'tests the connection to your sql server',self.command_testConnection)
-        self.createCommand('serverSettings',['set','s'],'modify server settings',self.command_serverSettings)
+        self.createCommand('serverSettings',['set'],'modify server settings',self.command_serverSettings)
         self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu)
         self.createCommand('gitCommands',['git'],'run git command',self.command_git)
         self.createCommand('logging',['logging','log','logit'],'modify log settings',self.command_logging)
@@ -38,6 +38,9 @@ class ktsMenu():
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
         self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
         self.createCommand('users',['user','users'],'display or define default users',self.command_users)
+        self.createCommand('gitstatus',['status','s'],'preform a git status',[self.command_git,['git','status']])
+        self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
+        self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs light diagnostic battery',self.diagnostic_run,'diagnostics')
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
@@ -287,6 +290,7 @@ class ktsMenu():
             print 'running dbo.keyUpdateAll', result['code']
             print 'running keySQLObjectCreateAll', self.sqlQuery('exec dbo.keySQLObjectCreateAll',True)['code']
             print 'running dbo.keyTemplateUpdateFromRepo', self.sqlQuery("exec dbo.keyTemplateUpdateFromRepo null",True)['code']
+            print 'Run glCreateTables...', self.sqlQuery('exec dbo.glCreateTables',True)['code']
             self.sqlAlterProc("createIndexes","Procedure","99")
             print 'running dbo.createIndexes', self.sqlQuery("exec dbo.createIndexes",True)['code']
             self.sqlAlterProc("createGroups","Procedure","99")
@@ -331,9 +335,13 @@ class ktsMenu():
                     runFix()
                 printStatus()
 
-    def command_git(self):
+    def command_gitpush(self):
+        self.sendCommand('git push origin %s' % self.git['branch'])
+        self.sendCommand('git push github %s' % self.git['branch'])
+
+    def command_git(self, commandOverride=None):
         try:
-            print subprocess.check_output(' '.join(self.command), shell=True)
+            print subprocess.check_output(' '.join(commandOverride or self.command), shell=True)
         except subprocess.CalledProcessError:
             print 'error running subprocess...'
 
