@@ -1,0 +1,16 @@
+create function dbo.docTaxLienDocketTF()
+returns @wt table (invoiceId int,taxYear varchar(10),Item varchar(30),Name varchar(50))
+ as 
+ begin
+ 
+ insert @wt
+  select null,max(taxyear),item,NAME
+   from invoices 
+   where invoiceDue>0 and invoiceId=0 and TYP in ('b','i','p')
+   group by NAME,item
+	
+ update w set w.invoiceId = i.ID 
+  from invoices i inner join @wt w on w.Item = i.ITEM and i.NAME = w.Name and i.TAXYEAR = w.taxYear
+
+return
+end	
