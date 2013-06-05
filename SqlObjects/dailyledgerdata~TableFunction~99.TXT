@@ -139,13 +139,18 @@ update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, elecdeposits
 update @wt2 set paid=paid*-1 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
 declare @currentTaxYear varchar(4),
-        @priorTaxYear varchar(4)
+        @priorTaxYear varchar(4),
+        @detailBackTax varchar(5)
 
-select @currentTaxYear = left(max(accountCode),4) from @wt2 where right(accountCode,9)='ADVALOREM'
-select @priorTaxYear = cast(cast(@currentTaxYear as int)-1 as varchar(4))
+select @detailBackTax = settingValue from settings where settingname='site.dailyLedgerDetailBackTax'
 
+if @detailBackTax <> 'TRUE'
+begin
+ select @currentTaxYear = left(max(accountCode),4) from @wt2 where right(accountCode,9)='ADVALOREM'
+ select @priorTaxYear = cast(cast(@currentTaxYear as int)-1 as varchar(4))
 
-update @wt2 set accountType='BACK TAX' where right(accountCode,9)='ADVALOREM' and left(accountCode,4) < @priorTaxYear
+ update @wt2 set accountType='BACK TAX' where right(accountCode,9)='ADVALOREM' and left(accountCode,4) < @priorTaxYear
+end
 
 insert @rt
  select *,'' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')

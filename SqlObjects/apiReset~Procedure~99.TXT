@@ -1,0 +1,47 @@
+create proc dbo.apiReset(
+ @invoiceId int = null,
+ @adtaxId int = null
+) as
+begin
+
+ exec dbo.logit @@procid, 'Started with ... @invoiceId', @invoiceId, '@adtaxId', @adtaxId
+
+ declare @objectIds ids
+
+ if @invoiceId is null and @adtaxId is not null
+  select @invoiceId = id from invoices where taxrollId = @adtaxId
+
+ if @invoiceId is not null and @adtaxId is null
+  select @adtaxId = taxrollId from invoices where id = @invoiceId
+
+ exec dbo.logit @@procid, 'now working with ... @invoiceId', @invoiceId, '@adtaxId', @adtaxId
+
+
+ if @invoiceId is not null
+  insert @objectIds select receiptId from receiptlink where invoiceId = @invoiceId
+
+
+-- invoices
+ if @invoiceId is not null
+ begin
+  update invoices set apiUpdated = null where id = @invoiceId
+  exec dbo.logit @@procid, 'update invoices... @@rowcount', @@rowcount
+-- turn off the trigger on object
+  alter table object disable trigger keySqlObjectWriteToRepoTR
+  update object set k7 = '' where typ = 4502 and id in (select id from @objectIds)
+  exec dbo.logit @@procid, 'update receipts (object)... @@rowcount', @@rowcount
+-- turn on the trigger on object
+  alter table object enable trigger keySqlObjectWriteToRepoTR
+ end
+
+-- adtax
+ if @adtaxId is not null
+  update adtax set
+   apiUpdated = null,
+   apiUpdatedLegal = null
+  from adTax
+  where id = @adtaxId
+  exec dbo.logit @@procid, 'update adtax & legal... @@rowcount', @@rowcount
+
+ return
+end

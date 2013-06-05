@@ -1,0 +1,78 @@
+create function dbo.docTaxLienDocket(@invoiceid int,@interestDate varchar(50))
+returns varchar(max)
+
+as
+begin
+
+declare 
+ @Ret varchar(max) = '',
+ @address varchar(max),
+ @name varchar(50),
+ @options int =1
+
+select 
+ @name = name,
+ @address = dbo.parseaddress(dbo.getTaxInvoiceBlob(@invoiceId))
+ from invoices where ID = @invoiceId
+
+--LeftColumn
+declare  @leftSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(1000),
+	LengthOfText int)
+
+	insert @leftSplit
+	select @name,LEN(@name)
+
+--middleColumn
+declare  @middleSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(1000),
+	LengthOfText int)
+	
+	insert @middleSplit
+	select data,LEN(data) from dbo.split(@address ,CHAR(13)+char(10))
+
+   
+ --RightColumn   
+  declare  @rightSplit table 
+	(RowNumber int identity(1,1),
+	LineOfText varchar(1000),
+	LengthOfText int)
+	
+  insert @rightSplit
+   select
+    dbo.padright(taxYear,' ',6)
+    + dbo.padLeft(dbo.formatCurr(taxDue),' ',13)
+    + dbo.padLeft(dbo.formatCurr(total),' ',12),
+    LEN(    dbo.padright(taxYear,' ',6)
+    + dbo.padLeft(dbo.formatCurr(taxDue),' ',13)
+    + dbo.padLeft(dbo.formatCurr(total),' ',12))
+     from  dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1)='c'
+
+declare @wt table (rowNumber int,
+		rowStringLeft varchar(1000),
+		rowStringMiddle varchar(1000),
+		rowStringRight varchar(1000))
+
+	insert @wt
+	 select RowNumber,LineOfText,'','' from @leftSplit
+	insert @wt
+	 select RowNumber,'',LineOfText,'' from @middleSplit
+	insert @wt
+	 select RowNumber,'','',LineOfText from @rightSplit 
+     
+	select 
+   	@ret = @ret 
+	+ dbo.padright(MAX(rowStringLeft),' ',32)
+	+ dbo.padright(MAX(rowStringMiddle),' ',47)
+	+ dbo.padleft(MAX(rowStringRight),' ',33)
+	+ CHAR(13) + CHAR(10)
+	from @wt 
+	group by rowNumber
+	
+return @ret
+end
+
+
+

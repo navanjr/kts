@@ -1,0 +1,71 @@
+create proc dbo.diagFix_officialCodesMismatch(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin
+
+  declare @wt table(name varchar(50))
+
+  insert @wt
+  select officialName
+  from officers
+  join glAccounts on officers.officialDepositAccountCode = glAccounts.accountCode
+  where officers.officialDepositAccountDesc != glAccounts.accountDesc
+
+  insert @wt
+  select officialName
+  from officers
+  join glAccounts on officers.bankAccountCode = glAccounts.accountCode
+  where officers.bankAccountDesc != glAccounts.accountDesc
+
+
+  select
+   @class = 'Official',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'officials bank or fund codes do not match the glAccountCode'
+  from @wt
+
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin
+  select * from @wt
+  return
+ end
+
+ if @method = 'FIX'
+ begin
+
+  update o set o.b2 = g.accountDesc
+  from object, glAccounts
+  where o.typ = 4601
+   and o.a3 = glAccounts.accountCode
+   and o.key1 in (select name from @wt)
+
+  update o set o.b3 = g.accountDesc
+  from object, glAccounts
+  where o.typ = 4601
+   and o.a4 = glAccounts.accountCode
+   and o.key1 in (select name from @wt)
+
+  return
+ end
+
+
+end
+
+

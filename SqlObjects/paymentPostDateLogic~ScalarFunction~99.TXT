@@ -9,10 +9,10 @@ begin
   @label varchar(100),
   @postDate int
 
--- if the switch site.showPaymentsOnDashboard is on we use the dashboard.paymentDate
+-- if the switch site.showPaymentsOnDashboard is on we use the dashboard.<station>.paymentDate
   if dbo.settingsF('site.showPaymentsOnDashboard','FALSE') = 'TRUE'
   begin
-   set @postDate = dbo.settingsF('dashboard.PaymentDate', cast(dbo.clarionToday() as varchar))
+   set @postDate = dbo.settingsF('dashboard.' + dbo.readstring('@station=',dbo.whoami()) + '.PaymentDate', cast(dbo.clarionToday() as varchar))
    set @label = 'Date Registered: ' + dbo.date1(@postDate)
    set @retMax = '@postDate=' + cast(@postDate as varchar) + ';@label=' + @label + ';'
    return @retMax

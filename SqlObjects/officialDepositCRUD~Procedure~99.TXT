@@ -20,7 +20,8 @@ begin
   @accountDesc varchar(50),
   @fullName varchar(50),
   @station varchar(50),
-  @whoami varchar(500) = dbo.whoami()
+  @whoami varchar(500) = dbo.whoami(),
+  @ticketNo varchar(50) = ''
 
 -- Create Treasurers Official Deposit only!
  if @mode = 0 and @linkTrust = 'TRUE'
@@ -35,6 +36,8 @@ begin
   from Object a
   join Object b on b.A3 = a.Key1 and b.typ = 4601
   where a.TYP = 4701 and a.Key3 = 'TRUST'
+
+  select top 1 @ticketNo = cast(cast(b2 as money) + 1 as int) from object where typ=4522 and a1=@officialName and a17='Posted' order by cast(b2 as money) desc
 
   select 
    @fullName = fullName,
@@ -51,9 +54,9 @@ begin
   exec dbo.logit @@procid, 'create object record @fullName', @fullName, '@station', @station
 
   declare @newIdWt newIdWt
-  insert object (typ, key2, Key3, link2, a1, a2, b1, b10, a18, b13)
+  insert object (typ, key2, Key3, link2, a1, a2, b1, b10, a18, b13, b2)
   output inserted.id into @newIdWt
-  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate, @fullName, @station  
+  select 4522, @depositDate, 'OFFICIAL', @officialId, @officialName, @accountCode, @accountDesc, @depositDate, @fullName, @station,  @ticketNo 
   
   select @newObjectId = max(id) from @newIdWt
 

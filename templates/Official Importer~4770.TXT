@@ -157,21 +157,36 @@
  prop(150,7CFAH,13499135);
 
 @lbrwclick150=
+ if(obj:c1+0=1,voucherMenu=,warrantMenu=);
+
+@voucherMenu=
+;
+
+@warrantMenu=
  lcid=kpbrwid(1)*-1,
  m('Choose one of the following options...','CSV Row: '&lcid,,'Clerks Fund|&Cancel'),
  if(gcretval=1,openClerksFund=);
 
 @openClerksFund=
+ fundCheck=,
+ if(lcFundId+0>0,change(lcFundId),clerksFundMissing=);
+
+@fundCheck=
  lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&') where id = '&lcid),
- lcid=kp('select id from object where typ = 4704 and key2 = '''&lcFund&''''),
- if(lcid+0>0,change(lcid));
+ lcFundId=kp('select id from object where typ = 4704 and key2 = '''&lcFund&'''');
+
+@clerksFundMissing=
+ m('Would you like to add it?','Missing Clerks Fund....',,6,2),
+ break(gcretval<>2),
+ neww(4704,,004=lcFund),
+ refreshBRW=;
 
 @gcvars=
  if(obj:c1+0=1,gcvarsVouchers=,gcvarsWarrants=);
 
 @gcvarsVouchers=
  gcformat4770='40L(2)~Voucher #~#2#M|50R(2)~Date~@d2b@#3#M|195L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|50L(2)~DebitAcct~#6#M|50L(2)~CreditAcct~#7#M|40L(2)~Register #~#8#M|',
- gcsql4770='select id,voucherNumber,voucherDate,payee,amount,debitAcct,creditAcct,registerNumber,postCheck from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by ord';
+ gcsql4770='select id-1,voucherNumber,voucherDate,payee,amount,debitAcct,creditAcct,registerNumber,postCheck from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by ord';
 
 @gcvarsWarrants=
  gcformat4770='50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|',
@@ -190,8 +205,8 @@
 @lbrw1forecolor=obj7:c10<0,255;
 @lbrw1color=obj7:c10='1',255,obj7:c10='2',2350115,obj7:c10='3',255; 2350115;
 
-\h001004obj:c1+0=0;r
-\h041042obj:c1+0=0;r
+\h001006obj:c1+0=0;r
+\h041044obj:c1+0=0;r
 \t001Received From;  \l0024601,2;r002002004012006014042050044052;  @acc002=calcrecord(),if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=;
  \q002obj:c1+0=1;
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL'' and b3!=1',2;
@@ -199,7 +214,7 @@
  \t041OfficialAccountDesc; \h041; \d042; \x042184; \w042151;
  @acc004=calcrecord(),if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=;
 \t005Bank Account; \l0064701;r006002044004; @lf006='a1=''BANK'' and b3!=1',2; @acc006=if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=;
- \q006;
+ \q006obj:c1+0=1;
  \t043OfficialBankDesc; \h043; \d044; \x044184; \w044151;
 
 @updateRegisterNumber=set(48,obj:c3+1);
