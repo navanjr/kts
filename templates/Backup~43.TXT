@@ -17,11 +17,11 @@
 
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
- brw(150,1,gcbrwsql50,2,2,320,262,'135L(5)~Filename~#2#|M65R(5)~Size~@n14.0b@#3#|M100L(5)~Date~#4#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(150,1,gcbrwsql50,2,2,320,262,'135L(5)~Filename~#2#M65R(5)~Size~@n14.0b@#3#M100L(5)~Date~#4#M'),
  kpmc(),
  prop(150,'Color',16777215),
  prop(150,7c10h,'Verdana'),
- prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedFillColor',65535),
  prop(150,'SelectedColor',0);
 
 @refreshbrw=
@@ -33,12 +33,46 @@
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 
 @lbrwclick150=
- lcid=kpbrwid(1)*-1,
- m('Choose one of the following options...','sqlBackups...','question.ico','&Destroy||E&xit'),
- if(gcretval=1,destroyBackup=);
+ bustItUp=,
+ if(lcMode+0=7,toggleCompression=),
+ if(lcMode+0=8,jobOptions=),
+ if(lcMode+0=9,backupFileOptions=);
+@bustItUp=
+ if(kpbrwid(1)=0,bustItUpReset=),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+@bustItUpReset=
+ lcMode=0,
+ lcId=0;
+
+@toggleCompression=
+ m('Choose one of the following options...','sqlBackups...','question.ico','&Toggle|E&xit'),
+ break(gcretval<>1),
+ sql('exec dbo.settingsCRUD ''site.sqlCompression'', @method=''TOGGLE'''),
+ refreshbrw=;
+
+@jobOptions=
+ m('Choose one of the following options...','sqlBackups...','question.ico','&Execute Job|&Delete Job|&Create Job|E&xit'),
+ if(gcretval=1,sql('exec dbo.sqlBackup ''executeJob''')),
+ if(gcretval=2,sql('exec dbo.sqlBackup ''deleteJob''')),
+ if(gcretval=3,jobCreate=),
+ refreshbrw=;
+@jobCreate=
+ iw(',.t000Create Backup Job..., ,.t001Time to preform backup?., ,.w001200., ,.t002@t1., ,.w00250., ,.x002+50.,'),
+ break(gcretval<>'OK'),
+ lcTime=obj7:key1,
+ sql('exec dbo.sqlBackup ''createJob'', @backupTime='&lcTime);
+
+@backupFileOptions=
+ m('Choose one of the following options...','sqlBackups...','question.ico','&Destroy|E&xit'&choose(cur:securitylevel>89,'|&FTP to Support','')),
+ if(gcretval=1,destroyBackup=),
+ if(gcretval=3,ftpBackup=);
+
+@ftpBackup=
+ m('Coming Soon!','ftp...');
 
 @destroyBackup=
- d1select('exec dbo.sqlBackup ''destroy'', @brwid='&lcid),
+ d1select('exec dbo.sqlBackup ''destroy'', @brwid='&lcId),
  if(readstring(obj7:d1,'@code=')=2,destroyBackupConfirm=),
  refreshbrw=;
 
@@ -47,7 +81,7 @@
  if(gcretval=2,destroyBackupYES=);
 
 @destroyBackupYES=
- d1select('exec dbo.sqlBackup ''destroy'', @areYouSure=''YES'', @brwid='&lcid),
+ d1select('exec dbo.sqlBackup ''destroy'', @areYouSure=''YES'', @brwid='&lcId),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'SQL Backup...')),
  refreshbrw=;
 
