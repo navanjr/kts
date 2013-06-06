@@ -170,4 +170,19 @@ begin
     comments = @ini + ' ' + dbo.date1(dbo.clarionDate(getdate())) + ': Removed '+ dtype +' Flag ' + char(13) + char(10) + '***' + cast(comments as varchar(max)) 
        where id = @taxRollDetailId and actionDate = 0
   end
+  
+ if @mode = 'indivDeed'
+  begin
+   select
+    @parcel = parcel,
+    @item = item,
+    @taxYear = taxYear 
+   from invoices where id = @invoiceId 
+
+
+    insert taxRollDetail (parcelNumber,itemNumber,taxYear, dtype, comments,invoiceLinkId) select @parcel, @item, @taxYear, @mode, @ini + ' - Individual Deed Info Added '+CHAR(13)+CHAR(10)+replicate(' ',100)+@blob, @invoiceId
+    exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
+   return
+  end
+  
 end

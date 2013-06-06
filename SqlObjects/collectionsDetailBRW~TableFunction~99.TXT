@@ -73,7 +73,7 @@ begin
   insert @rt
   select
    '7'+cast(id as varchar),
-   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(comments as varchar(max)),
+   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(dbo.replace(comments,'~{~','''') as varchar(max)),
    dbo.clarionDate(documentDateTime),
    @dtype,
    @keyCode,
@@ -81,7 +81,7 @@ begin
    0,
    999999 - dbo.clarionDate(documentDateTime)
   from taxrollDetail where parcelNumber = @parcel
-   and dtype in ('print','resale','taxwarrant','Abstract','AddFee')
+   and dtype in ('print','resale','taxwarrant','Abstract','AddFee','indivDeed')
 
 -- manually entered comments
   insert @rt (id,display, date, ord)
@@ -93,6 +93,7 @@ begin
   from dbo.object
   where typ=4002 
   and key2 = @parcel
+
 
 -- Unpaid
   select top 1 @invoiceId = ID from invoices where PARCEL = @parcel order by taxYear desc
