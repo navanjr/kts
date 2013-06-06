@@ -43,16 +43,19 @@ declare @det table(apportionmonth int,
                    journalDesc varchar(50),
                    amount money)
 insert @det
-select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(amount*-1) 
+select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(amount*-1) 
 from dbo.rpMonthEndDetail(
  @beginDate,
  @endDate,
  'FALSE')
  where left(journalType,13)='APPORTIONMENT'
-       and accountcode=@fundCode
+       and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
+       and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+       and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
 group by 
- month(dbo.date1(apportiondate)),accountCode,accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc
- 
+ month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
+
+update d set accountdesc = a.accountdesc from @det d, glaccounts a where d.accountcode=a.accountcode
  
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50),ord varchar(50))
 
@@ -170,9 +173,37 @@ update r set December=d.amount from @rt r, @det d
 
  update @rt set total = cast(july as money)+cast(august as money)+cast(september as money)+cast(october as money)+cast(november as money)+cast(december as money)+cast(january as money)+cast(february as money)+cast(march as money)+cast(april as money)+cast(may as money)+cast(june as money)
 
+insert @rt (accountcode,accountdesc,sourceDesc, ord)
+ select accountcode,accountdesc,
+  rtrim(accountdesc)+'     ',
+  accountcode+rtrim(accountdesc)+'       a'
+  from @rt
+  group by accountcode,accountdesc
+
+
+insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,november,december,january,february,march,april,may,june,total, ord)
+ select accountcode,accountdesc,
+  'Total Revenue Rec''d',
+  sum(cast(July as money)),
+  sum(cast(August as money)),
+  sum(cast(September as money)),
+  sum(cast(october as money)),
+  sum(cast(november as money)),
+  sum(cast(december as money)),
+  sum(cast(January as money)),
+  sum(cast(february as money)),
+  sum(cast(march as money)),
+  sum(cast(april as money)),
+  sum(cast(may as money)),
+  sum(cast(june as money)),
+  sum(cast(total as money)),
+  accountcode+rtrim(accountdesc)+'zzzzzzzzzz'
+  from @rt
+  group by accountcode,accountdesc
+
 insert @rt (sourceDesc,july,august,september,october,november,december,january,february,march,april,may,june,total, ord)
  select 
-  'Total Revenue Rec''d',
+  'Grand Total Revenue Rec''d',
   sum(cast(July as money)),
   sum(cast(August as money)),
   sum(cast(September as money)),
@@ -188,7 +219,7 @@ insert @rt (sourceDesc,july,august,september,october,november,december,january,f
   sum(cast(total as money)),
   'zzzzzzzzzz'
   from @rt
-
+  where sourceDesc='Total Revenue Rec''d'
 
 
 return
