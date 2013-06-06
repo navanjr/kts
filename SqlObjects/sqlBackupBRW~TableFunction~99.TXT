@@ -1,0 +1,59 @@
+create function dbo.sqlBackupBRW() returns @rt table(
+  brwid int,
+  display varchar(max),
+  size bigint,
+  modifiedDate varchar(50),
+  pathAndFileName varchar(max),
+  ord varchar(50)
+) as 
+begin
+
+ declare
+  @backupFolder varchar(max),
+  @database varchar(50) = db_name(),
+  @agentStatus varchar(100),
+  @backupJobName varchar(100) = db_name() + '_backupJob',
+  @jobId binary(16),
+  @jobStatus int,
+  @nextDateTime datetime
+
+ select @agentStatus = status from master..sysprocesses where left(program_name, 8) = 'SQLAgent'
+ select @jobId = job_id, @jobStatus = enabled from msdb.dbo.sysjobs where name = @backupJobName
+ select @backupFolder = path From dbo.paths() where name = 'backupPath'
+
+ if @jobId is not null
+  select @nextDateTime = next_scheduled_run_date from msdb..sysjobactivity where job_id = @jobId
+
+ insert @rt 
+ select
+  cast('9' + cast(id as varchar) as int),
+  '  ' + fileName,
+  fileSize,
+  modifiedDate,
+  pathAndFileName,
+  null
+ from dbo.dirFiles(@backupFolder,@database + '_%')
+ order by modifiedDate desc
+
+ update @rt set ord = 'c_1' + cast(99999 - brwid as varchar)
+ insert @rt (display, ord) select '', 'c_0'
+ insert @rt (display, ord) select 'Backup Files', 'c_10'
+
+ insert @rt (display, ord) select '', 'a_0'
+ insert @rt (display, ord) select 'SQL Agent... ' + isnull(@agentStatus,'Missing'), 'a_10'
+
+ insert @rt (display, ord) select '', 'b_0'
+ insert @rt (brwid, display, ord) select 71, 'SQL Compression... ' + dbo.settingsF('site.sqlCompression','Unknown'), 'b_1' 
+
+ if @jobStatus is null
+ begin
+  insert @rt (brwid, display, ord) select 81, '  ' + @backupJobName + '... Missing', 'a_11'
+ end
+ else
+ begin
+  insert @rt (brwid, display, ord) select 81, '  ' + @backupJobName + '... ' + case when @jobStatus = 1 then 'Enabled' else 'Disabled' end, 'a_11'
+  insert @rt (brwid, display, ord) select 81, '    Next Run: ' + cast(@nextDateTime as varchar), 'a_12'
+ end
+
+ return
+end

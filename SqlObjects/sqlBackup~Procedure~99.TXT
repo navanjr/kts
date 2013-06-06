@@ -1,54 +1,154 @@
 create proc dbo.sqlBackup (
- @method varchar(50) = 'backup'
+ @method varchar(50) = 'backup',
+ @brwid int = null,
+ @backupTime int = null,
+ @areYouSure varchar(5) = 'NO',
+ @useSqlCompression varchar(5) = null,
+ @filesBlob varchar(max) = null output
 ) as 
 begin
+ set nocount on
 
  declare
   @backupFile varchar(max),
-  @sql varchar(max)
-
- declare
+  @sql varchar(max),
+  @database varchar(50) = db_name(),
+  @backupJobName varchar(100) = db_name() + '_backupJob',
   @jobId BINARY(16),
-  @jobName nvarchar(1000) = 'ktsBackup',
   @jobSQL nvarchar(1000) = 'exec dbo.sqlBackup @method = ''backup''',
---  @dbName nvarchar(1000) = db_name(),
---  @serverName nvarchar(1000) = @@servername,
-  @jobStatus int
+  @jobStatus int,
+  @backupTimeString varchar(50) = right('00' + cast(datepart(hour,dbo.time2(@backupTime)) as varchar),2)
+   + right('00' + cast(datepart(minute,dbo.time2(@backupTime)) as varchar),2) + '00'
+
+ set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('site.sqlCompression','TRUE'))
 
 -- just a one time backup
  if @method = 'backup'
  begin
   select @backupFile = path from dbo.paths() where name = 'backup'
 
-  select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT, compression'
+  select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT'
+   + case when @useSqlCompression = 'TRUE' then ', compression' else '' end
   exec dbo.logit @@procid, @sql
   exec(@sql)
 
   return
  end
 
-/*
- if @method = 'toggle'
+ if @method in ('destroy') and @brwid is not null
  begin
+  declare
+   @pathAndFileName varchar(max),
+   @cmd varchar(8000),
+   @cmdOutput varchar(8000)
 
- If not exists(select * from msdb..sysJobs where name = 'apiJob_' + @resource)
-   exec dbo.apiJobs @resource
+   select @pathAndFileName = pathAndFileName From dbo.sqlBackupBRW() where brwid = '9' + cast(@brwid as varchar)
+   if @areYouSure = 'NO'
+   begin
+    select '@code=2;@message=Are you sure you want to destroy|' + @pathAndFileName + ' ?;'
+    return
+   end
+   if @areYouSure = 'YES'
+   begin
+    set @cmd = 'del ' + @pathAndFileName
+    exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+    exec dbo.logit @@procid, '@cmdOutput', @cmdOutput
+   end
+
+   return
+ end
+
+ if @method in ('show')
+ begin
+  declare
+   @backupFolder varchar(max)
+   select @backupFolder = path From dbo.paths() where name = 'backupPath'
+   select * from dbo.dirFiles(@backupFolder,@database+'_%')
+   return
+ end
+
+ if @method = 'executeJob'
+ begin
+  exec msdb.dbo.sp_start_job @Job_Name = @backupJobName
+  return
+ end
+
+ if @method = 'deleteJob'
+ begin
 
   select
    @jobStatus = case when enabled = 0 then 1 else 0 end,
    @jobId = job_id
-  from msdb..sysJobs where name = 'apiJob_' + @resource
+  from msdb..sysJobs where name = @backupJobName
+
+-- if job already exists delete it
+  if @jobId is not null
+  begin
+   exec dbo.logit @@procid, 'deleteing job @jobId', @jobId
+   exec msdb.dbo.sp_delete_job @jobId
+  end
+ end
+
+ if @method = 'createJob'
+ begin
+  exec dbo.logit @@procid, 'Creating backup job... @backupTime', @backupTime, '@backupTimeString', @backupTimeString
+
+  select
+   @jobStatus = case when enabled = 0 then 1 else 0 end,
+   @jobId = job_id
+  from msdb..sysJobs where name = @backupJobName
+
+-- if job already exists then bail
+  if @jobId is not null
+  begin
+   exec dbo.logit @@procid, 'job already exists'
+   return
+  end
+
+--Add job
+  exec msdb.dbo.sp_add_job
+   @job_name = @backupJobName, 
+   @job_id = @jobId OUTPUT
+
+--Add schedule to job
+  exec msdb.dbo.sp_add_jobschedule
+   @job_id = @jobId,
+   @name = N'Once every day', 
+   @freq_type=4, 
+   @freq_interval=1, 
+   @freq_subday_type = 0x1, -- at specific time 
+   @freq_subday_interval=0, 
+   --@freq_relative_interval=0, 
+   --@freq_recurrence_factor=1, 
+   @active_start_date=20100302, 
+   @active_end_date=99991231,  
+   @active_start_time=@backupTimeString,
+   @active_end_time=235959
+
+--Add step to job
+  exec msdb.dbo.sp_add_jobstep
+   @job_id = @jobId,
+   @step_name = N'Do SQL Stuff', 
+   @step_id = 1, 
+   @subsystem = N'TSQL', 
+   @command = N'exec dbo.sqlBackup', 
+   @database_name = @database, 
+   @flags=0
+
+--Add job server
+  exec msdb.dbo.sp_add_jobserver
+   @job_id = @jobId,
+   @server_name = @@servername
+
+ end
+
+/*
   exec msdb..sp_update_job @job_id = @jobId, @enabled = @jobStatus
   exec dbo.logit @@procid, '@resource', @resource, '@method', @method, '@jobStatus', @jobStatus
- end
 
 -- create the backup job
  if @method = 'create' 
  begin
- --Add job
-  exec msdb.dbo.sp_add_job
-   @job_name = @jobName, 
-   @job_id = @jobId OUTPUT
  
  --Add step to job
   exec msdb.dbo.sp_add_jobstep
@@ -60,26 +160,11 @@ begin
    @database_name = @dbName, 
    @flags=0
  
- --Add schedule to job
-  exec msdb.dbo.sp_add_jobschedule
-   @job_id = @jobId,
-   @name = N'Every few minutes', 
-   @freq_type=4, 
-   @freq_interval=1, 
-   @freq_subday_type = 0x4, 
-   @freq_subday_interval=2, 
- --  @freq_relative_interval=0, 
- --  @freq_recurrence_factor=1, 
-   @active_start_date=20100302, 
-   @active_end_date=99991231 
---   @active_start_time=60000, 
---   @active_end_time=190000
  
   exec msdb.dbo.sp_add_jobserver
    @job_id = @jobId, 
    @server_name = @serverName
  end
-*/ 
-
+*/
 
 end

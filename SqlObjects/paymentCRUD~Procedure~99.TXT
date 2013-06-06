@@ -25,7 +25,8 @@ create proc dbo.paymentCRUD(
  @verbose varchar(5) = 'TRUE',
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE',
  @accountNumberBLOB varchar(max) = '',
- @reasonToCancel varchar(50) = ''
+ @reasonToCancel varchar(50) = '',
+ @clearingDate int = null
 ) as 
 begin
  set nocount on
@@ -527,12 +528,18 @@ begin
   exec dbo.glPost @newId, 'o', @verbose = 'FALSE', @skipSQLTransaction = @skipSQLTransactionOnGlPost, @resultString = @postResult output
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult, '@paymentType', @paymentType, '@nextVoucherNumber', @nextVoucherNumber
 
+-- clear to bank statement
   if @paymentType = 'Treasurers Check' and dbo.settingsF('site.checkStyleWarrants', 'FALSE') = 'TRUE'
-    update gldetail set
-     bsId = @bankStatementId,
-     dateCleared=coalesce(nullif(@postDate,''),
-     dbo.bankStatementClearDate(@bankStatementId)) 
-    where slink = @newslink and accountcode=@officialbankcode
+  begin
+    declare @glDetailToBeClearedId int
+    select @glDetailToBeClearedId = id from gldetail where slink = @newslink and accountcode = @officialbankcode
+    set @clearingDate = coalesce(@clearingDate, nullif(@postDate,''), dbo.bankStatementClearDate(@bankStatementId))
+    exec dbo.bankStatementItemSelected @glDetailToBeClearedId, @bankStatementId, @clearedDate = @clearingDate, @verbose = 'FALSE'
+--     update gldetail set
+--      bsId = @bankStatementId,
+--      dateCleared=coalesce(@clearingDate,nullif(@postDate,''),dbo.bankStatementClearDate(@bankStatementId))
+--     where slink = @newslink and accountcode=@officialbankcode
+  end
 
   if @paymentType = 'Treasurers Check' and dbo.settingsF('site.displayPaymentNumber', 'TRUE') = 'TRUE'
   begin

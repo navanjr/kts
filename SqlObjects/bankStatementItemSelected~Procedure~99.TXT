@@ -2,7 +2,8 @@ create procedure dbo.bankStatementItemSelected(
  @id int,
  @bsId int,
  @idsBlob varchar(max) = null,
- @clearedDate int = null
+ @clearedDate int = null,
+ @verbose varchar(5) = 'TRUE'
 ) as
 begin
 
@@ -41,12 +42,14 @@ begin
    begin
     exec dbo.logit @@procid, 'Failed to locate a bank statement, I will have to create a new one...'
     exec dbo.bankStatementCRUD @clearedDate, @accountId, @newBSId = @bsId output
-    select '@code=1;@message=This item was cleared to a new bank statement;'
+    if @verbose = 'TRUE'
+     select '@code=1;@message=This item was cleared to a new bank statement;'
    end
    else 
    begin
     exec dbo.logit @@procid, 'ok we found one... @bsid', @bsid
-    select '@code=1;@message=This item was cleared to another bank statement;'
+    if @verbose = 'TRUE'
+     select '@code=1;@message=This item was cleared to another bank statement;'
    end
   end
  end
