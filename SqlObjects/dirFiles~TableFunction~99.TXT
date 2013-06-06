@@ -1,0 +1,40 @@
+create function dbo.dirFiles(
+ @folderPath varchar(max),
+ @fileNameLike varchar(max)
+) returns @files table(
+ id int not null identity(1,1),
+ path varchar(max),
+ pathAndFileName varchar(max),
+ fileName VARCHAR(max),
+ modifiedDate datetime,
+ fileSize bigint
+) as
+begin
+
+ declare
+  @fileToken varchar(max),
+  @sizeToken bigint
+
+ if @fileNameLike is null
+  insert @files select null, path, name, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath)
+ else
+  insert @files select null, path, name, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath) where name like @fileNameLike
+
+ update @files set path = REPLACE(pathAndFileName,fileName,'')
+
+/*
+ declare files cursor for select pathAndFileName from @files 
+ open files
+ fetch next from files into @fileToken
+ while @@FETCH_STATUS = 0
+ begin
+  exec dbo.dirFileSize @fileToken, @size = @sizeToken output
+  update @files set fileSize = @sizeToken where pathAndFileName = @fileToken
+  fetch next from files into @fileToken
+ end
+ deallocate files
+*/
+
+-- select path, pathAndFileName, fileName, modifiedDate, fileSize from @files
+ return
+end

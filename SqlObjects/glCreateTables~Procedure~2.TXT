@@ -41,12 +41,8 @@ begin
    targetAccountId int,
    creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
    creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
+   dateCleared varchar(50) not null default ''
   )
-
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'gldetail' and COLUMN_NAME = 'dateCleared')
- begin
-   alter table gldetail add dateCleared varchar(50) not null default ''
- end
 
 -- GLDETAILSTAGE
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[gldetailStage]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -472,7 +468,17 @@ begin
   CREATE TYPE dbo.slinks AS TABLE ( slink VARCHAR(15) )
  IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'newIdWt')
   CREATE TYPE dbo.newIdWt AS TABLE ( id int )
-
+ IF not EXISTS (SELECT * FROM sys.types WHERE name LIKE 'filesWt')
+  CREATE TYPE dbo.filesWt AS TABLE
+  (
+   id int not null identity(1,1),
+   path varchar(max),
+   pathAndFileName varchar(max),
+   fileName VARCHAR(max),
+   modifiedDate datetime,
+   fileSize bigint,
+   primary key (id)
+  )
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[AAMASTER]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   CREATE TABLE [dbo].[AAMASTER](

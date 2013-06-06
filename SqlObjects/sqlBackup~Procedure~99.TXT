@@ -1,11 +1,17 @@
 create proc dbo.sqlBackup (
- @method varchar(50) = 'backup'
+ @method varchar(50) = 'backup',
+ @brwid int = null,
+ @areYouSure varchar(5) = 'NO',
+ @useSqlCompression varchar(5) = null,
+ @filesBlob varchar(max) = null output
 ) as 
 begin
+ set nocount on
 
  declare
   @backupFile varchar(max),
-  @sql varchar(max)
+  @sql varchar(max),
+  @database varchar(50) = db_name()
 
  declare
   @jobId BINARY(16),
@@ -15,17 +21,52 @@ begin
 --  @serverName nvarchar(1000) = @@servername,
   @jobStatus int
 
+ set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('site.sqlCompression','TRUE'))
+
 -- just a one time backup
  if @method = 'backup'
  begin
   select @backupFile = path from dbo.paths() where name = 'backup'
 
-  select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT, compression'
+  select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT'
+   + case when @useSqlCompression = 'TRUE' then ', compression' else '' end
   exec dbo.logit @@procid, @sql
   exec(@sql)
 
   return
  end
+
+ if @method in ('destroy') and @brwid is not null
+ begin
+  declare
+   @pathAndFileName varchar(max),
+   @cmd varchar(8000),
+   @cmdOutput varchar(8000)
+   select @pathAndFileName = pathAndFileName From dbo.sqlBackupBRW() where brwid = @brwid
+   if @areYouSure = 'NO'
+   begin
+    select '@code=2;@message=Are you sure you want to destroy|' + @pathAndFileName + ' ?;'
+    return
+   end
+   if @areYouSure = 'YES'
+   begin
+    set @cmd = 'del ' + @pathAndFileName
+    exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+    exec dbo.logit @@procid, '@cmdOutput', @cmdOutput
+   end
+
+   return
+ end
+
+ if @method in ('show')
+ begin
+  declare
+   @backupFolder varchar(max)
+   select @backupFolder = path From dbo.paths() where name = 'backupPath'
+   select * from dbo.dirFiles(@backupFolder,@database+'_%')
+   return
+ end
+
 
 /*
  if @method = 'toggle'

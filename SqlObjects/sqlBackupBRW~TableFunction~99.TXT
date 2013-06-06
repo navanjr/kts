@@ -1,0 +1,46 @@
+create function dbo.sqlBackupBRW() returns @rt table(
+  brwid int identity(1,1),
+  display varchar(max),
+  size bigint,
+  modifiedDate varchar(50),
+  pathAndFileName varchar(max),
+  ord varchar(50)
+) as 
+begin
+
+ declare
+  @backupFolder varchar(max),
+  @database varchar(50) = db_name(),
+  @agentStatus varchar(100),
+  @backupJobName varchar(100) = db_name() + '_backupJob',
+  @jobId binary(16),
+  @jobStatus int
+
+ select @agentStatus = status from master..sysprocesses where left(program_name, 8) = 'SQLAgent'
+ select @jobId = job_id, @jobStatus = enabled from msdb.dbo.sysjobs where name = @backupJobName
+ select @backupFolder = path From dbo.paths() where name = 'backupPath'
+
+ insert @rt 
+ select
+  '  ' + fileName,
+  fileSize,
+  modifiedDate,
+  pathAndFileName,
+  null
+ from dbo.dirFiles(@backupFolder,@database + '_%')
+ order by modifiedDate desc
+
+ update @rt set ord = 'c_1' + cast(brwid as varchar)
+ insert @rt (display, ord) select '', 'c_0'
+ insert @rt (display, ord) select 'Backup Files', 'c_10'
+
+ insert @rt (display, ord) select '', 'a_0'
+ insert @rt (display, ord) select 'SQL Agent... ' + isnull(@agentStatus,'Missing'), 'a_10'
+ if @jobStatus is null
+  insert @rt (display, ord) select '  ' + @backupJobName + '... Missing', 'a_10'
+ else
+  insert @rt (display, ord) select '  ' + @backupJobName + '... ' + case when @jobStatus = 1 then 'Enabled' else 'Disabled' end, 'a_10'
+
+
+ return
+end
