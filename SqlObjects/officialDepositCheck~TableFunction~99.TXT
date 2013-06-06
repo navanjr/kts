@@ -21,19 +21,14 @@ begin
   @arAccountId int,
   @fpid int,
   @status varchar(50),
-  @objectTyp int,
-  @amount money,
-  @check varchar(50)
+  @objectTyp int
 
  select
   @cdate = cast(key2 as int),
   @receiptType = key3,
   @status = a17,
   @objectTyp = typ,
-  @arAccountCode = a2,
-  @payCode = a7,
-  @amount = a8,
-  @check = a9   
+  @arAccountCode = a2
  from object where id = @sourceId
 
  -- check for status of Posted
@@ -43,15 +38,6 @@ begin
    select 1,'Receipt has already been posted.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
   return
  end
-
--- Check for all the info
- if @paycode='' or @amount=0 or @check='' and @paycode not in ('CASH','COIN')
-  begin
-  insert @rettable 
-   select 1,'Missing Payment Info!',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp
-  return
- end
-
 
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@cdate) 
