@@ -3,6 +3,7 @@ import sys
 import pyodbc
 import subprocess
 import ConfigParser
+import ftplib
 
 def isnull(what,convertTo=''):
     if what is None:
@@ -13,6 +14,7 @@ class ktsMenu():
     def __init__(self):
         sysArgs = sys.argv
         self.settings = {}
+        self.ftpSettings = {}
         self.defaultFileName = "..\\ktsConfig.ini"
         if len(sysArgs) > 1:
             self.dbSettings(sysArgs[1])
@@ -20,8 +22,12 @@ class ktsMenu():
             self.dbSettings(self.configStuff('importDefaults', 'database') or 'kts')
 
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
-        self.settings['uid'] = self.configStuff('importDefaults', 'uid') or 'sa'
-        self.settings['password'] = self.configStuff('importDefaults', 'password') or 'America#1'
+        self.settings['uid'] = self.configStuff('importDefaults', 'uid')
+        self.settings['password'] = self.configStuff('importDefaults', 'password')
+        self.ftpSettings['host'] = self.configStuff('ftp', 'host')
+        self.ftpSettings['user'] = self.configStuff('ftp', 'user')
+        self.ftpSettings['password'] = self.configStuff('ftp', 'password')
+
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
         self.createCommand('help',['h','help'],'',self.command_help)
@@ -41,6 +47,11 @@ class ktsMenu():
         self.createCommand('gitstatus',['status','s'],'preform a git status',[self.command_git,['git','status']])
         self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
+        self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
+        self.createCommand('gitstatusporcelain',['gsp'],'preform a git status',self.command_importSpecial)
+
+        self.createCommand('settings',['set','settings'],'show all ftp settings',self.ftp_settings,'ftp')
+        self.createCommand('put',['put'],'put a file to support',self.ftp_put,'ftp')
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs light diagnostic battery',self.diagnostic_run,'diagnostics')
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
@@ -53,6 +64,48 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
+
+    def gitModified(self, repoDir=os.path.dirname(os.path.realpath(__file__))):
+        p = subprocess.check_output('git status --porcelain', shell=True).split('\n')
+        out = []
+        for id, row in enumerate(p):
+            if len(row.lstrip().split(' ')) > 1:
+                d = {}
+                d['raw'] = row.lstrip().split(' ')
+                d['gitType'] = d['raw'][0]
+                if '/' in d['raw'][1]:
+                    d['sourceFolder'] = d['raw'][1].split('/')[0]
+                    d['fileName'] = d['raw'][1].split('/')[1]
+                else:
+                    d['sourceFolder'] = ''
+                    d['fileName'] = d['raw'][1]
+                if '~' in d['fileName']:
+                    d['name'] = d['fileName'].split('~')[0]
+                    if d['sourceFolder'] == 'SqlObjects':
+                        d['objectType'] = d['fileName'].split('~')[1]
+                        d['objectNumber'] = d['fileName'].split('~')[2].replace('.TXT','')
+                    else:
+                        d['objectType'] = ''
+                        d['objectNumber'] = ''
+                else:
+                    d['name'] = d['fileName'].replace('.TXT','')
+                    d['objectType'] = ''
+                    d['objectNumber'] = ''
+                out.append(d)
+        return out
+
+    def command_importSpecial(self):
+        modified = self.gitModified()
+        if len(self.command) == 2:
+            num = int(self.command[1]) - 1
+            file = modified[num]
+            print '%s...' % file['name'], file['name'], file['objectType'], file['objectNumber']
+            if file['sourceFolder'] == 'SqlObjects':
+                print 'running import... %s' % file['name'], self.sqlQuery('exec dbo.keySQLObjectUpdateFromRepo %s' % file['name'], True)['code']
+                print 'running dispatcher... %s' % file['name'], self.sqlQuery("exec dbo.keySQLObjectDispatcher null, @name = '%s'" % file['name'], True)['code']
+        else:
+            for id, file in enumerate(modified):
+                print '%-*s %-*s %-*s %-*s %s' % (3,id + 1, 4,file['gitType'], 15, file['sourceFolder'], 20, file['name'], file['objectType'])
 
     def dbSettings(self, dbName=None):
         if dbName:
@@ -124,6 +177,32 @@ class ktsMenu():
         print 'run %s diagnostic battery...' % mode, self.sqlQuery("exec dbo.diagnostics @mode='%s', @storeResults='TRUE', @verbose='FALSE'" % mode,True)['code']
         if show:
             self.diagnostics_show(mode)
+
+    def ftp_settings(self):
+        for x in self.ftpSettings:
+            print x, self.ftpSettings[x]
+
+    def ftp_put(self):
+        if len(self.command) == 3:
+            pass
+
+            # ftpSet = self.ftpSettings
+            # session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
+            # file = open('c:\client\key\sqlBackup\woods_20130606-1420.bak', 'rb')
+            # session.storbinary('STOR woods_20130606-1420.bak', file)
+            # file.close()
+            # session.quit()
+
+    def ftp_show(self):
+        files = os.listdir('c:\client\key\sqlBackup')
+        menuName = self.getMenuName(self.command[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        for id, file in enumerate(files):
+            print '     %s = %s' % (id, file)
+        if len(self.command) == 1:
+            self.menuShow(subMenu)
+        elif len(self.command) > 1:
+            self.runMenuFunction(self.command[1],subMenu)
 
     def configStuff(self, section, setting, method='GET', newValue=None):
         if method == 'GET':
@@ -416,6 +495,9 @@ class ktsMenu():
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
         elif self.command[1] == 'taxyear':
             self.command_setSetting('conversion')
+        elif self.command[1] in ('ftphost', 'ftpuser', 'ftppassword'):
+            self.command_setSetting(self.command[1])
+            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', commandArguement)
 
     def command_logging(self):
         print self.command
@@ -507,5 +589,3 @@ class ktsMenu():
             return subprocess.check_output(sqlcmd, shell=True)
         except subprocess.CalledProcessError as error:
             return 'Process FAILED!', error.message
-
-

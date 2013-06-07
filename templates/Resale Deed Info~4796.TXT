@@ -1,0 +1,72 @@
+@dup;
+@noupdate;
+
+
+@loadwindow=
+ tabord('002042020102050052054056058040018'),
+ set(102,kp('select dbo.getLegalDescription('&gcInvoiceId&')')),
+ lcAdtaxString=kp('select ''@twp=''+townshipblock+'';@sec=''+sectionnumber+'';@rnge=''+rangelot+'';'' from adtax where id = (select taxrollId from invoices where id='&gcInvoiceId&')'),
+ set(054,readstring(lcAdtaxString,'@twp=')),
+ set(056,readstring(lcAdtaxString,'@sec=')),
+ set(058,readstring(lcAdtaxString,'@rnge=')),
+ set(042,choose(gcSaleDate='',today(),gcSaleDate));
+ 
+@afterloadwindow=
+ prop(000,'TEXT',choose(gcDeed='countyDeed','County','Individual')&' Deed Info'),
+ if(gcDeed='countyDeed',countyDeed=);
+
+@countyDeed=
+ lcComChair=readstring(kp('select dbo.GetSiteBlob(1)'),'@comChair='),
+ set(002,lcComChair),
+ lcSaleAmt=kp('select Total from dbo.docUnpaidTF('&gcInvoiceId&',getdate()) where right(ord,1)=''e'''),
+ set(040,lcSaleAmt),
+ prop(001,'TEXT','Commish Chair');
+
+
+
+@acc106=
+ dtypeCrud=;
+
+@dtypeCrud=
+ lcSaleDate=kp('select dbo.dateLegal('&obj:a18&')'),
+ lcDeedblob='@name='&obj:key1&';@add1='&obj:key2&';@add2='&obj:key3&';@add3='&obj:a1&';@city='&obj:a2&';@state='&obj:a3&';@zip='&obj:a4&';@zip2='&obj:a5&';@sub='&obj:b2&';@town='&obj:b3&';@sec='&obj:b4&';@twp='&obj:b5&';@rnge='&obj:b6&';@bidAmount='&obj:a17&';@legal='&clip(obj:e1)&';@comChair='&obj:a6&';@saleDate='&lcSaleDate&';@bidder='&obj:a7&';',
+ lcDeedblob=str_replace(lcDeedblob,'''','~{~'),
+ d1select('exec dbo.dtypeCommentCRUD @mode='''&gcDeed&''',@dtype='''&gcDeed&''', @invoiceId='&gcInvoiceId&',@blob='''&lcDeedblob&'''');
+
+
+\t001Name; \t002@s30b; @acc002=if(obj:a7<'  0' and gcDeed<>'countyDeed',set(020,obj:key1));
+\t003Address1;
+\t005Address2;
+\t007Address3; \w004008+50;r2
+\t009City; \w010100; \u010; 
+\t011State; \t012@s2;
+	\w01215; \y011012-13;r \x012+102; \u012;
+\t013Zip; 
+	\t014@s5; \w01427; \y013014-26;r  \x014+119;
+\t015Zip2; 
+	\t016@s4; \w01620; \y015016-39;r  \x016+148;
+
+\h011015;r2
+\h003009gcDeed='countyDeed';r2
+\h004016gcDeed='countyDeed';r2
+
+
+
+\t019Bidder; \y01902015;r \h019020gcDeed='countyDeed';r
+
+\y003016+71;r
+
+\t049Subdivision; \w050140; \y04916; \y05029; \x049+110;
+\t051City; \w05274; \x051+90; \y05105742;r2 \y05205855;r2
+\t053SEC; \x053054324;r
+\t055TWP; \x055056346;r \x053055+1;r2
+\t057RNGE;  \x057058368;r
+ \w05405820;r2
+\t039Bid Amount; \t040@n-14.2; \w04050; \y03942; \y04055; \x039040391;r
+\t041Sale Date; \t042@d2; \x041042+60;r \y041042-13;r \w04260; @acc042=gcSaleDate=obj:a18;
+
+\t101Legal; \y10110229;r \x1013; \x10263; \w102179; \z10255;
+
+
+
+

@@ -1,4 +1,5 @@
 create function dbo.glAnalysisSrc(@fpId int,@AccId int) returns @rt table(
+ id int identity(1,1),
  sId varchar(15),
  sType int,
  sNo varchar(50),
@@ -8,50 +9,68 @@ create function dbo.glAnalysisSrc(@fpId int,@AccId int) returns @rt table(
  credit money,
  sDesc varchar(100),
  objId int,
- invoiceId int
- )
- as
+ invoiceId int,
+ postDate int,
+ balance money,
+ processFlag int
+) as
 begin
 
-if @fpId = 0
- insert into @rt (sId,debit,credit)
- select  
-  slink,
-  case when amount > 0 then amount else 0 end as debit,
-  case when amount < 0 then abs(amount) else 0 end as credit
- from glDetail
- where accountId=@AccId 
-else
- insert into @rt (sId,debit,credit)
- select  
-  slink,
-  case when amount > 0 then amount else 0 end as debit,
-  case when amount < 0 then abs(amount) else 0 end as credit
- from glDetail
- where fpid=@fpId and accountId=@AccId 
+  if @fpId = 0
+   insert into @rt (sId,debit,credit)
+   select
+    slink,
+    case when amount > 0 then amount else 0 end as debit,
+    case when amount < 0 then abs(amount) else 0 end as credit
+   from glDetail
+   where accountId=@AccId
+  else
+   insert into @rt (sId,debit,credit)
+   select
+    slink,
+    case when amount > 0 then amount else 0 end as debit,
+    case when amount < 0 then abs(amount) else 0 end as credit
+   from glDetail
+   where fpid=@fpId and accountId=@AccId
 
- update @rt set objId = substring(sId,2,14) where left(sId,1)='o'
- update @rt set invoiceId = substring(sId,2,14) where left(sId,1)='t'
+   update @rt set objId = substring(sId,2,14) where left(sId,1)='o'
+   update @rt set invoiceId = substring(sId,2,14) where left(sId,1)='t'
 
- update @rt set 
-	sNo=key1,
-	sType=typ,
-	sDate=dbo.date1(key2),
-	sDesc=case when Typ = 4512 then ' - '+Key3 else '' end 
-	from Object where ID=objId
+   update a set
+    a.sNo = o.key1,
+    a.sType = o.typ,
+    a.sDate = dbo.date1(o.key2),
+    a.postDate = o.key2,
+    a.sDesc = case when o.Typ = 4512 then ' - ' + o.Key3 else '' end
+   from Object o, @rt a 
+   where o.ID = a.objId
 
- update @rt set 
-	sNo=cast(item as varchar(50)),
-	sDate=dbo.date1(postdate),
-	sDesc='Name:'+name+'; Parcel:'+parcel+'; Item:'+ cast(item as varchar(50))
-	from invoices, @rt a where ID=a.invoiceId
+   update a set
+    a.sNo = cast(i.item as varchar(50)),
+    a.sDate = dbo.date1(i.postdate),
+    a.postDate = i.postdate,
+    a.sDesc = 'Name:'+i.name+'; Parcel:'+i.parcel+'; Item:'+ cast(i.item as varchar(50))
+   from invoices i, @rt a 
+   where i.ID = a.invoiceId
 
-update @rt set
-	sName=template,
-	sDesc=Template+''+sDesc
-	from Template where ID=sType
+   update a set
+    a.sName = t.template,
+    a.sDesc = t.Template + '' + a.sDesc
+   from Template t, @rt a
+   where t.ID = a.sType
 
-return
+   declare
+    @idToken int,
+    @balanceToken money
+
+   while exists(select * from @rt where isnull(processFlag,0) = 0)
+   begin
+    select top 1 @idToken = id from @rt where isnull(processFlag,0) = 0 order by postDate, sNo, id
+    select @balanceToken = sum(debit) - sum(credit) from @rt where processFlag = 1 or id = @idToken
+    update @rt set processFlag = 1, balance = @balanceToken where id = @idToken
+   end
+   
+   return
 
  end
 

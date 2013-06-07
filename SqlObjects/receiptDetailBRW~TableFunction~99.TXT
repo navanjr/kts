@@ -136,6 +136,7 @@ begin
   end
  end
 
+-- here are all the payments applied
  if exists(select * from dbo.paid where slink = @slink)
  begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
@@ -143,7 +144,7 @@ begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bb',0,'Payment(s)','',0,5
   insert @rettable (ord,id,description,subdescription,amount,origin)
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6 from dbo.paid where slink = @slink
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6 from dbo.paid where slink = @slink
  end
  if exists(select * from dbo.paid where officialDepositId = @receiptId)
  begin
