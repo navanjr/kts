@@ -171,16 +171,18 @@ begin
        where id = @taxRollDetailId and actionDate = 0
   end
   
- if @mode = 'indivDeed'
+ if @mode in ('indivDeed','countyDeed')
   begin
+   declare @deed varchar(50) = case when @mode = 'countyDeed' then 'County' else 'Individual' end
    select
     @parcel = parcel,
     @item = item,
-    @taxYear = taxYear 
+    @taxYear = taxYear
+
    from invoices where id = @invoiceId 
 
 
-    insert taxRollDetail (parcelNumber,itemNumber,taxYear, dtype, comments,invoiceLinkId) select @parcel, @item, @taxYear, @mode, @ini + ' - Individual Deed Info Added '+CHAR(13)+CHAR(10)+replicate(' ',100)+@blob, @invoiceId
+    insert taxRollDetail (parcelNumber,itemNumber,taxYear, dtype, comments,invoiceLinkId) select @parcel, @item, @taxYear, @mode, @ini + ' - ' + @deed + ' Deed Info Added '+CHAR(13)+CHAR(10)+replicate(' ',100)+@blob, @invoiceId
     exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
    return
   end
