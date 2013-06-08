@@ -101,6 +101,7 @@ begin
   update @rt set subDescription = subDescription2 where RIGHT(ord,2) = 'az'   
  end
 
+-- here are all the payments applied
  if exists(select * from dbo.paid where slink = @slink)
  begin
   insert @rt (ord,id,description,subdescription,amount,origin)
@@ -109,7 +110,7 @@ begin
   select 'bb',0,'Payment(s)','',0,5
   insert @rt (ord,id,description,subdescription,amount,origin)
   select 'bc',cast('8'+cast(id as varchar) as int)*-1,
-   '   '+paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6
+   '   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6
   from dbo.paid where slink = @slink
  end
 
@@ -121,7 +122,7 @@ begin
   select 'bdb',0,'Payment(s) - via Trust Receipt','',0,8
   insert @rt (ord,id,description,subdescription,amount,origin)
   select 'bdc',cast('4'+cast(p.id as varchar) as int)*-1,
-   '  ' + o.key1 + ' - ' + paycode,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9
+   '  ' + o.key1 + ' - ' + paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9
   from dbo.paid p
   left join object o on 'o'+cast(o.id as varchar) = p.slink
   where officialDepositId = @id
