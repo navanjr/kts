@@ -36,13 +36,46 @@ insert @rt
  
 insert @rt
  select 'Balance '+o.b3,datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1, o.a4, o.b3
-   from object o, gldetailreports g, glaccounts a, glaccounts ita
+   from object o, gldetail g, glaccounts a, glaccounts ita
     where o.typ=4601 
      and g.accountcode=o.a3
      and a.accountcode = o.a3
      and ita.accountCode = a.interesttoaccountcode
-     and g.[sourcedate]<= @lastDayPriorMonth
+     and g.[date]<= cast(@lastDayPriorMonth as int)
     group by o.b3, a.interesttoaccountcode, ita.accountDesc, o.a4
+    having sum(g.amount) <> 0.00
+
+--Johnstons General Balance Routine
+insert @rt
+select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)),accountcode,accountdesc,comment2,amount,bankaccount,bankdesc from @rt where accountcode in (select key2 from object where typ=4010)
+
+insert @rt
+ select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.accountcode, a.accountDesc, '', sum(g.amount)*-1, '', ''
+   from gldetailreports g, glaccounts a
+    where g.[sourcedate]<= @lastDayPriorMonth
+     and g.accountcode=a.accountcode
+     and a.b7 = a.accountcode 
+     and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+    group by a.accountcode, a.accountDesc
+    having sum(g.amount) <> 0.00
+
+insert @rt
+ select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), ita.accountcode, ita.accountDesc, '', 
+ sum(g.amount)*-1
+ -
+ isnull((select sum(amount) from @rt where tableType='GENERAL BALANCE'),0)
+ , '', ''
+   from gldetailreports g, glaccounts ita, 
+   (select max(interesttoaccountcode) as accountcode from glaccounts 
+    where accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+     and accounttype <> 'OFFICIAL'
+     and b7 <> accountcode 
+     and b7>' 0') itacct
+    where g.[sourcedate]<= @lastDayPriorMonth
+     and itacct.accountcode=ita.accountcode
+     and g.accounttype <> 'OFFICIAL'
+     and g.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+    group by ita.accountcode, ita.accountDesc
     having sum(g.amount) <> 0.00
 
  
