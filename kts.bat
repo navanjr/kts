@@ -1,5 +1,5 @@
 @echo off
-python kts.py %1
+python kts.py %1 %2
 if ERRORLEVEL = 1 GOTO NoPython
 GOTO END
 

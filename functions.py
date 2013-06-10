@@ -11,22 +11,20 @@ def isnull(what,convertTo=''):
     return str(what)
 
 class ktsMenu():
-    def __init__(self):
-        sysArgs = sys.argv
+    def __init__(self, database=None):
         self.settings = {}
         self.ftpSettings = {}
         self.defaultFileName = "..\\ktsConfig.ini"
-        if len(sysArgs) > 1:
-            self.dbSettings(sysArgs[1])
+        if database:
+            self.dbSettings(database)
         else:
             self.dbSettings(self.configStuff('importDefaults', 'database') or 'kts')
 
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
-        self.ftpSettings['host'] = self.configStuff('ftp', 'host')
-        self.ftpSettings['user'] = self.configStuff('ftp', 'user')
-        self.ftpSettings['password'] = self.configStuff('ftp', 'password')
+
+        self.ftpSettingsInit()
 
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
@@ -107,6 +105,12 @@ class ktsMenu():
             for id, file in enumerate(modified):
                 print '%-*s %-*s %-*s %-*s %s' % (3,id + 1, 4,file['gitType'], 15, file['sourceFolder'], 20, file['name'], file['objectType'])
 
+    def ftpSettingsInit(self):
+        self.ftpSettings['host'] = self.configStuff('ftp', 'host')
+        self.ftpSettings['user'] = self.configStuff('ftp', 'user')
+        self.ftpSettings['password'] = self.configStuff('ftp', 'password')
+        self.ftpSettings['path'] = self.configStuff('ftp', 'path')
+
     def dbSettings(self, dbName=None):
         if dbName:
             self.settings['database'] = dbName
@@ -182,23 +186,44 @@ class ktsMenu():
         for x in self.ftpSettings:
             print x, self.ftpSettings[x]
 
-    def ftp_put(self):
-        if len(self.command) == 3:
-            pass
+    def ftp_put(self, fileName=None):
+        files = self.ftpFiles()
+        def thePut(fileName):
+            ftpSet = self.ftpSettings
+            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
+            print '     Sending %s to %s.....' % (fileName, ftpSet['host'])
+            try:
+                file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
+            except IOError:
+                session.quit()
+                print '     Failed to locate %s' % fileName
+                return
+            session.storbinary('STOR %s' % fileName, file)
+            file.close()
+            session.quit()
+            print '     Done :) ... Have a nice day.'
 
-            # ftpSet = self.ftpSettings
-            # session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
-            # file = open('c:\client\key\sqlBackup\woods_20130606-1420.bak', 'rb')
-            # session.storbinary('STOR woods_20130606-1420.bak', file)
-            # file.close()
-            # session.quit()
+        if len(self.command) == 3:
+            fileId = int(self.command[2])
+            thePut(files[fileId]['name'])
+        elif fileName:
+            thePut(fileName)
+
+    def ftpFiles(self):
+        files = {}
+        for id, file in enumerate(os.listdir(self.ftpSettings['path'])):
+            fileToken = {}
+            fileToken['name'] = file
+            fileToken['size'] = os.path.getsize('%s/%s' % (self.ftpSettings['path'], file))
+            files[id + 1] = fileToken
+        return files
 
     def ftp_show(self):
-        files = os.listdir('c:\client\key\sqlBackup')
+        files = self.ftpFiles()
         menuName = self.getMenuName(self.command[0],self.commands)
         subMenu = self.commands[menuName]['subMenu']
-        for id, file in enumerate(files):
-            print '     %s = %s' % (id, file)
+        for file in files.items():
+            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
         if len(self.command) == 1:
             self.menuShow(subMenu)
         elif len(self.command) > 1:
@@ -465,8 +490,9 @@ class ktsMenu():
         else:
             if defaultValue:
                 print 'leave blank for default value (%s)' % defaultValue
-            newValue = raw_input('Enter %s ==> ' % self.command[1])
-        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue or defaultValue), True)
+            newValue = raw_input('Enter %s ==> ' % self.command[1]) or defaultValue
+        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue), True)
+        return newValue
         
     def command_serverSettings(self):
         if len(self.command) < 2:
@@ -496,8 +522,14 @@ class ktsMenu():
         elif self.command[1] == 'taxyear':
             self.command_setSetting('conversion')
         elif self.command[1] in ('ftphost', 'ftpuser', 'ftppassword'):
-            self.command_setSetting(self.command[1])
-            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', commandArguement)
+            newValue = self.command_setSetting(self.command[1])
+            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
+            self.ftpSettingsInit()
+        elif self.command[1] == 'ftppath':
+            newValue = self.command_setSetting(self.command[1], defaultValue='c:\client\key\sqlBackup')
+            print 'here is the new value =>', newValue
+            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
+            self.ftpSettingsInit()
 
     def command_logging(self):
         print self.command
