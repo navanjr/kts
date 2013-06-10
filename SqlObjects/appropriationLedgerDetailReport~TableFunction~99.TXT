@@ -1,0 +1,80 @@
+create function dbo.appropriationLedgerDetailReport(@begindate varchar(20),@enddate varchar(20)) 
+returns @rt table(FundDesc varchar(60),
+                  accountNumber varchar(60),
+                  detailDate int,
+                  person varchar(60),
+                  purpose varchar(60),
+                  warrants varchar(50),
+                  budget varchar(50),
+                  balance varchar(50),
+                  ord varchar(250),
+                  fiscalYear varchar(20))
+as
+begin
+           
+insert @rt
+ select 
+  fundDesc,
+  accountNumber,
+  0,
+  '',
+  '',
+  SUM(payments),
+  SUM(budget),
+  sum(balance),
+  fiscalYear+fundDesc+accountnumber+'bbb',
+  fiscalYear
+  from dbo.appropriationLedgerDetail(@begindate,@enddate) group by fiscalYear,funddesc,accountNumber
+
+
+insert @rt
+  select 
+  fundDesc,
+  '',
+  0,
+  '',
+  '',
+  SUM(cast(warrants as money)),
+  SUM(cast(budget as money)),
+  sum(cast(balance as money)),
+  fiscalYear+fundDesc+'zzzzz'+'ccc',
+  fiscalYear from @rt group by fiscalYear,FundDesc
+
+insert @rt
+ select 
+  fundDesc,
+  accountNumber,
+  detailDate,
+  person,
+  purpose,
+  payments,
+  budget,
+  balance,
+  fiscalYear+fundDesc+accountnumber+'bba',
+  fiscalYear
+  from dbo.appropriationLedgerDetail(@begindate,@enddate) 
+
+
+
+insert @rt (FundDesc,accountNumber,ord)
+  select 
+  fundDesc,
+  '',
+  fiscalYear+fundDesc+'     '+'aaa' from @rt group by fiscalYear,FundDesc
+
+insert @rt (FundDesc,accountNumber,ord)
+  select 
+  'Fiscal Year: '+fiscalYear,
+  '',
+  fiscalYear+'          '+'aa1' from @rt group by fiscalYear
+
+
+update @rt
+  set
+  warrants = dbo.formatcurr(warrants),
+  budget = dbo.formatcurr(budget),
+  balance = dbo.formatcurr(balance)
+                  
+
+return
+end     
