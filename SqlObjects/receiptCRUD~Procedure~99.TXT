@@ -8,7 +8,8 @@ create procedure dbo.receiptCRUD(
  @newReceiptId int = 0 output,
  @newJeId int = 0 output,
  @invoiceId int = 0,
- @refundAmount money = 0
+ @refundAmount money = 0,
+ @voidFees int = 0
 ) as
 /*
  remember
@@ -106,6 +107,46 @@ begin
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId
                             and left(g.slink,1)='l' and dbo.slinkid(g.slink)=r.id
                             and g.amount>0.00
+          if isnull(@voidFees,0) = 1
+          begin
+           -- create journalLinks
+                insert into journalLink
+                  select distinct @newId,invoiceId,methodRate,receiptId from receiptlink where invoiceId in (select id from invoices where invoiceid=@invoiceId)
+
+           -- create gldetailstage linked to journallink
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc, amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
+                    from glDetail g, receiptlink r, journalLink j
+                         where j.jeId = @newId 
+                           and j.invoiceId = r.invoiceId 
+                           and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
+                           and g.slink = 'l'+CAST(r.id as varchar) 
+                           and g.amount>0.00
+
+                  insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
+                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
+                    from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId 
+                           and j.invoiceId = r.invoiceId 
+                           and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
+                           and g.slink = 'l'+CAST(r.id as varchar) 
+                           and g.amount<0.00
+
+           -- create gldetailstaged linked to collection account
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
+                  select contraId,
+                   isnull((select accountCode from glaccounts where accountId=contraId),''),
+                   isnull((select accountDesc from glaccounts where accountId=contraId),''),
+                   amount,
+                   'o'+cast(@newId as varchar),@receiptSLink 
+                   from glDetail g ,receiptlink r,journalLink j
+                         where j.jeId = @newId 
+                           and j.invoiceId = r.invoiceId 
+                           and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
+                           and left(g.slink,1)='l' 
+                           and dbo.slinkid(g.slink)=r.id
+                           and g.amount>0.00
+          end
 
          end
          else
