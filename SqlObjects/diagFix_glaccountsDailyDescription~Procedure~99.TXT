@@ -1,0 +1,74 @@
+create proc dbo.diagFix_glaccountsDailyDescription(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'Accounts',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Missing Daily Description on Accounts'
+  from glaccounts
+  where (accounttype in ('BANK','CASH','INVESTMENT') and bsSummary <> 'Deposits & Disbursements')
+    or (accounttype = 'OFFICIAL' and bsSummary <> 'Depository')
+    or (accounttype in (select accounttype from dbo.glbankfundtypes('FUND')) and accountid in (select contraid from gldetail) and bsSummary not like '%Ad Valorem%')
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from glaccounts
+  where (accounttype in ('BANK','CASH','INVESTMENT') and bsSummary <> 'Deposits & Disbursements')
+    or (accounttype = 'OFFICIAL' and bsSummary <> 'Depository')
+    or (accounttype in (select accounttype from dbo.glbankfundtypes('FUND')) and accountid in (select contraid from gldetail) and bsSummary not like '%Ad Valorem%')
+ end
+
+ if @method = 'FIX'
+ begin  
+  update object 
+   set a4='Deposits & Disbursements'
+  where typ = 4701 
+   and a1 in ('BANK','CASH','INVESTMENT')
+  
+  update object 
+   set a4='Depository'
+  where typ = 4701 
+   and a1 = 'OFFICIAL'
+  
+  update object 
+   set a4='Ad ValoremTax'
+  where typ = 4701 
+   and id in (select contraid from gldetail)
+   and (key2 like '%AdValorem%' or key1 like '%Protest%')
+   and a4 < ' 0'
+   and a1 in (select accounttype from dbo.glbankfundtypes('FUND'))
+
+  update object 
+   set a4='Receipts Other Than Ad Valorem Tax'
+  where typ = 4701 
+   and id in (select contraid from gldetail)
+   and key2 not like '%AdValorem%' 
+   and key1 not like '%Protest%'
+   and a4 < ' 0'
+   and a1 in (select accounttype from dbo.glbankfundtypes('FUND'))
+
+
+
+  return
+
+ end
+
+end
