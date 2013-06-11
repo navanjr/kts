@@ -1,9 +1,10 @@
 @dup;
 @noupdate;
+@dk1;
 
 
 @loadwindow=
- tabord('002042020102050052054056058040018'),
+ tabord('002042078020102050052054056058040018'),
  if(tier=2,editDeed=,newDeed=);
 
 @editDeed=
@@ -23,7 +24,8 @@
  set(054,readstring(gcDeedBlob,'@twp=')),
  set(056,readstring(gcDeedBlob,'@sec=')),
  set(058,readstring(gcDeedBlob,'@rnge=')),
- set(102,readstring(gcDeedBlob,'@legal='));
+ set(078,readstring(gcDeedBlob,'@group=')),
+ set(102,str_replace(readstring(gcDeedBlob,'@legal='),'~{~',''''));
  
 @newDeed=
  set(102,kp('select dbo.getLegalDescription('&gcInvoiceId&')')),
@@ -35,12 +37,13 @@
  
 @afterloadwindow=
  prop(000,'TEXT',choose(gcDeed='countyDeed','County','Individual')&' Deed Info'),
+ break(tier=2),
  if(gcDeed='countyDeed',countyDeed=);
 
 @countyDeed=
  lcComChair=readstring(kp('select dbo.GetSiteBlob(1)'),'@comChair='),
  set(002,lcComChair),
- lcSaleAmt=kp('select Total from dbo.docUnpaidTF('&gcInvoiceId&',getdate()) where right(ord,1)=''e'''),
+ lcSaleAmt=kp('select cast(Total as money) from dbo.docUnpaidTF('&gcInvoiceId&',getdate()) where right(ord,1)=''e'''),
  set(040,lcSaleAmt),
  prop(001,'TEXT','Commish Chair');
 
@@ -51,7 +54,7 @@
 
 @dtypeCrud=
  lcSaleDate=kp('select dbo.dateLegal('&obj:a18&')'),
- lcDeedblob='@name='&obj:key1&';@add1='&obj:key2&';@add2='&obj:key3&';@add3='&obj:a1&';@city='&obj:a2&';@state='&obj:a3&';@zip='&obj:a4&';@zip2='&obj:a5&';@sub='&obj:b2&';@town='&obj:b3&';@sec='&obj:b4&';@twp='&obj:b5&';@rnge='&obj:b6&';@bidAmount='&obj:a17&';@legal='&clip(obj:e1)&';@comChair='&obj:a6&';@saleDate='&lcSaleDate&';@bidder='&obj:a7&';@saleDateRaw='&obj:a18&';',
+ lcDeedblob='@name='&obj:key1&';@add1='&obj:key2&';@add2='&obj:key3&';@add3='&obj:a1&';@city='&obj:a2&';@state='&obj:a3&';@zip='&obj:a4&';@zip2='&obj:a5&';@sub='&obj:b2&';@town='&obj:b3&';@sec='&obj:b4&';@twp='&obj:b5&';@rnge='&obj:b6&';@bidAmount='&obj:a17&';@legal='&clip(obj:e1)&';@comChair='&obj:a6&';@saleDate='&lcSaleDate&';@bidder='&obj:a7&';@saleDateRaw='&obj:a18&';@group='&obj:c1&';',
  lcDeedblob=str_replace(lcDeedblob,'''','~{~'),
  d1select('exec dbo.dtypeCommentCRUD @mode='''&gcDeed&''',@dtype='''&gcDeed&''', @invoiceId='&gcInvoiceId&',@blob='''&lcDeedblob&''',@taxrollDetailId='&obj:link1+0);
 
@@ -85,7 +88,9 @@
 \t057RNGE;  \x057058368;r
  \w05405820;r2
 \t039Bid Amount; \t040@n-14.2; \w04050; \y03942; \y04055; \x039040391;r
-\t041Sale Date; \t042@d2; \x041042+60;r \y041042-13;r \w04260; @acc042=gcSaleDate=obj:a18;
+\t041Sale Date; \t042@d2; \x041042+60;r \x041+15; \y041042-13;r \w04260; @acc042=gcSaleDate=obj:a18;
+
+\t077Group; \w07830; \x078-20; \x077+10;
 
 \t101Legal; \y10110229;r \x1013; \x10263; \w102179; \z10255;
 
