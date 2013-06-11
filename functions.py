@@ -117,9 +117,14 @@ class ktsMenu():
         self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
-        self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
-        self.git['status'] = subprocess.check_output("git status", shell=True)
-        self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
+        try:
+            self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
+            self.git['status'] = subprocess.check_output("git status", shell=True)
+            self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
+        except subprocess.CalledProcessError:
+            self.git['branch'] = ''
+            self.git['status'] = ''
+            self.git['repoVersion'] = ''
         try:
             self.git['ktsVersion'] = self.sqlQuery("select dbo.readKeyCode(1,'@ktsTag=')")['rows'][0][0]
         except KeyError:

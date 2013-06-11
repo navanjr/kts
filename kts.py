@@ -1,4 +1,6 @@
 from functions import *
+f = open('c:\myfile.txt','w')
+f.write('hi there\n')
 
 sysArgs = sys.argv
 
