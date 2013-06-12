@@ -1,0 +1,37 @@
+create procedure dbo.advanceTaxDescriptionYear
+as
+begin
+declare @wt table(curAccount varchar(60), newAccount varchar(60))
+
+insert @wt (curAccount)
+ select key3 from object where typ=4504 and right(key3,4)='_ACR'
+
+update w set newAccount = b.accountcode from @wt w, glaccounts a, glaccounts b
+ where isnull(newAccount,'') <' 0' 
+   and a.accountcode = w.curAccount
+   and a.apyear > ' 0'
+   and a.aptabletype=b.aptabletype
+   and cast(a.apyear as int)+1=cast(b.apyear as int)
+   and a.appilottable=b.appilottable
+   and a.apdistrict=b.apdistrict
+   and a.aprate=b.aprate
+   and a.appoptype=b.appoptype
+   and b.inactive=0
+
+update w set newAccount = b.accountcode  from @wt w, glaccounts a, glaccounts b
+ where isnull(newAccount,'') <' 0' 
+   and a.accountcode = w.curAccount
+   and a.apyear > ' 0'
+   and a.aptabletype=b.aptabletype
+   and cast(a.apyear as int) < cast(b.apyear as int)
+   and a.appilottable=b.appilottable
+   and a.apdistrict=b.apdistrict
+   and a.aprate=b.aprate
+   and a.appoptype=b.appoptype
+   and b.inactive=0
+
+delete from @wt where isnull(newAccount,'') <' 0' 
+
+update object set key3=w.newAccount, a19=b.accountdesc from object, @wt w, glaccounts b where w.curAccount=object.key3 and w.newAccount = b.accountcode
+
+end
