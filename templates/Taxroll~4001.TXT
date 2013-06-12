@@ -1,5 +1,5 @@
-\t110New Version;
-@acc110=
+t110New Version;
+acc110=
  gcTaxInvoiceId=obj:link2,
  do(4007,menuprocess=);
 
@@ -33,7 +33,7 @@
 
 \h111instring('@group=publicuser',cur:options,1,1)>0 or (obj:a17=obj:a18 and obj:a19=obj:a20 and obj:c1=obj:c2);
 \h107instring('@group=publicuser',cur:options,1,1)>0;
-\h110instring('@group=publicuser',cur:options,1,1)>0;
+h110instring('@group=publicuser',cur:options,1,1)>0;
 
 @noupdate;
 
@@ -279,12 +279,15 @@ lbrwclick160=
       select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&gcvalue&'''');
 @correctMemo=
  gcvalue='',
- iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),update,tsc; \t103New Value; \w104200;'),
+ iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),set(104,gcoriginal),update,tsc; \t103New Value; \w104200;'),
  break(gcretval='esc'),
  gcvalue=clip(obj7:e2),
  gccorrectiodate=obj7:key1,
  gcNewValueSaved='Saved',
- gcoriginal=str_replace(gcoriginal,'''',''''''),
- lcNewValue=str_replace(obj7:e2,'''',''''''),
- sql('insert taxrollCorrections (taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
+ lcOriginalData=str_replace(str_replace(gcoriginal,'''''','~{~~{~'),'''','~{~'),
+ lcNewValue=str_replace(str_replace(obj7:e2,'''''','~{~~{~'),'''','~{~'),
+ sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&lcOriginalData&''',@fieldData='''&lcNewValue&'''');
+
+insert 
+(taxrollId, invoiceId, fieldNumber, correctionDate, fieldName, originalData, fieldData) 
       select '&obj:link1+0&','&gcinvoice+0&','&gcfieldnum+0&','''&obj7:key1&''','''&gclabel&''','''&gcoriginal&''','''&lcNewValue&'''');

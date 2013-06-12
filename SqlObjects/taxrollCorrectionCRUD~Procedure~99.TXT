@@ -1,14 +1,20 @@
 create proc dbo.taxrollCorrectionCRUD(
  @mode int,
  @fieldNumber int,
+ @fieldName varchar(50) = '',
  @fieldData varchar(max),
  @taxInvoiceId int = null,
- @taxrollId int = null
+ @taxrollId int = null,
+ @originalData varchar(max) = ''
 ) as 
 begin
  
- declare @fieldName varchar(50)
- select @fieldName = fieldName from dbo.taxrollItemFields('') where cast(ord as int) = @fieldNumber
+ If @fieldName<'  0'
+  select @fieldName = fieldName
+   from dbo.taxrollItemFields('') where cast(ord as int) = @fieldNumber
+
+  select @originalData = replace(replace(@originalData,'~{~~{~',''''''),'~{~',''''),
+         @fieldData = replace(replace(@fieldData,'~{~~{~',''''''),'~{~','''')
 
  if @taxrollId is null
   select @taxrollId = taxrollId from invoices where id=@taxInvoiceId 
@@ -16,8 +22,8 @@ begin
  if @mode = 0
  begin
 --TODO: dont forget to add taxrollCorrections to the devPurgeData routines
-  insert taxrollCorrections (taxrollId, fieldNumber, fieldName, fieldData)
-  select @taxrollId, @fieldNumber, @fieldName, @fieldData
+  insert taxrollCorrections (taxrollId, fieldNumber, fieldName, originalData, fieldData, correctionDate)
+  select @taxrollId, @fieldNumber, @fieldName, @originalData, @fieldData, dbo.clariondate(getdate())
   return
  end
 
