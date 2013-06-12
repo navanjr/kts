@@ -110,7 +110,8 @@ bbproc4=
 @loadbrowse=prop(6,text,'&Void');
 
 @loadwindow=
- create(45,9);
+ create(45,9),
+ prop(120,'color',65280);
 
 @afterloadwindow=
  d1select('exec dbo.paymentCRUD @mode=4,@paymentType='''&obj:a18&''''),
@@ -229,7 +230,7 @@ bbproc4=
  getVouNum=,
  if(obj:a18='Trust Voucher',postTrustVoucher=),
  break(obj:a18='Trust Voucher'),
- d1select('exec dbo.paymentCRUD @mode=2,@paymentType=''MISCELLANEOUS'',@id='&obj:id&',@debitAcct='''&obj:a4&''',@creditAcct='''&obj:a5&''',@voucherDate='&obj:key2+0&',@amount='&obj:a3+0&''),
+ d1select('exec dbo.paymentCRUD @mode=2,@paymentType='''&obj:a18&''',@id='&obj:id&',@debitAcct='''&obj:a4&''',@creditAcct='''&obj:a5&''',@voucherDate='&obj:key2+0&',@amount='&obj:a3+0&''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Posting to the G/L...')),
  if(readstring(obj7:d1,'@code=')>0,lcContinue='FALSE');
 
@@ -269,6 +270,7 @@ bbproc4=
   break(gcretval<>2),
   sql('insert object (typ,link1,link2,key1,key2,key3,a1) select 4775,'&obj:id&',receiptId,'''&obj:key1&''',purpose,amount,isnull((select key1 from object where typ=4502 and id=receiptId),'''') from purposedetail where amount > 0.00 and purpose='''&obj:a6&''' and receiptId not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
   refreshbrw=;
+
 \h113obj:a17<>'Posted' or cur:securitylevel<75;
 \t113Mark as Duplicate;
  @acc113=m('Are you sure that you want to mark this '&obj:a18&' as duplicated on today''s date?','Are you sure?',,6),
@@ -276,3 +278,12 @@ bbproc4=
  set(010,left(clip(obj:a2)&' - '&format(today(),@d2)&' DUPLICATE',49)),
  update,
  tsc;
+
+\t120&Undo G/L Posting; \h120cur:securitylevel<100;
+@acc120=
+ m('Are you sure you wish to unPost this '''&obj:a18&'''?','UnPosting Payment...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
+ d1select('select a18 from object where id='&obj:id),
+ set(040,obj7:d1),tsc;
