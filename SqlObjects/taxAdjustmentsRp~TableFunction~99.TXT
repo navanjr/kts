@@ -1,0 +1,19 @@
+create function dbo.taxAdjustmentsRp(@year int) returns 
+ @rt table(taxYear varchar(10),item varchar(10),correctionDate varchar(20),origSchool varchar(50),curSchool varchar(50),amount varchar(50),name varchar(60),id int,invoiceId int,taxrollid int)
+as begin
+
+  insert @rt
+  select 
+     apyear,sourceKey1,dbo.date112(creationdate),'',aprate,SUM(amount),'',substring(slink,2,20),0,0
+  from dbo.taxrollAuditDetail
+   where apyear = @year and LEFT(auditorigin,1)='2'
+   group by apyear,sourceKey1,creationdate,apdistrict,aprate,slink
+   
+   update r set r.item = i.ITEM,r.name = i.NAME,r.taxrollid = i.TAXROLLID,r.invoiceId = i.invoiceId from @rt r,invoices i where i.ID = r.id
+ 
+   update r set r.item = i.ITEM,r.name = i.NAME,r.taxrollid = i.TAXROLLID from @rt r,invoices i where i.ID = r.invoiceId
+   
+   update r set r.origSchool = a.SCHOOLDISTRICTTAXRATE from @rt r,AdTax a where a.ID = r.taxrollid
+   
+ return
+ end   
