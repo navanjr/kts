@@ -1,47 +1,64 @@
-create function dbo.taxrollCollectionReport(@beginDate int,@endDate int)
- returns @rt table(apDistrict varchar(50),aprate varchar(50),apYear varchar(50),origTax varchar(50),taxAdj varchar(50),curTax varchar(50),taxPaid varchar(50),recAdjust varchar(50),unPaid varchar(50),protest varchar(50), apportAmt varchar(50),pendApport varchar(50),apportPct varchar(50))
-as begin
-insert @rt
-select 
- apdistrict,
- aprate,
- apyear,
- sum(case when LEFT(auditorigin,1)='1' then amount else 0 end)*-1 as origTax,
- sum(case when LEFT(auditorigin,1)='2' then amount else 0 end)*-1 as taxAdj,
- '',
- sum(case when LEFT(auditorigin,1)='3' then amount else 0 end) as taxPaid,
- sum(case when LEFT(auditorigin,1)='5' then amount else 0 end) as recAdjust,
- '',
- sum(case when LEFT(auditorigin,1)='7' then amount else 0 end) as Protest,
- sum(case when LEFT(auditorigin,1)='6' then amount else 0 end)*-1 as apportAmt,
- sum(case when LEFT(auditorigin,1)='8' then amount else 0 end) as pendApport,
- ''
+create function dbo.taxrollCollectionReport(@year int)
+ returns @rt table(
+  apDistrict varchar(50),
+  aprate varchar(50),
+  apYear varchar(50),
+  origTax varchar(50),
+  taxAdj varchar(50),
+  curTax varchar(50),
+  taxPaid varchar(50),
+  recAdjust varchar(50),
+  unPaid varchar(50),
+  protest varchar(50),
+  apportAmt varchar(50),
+  pendApport varchar(50),
+  apportPct varchar(50),
+  DistrictRate varchar(200),
+  ord varchar(max))
+ as begin
+
+ insert @rt
+  select 
+   apdistrict,
+   aprate,
+   apyear,
+   sum(case when LEFT(auditorigin,1)='1' then amount else 0 end)*-1 as origTax,
+   sum(case when LEFT(auditorigin,1)='2' then amount else 0 end)*-1 as taxAdj,
+   '',
+   sum(case when LEFT(auditorigin,1)='3' then amount else 0 end) as taxPaid,
+   sum(case when LEFT(auditorigin,1)='5' then amount else 0 end) as recAdjust,
+   '',
+   sum(case when LEFT(auditorigin,1)='7' then amount else 0 end) as Protest,
+   sum(case when LEFT(auditorigin,1)='6' then amount else 0 end)*-1 as apportAmt,
+   sum(case when LEFT(auditorigin,1)='8' then amount else 0 end) as pendApport,
+   '',
+   apdistrict+'|'+aprate,
+   'b'+apdistrict+'|'+aprate
+  from dbo.taxrollAuditDetail
+   where apyear = @year -- between @beginDate and @endDate
+  group by apdistrict,aprate,apyear
+  order by apyear,apdistrict,aprate
+
+ update @rt set curTax = cast(origTax as money) + cast(taxAdj as money)
+ update @rt set unPaid = cast(curTax as money) - cast(taxPaid as money) + cast(recAdjust as money)
+
+ insert @rt 
+  select '','Total','',SUM(cast(origTax as money)),SUM(cast(taxAdj as money)),SUM(cast(curTax as money)),SUM(cast(taxPaid as money)),SUM(cast(recAdjust as money)),SUM (cast(unpaid as money)),SUM(cast(protest as money)),SUM(cast(apportAmt as money)),SUM(cast(pendApport as money)),'','Total','zTotal'
+  from @rt
+
+ update @rt set apportPct =  cast(cast(((cast(apportAmt as money) - cast(pendApport as money))/cast(curTax as money))*100 as money) as varchar)+'%'
  
-from dbo.taxrollAuditDetail
-where sourceDate between @beginDate and @endDate
-group by apdistrict,aprate,apyear
-order by apyear,apdistrict,aprate
-
-update @rt set curTax = cast(origTax as money) + cast(taxAdj as money)
-update @rt set unPaid = cast(curTax as money) - cast(taxPaid as money) + cast(recAdjust as money)
-
-insert @rt 
- select '','Total','',SUM(cast(origTax as money)),SUM(cast(taxAdj as money)),SUM(cast(curTax as money)),SUM(cast(taxPaid as money)),SUM(cast(recAdjust as money)),SUM(cast(unpaid as money)),SUM(cast(protest as money)),SUM(cast(apportAmt as money)),SUM(cast(pendApport as money)),''
- from @rt
-
-update @rt set apportPct =  cast(cast(((cast(apportAmt as money) - cast(pendApport as money))/cast(curTax as money))*100 as money) as varchar)
-
-update @rt set
- origTax = dbo.formatCurr(origTax),
- taxAdj = dbo.formatCurr(taxAdj),
- curTax = dbo.formatCurr(curTax),
- taxPaid = dbo.formatCurr(taxPaid),
- recAdjust = dbo.formatCurr(recAdjust),
- unPaid = dbo.formatCurr(unPaid),
- protest = dbo.formatCurr(protest),
- apportAmt = dbo.formatCurr(apportAmt),
- pendApport = dbo.formatCurr(pendApport)
- from @rt
+ update @rt set
+  origTax = dbo.formatCurr(origTax),
+  taxAdj = dbo.formatCurr(taxAdj),
+  curTax = dbo.formatCurr(curTax),
+  taxPaid = dbo.formatCurr(taxPaid),
+  recAdjust = dbo.formatCurr(recAdjust),
+  unPaid = dbo.formatCurr(unPaid),
+  protest = dbo.formatCurr(protest),
+  apportAmt = dbo.formatCurr(apportAmt),
+  pendApport = dbo.formatCurr(pendApport)
+  from @rt
  
 
  return
