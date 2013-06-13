@@ -57,6 +57,7 @@ class ktsMenu():
         self.createCommand('battery',['b','bat','batt','battery'],'runs conversion diagnostic battery',[self.diagnostic_run,'conversion'],'conversion')
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
+        self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
 
         self.command = []
 
@@ -387,6 +388,8 @@ class ktsMenu():
 
     def sendCommand(self, command):
         self.command = command.split()
+        if len(self.command) < 1:
+            return True
         self.runMenuFunction(self.command[0],self.commands)
         return True
 
@@ -487,7 +490,7 @@ class ktsMenu():
     def command_displayMenu(self):
         self.display()
 
-    def command_setSetting(self, prefix, defaultValue=None):
+    def command_setSetting(self, prefix, defaultValue=None, settingsCRUD=True):
         if not len(self.command) > 1:
             return
         if len(self.command) > 2:
@@ -496,45 +499,47 @@ class ktsMenu():
             if defaultValue:
                 print 'leave blank for default value (%s)' % defaultValue
             newValue = raw_input('Enter %s ==> ' % self.command[1]) or defaultValue
-        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue), True)
+        if settingsCRUD:
+            self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue), True)
         return newValue
         
     def command_serverSettings(self):
+        cmd = self.command[1]
         if len(self.command) < 2:
             return
         if len(self.command) > 2:
             commandArguement = self.command[2]
         else:
             commandArguement = ''
-        if self.command[1] in ('db','database'):
+        if cmd in ('db','database'):
             self.dbSettings(commandArguement)
             self.configStuff('importDefaults', 'database', 'PUT', commandArguement)
-        elif self.command[1] in ('user','username','uid'):
+        elif cmd in ('user','username','uid'):
             self.setVars('uid',commandArguement)
             self.configStuff('importDefaults', 'uid', 'PUT', commandArguement)
-        elif self.command[1] in ('pwd','pass','password'):
+        elif cmd in ('pwd','pass','password'):
             self.setVars('password',commandArguement)
             self.configStuff('importDefaults', 'password', 'PUT', commandArguement)
-        elif self.command[1] in ('server','location','url'):
+        elif cmd in ('server','location','url'):
             self.setVars('server',commandArguement)
             self.configStuff('importDefaults', 'server', 'PUT', commandArguement)
-        elif self.command[1] == 'gitpath':
+        elif cmd == 'gitpath':
             self.command_setSetting('git', defaultValue='c:\client\key\kts')
-        elif self.command[1] == 'gitcommitter':
+        elif cmd == 'gitcommitter':
             self.command_setSetting('git')
-        elif self.command[1] in ('mikepath', 'mikepathtax'):
+        elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif self.command[1] == 'taxyear':
+        elif cmd == 'taxyear':
             self.command_setSetting('conversion')
-        elif self.command[1] in ('ftphost', 'ftpuser', 'ftppassword'):
-            newValue = self.command_setSetting(self.command[1])
+        elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
+            if cmd == 'ftppath':
+                newValue = self.command_setSetting('ftp', defaultValue='c:\client\key\sqlBackup')
+            else:
+                newValue = self.command_setSetting('ftp')
             self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
             self.ftpSettingsInit()
-        elif self.command[1] == 'ftppath':
-            newValue = self.command_setSetting(self.command[1], defaultValue='c:\client\key\sqlBackup')
-            print 'here is the new value =>', newValue
-            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
-            self.ftpSettingsInit()
+        elif cmd == 'aamasterpath':
+            self.command_setSetting('conversion')
 
     def command_logging(self):
         print self.command
@@ -572,6 +577,58 @@ class ktsMenu():
 #        print self.git['status']
         print '     ==================================================='
         print
+
+    def tpsAamasterCheck(self):
+        columns = []
+        columns.append('autonumber varchar(50)')
+        columns.append('ownername varchar(50)')
+        columns.append('businessname varchar(50)')
+        columns.append('address1 varchar(50)')
+        columns.append('address2 varchar(50)')
+        columns.append('address3 varchar(50)')
+        columns.append('city varchar(50)')
+        columns.append('state varchar(50)')
+        columns.append('zip1 varchar(50)')
+        columns.append('zip2 varchar(50)')
+        columns.append('zip3 varchar(50)')
+        columns.append('country varchar(50)')
+        columnNames = [x.split(' ')[0] for x in columns]
+        sqlString = "select {fields} from aamaster ".format(fields=', '.join(columnNames))
+        aamasterpath = self.settingsF('conversion.aamasterpath')
+        if not aamasterpath:
+            print 'missing path to aamaster... fail!'
+            return
+        connDatabase = '%s\\aamaster.TPS' % aamasterpath
+        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
+        package = {}
+        package['connectionString'] = connectionString
+        package['database'] = connDatabase
+        package['sqlString'] = sqlString
+        connection = pyodbc.connect(connectionString, autocommit=True)
+        cursor = connection.cursor()
+        cursor.execute(sqlString)
+        rows = cursor.fetchall()
+        package['rows'] = rows
+        connection.close()
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            sqlCreateTable = 'create table aamasterCheck({columns})'.format(columns=', '.join(columns))
+            print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
+            print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
+            sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(rows):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+                # if id == 2:
+                #     break
+            print 'ok i inserted %s records' % tally
+
+    def settingsF(self, name, default='unknown'):
+        value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
+        return value
 
     def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None):
         connDatabase = alternateDatabase or self.settings['database']
