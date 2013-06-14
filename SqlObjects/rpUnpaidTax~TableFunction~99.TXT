@@ -8,7 +8,8 @@ create function dbo.rpUnpaidTax(@year int) returns @rt table(id int identity(1,1
                   Name varchar(50),
                   Taxes money,
                   unpaid money,
-                  parcel varchar(50))
+                  parcel varchar(50),
+                  ord varchar(200))
 as begin
 declare @invoiceIds table(id int, taxrollId int, processed int)
 insert @invoiceIds
@@ -47,6 +48,20 @@ from @rt r, adtax a where r.taxrollid=a.id
 update r set Bankrupt = 'Y' from @rt r, (select * from taxrolldetail where dtype='BANKRUPT' and isnull(actiondate,0)=0) b
  where r.item = b.itemNumber
     or (r.parcel = b.parcelNumber and r.parcel > ' 0')
+
+update @rt set ord = apdistrict+aprate+'  '+recordtype+item+'bbb'
+
+
+insert @rt (name, ord)
+  select apdistrict+'/'+aprate, apdistrict+aprate+'  aaa' from @rt group by apdistrict,aprate
+
+insert @rt (name, unpaid ,ord)
+  select apdistrict+'/'+aprate+' Total',sum(unpaid) ,apdistrict+aprate+'  zzccc' from @rt group by apdistrict,aprate
+
+insert @rt (name, unpaid ,ord)
+  select 'Grand Total',sum(unpaid) , 'zzzzzz' from @rt where right(ord,3)='bbb'
+
+
 
 return 
 end
