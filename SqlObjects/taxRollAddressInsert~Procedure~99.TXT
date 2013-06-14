@@ -1,11 +1,19 @@
-create procedure [dbo].[taxRollAddressInsert] @aId int, @invoiceType varchar (1) = ''
-	as begin
-
-
-if @invoiceType = 'S'
+create procedure [dbo].[taxRollAddressInsert](
+ @aId int,
+ @invoiceType varchar (1) = '',
+ @aamasterCheckBrwId int = null,
+ @newId int = null output
+) as
 begin
-insert into 
-	taxRollDetail(
+ set nocount on
+
+ exec dbo.logit @@procid, '@aId', @aId, '@invoiceType', @invoiceType, '@aamasterCheckBrwId', @aamasterCheckBrwId
+
+ declare @newIdWt newIdWt
+
+ if @invoiceType = 'S'
+ begin
+  insert into taxRollDetail(
 	    [adTaxId],
 	    [parcelNumber],
 	    [name],
@@ -24,31 +32,38 @@ insert into
                 [Dtype],
 		[Comments]
 	 	)	
-select
-	ID,
-	key1,
-	a1,
-	case when isnumeric(key3)=1 then cast(key3 as numeric(7,1)) else 0.0 end,
-	case when isnumeric(a18)=1 then cast(a18 as numeric(5)) else 0 end,
-	convert(varchar(10),GETDATE(),101)+' Assessment',
-	'',
-	a2,
-	a3,
-	a4,
-	a5,
-	a6,
-	a7,
-	'',
-	'',
-        'S',
-	''
+   output inserted.id into @newIdWt
+   select
+    ID,
+    key1,
+    a1,
+    case when isnumeric(key3)=1 then cast(key3 as numeric(7,1)) else 0.0 end,
+    case when isnumeric(a18)=1 then cast(a18 as numeric(5)) else 0 end,
+    convert(varchar(10),GETDATE(),101)+' Assessment',
+    '',
+    a2,
+    a3,
+    a4,
+    a5,
+    a6,
+    a7,
+    '',
+    '',
+    'S',
+    ''
+   from object where id=@aId
+   
+   select @newId = max(id) from @newIdWt
+   exec dbo.logit @@procid, 'new taxrolldetail... @newId', @newId
+   return
 
- from object where id=@aId 
-end
-else
-begin
-insert into 
-	taxRollDetail(
+  end
+  else
+  begin
+
+   if isnull(@aId,0) > 0
+   begin
+    insert into taxRollDetail(
 	    [adTaxId],
 	    [parcelNumber],
 	    [name],
@@ -67,7 +82,8 @@ insert into
                 [Dtype],
 		[Comments]
 	 	)	
-select
+      output inserted.id into @newIdWt
+      select
 	ID,
 	FULLPIDNUMBER,
 	OWNERNAME,
@@ -85,10 +101,64 @@ select
 	ZIP3,
         'A',
 	''
+     from AdTax where id=@aId and (len(FULLPIDNUMBER)>0 or LEN(ownername)>0)
 
- from AdTax where id=@aId and (len(FULLPIDNUMBER)>0 or LEN(ownername)>0)
-end 
+    select @newId = max(id) from @newIdWt
+    exec dbo.logit @@procid, 'new taxrolldetail... @newId', @newId
 
+    return
+   end
 
+   if isnull(@aamasterCheckBrwId,0) > 0
+   begin
+
+    insert into
+      taxRollDetail(
+          [adTaxId],
+          [parcelNumber],
+          [name],
+          [itemNumber],
+          [taxYear],
+          [Stamp],
+          [businessName],
+          [ADDRESS1],
+        [ADDRESS2],
+        [ADDRESS3],
+        [CITY],
+        [STATE],
+        [ZIP1],
+        [ZIP2],
+        [ZIP3],
+                    [Dtype],
+        [Comments]
+        )
+    output inserted.id into @newIdWt
+    select
+      brwID,
+      FULLPIDNUMBER,
+      OWNERNAME,
+      ktsAutoNUMBER,
+      TAXYEAR,
+      dbo.date1(dbo.clarionToday())+' Import',
+      BUSINESSNAME,
+      ADDRESS1,
+      ADDRESS2,
+      ADDRESS3,
+      CITY,
+      STATE,
+      ZIP1,
+      ZIP2,
+      ZIP3,
+      'AA',
+      ''
+     from aamasterCheck where brwid=@aamasterCheckBrwid and (len(FULLPIDNUMBER)>0 or LEN(ownername)>0)
+
+    select @newId = max(id) from @newIdWt
+    exec dbo.logit @@procid, 'new taxrolldetail... @newId', @newId
+ 
+    return
+
+   end
+  end
 
 end

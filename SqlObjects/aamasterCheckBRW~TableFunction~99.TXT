@@ -1,0 +1,131 @@
+create function dbo.aamasterCheckBRW(
+ @filters varchar(50)
+)
+returns @rt table(
+ brwId int,
+ display varchar(max),
+ reason varchar(50),
+ selectedFlag int,
+ ord varchar(50)
+) as
+begin
+
+ declare
+  @c varchar(10) = ' | ',
+  @total int,
+  @selected int,
+  @updated int
+
+ declare @flags table(flag int)
+ insert @flags select 0 union select 1
+ if @filters = 1
+  insert @flags select 2
+
+ 
+-- line 1
+  insert @rt
+  select brwid,
+   '    ' + ktsAutoNumber + ' - '
+   + case reason
+      when 'address' then coalesce(nullif(businessname,''),ownerName)
+
+      when 'business name' then businessName + ' / ' + ktsbusinessName
+      when 'owner name' then ownerName + ' / ' + ktsownerName
+     end,
+
+   reason,
+   selectedFlag,
+   reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'a'
+  from aamasterCheck
+  where isnull(reason,'') > '  0' and balanceDue > 0
+   and isnull(selectedFlag,0) in (select flag from @flags)
+
+-- line 2
+  insert @rt
+  select brwid,
+    '      A: ' + stuff(dbo.joinStr(@c,address1) + dbo.joinStr(@c,address2) + dbo.joinStr(@c,address3)
+     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,zip2) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country)
+     ,1,len(@c),''),
+   reason,
+   selectedFlag,
+   reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'b'
+  from aamasterCheck
+  where isnull(reason,'') > '  0' and balanceDue > 0
+   and isnull(selectedFlag,0) in (select flag from @flags)
+
+-- line 3
+  insert @rt
+  select brwid,
+    '      T: ' + stuff(dbo.joinStr(@c,ktsaddress1) + dbo.joinStr(@c,ktsaddress2) + dbo.joinStr(@c,ktsaddress3)
+     + dbo.joinStr(@c,ktscity) + dbo.joinStr(@c,ktsstate) + dbo.joinStr(@c,ktszip1) + dbo.joinStr(@c,ktszip2) + dbo.joinStr(@c,ktszip3) + dbo.joinStr(@c,country)
+     ,1,len(@c),''),
+   reason,
+   selectedFlag,
+   reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'c'
+  from aamasterCheck
+  where isnull(reason,'') > '  0' and balanceDue > 0
+   and isnull(selectedFlag,0) in (select flag from @flags)
+
+-- line 4
+  insert @rt
+  select brwid,
+    '      D: ' + stuff(
+    dbo.joinStr(@c,dbo.readstring('@address1=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@address2=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@address3=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@city=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@state=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@zip1=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@zip2=',defaultAddressBlob))
+    + dbo.joinStr(@c,dbo.readstring('@zip3=',defaultAddressBlob))
+     ,1,len(@c),''),
+   reason,
+   selectedFlag,
+   reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'd'
+  from aamasterCheck
+  where isnull(reason,'') > '  0' and balanceDue > 0
+   and isnull(selectedFlag,0) in (select flag from @flags)
+
+-- line 5
+  insert @rt
+  select brwid,
+    '',
+   reason,
+   0,
+   reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'e'
+  from aamasterCheck
+  where isnull(reason,'') > '  0' and balanceDue > 0
+   and isnull(selectedFlag,0) in (select flag from @flags)
+
+-- reason grouping
+  insert @rt (display, selectedFlag, ord)
+  select '  ' + upper(reason) + ' - ' + cast(count(*) as varchar), 5, reason + 'ab'
+  from aamasterCheck
+  where balanceDue != 0 and isnull(reason,'') > '  0'
+   and isnull(selectedFlag,0) in (select flag from @flags)
+  group by reason
+
+  insert @rt (display, selectedFlag, ord)
+  select '  ', 0, reason + 'a'
+  from aamasterCheck
+--  where isnull(selectedFlag,0) != 5
+  group by reason
+
+-- total summaries
+  select
+   @total = count(*),
+   @selected = sum(case when selectedFlag = 1 then 1 else 0 end),
+   @updated = sum(case when selectedFlag = 2 then 1 else 0 end)
+  from aamasterCheck 
+  where isnull(selectedFlag,0) in (0,1,2) and balanceDue != 0 and isnull(reason,'') > '  0'
+--   and isnull(selectedFlag,0) in (select flag from @flags)
+
+  insert @rt (display, selectedFlag, ord)
+  select ' Total: ' + cast(isnull(@total,0) as varchar)
+   + '    Selected: ' + cast(isnull(@selected,0) as varchar)
+   + '    Updated: ' + cast(isnull(@updated,0) as varchar),
+   5, 'a'
+
+  return
+
+end

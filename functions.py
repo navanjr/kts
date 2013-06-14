@@ -593,6 +593,17 @@ class ktsMenu():
         columns.append('zip3 varchar(50)')
         columns.append('country varchar(50)')
         columnNames = [x.split(' ')[0] for x in columns]
+        uniqueColumns = []
+        uniqueColumns.append('brwid int identity(1,1)')
+        uniqueColumns.append('selectedFlag int')
+        uniqueColumns.append('invoiceId int')
+        uniqueColumns.append('adtaxId int')
+        uniqueColumns.append('fullpidnumber varchar(50)')
+        uniqueColumns.append('taxYear varchar(10)')
+        uniqueColumns.append('defaultAddressBlob varchar(max)')
+        uniqueColumns.append('balanceDue money')
+        uniqueColumns.append('reason varchar(50)')
+        uniqueColumns.append('taxrollDetailId int')
         sqlString = "select {fields} from aamaster ".format(fields=', '.join(columnNames))
         aamasterpath = self.settingsF('conversion.aamasterpath')
         if not aamasterpath:
@@ -612,7 +623,7 @@ class ktsMenu():
         connection.close()
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
-            sqlCreateTable = 'create table aamasterCheck({columns})'.format(columns=', '.join(columns))
+            sqlCreateTable = 'create table aamasterCheck({uniqueColumns}, {columns}, kts{ktsColumns})'.format(uniqueColumns=', '.join(uniqueColumns),columns=', '.join(columns), ktsColumns=', kts'.join(columns))
             print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
             print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
             sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
@@ -625,6 +636,7 @@ class ktsMenu():
                 # if id == 2:
                 #     break
             print 'ok i inserted %s records' % tally
+        print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
 
     def settingsF(self, name, default='unknown'):
         value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]

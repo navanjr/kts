@@ -1,0 +1,65 @@
+create proc dbo.aamasterCheckInitialize(
+ @taxYear varchar(10) = null
+) as
+begin
+
+  set nocount on
+
+  set @taxYear = coalesce(@taxyear,(select dbo.splitF(dbo.date1(dbo.clarionToday()),'/',3)-1))
+
+  update a set
+    a.invoiceId = b.id,
+    a.balanceDue = isnull(b.invoiceDue,0) + isnull(b.subInvoiceDue,0) + isnull(b.taxRuleDue,0),
+    a.ktsAutoNumber = b.ITEM,
+    a.adtaxId = c.id,
+    a.ktsownerName = c.OWNERNAME,
+    a.ktsbusinessName = c.BUSINESSNAME,
+    a.ktsaddress1 = c.ADDRESS1,
+    a.ktsaddress2 = c.ADDRESS2,
+    a.ktsaddress3 = c.ADDRESS3,
+    a.ktscity = c.city,
+    a.ktsstate = c.state,
+    a.ktszip1 = c.zip1,
+    a.ktszip2 = c.zip2,
+    a.ktszip3 = c.zip3,
+    a.ktscountry = c.country,
+    a.fullpidnumber = c.fullpidnumber,
+    a.taxYear = @taxYear
+  from aamasterCheck a
+  join invoices b on b.taxyear = @taxyear and b.item = a.autonumber
+  join AdTax c on c.realtaxyear = @taxyear and b.TAXROLLID = c.ID
+  exec dbo.logit @@procid, 'updated data from KTS... @@rowCount', @@ROWCOUNT
+
+  -- ownername
+  update aamasterCheck set reason = 'owner name'
+  where ltrim(rtrim(ownername)) != ltrim(rtrim(ktsownername))
+  exec dbo.logit @@procid, 'Found mismatching ownerName... @@rowCount', @@ROWCOUNT
+
+  -- businessname
+  -- ownername
+  update aamasterCheck set reason = 'business name'
+  where ltrim(rtrim(businessname)) != ltrim(rtrim(ktsbusinessname))
+   and isnull(reason,'') < '  0'
+  exec dbo.logit @@procid, 'Found mismatching BusinessName... @@rowCount', @@ROWCOUNT
+
+  -- address
+  update aamasterCheck set reason = 'address'
+  where (
+    ltrim(rtrim(address1)) != ltrim(rtrim(ktsaddress1))
+    or ltrim(rtrim(address2)) != ltrim(rtrim(ktsaddress2))
+    or ltrim(rtrim(address3)) != ltrim(rtrim(ktsaddress3))
+    or ltrim(rtrim(city)) != ltrim(rtrim(ktscity))
+    or ltrim(rtrim(state)) != ltrim(rtrim(ktsstate))
+    or ltrim(rtrim(zip1)) != ltrim(rtrim(ktszip1))
+    or ltrim(rtrim(zip2)) != ltrim(rtrim(ktszip2))
+    or ltrim(rtrim(zip3)) != ltrim(rtrim(ktszip3))
+--    or ltrim(rtrim(country)) != ltrim(rtrim(ktscountry))
+   )
+   and isnull(reason,'') < '  0'
+  exec dbo.logit @@procid, 'Found mismatching address... @@rowCount', @@ROWCOUNT
+
+-- add default address blob for the items that are mis-matched
+  update aamasterCheck set defaultAddressBlob = dbo.taxrollAddressBlob(taxyear, ktsAutoNumber)
+  where isnull(reason,'') > '  0' and balanceDue > 0
+
+end

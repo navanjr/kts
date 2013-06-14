@@ -1,0 +1,75 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@menuprocess=
+ lcid=kp('select min(id) from object where typ = 44'),
+ if(lcid+0>0,change(lcid),new(44));
+
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+
+@loadwindow=
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ gcbrwsq44='select brwId*-1,display,selectedFlag from dbo.aamasterCheckBRW('&choose(obj:c1>'  0',obj:c1,'0')&') order by ord';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsq44,2,2,520,262,'500L(5)~~#2#M'),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0),
+ create(550,12,540,40,'&Show All',78);
+
+@acc550=refreshbrw=;
+
+\t077ShowAllFlag; \h077078;r
+
+@refreshbrw=
+ gcvars=,
+ brwreload(1,gcbrwsq44);
+
+@gfwindow=
+ refreshbrw=;
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='2',2350115,obj7:c10='1',2157055; 13499135; 2157055; 2350115; 7467519
+
+@brw1=
+ d1select('exec dbo.aamasterCheckClicked '&kpbrwid(1)*-1),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
+ refreshbrw=;
+
+lbrwclick150=
+ bustItUp=,
+ if(lcMode+0=7,toggleCompression=),
+ if(lcMode+0=8,jobOptions=),
+ if(lcMode+0=9,backupFileOptions=);
+@bustItUp=
+ if(kpbrwid(1)=0,bustItUpReset=),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+@bustItUpReset=
+ lcMode=0,
+ lcId=0;
+
+\t108&Manage Addresses;
+@acc108=
+ gcInvoiceId=kp('select invoiceId from aamasterCheck where brwid='&kpbrwid(1)*-1),
+ do(4006,menuprocess=);
+
+\t110&Toggle All;
+@acc110=
+ d1select('exec dbo.aamasterCheckClicked @method=''selectall'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
+ refreshbrw=;
+
+\t112Create &Addresses;
+@acc112=
+ m('Are you sure you wish to create addresses for all selected items?','Create Addresses...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.aamasterCheckClicked @method=''createAllAddresses'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
+ refreshbrw=;

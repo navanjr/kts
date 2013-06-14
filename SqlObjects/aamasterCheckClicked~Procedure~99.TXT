@@ -1,0 +1,52 @@
+create proc dbo.aamasterCheckClicked(
+ @brwid int = null,
+ @method varchar(50) = 'clickone' 
+) as 
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, '@method', @method, '@brwid', @brwid
+
+ if @method = 'clickone'
+ begin
+  if (select isnull(selectedFlag,0) from aamasterCheck where brwid = @brwid) = 0
+   update aamasterCheck set selectedFlag = 1 where brwid = @brwid and isnull(taxrollDetailId,0) = 0
+  else
+   update aamasterCheck set selectedFlag = 0 where brwid = @brwid and isnull(taxrollDetailId,0) = 0
+  return
+ end
+
+ if @method = 'selectall'
+ begin
+  declare @total int, @selected int
+  select @total = count(*), @selected = sum(isnull(selectedFlag,0)) from aamasterCheck where isnull(reason,'') > '  0' and balanceDue != 0
+  if @total = @selected 
+   update aamasterCheck set selectedFlag = 0 where balanceDue != 0 and isnull(reason,'') > '  0' and isnull(taxrollDetailId,0) = 0
+  else
+   update aamasterCheck set selectedFlag = 1 where balanceDue != 0 and isnull(reason,'') > '  0' and isnull(taxrollDetailId,0) = 0
+  return
+ end
+
+ if @method = 'createAllAddresses'
+ begin
+  exec dbo.logit @@procid, 'Ok here we go... Creating new addresses.'
+  declare @tokenBrwId int, @newId int
+  declare addressIds cursor for select brwid from aamasterCheck where selectedFlag = 1 and isnull(taxrolldetailId,0) = 0
+  open addressIds
+  fetch next from addressIds into @tokenBrwId
+
+  while @@fetch_status = 0
+  begin
+   exec dbo.logit @@procid, '@tokenBrwId', @tokenBrwId
+   exec dbo.taxrollAddressInsert null, @aamasterCheckBrwId = @tokenBrwId, @newId = @newId output
+   update aamasterCheck set taxrollDetailId = @newId, selectedflag = 2 where brwId = @tokenBrwId
+   fetch next from addressIds into @tokenBrwId
+  end
+
+  deallocate addressIds
+
+  return
+ end
+
+
+end
