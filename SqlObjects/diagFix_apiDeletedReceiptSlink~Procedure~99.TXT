@@ -38,6 +38,14 @@ begin
  begin
 
   update apiDeleted set slink = replace(slink,'r','o') where left(slink,1) = 'r'
+
+  update a set 
+   a.blob = 'invoice_link=' + CAST(abs(r.invoiceId) as varchar) + ';receipt_link=' + CAST(dbo.slinkId(a.slink) as varchar) + ';'
+  from 
+   apiDeleted a,
+   receiptLink r
+  where 
+   dbo.slinkId(a.slink) = abs(r.receiptId)
   
   exec dbo.logit @@procId, 'Just updated apiDeleted....', @@rowcount
 

@@ -7,16 +7,21 @@ begin
 
  declare
   @slink varchar(15) = @styp + cast(@id as varchar),
-  @exists varchar(5) = 'FALSE'
+  @blob varchar(max)
  
  if exists (select * from apideleted where slink = @slink)
-  set @exists = 'TRUE'
- else
-  insert apiDeleted(slink,apiResource) select @slink, @apiResource
- 
- if @exists = 'TRUE'
+ begin
   exec dbo.logit @@procid, 'Already exists... @slink', @slink, '@apiResource', @apiResource
- else
-  exec dbo.logit @@procid, 'inserted into apiDeleted... @slink', @slink, '@apiResource', @apiResource
- 
+  return
+ end
+
+-- it is ok if @blob ends up being null if there is no link to a Tax invoice... that just means the api won't have it anyhow.
+ if @apiResource = 'receipts'
+  select @blob = 'receipt_link=' + cast(@id as varchar) + ';invoice_link=' + cast(abs(invoiceId) as varchar) + ';'
+  from receiptLink where abs(receiptId) = @id
+
+ insert apiDeleted(slink,apiResource,blob) select @slink, @apiResource, @blob
+
+ exec dbo.logit @@procid, 'inserted into apiDeleted... @slink', @slink, '@apiResource', @apiResource, '@blob', @blob
+
 end
