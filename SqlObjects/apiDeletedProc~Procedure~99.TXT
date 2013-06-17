@@ -1,15 +1,22 @@
-create proc dbo.apiDeletedProc(@link varchar(50),@apiResource varchar (50))
-	 as 
- begin
+create proc dbo.apiDeletedProc(
+ @styp varchar(1),
+ @id int,
+ @apiResource varchar (50)
+) as 
+begin
 
-
- exec dbo.logit @@procid, '@link', @link, '@apiResource', @apiResource
+ declare
+  @slink varchar(15) = @styp + cast(@id as varchar),
+  @exists varchar(5) = 'FALSE'
  
- insert apiDeleted(link,apiResource)
-	select
-	 LEFT(@apiResource,1)+cast(@link as varchar),
-	 @apiResource
+ if exists (select * from apideleted where slink = @slink)
+  set @exists = 'TRUE'
+ else
+  insert apiDeleted(slink,apiResource) select @slink, @apiResource
  
+ if @exists = 'TRUE'
+  exec dbo.logit @@procid, 'Already exists... @slink', @slink, '@apiResource', @apiResource
+ else
+  exec dbo.logit @@procid, 'inserted into apiDeleted... @slink', @slink, '@apiResource', @apiResource
  
- 
- end
+end

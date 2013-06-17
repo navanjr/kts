@@ -1,0 +1,46 @@
+create proc dbo.diagFix_apiDeletedReceiptSlink(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+ 
+  select
+   @class = 'Tax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),
+   @message = 'deleted receipts with bad slink in apiDeleted'
+  from apiDeleted
+  where left(slink,1) = 'r'
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select *
+  from apiDeleted
+  where left(slink,1) = 'r'
+
+ end
+
+ if @method = 'FIX'
+ begin
+
+  update apiDeleted set slink = replace(slink,'r','o') where left(slink,1) = 'r'
+  
+  exec dbo.logit @@procId, 'Just updated apiDeleted....', @@rowcount
+
+ end
+
+end
