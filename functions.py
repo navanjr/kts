@@ -11,22 +11,20 @@ def isnull(what,convertTo=''):
     return str(what)
 
 class ktsMenu():
-    def __init__(self):
-        sysArgs = sys.argv
+    def __init__(self, database=None):
         self.settings = {}
         self.ftpSettings = {}
         self.defaultFileName = "..\\ktsConfig.ini"
-        if len(sysArgs) > 1:
-            self.dbSettings(sysArgs[1])
+        if database:
+            self.dbSettings(database)
         else:
             self.dbSettings(self.configStuff('importDefaults', 'database') or 'kts')
 
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
-        self.ftpSettings['host'] = self.configStuff('ftp', 'host')
-        self.ftpSettings['user'] = self.configStuff('ftp', 'user')
-        self.ftpSettings['password'] = self.configStuff('ftp', 'password')
+
+        self.ftpSettingsInit()
 
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
@@ -59,6 +57,7 @@ class ktsMenu():
         self.createCommand('battery',['b','bat','batt','battery'],'runs conversion diagnostic battery',[self.diagnostic_run,'conversion'],'conversion')
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
+        self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
 
         self.command = []
 
@@ -107,15 +106,26 @@ class ktsMenu():
             for id, file in enumerate(modified):
                 print '%-*s %-*s %-*s %-*s %s' % (3,id + 1, 4,file['gitType'], 15, file['sourceFolder'], 20, file['name'], file['objectType'])
 
+    def ftpSettingsInit(self):
+        self.ftpSettings['host'] = self.configStuff('ftp', 'host')
+        self.ftpSettings['user'] = self.configStuff('ftp', 'user')
+        self.ftpSettings['password'] = self.configStuff('ftp', 'password')
+        self.ftpSettings['path'] = self.configStuff('ftp', 'path')
+
     def dbSettings(self, dbName=None):
         if dbName:
             self.settings['database'] = dbName
         self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
-        self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
-        self.git['status'] = subprocess.check_output("git status", shell=True)
-        self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
+        try:
+            self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
+            self.git['status'] = subprocess.check_output("git status", shell=True)
+            self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
+        except subprocess.CalledProcessError:
+            self.git['branch'] = ''
+            self.git['status'] = ''
+            self.git['repoVersion'] = ''
         try:
             self.git['ktsVersion'] = self.sqlQuery("select dbo.readKeyCode(1,'@ktsTag=')")['rows'][0][0]
         except KeyError:
@@ -182,23 +192,44 @@ class ktsMenu():
         for x in self.ftpSettings:
             print x, self.ftpSettings[x]
 
-    def ftp_put(self):
-        if len(self.command) == 3:
-            pass
+    def ftp_put(self, fileName=None):
+        files = self.ftpFiles()
+        def thePut(fileName):
+            ftpSet = self.ftpSettings
+            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
+            print '     Sending %s to %s.....' % (fileName, ftpSet['host'])
+            try:
+                file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
+            except IOError:
+                session.quit()
+                print '     Failed to locate %s' % fileName
+                return
+            session.storbinary('STOR %s' % fileName, file)
+            file.close()
+            session.quit()
+            print '     Done :) ... Have a nice day.'
 
-            # ftpSet = self.ftpSettings
-            # session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
-            # file = open('c:\client\key\sqlBackup\woods_20130606-1420.bak', 'rb')
-            # session.storbinary('STOR woods_20130606-1420.bak', file)
-            # file.close()
-            # session.quit()
+        if len(self.command) == 3:
+            fileId = int(self.command[2])
+            thePut(files[fileId]['name'])
+        elif fileName:
+            thePut(fileName)
+
+    def ftpFiles(self):
+        files = {}
+        for id, file in enumerate(os.listdir(self.ftpSettings['path'])):
+            fileToken = {}
+            fileToken['name'] = file
+            fileToken['size'] = os.path.getsize('%s/%s' % (self.ftpSettings['path'], file))
+            files[id + 1] = fileToken
+        return files
 
     def ftp_show(self):
-        files = os.listdir('c:\client\key\sqlBackup')
+        files = self.ftpFiles()
         menuName = self.getMenuName(self.command[0],self.commands)
         subMenu = self.commands[menuName]['subMenu']
-        for id, file in enumerate(files):
-            print '     %s = %s' % (id, file)
+        for file in files.items():
+            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
         if len(self.command) == 1:
             self.menuShow(subMenu)
         elif len(self.command) > 1:
@@ -357,6 +388,8 @@ class ktsMenu():
 
     def sendCommand(self, command):
         self.command = command.split()
+        if len(self.command) < 1:
+            return True
         self.runMenuFunction(self.command[0],self.commands)
         return True
 
@@ -457,7 +490,7 @@ class ktsMenu():
     def command_displayMenu(self):
         self.display()
 
-    def command_setSetting(self, prefix, defaultValue=None):
+    def command_setSetting(self, prefix, defaultValue=None, settingsCRUD=True):
         if not len(self.command) > 1:
             return
         if len(self.command) > 2:
@@ -465,39 +498,48 @@ class ktsMenu():
         else:
             if defaultValue:
                 print 'leave blank for default value (%s)' % defaultValue
-            newValue = raw_input('Enter %s ==> ' % self.command[1])
-        self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue or defaultValue), True)
+            newValue = raw_input('Enter %s ==> ' % self.command[1]) or defaultValue
+        if settingsCRUD:
+            self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue), True)
+        return newValue
         
     def command_serverSettings(self):
+        cmd = self.command[1]
         if len(self.command) < 2:
             return
         if len(self.command) > 2:
             commandArguement = self.command[2]
         else:
             commandArguement = ''
-        if self.command[1] in ('db','database'):
+        if cmd in ('db','database'):
             self.dbSettings(commandArguement)
             self.configStuff('importDefaults', 'database', 'PUT', commandArguement)
-        elif self.command[1] in ('user','username','uid'):
+        elif cmd in ('user','username','uid'):
             self.setVars('uid',commandArguement)
             self.configStuff('importDefaults', 'uid', 'PUT', commandArguement)
-        elif self.command[1] in ('pwd','pass','password'):
+        elif cmd in ('pwd','pass','password'):
             self.setVars('password',commandArguement)
             self.configStuff('importDefaults', 'password', 'PUT', commandArguement)
-        elif self.command[1] in ('server','location','url'):
+        elif cmd in ('server','location','url'):
             self.setVars('server',commandArguement)
             self.configStuff('importDefaults', 'server', 'PUT', commandArguement)
-        elif self.command[1] == 'gitpath':
+        elif cmd == 'gitpath':
             self.command_setSetting('git', defaultValue='c:\client\key\kts')
-        elif self.command[1] == 'gitcommitter':
+        elif cmd == 'gitcommitter':
             self.command_setSetting('git')
-        elif self.command[1] in ('mikepath', 'mikepathtax'):
+        elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif self.command[1] == 'taxyear':
+        elif cmd == 'taxyear':
             self.command_setSetting('conversion')
-        elif self.command[1] in ('ftphost', 'ftpuser', 'ftppassword'):
-            self.command_setSetting(self.command[1])
-            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', commandArguement)
+        elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
+            if cmd == 'ftppath':
+                newValue = self.command_setSetting('ftp', defaultValue='c:\client\key\sqlBackup')
+            else:
+                newValue = self.command_setSetting('ftp')
+            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
+            self.ftpSettingsInit()
+        elif cmd == 'aamasterpath':
+            self.command_setSetting('conversion')
 
     def command_logging(self):
         print self.command
@@ -535,6 +577,70 @@ class ktsMenu():
 #        print self.git['status']
         print '     ==================================================='
         print
+
+    def tpsAamasterCheck(self):
+        columns = []
+        columns.append('autonumber varchar(50)')
+        columns.append('ownername varchar(50)')
+        columns.append('businessname varchar(50)')
+        columns.append('address1 varchar(50)')
+        columns.append('address2 varchar(50)')
+        columns.append('address3 varchar(50)')
+        columns.append('city varchar(50)')
+        columns.append('state varchar(50)')
+        columns.append('zip1 varchar(50)')
+        columns.append('zip2 varchar(50)')
+        columns.append('zip3 varchar(50)')
+        columns.append('country varchar(50)')
+        columnNames = [x.split(' ')[0] for x in columns]
+        uniqueColumns = []
+        uniqueColumns.append('brwid int identity(1,1)')
+        uniqueColumns.append('selectedFlag int')
+        uniqueColumns.append('invoiceId int')
+        uniqueColumns.append('adtaxId int')
+        uniqueColumns.append('fullpidnumber varchar(50)')
+        uniqueColumns.append('taxYear varchar(10)')
+        uniqueColumns.append('defaultAddressBlob varchar(max)')
+        uniqueColumns.append('balanceDue money')
+        uniqueColumns.append('reason varchar(50)')
+        uniqueColumns.append('taxrollDetailId int')
+        sqlString = "select {fields} from aamaster ".format(fields=', '.join(columnNames))
+        aamasterpath = self.settingsF('conversion.aamasterpath')
+        if not aamasterpath:
+            print 'missing path to aamaster... fail!'
+            return
+        connDatabase = '%s\\aamaster.TPS' % aamasterpath
+        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
+        package = {}
+        package['connectionString'] = connectionString
+        package['database'] = connDatabase
+        package['sqlString'] = sqlString
+        connection = pyodbc.connect(connectionString, autocommit=True)
+        cursor = connection.cursor()
+        cursor.execute(sqlString)
+        rows = cursor.fetchall()
+        package['rows'] = rows
+        connection.close()
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            sqlCreateTable = 'create table aamasterCheck({uniqueColumns}, {columns}, kts{ktsColumns})'.format(uniqueColumns=', '.join(uniqueColumns),columns=', '.join(columns), ktsColumns=', kts'.join(columns))
+            print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
+            print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
+            sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(rows):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+                # if id == 2:
+                #     break
+            print 'ok i inserted %s records' % tally
+        print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
+
+    def settingsF(self, name, default='unknown'):
+        value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
+        return value
 
     def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None):
         connDatabase = alternateDatabase or self.settings['database']

@@ -27,7 +27,7 @@ printClearedVoucherList=;
   lcTm=350,
   lcFont='Arial',
   lcHeaderFontSize=12,
-  gcsql5022='select registerDate,controlNumber,registerNumber,toWhom,fundAccount,paidAmount,vType,actionDate,ord from dbo.outStandingVoucherReport('&gcAsOfDate&') order by ord',
+  gcsql5022='select registerDate,controlNumber,registerNumber,toWhom,fundAccount,paidAmount,vType,actionDate,ord from dbo.outStandingVoucherReport('&gcAsOfDate&') where '''&gcOfficialName&'''< '' 0'' or fundAccount in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''') order by ord',
   lcBoxColor=14539482,
  tr(
   box(350,450,4000,950,6,lcBoxColor),
@@ -56,7 +56,6 @@ printClearedVoucherList=;
 );
 
 /*The report is run for a month at a time.  When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
-
 @printCancelVoucherList=
   do(452,getSiteInfo=),
   lcLm=600,
@@ -74,7 +73,7 @@ printClearedVoucherList=;
     amount,
     creditAccountDesc,
     comment
-      from dbo.payments where paymentType = ''Cancel Voucher'' and dateRegistered between '&gcBeginDate+0&' and '&gcEndDate+0&' order by treasurersNumber ',   
+      from dbo.payments where paymentType = ''Cancel Voucher'' and dateRegistered between '&gcBeginDate+0&' and '&gcEndDate+0&' and ('''&gcOfficialName&'''< '' 0'' or debitAccountDesc in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''')) order by treasurersNumber ',   
 tr(
   prn(printed),
   prn(page),
@@ -100,16 +99,18 @@ tr(
 
 
 @printClearedVoucherList=
- do(452,getSiteInfo=),
+  if(gcOrderByVoucher+0=1,printClearedVoucherListOrderByVoucher=),
+  break(gcOrderByVoucher+0=1),
+  do(452,getSiteInfo=),
   lcLm=400,
   lcTm=250,
- lcHeaderFontSize=12,
+  lcHeaderFontSize=12,
   lcVouchGrTot=0,
   lcVoucherTot=0,
   lcVoucherCreditTot=0,
   lcVoucherCreditTotGr=0,
   lcFont='Arial',
-  lcsql='select * from dbo.clearedVouchers('&gcBeginDate+0&','&gcEndDate+0&') order by ord',
+  lcsql='select * from dbo.clearedVouchers('&gcBeginDate+0&','&gcEndDate+0&') where '''&gcOfficialName&'''< '' 0'' or fund in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''') order by ord',
  lcBoxColor=14539482,
  tr(
  landscape,
@@ -138,6 +139,42 @@ tr(
    if(right(obj5:a12,1)='e'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R)),
    edt);
 
+@printClearedVoucherListOrderByVoucher=
+  do(452,getSiteInfo=),
+  lcLm=400,
+  lcTm=250,
+  lcHeaderFontSize=12,
+  lcVouchGrTot=0,
+  lcVoucherTot=0,
+  lcVoucherCreditTot=0,
+  lcVoucherCreditTotGr=0,
+  lcFont='Arial',
+  lcsql='select * from dbo.clearedVouchers('&gcBeginDate+0&','&gcEndDate+0&') where (isnull(bank,''NULL'') <> ''NULL'' or regDate=''Report Total:'') and ('''&gcOfficialName&'''< '' 0'' or fund in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''')) order by isnull(voucher,''ZZZ'')',
+ lcBoxColor=14539482,
+ tr(
+ landscape,
+  box(350,350,4000,850,6,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',1400,400,lcHeaderFontSize-2,regular,lcFont),
+  prn(gcOfficial,1400,600),
+  prn(printed),
+  prn(page),
+  prn(,,900,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'Cleared Voucher List',10300C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Vouchers Cleared between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),10300C),
+  bnd(,gcCounty&' County',10300C),
+  bnd(,gcCity&', '&gcState,10300C),
+  prn(,lcLm,lcTm+1300,9),
+  nl, 
+  box(pagex-100,pagey-50,pagex+10300,pagey+330,,lcBoxColor),
+ bnd('H','VOUCH',500,'VOUCHER',650,'REGIST',500,'REGISTER',650,'AMOUNT',750C,'AMOUNT',750C,'CLEARED',650C,'TO WHOM PAID',1500,'BANK',1500,'FUND',900,'COMMENTS',1200),
+ bnd('H','No.',500,'DATE',650,'No.',500,'DATE',650,'PAID',750C,'CREDIT',750C,'DATE',650C,' ',1500,' ',1500,' ',900,' ',1200),
+  nl,
+  det(lcsql),
+   if(right(obj5:a12,1)='b'),do(prn(,,,8,regular,'courier new'),bnd(,obj5:a1,500,obj5:a2,650,obj5:a3,500,obj5:a4,650,obj5:a5,750R,obj5:a6,750R,format(obj5:a11,@d2),500C,format(obj5:a7,@s18),1500,format(obj5:a8,@s19),1500,format(obj5:a9,@s15),900,left(obj5:a10,22),1200)),
+   if(right(obj5:a12,1)='e'),do(bnd('H','',100,obj5:a4,2200R,obj5:a5,1000R,obj5:a6,800R)),
+   edt);
+
 /*The report is run for a month at a time.  When a cancelled voucher is created from a voucher, the cancelled voucher is assigned a new Treas # where paymentType = Cancel Voucher and the Treas Date = the Voucher Date and the voucher # = the voucher # of the original voucher*/
 
 @printTreasMemorandumCredit=
@@ -162,7 +199,9 @@ tr(
       (select * from dbo.paymentreports(''OFFICIAL'','&gcEndDate+0&',''TRUE'') where contraPostDate >= '&gcBeginDate+0&' and contraPostDate <= '&gcEndDate+0&' and paymenttype like ''%VOUCHER%'') a,
       object cv 
      where cv.typ=4771
-      and cv.id=dbo.slinkId(a.contraSLink) order by a.fundAccount,a.postDate,a.foreignNumber ',   
+      and cv.id=dbo.slinkId(a.contraSLink) 
+      and ('''&gcOfficialName&'''< '' 0'' or fundAccount in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''') )
+     order by a.fundAccount,a.postDate,a.foreignNumber ',   
   lcGrandTotal=0,
 tr(
   prn(printed),

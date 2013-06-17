@@ -76,8 +76,6 @@
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','Collection Reports|&Cancel'),
  if(gcretval=1,acc120=);
 
-
-
 @invoiceOptions=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','Manage &Addresses|&Remove|&Send to Abstracter|Print &UnPaid Summary|Attach &Personal|&Indiv Deed|&County Deed|&Cancel'),
  if(gcretval=1,manageAddress=),
@@ -135,7 +133,8 @@
  lc151id=kpbrwid(2)*-1,
  lc151Typ=left(lc151id,1),
  lc151id=sub(lc151id,2,25),
- if(lc151Typ=9,menu9=);
+ if(lc151Typ=9,menu9=),
+ if(lc151Typ=6,menu6=);
 
 @menu9=
  m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Remove|&Add Fee|&View Fees|V&iew/Correct|&Cancel'),
@@ -170,6 +169,35 @@
  sql('dbo.taxRolladdressCheck '&lc151id),
  d1select('exec dbo.taxrollScreen '&lc151id&','''&cur:ini&''','''&lcSource&''''),
  change(obj7:d1);
+
+@menu6=
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit|&Remove|&Cancel'),
+ if(gcretval=1,editDeed=),
+ if(gcretval=2,removeDeed=);
+ if(gcretval=3,viewDeed=);
+
+
+@editDeed=
+ gcInvoiceId=kp('select invoiceLinkId from taxrolldetail where id ='&lc151id),
+ gcDeed=kp('select dtype from taxrolldetail where id ='&lc151id),
+ gcDeedBlob=kp('select comments from taxrolldetail where id='&lc151id),
+ new(4796,2,-03=lc151id);
+
+
+@removeDeed=
+ m('Are you sure you want to Delete?','Delete?....',,6,2),
+ break(gcretval<>2),
+ sql('delete from taxrolldetail where id='&lc151id&' and charindex(''deed'',dtype)>0'),
+ refreshbrw2=;
+
+@viewDeed=
+ gcDeedBlob=kp('select comments from taxrolldetail where id='&lc151id),
+ m(gcDeedBlob);
+
+
+
+
+
 
 \t001Start &Date; \t002@d2; \w00245; \f002=c; @acc002=changeDate=; @selected002=gcdr1=1; \x002-25; \p0027c0ch,1;
 \t039(+) Days; \t040@p###p; \w04030; \f0400; @acc040=changeDate=; @selected040=gcdr1=1; \x039040-90;r \x040-30; \p0407c0ch,1;

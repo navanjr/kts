@@ -2,8 +2,10 @@ create function dbo.sqlBackupBRW() returns @rt table(
   brwid int,
   display varchar(max),
   size bigint,
+  sizeMb varchar(50),
   modifiedDate varchar(50),
   pathAndFileName varchar(max),
+  fileName varchar(max),
   ord varchar(50)
 ) as 
 begin
@@ -29,10 +31,13 @@ begin
   cast('9' + cast(id as varchar) as int),
   '  ' + fileName,
   fileSize,
+  cast(dbo.formatCurr(round(fileSize / 1024.0 / 1024.0, 2)) as varchar) + ' mb',
   modifiedDate,
   pathAndFileName,
+  fileName,
   null
- from dbo.dirFiles(@backupFolder,@database + '_%')
+ from dbo.dirFiles(@backupFolder,null)
+ where fileName like @database + '_%' or fileName like db_name() + '_%'
  order by modifiedDate desc
 
  update @rt set ord = 'c_1' + cast(99999 - brwid as varchar)

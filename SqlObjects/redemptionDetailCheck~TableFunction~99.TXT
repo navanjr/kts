@@ -24,7 +24,9 @@ begin
   @feesourceCode varchar(50),
   @feefundCode varchar(50),
   @certno varchar(50),
-  @certid int
+  @certid int,
+  @certFees money,
+  @firstDate int
 
 
  select
@@ -46,10 +48,16 @@ begin
 
  set @certid=isnull((select id from object where typ=4100 and a4=@certno),0)
 
+ select @certFees = cast(isnull(a12,0) as money)+cast(isnull(a14,0) as money)+cast(isnull(a16,0) as money) from object where id=@certid
+
+ select top 1 @firstDate = cast(a8 as int) from object where typ=4101 and link1=@certid order by a8
+
  set @taxamount=isnull((select 
   (select sum(cast(a9 as money)) from object where typ=4101 and link1=@certid)+
   (select sum(dbo.interestCalc(@interestPercent, cast(a8 as int), @interestDate, cast(a9 as money))) from object where typ=4101 and link1=@certid)
-  ),0.00) 
+  ),0.00) + 
+   isnull((select dbo.interestCalc(@interestPercent, @firstDate, @interestDate, @certFees) from object where typ=4100 and id=@certid)
+  ,0.00)
 
  -- check for status of Posted
  if @status = 'Posted'

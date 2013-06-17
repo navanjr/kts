@@ -1,0 +1,64 @@
+create proc dbo.diagFix_gldetailDesc(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(g.id),  
+   @message = 'glDetail with wrong account description.'
+  from gldetail g
+   join glaccounts a on a.accountcode = g.accountcode
+  where g.accountdesc <> a.accountdesc
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   g.slink,
+   g.accountdesc, a.accountdesc
+  from gldetail g
+   join glaccounts a on a.accountcode = g.accountcode
+  where g.accountdesc <> a.accountdesc
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  declare @slinks table(slink varchar(15))
+  insert @slinks
+  select distinct
+   g.slink
+  from gldetail g
+   join glaccounts a on a.accountcode = g.accountcode
+  where g.accountdesc <> a.accountdesc
+  
+  update g set
+   g.accountDesc = a.accountDesc
+  from gldetail g
+   left join glaccounts a on a.accountcode = g.accountcode
+  where slink in (select slink from @slinks)
+
+  return  
+ end
+
+
+end

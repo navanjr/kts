@@ -26,7 +26,8 @@ create proc dbo.paymentCRUD(
  @skipSQLTransactionOnGlPost varchar(5) = 'FALSE',
  @accountNumberBLOB varchar(max) = '',
  @reasonToCancel varchar(50) = '',
- @clearingDate int = null
+ @clearingDate int = null,
+ @quietMode varchar(5) = 'FALSE'
 ) as 
 begin
  set nocount on
@@ -541,7 +542,7 @@ begin
 --     where slink = @newslink and accountcode=@officialbankcode
   end
 
-  if @paymentType = 'Treasurers Check' and dbo.settingsF('site.displayPaymentNumber', 'TRUE') = 'TRUE'
+  if @paymentType = 'Treasurers Check' and @quietMode = 'FALSE' and dbo.settingsF('site.displayPaymentNumber', 'TRUE') = 'TRUE'
   begin
    exec dbo.logit @@procid, 'this is a test'
    select '@code=2;@message=Created Treasurers Check with Payment #: ' + @nextVoucherNumber + ';@caption=Buying Warrants...;'
@@ -549,7 +550,7 @@ begin
   return
  end
 
- if @mode = 2 and @paymentType in ('MISCELLANEOUS','Transfer')
+ if @mode = 2 --and @paymentType in ('MISCELLANEOUS','Transfer')
  begin
 
   insert @stageRows 

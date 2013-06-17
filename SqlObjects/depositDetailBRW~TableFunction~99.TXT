@@ -36,7 +36,12 @@ begin
  -- receiptType Grouping
    insert @rt
    select 'cb'+receiptType,cast('-9' + cast(receiptTypeId as varchar) as int),'   ' + receiptType,cast(count(*) as varchar)+' payment(s)',cast(sum(amount) as varchar),1
-    from dbo.depositPaidAndPosted() where isnull(depositId,0) = 0 and depositDate <= @depositDate group by receiptType, receiptTypeId
+    from dbo.depositPaidAndPosted() 
+    where isnull(depositId,0) = 0 
+     and depositDate <= @depositDate 
+--remove TRUST Receipts from deposit Detail BRW.
+     and receiptType <> 'TRUST'
+    group by receiptType, receiptTypeId
 
 
    insert @rt

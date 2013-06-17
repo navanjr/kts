@@ -1,0 +1,67 @@
+create function dbo.rpUnpaidTax(@year int) returns @rt table(id int identity(1,1),
+                  apdistrict varchar(50),
+                  aprate varchar(50),
+                  taxrollId int,
+                  Item varchar(50),
+                  RecordType varchar(50),
+                  Bankrupt varchar(50),
+                  Name varchar(50),
+                  Taxes money,
+                  unpaid money,
+                  parcel varchar(50),
+                  ord varchar(200))
+as begin
+declare @invoiceIds table(id int, taxrollId int, processed int)
+insert @invoiceIds
+select id,taxrollId,0 from invoices where taxyear=@year and invoicedue <> 0 and invoiceid=0
+
+declare @wt table(taxrollId int, invoiceId int,apdistrict varchar(50), aprate varchar(50), accountcode varchar(60),accounttype varchar(50),amount money)
+declare @idToken int,
+        @taxrollIdToken int
+
+while exists (select * from @invoiceIds where processed=0)
+begin
+ select top 1 @idToken = id, @taxrollIdToken=taxrollId from @invoiceIds where processed=0
+ insert @wt
+  select @taxrollIdToken,@idToken,a.apdistrict,a.aprate,g.accountcode,a.accounttype,sum(amount) from gldetail g, glaccounts a
+   where g.accountcode=a.accountcode 
+     and g.slink in (select slink from dbo.invoiceSLinks(@idToken)) 
+     and a.accounttype in ('SOURCE','RECEIVABLE','ACCRUED RECEIVABLE')
+   group by a.apdistrict,a.aprate,g.accountcode, a.accounttype
+ update @invoiceIds set processed = 1 where id=@idToken 
+end
+
+insert @rt (apdistrict,aprate,taxrollId,taxes,unpaid)
+ select apdistrict,aprate,taxrollId,
+  sum(case when accounttype='SOURCE' then amount*-1 else 0 end) as taxes,
+  sum(case when accounttype in ('SOURCE','ACCRUED RECEIVABLE') then amount*-1 else 0 end) as unpaid
+  from @wt where apdistrict > ' 0'
+  group by apdistrict,aprate,taxrollId
+
+update r set 
+   item = dbo.taxCorrectionsSF(a.[ITEMNUMBER],a.id,'008'),
+   RecordType = dbo.taxCorrectionsSF(a.[RECORDTYPE],a.id,'010'),
+   name = dbo.readstring('@NAME=',dbo.taxRollAddressBlob(a.Realtaxyear,a.itemnumber)),
+   parcel = dbo.taxCorrectionsSF(a.[FULLPIDNUMBER],a.id,'006')
+from @rt r, adtax a where r.taxrollid=a.id
+
+update r set Bankrupt = 'Y' from @rt r, (select * from taxrolldetail where dtype='BANKRUPT' and isnull(actiondate,0)=0) b
+ where r.item = b.itemNumber
+    or (r.parcel = b.parcelNumber and r.parcel > ' 0')
+
+update @rt set ord = apdistrict+aprate+'  '+recordtype+item+'bbb'
+
+
+insert @rt (name, ord)
+  select apdistrict+'/'+aprate, apdistrict+aprate+'  aaa' from @rt group by apdistrict,aprate
+
+insert @rt (name, unpaid ,ord)
+  select apdistrict+'/'+aprate+' Total',sum(unpaid) ,apdistrict+aprate+'  zzccc' from @rt group by apdistrict,aprate
+
+insert @rt (name, unpaid ,ord)
+  select 'Grand Total',sum(unpaid) , 'zzzzzz' from @rt where right(ord,3)='bbb'
+
+
+
+return 
+end

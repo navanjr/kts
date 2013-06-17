@@ -1,0 +1,32 @@
+create function dbo.journalReportRp(@year int) returns 
+ @rt table(taxYear varchar(10),item varchar(10),adjustmentDate varchar(20),apDistrict varchar(50),apRate varchar(50),amount money,penalties money,name varchar(60),id int,invoiceId int,slink varchar(30),ord varchar(1000))
+as begin
+
+  insert @rt
+  select 
+     apyear,'',dbo.date112(date),apdistrict,aprate,SUM(amount*-1),0,'',substring(slink,2,20),invoiceId,slink,apdistrict+aprate+'  '+cast(date as varchar)+'bbb' 
+  from dbo.taxrollAuditDetail
+   where apyear = @year and LEFT(auditorigin,1)='5'
+   group by apyear,sourceKey1,date,apdistrict,aprate,slink,invoiceId
+   
+ 
+   update r set r.item = i.ITEM,r.name = i.NAME
+    from @rt r,invoices i where i.ID = r.invoiceId and left(slink,1)='j'
+
+   update r set r.item = o.key1,r.name = o.key3
+    from @rt r,object o where o.ID = r.Id and left(slink,1)='o'
+   
+ insert @rt(name,ord)
+  select apdistrict+'\'+aprate, apdistrict+aprate+'    aaa'
+   from @rt group by apdistrict,aprate
+
+ insert @rt(name,amount,penalties,ord)
+  select apdistrict+'\'+aprate+' Total',sum(amount),sum(penalties), apdistrict+aprate+'  zzccc'
+   from @rt where right(ord,3) = 'bbb' group by apdistrict,aprate
+
+ insert @rt(name,amount,penalties,ord)
+  select 'Total',sum(amount),sum(penalties), 'zzzzzz'
+   from @rt where right(ord,3) = 'bbb' 
+   
+ return
+ end   

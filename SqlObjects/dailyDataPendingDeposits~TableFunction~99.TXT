@@ -147,7 +147,17 @@ begin
  end
 
  insert @rt (id,ord,rowstring,glBalanceString,origin) select 0,@seedString + ' ','','',5
- insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor,origin) select 0,@seedString + 'BA','  Un-Posted Deposits','','  Un-Posted Deposits', 1, 6
+
+ declare @depTot1 money, @depTot2 money, @depTot3 money
+ select @depTot1 = sum(beforeAmount), @depTot2 = sum(amount), @depTot3 = sum(afterAmount) from @rt where origin = 2
+
+ insert @rt (id,ord,rowstring,glBalanceString,rowstring1,brwBGColor,origin)
+  select 0,@seedString + 'BA','  Un-Posted Deposits'
+    + dbo.padLeft(convert(varchar,sum(isnull(@depTot1,0)),1),' ',20)
+    + dbo.padLeft(convert(varchar,sum(isnull(@depTot2,0)),1),' ',20)
+    + dbo.padLeft(convert(varchar,sum(isnull(@depTot3,0)),1),' ',20),
+    '','  Un-Posted Deposits', 1, 6
+
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt, origin)
   select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16), 7
   

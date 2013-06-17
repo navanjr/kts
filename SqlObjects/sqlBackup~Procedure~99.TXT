@@ -4,6 +4,7 @@ create proc dbo.sqlBackup (
  @backupTime int = null,
  @areYouSure varchar(5) = 'NO',
  @useSqlCompression varchar(5) = null,
+ @fileName varchar(max) = null,
  @filesBlob varchar(max) = null output
 ) as 
 begin
@@ -18,9 +19,23 @@ begin
   @jobSQL nvarchar(1000) = 'exec dbo.sqlBackup @method = ''backup''',
   @jobStatus int,
   @backupTimeString varchar(50) = right('00' + cast(datepart(hour,dbo.time2(@backupTime)) as varchar),2)
-   + right('00' + cast(datepart(minute,dbo.time2(@backupTime)) as varchar),2) + '00'
+   + right('00' + cast(datepart(minute,dbo.time2(@backupTime)) as varchar),2) + '00',
+  @pathAndFileName varchar(max),
+  @cmd varchar(8000),
+  @cmdOutput varchar(8000),
+  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo')
 
  set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('site.sqlCompression','TRUE'))
+
+
+-- use the kts menu to ftp the backup file...
+ if @method = 'ktsftp'
+ begin
+  set @cmd = @gitRepo + '\kts.bat ftp ' + @filename
+  exec dbo.logit @@procid, 'FTP... @cmd', @cmd
+  exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+  exec dbo.logit @@procid, 'Done!... @cmdOutput', @cmdOutput
+ end
 
 -- just a one time backup
  if @method = 'backup'
@@ -37,10 +52,6 @@ begin
 
  if @method in ('destroy') and @brwid is not null
  begin
-  declare
-   @pathAndFileName varchar(max),
-   @cmd varchar(8000),
-   @cmdOutput varchar(8000)
 
    select @pathAndFileName = pathAndFileName From dbo.sqlBackupBRW() where brwid = '9' + cast(@brwid as varchar)
    if @areYouSure = 'NO'

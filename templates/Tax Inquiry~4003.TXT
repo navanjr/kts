@@ -1,4 +1,5 @@
 @select=078;
+@nolock;
 
 @menuprocess=
  lcHostName=kp('select host_name()'),
@@ -13,7 +14,7 @@
  create(152,12,260,3,'Name',32),
  create(153,12,300,3,'Parcel',34),
  create(155,12,460,3,'Adv Srch',36), 
- reate(156,12,65,3,'Mtg Only',26),
+ prop(120,'color',65280),
  if(instring('@group=publicuser',cur:options,1,1)>0,create(357,9,513,60,'&View Details(F7)')),
  if(instring('@group=publicuser',cur:options,1,1)=0,createObjects=),
  lcClearFilter=readstring(gcSiteBlob,'@clearFilter='),
@@ -23,11 +24,11 @@
  createbrw=;
 
 @createObjects= 
- create(352,9,513,300,'&Print Statement(F9)'),
- create(353,9,513,314,'Name/&Address(F10)'),
- create(354,9,513,286,'Chg Mort Code(F8)'),
- create(355,9,513,272,'Set Interest Date(F7)'),
- if(cur:securitylevel+0>59,create(356,9,513,258,'Void Invoice(F6)'),),
+ create(352,9,513,282,'Print Statement(F9)'),
+ create(353,9,513,296,'Name/Address(F10)'),
+ create(354,9,513,268,'Chg Mort Code(F8)'),
+ create(355,9,513,254,'Set Interest Date(F7)'),
+ if(cur:securitylevel+0>59,create(356,9,513,240,'Void Invoice(F6)'),),
  halfToggle=;
 
 @lbrw3forecolor=obj7:c9='COMMENT' or obj7:c9='ADJUSTMENT',255,obj7:c9=' Receipt',32768;
@@ -231,13 +232,14 @@
 @refundInvoice=
  gcInvoiceId=lcid,
  lccheck=kp('select invoiceDue*-1 from invoices where id='&gcInvoiceId),
- iw('\t000Refund Balance?; \t001Refund Amount; \w00250; \f002'&lccheck&';\t002@n-19.2;'),
+ iw('\t000Refund Balance?; \t001Refund Amount; \w00250; \f002'&lccheck&';\t002@n-19.2; @loadwindow=create(150,12,3,15,''Refund Fees/Penalties'',48);'),
  lcrefundAmount=obj7:key1,
+ lcrefundfees=obj7:b1+0,
  break(gcretval='esc' or lcrefundAmount+0 <= 0),
  gcreceiptId=kp('select top 1 receiptId from receiptlink where invoiceId='&gcInvoiceId+0),
  lccheck=kp('select count(*) from receiptlink where invoiceId='&gcInvoiceId+0),
  if(lccheck+0>1,pickreceipt=),
- d1select('exec dbo.receiptCRUD @mode=1, @receiptId='&gcreceiptId+0&', @invoiceId='&gcInvoiceId+0&', @refundAmount='&lcrefundAmount+0),
+ d1select('exec dbo.receiptCRUD @mode=1, @receiptId='&gcreceiptId+0&', @invoiceId='&gcInvoiceId+0&', @refundAmount='&lcrefundAmount+0&', @voidFees='&lcrefundfees+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
  if(lcjeId>0,change(lcjeId,,1)),
@@ -409,7 +411,7 @@
 @newReceiptFail=
  m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
 
-\t109Add Comment;
+\t109&Add Comment;
   @acc109=lcSearchId=kpbrwid(1)*-1,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddComment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
@@ -418,10 +420,10 @@
   refreshBRW3=,
   focus(160);
 
-\t110Add Omitted;
+\t110Add O&mitted;
  @acc110=neww(4201,2);
 
-\t111Print Quote;
+\t111Print &Quote;
 @acc111=
  iw('\t001Interest To; \t002@d2; \w00250;'),
  break(gcretval='esc'),
@@ -431,12 +433,12 @@
  sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj:id),
  trreport('SelectedTaxes',5031,'printSelectedTaxes=');
 
-\t112UnSelect &All;
+\t112&UnSelect All;
 @acc112=
  sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''reset'''),
  refreshBRW=;
 
-\t113View Receipts;
+\t113V&iew Receipts;
  @acc113=lcSearchId=kpbrwid(1)*-1,
   break(lcSearchId+0<1 or lcSearchId>9000000),
   browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')');
@@ -461,10 +463,8 @@
   d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''','''&lcSource&''''),
   change(obj7:d1);
 
-\t118View G/L; @acc118=new(4020,,-68=kpbrwid(1)*-1);
-
-\t119Add Fee;
-  @acc119=
+\t118A&dd Fee; 
+  @acc118=
   lcSearchId=kpbrwid(1)*-1,
   break(lcSearchId+0<1 or lcSearchId>9000000),
   gcRecType='TAX',
@@ -477,8 +477,8 @@
   refreshBRW=,
   focus(160);
 
-\t120Add Assessment;
-  @acc120=lcSearchId=kpbrwid(1)*-1,
+\t119Add A&ssessment;
+  @acc119=lcSearchId=kpbrwid(1)*-1,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddAssessment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
   d1select('select top 1 id from object where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
@@ -486,5 +486,7 @@
   refreshBRW=,
   focus(160);
 
+\t120View G/L; @acc120=new(4020,,-68=kpbrwid(1)*-1); \h120cur:securitylevel<100; 
+
 \h108113instring('@group=publicuser',cur:options,1,1)>0;r
-\h115120instring('@group=publicuser',cur:options,1,1)>0;r
+\h115119instring('@group=publicuser',cur:options,1,1)>0;r

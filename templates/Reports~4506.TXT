@@ -15,24 +15,36 @@
  prop(106,text,'&Close'),
  brwstuff=,
  create(170,12,250,135,'Exclude Apportionment',66),
- create(171,12,250,147,'Apportionment only',68);
+ create(171,12,250,147,'Apportionment only',68),
+ create(172,12,250,135,'Include Special Apportionment',70),
+ create(173,12,250,147,'Show Detail',72),
+ create(174,12,250,159,'Order By Voucher',74);
 
 \h170171lcApportion='';r
 
+\h172lcIncSpecApportion='';
+
+\h173lcPrintDetail='';
+
+\h174lcorderByVoucher='';
+
 \t065Exclude Apportionment;
 \t067Apportionment Only;
-\h065068;r
+\t069Inc Spec Apportionment;
+\t071Print Detail;
+\t073Order By Voucher;
+\h065074;r
 
 @brwstuff=
  lcMh=mh-200,
  lcWhere=choose(gcReportGroup>'  0',' where reportGroup = '''&gcReportGroup&''' ',''),
  gcSQL4506='select id,reportName,reportTemplate from dbo.reportList() '&lcWhere&' order by ord',
- brw(150,1,gcSQL4506,3,3,190,lcMh,'190L(2)~Press Enter or Double Click to run Report~#2#'),
+ brw(150,1,gcSQL4506,3,3,195,lcMh,'190L(2)~Press Enter or Double Click to run Report~#2#'),
  prop(150,'Color',16777215),
  prop(150,7c11h,10),
  prop(150,7c10h,'verdana'),
  prop(150,'BevelOuter',10),
- prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedFillColor',65535),
  prop(150,'SelectedColor',0),
  prop(150,'linewidth',10),
  prop(150,'LineHeight',11);
@@ -53,6 +65,7 @@
 @newselbrw150=
  lcreportId=kpbrwid(1),
  lcInputOptions=kp('select inputOptions from dbo.reportList() where id = '&lcreportId),
+ lcYear=readstring(lcInputOptions,'@year='),
  lcBegin=readstring(lcInputOptions,'@begin='),
  lcEnd=readstring(lcInputOptions,'@end='),
  lcReceiptType=readstring(lcInputOptions,'@receiptType='),
@@ -62,12 +75,19 @@
  lcFund=readstring(lcInputOptions,'@fund='),
  lcApportion=readstring(lcInputOptions,'@apportion='),
  lcBank=readstring(lcInputOptions,'@bank='),
+ lcAccount=readstring(lcInputOptions,'@account='),
+ lcIncSpecApportion=readstring(lcInputOptions,'@specialApportion='),
+ lcorderByVoucher=readstring(lcInputOptions,'@orderByVoucher='),
+ lcPrint=readstring(lcInputOptions,'@template='),
+ lcOfficialName=readstring(lcInputOptions,'@officialName='),
+ 
  tsc;
 
 @brw1=
  update,
  setvars=,
  break(lcreportId+0=0 or lcReportTemplate=0),
+ gcRpYear=obj:a8,
  gcBeginDate=obj:key1,
  gcStartDate=obj:key1,
  gcEndDate=obj:key2,
@@ -76,13 +96,17 @@
  gcReceiptType=choose(lcReceiptType='','',obj:key3),
  gcDeputy=choose(lcDeputy='','',obj:a1),
  gcDepId=0,
- gcPrintDetail=choose(lcPrintDetail='','',obj:a2),
+ gcPrintDetail=choose(lcPrintDetail='','',choose(obj:b13+0=1,'Y','N')),
  gcStation=choose(lcStation=='','',obj:a3),
  gcBankAccount=choose(lcBank='','',obj:b4),
  gcaccountcode='',
  gcFundCode=choose(lcFund='','',obj:b3),
  gcApportionExclude=obj:b10,
  gcApportionOnly=obj:b11,
+ gcAccount=obj:a6,
+ gcIncSpecApportion=obj:b12,
+ gcOrderByVoucher=obj:b14,
+ gcOfficialName=obj:a7,
  trreport(lcreportName,lcreportTemplate+0,lcreportTemplateCommand);
 
 @setvars=
@@ -90,7 +114,8 @@
  break(lcreportId+0=0),
  lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
  lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
- lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId);
+ lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId),
+ gcReportName=kp('select substring(reportName,3,50) from dbo.reportList() where id='&lcreportId);
 
 @lbrwclick150=
  break(instring('@group=developer;',cur:options,1,1)=0),
@@ -103,16 +128,20 @@
  if(gcretval=2,change(lcReportModuleId)),
  if(gcretval=3,change(kp('select id from object where typ=451 and key1=''reportList''')));
 
-\x001016+195;r  \w00201675;r2
+\x001022+200;r  \w00200875;r2 \w01202075;r2
 \t001Begin Date; \t002@d2; @accr0020122=update; \h001002lcBegin='';r
 \t003End Date; \t004@d2; \h003004lcEnd='';r
 \t005Receipt Type; \l0064503; \h005006lcReceiptType='';r
 \t007Deputy; \h007008lcDeputy='';r
-\t009Print Detail; \u010; @choose010:YNS; \f010N; \h009010lcPrintDetail='';r
+t009Print Detail; u010; choose010:YNS; f010N; h009010lcPrintDetail='';r w01013;
 \t011Station; \h011012lcStation='';r
 \t013Fund; \l0144701;r014004052002; @lf014='a1 in (''FUND'',''CITY'')',2; \h013014lcFund='';r @acc014=if(obj:a4='',set(052,''));
  \t051FundCode; \h051052;r 
 \t015Bank; \l0164701;r016004054002; @lf016='a1=''BANK''',2; \h015016lcBank='';r @acc016=if(obj:a5='',set(054,''));
  \t053BankCode; \h053054;r 
-
+\t017Account; \h017018lcAccount='';r 
+\t019Official Name; \l0204601;r020004; \h019020lcOfficialName='';r
+\t021Year; \t022@n4; \w02220; \y021022=001;r  \h021022lcYear='';r
 \h107;
+\t105&Print(F9); \v105120; @acc105=brw1=; \h105lcPrint+0=0;
+

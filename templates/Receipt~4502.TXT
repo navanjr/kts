@@ -123,7 +123,7 @@ close('ok');
 
 @loadwindow=
  if(tier=3,procTier3=),
- create(165,9,3,316,'&Apply Payment'),
+ reate(165,9,3,316,'Apply Payment'),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  if(obj:a17='Saved' or obj:a17='',loadSavedReceipt=),
  reate(45,9),
@@ -195,6 +195,20 @@ close('ok');
  if(obj:a17<>'Posted' and obj:key2<>lcPostDate,set(4,lcPostDate)),
  update;
 
+
+@acc012=thetabord=;
+@thetabord=
+ break(obj:key3<>'MISC'),
+ lctabs1='~0009',
+ lctabs2='~0009',
+ focusFund=,
+ focusSource=,
+ lctabs=lctabs1&lctabs2,
+ break(lctabs<'  0'),
+ press(lctabs);
+@focusSource=break(obj:a4>'  0'),lctabs1='';
+@focusFund=break(obj:a5>'  0'), lctabs2='';
+
 @doofficial=prop(016,7C02H,64),
   prop(016,7C04H,80),
   prop(165,7C00H,'&Apply Deposit');
@@ -212,7 +226,7 @@ close('ok');
 \t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted' and gcCheckDeposited='TRUE'; \w008200;
 
 \t009detailId;\d009010;r \h009010;r
-\t011new detail; \l0124504;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2; @acc012=if(obj:a3>'  0' and obj:key3='MISC',tabord('098012018020')); @sel018=if(obj:key3='MISC',tabord('098012014016018020'));
+\t011new detail; \l0124504,3;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE'' and a9<>''M'' and b3!=1',2;
 \t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE'')) and b3!=1',2,2;
  @acc016=if(obj:key3='OFFICIAL',update);
@@ -230,11 +244,11 @@ close('ok');
 
 \t045paycodeId;\d045046;r \h045046;r 
 
-\t019Paycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=); @lmode020=2;
-\t021Amount Paid; \t022@n-14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,acc165=;
-\t023Check #; \w02450; @acc024=lcField=24,acc165=;
-\t025Bank Drawn On; \w02675; \l0264509;r026002028004; @lf026=,2; @acc026=lcField=26,acc165=;  lmode026=2; @nopop026;
-\t027Location; \w02875; @acc028=lcField=28,acc165=; len(obj:a7&obj:a8&obj:a9&obj:a10&obj:a11)>0
+\t019P&aycode; \l0204505; \w02050; @sel020=if(obj:key3='MTG' and obj:a12<' 0',focus(030)),if(obj:key3='MTG',mortDetail=); @lmode020=2;
+\t021Amount Paid; \t022@n-14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,applyPayment=;
+\t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
+\t025Bank Drawn On; \w02675; \l0264509;r026002028004; @lf026=,2; @acc026=lcField=26,applyPayment=;  lmode026=2; @nopop026;
+\t027Location; \w02875; @acc028=lcField=28,applyPayment=; len(obj:a7&obj:a8&obj:a9&obj:a10&obj:a11)>0
  \h019028obj:a17='Posted';r
  \y019306; \x01965; \y020317; \x02065;
  \y021306; \x021120; \y022317; \x022120;
@@ -292,7 +306,7 @@ close('ok');
  refreshDetail=;
  
 @blankEmMort=
- set(-06,0,1),set(078,'',1),set(080,'',1),set(082,'',1),set(084,'',1),set(086,'',1),set(088,'',1),set(090,'',1);
+ set(-05,0,1),set(-06,0,1),set(078,'',1),set(080,'',1),set(082,'',1),set(084,'',1),set(086,'',1),set(088,'',1),set(090,'',1);
 
 @brw2=
  break(obj:a17='Posted'),
@@ -406,17 +420,17 @@ close('ok');
  d1select('exec dbo.receiptPaymentAdd '&obj:id&',''CASH'','&lcdiff&','''',0,'&obj:link4+0&',0,'''','''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Make Change...'));
 
-@acc165=
+@applyPayment=
  update,
  d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''','&lcField+0),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Receipt Payment...')),
- if(readstring(obj7:d1,'@code=')=2,acc165a=),
+ if(readstring(obj7:d1,'@code=')=2,applyPaymentA=),
  break(readstring(obj7:d1,'@code=')<>0),
  refreshDetail=,
  blankEm=,
  focus(020);
 
-@acc165a=
+@applyPaymentA=
  if(readstring(obj7:d1,'@field=')='024',focus(024)), 
  if(readstring(obj7:d1,'@field=')='026',focus(026)), 
  if(readstring(obj7:d1,'@field=')='028',focus(028)); 
@@ -532,7 +546,7 @@ close('ok');
  refreshDetail=;
 
 @blankEm=
- set(-06,0),set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
+ set(-05,0),set(-06,0),set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),
  break(obj:key3='OFFICIAL'),
  set(-07,0),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1);
 
@@ -743,7 +757,7 @@ gcPrintOneTaxReceiptId=0,
  calcrecord(lccertid),
  change(lccertid);
 
-\o066004; \o006066; \o098008; \o012098; \o068064;
+o066004; o006066; o098008; o012098; o068064;
 
 @bb11=ReceiptCRUD(&3),,,gcadmin=1;  
 @bbproc11=

@@ -89,12 +89,15 @@ and sourceType not in ('4502','4513','4522','4771')
 and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
+--Apportionment
+
 insert @wt (accountCode, accountDesc, appin, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(cast(credit as money)) as amount, accountType, ledgerGroup from dbo.glDetailReports 
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType ='4512'
 and left(sourcea18,13) = 'APPORTIONMENT'
+and credit > ' 0'
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, appout, accountType, ledgerGroup)
@@ -104,7 +107,23 @@ and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType not in ('4502','4513','4522','4771') 
 and sourceType ='4512'
 and left(sourcea18,13) = 'APPORTIONMENT'
+and left(accountdesc,len(sourceKey3))=sourceKey3
+and debit > ' 0'
 group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, appin, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(cast(debit as money)*-1) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and sourceType not in ('4502','4513','4522','4771') 
+and sourceType ='4512'
+and left(sourcea18,13) = 'APPORTIONMENT'
+and left(accountdesc,len(sourceKey3))<>sourceKey3
+and debit > ' 0'
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+--End Apportionment
+
 
 insert @wt (accountCode, accountDesc, tranin, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(cast(credit as money)) as amount, accountType, ledgerGroup from dbo.glDetailReports 

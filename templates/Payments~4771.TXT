@@ -1,7 +1,7 @@
 @noins;
 @gfbnr=1;
 @dk1;
-@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#26#|M100L(2)~ImportStamp~#28#|M;
+@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 \00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -15,7 +15,7 @@
   'typ=4771 and a18 in (''Cancel Voucher'',''Void Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 like ''%Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
 
-@browse4='select isnull((select top 1 ''Cancelled'' from object where typ=4771 and rtrim(key3)=rtrim('''&obj:key3&''') and rtrim(a2)=rtrim('''&obj:a2&''') and rtrim(a4)=rtrim('''&obj:a4&''') and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')),'''') ';
+@browse4='select a18 from object where typ=4771 and id='&obj:link1&' and a18<>''Treasurers Check''';
 @browse8=choose(obj:a18='Treasurers Check',obj:c5,obj:a2);
 
 @seriesField=a18;
@@ -110,7 +110,8 @@ bbproc4=
 @loadbrowse=prop(6,text,'&Void');
 
 @loadwindow=
- create(45,9);
+ create(45,9),
+ prop(120,'color',65280);
 
 @afterloadwindow=
  d1select('exec dbo.paymentCRUD @mode=4,@paymentType='''&obj:a18&''''),
@@ -156,7 +157,7 @@ bbproc4=
 \t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
  \w00200855;r2 \d006008obj:a1+0=1;r2
 
-\t009Payee;
+\t009Payee; \w010+80;
 \t085Warrant Payee; \h085; \h086obj:a18<>'Treasurers Check'; \x086184; \w086117; \d086;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
 \t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'',''SCHOOL'',''CITY'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
@@ -229,7 +230,7 @@ bbproc4=
  getVouNum=,
  if(obj:a18='Trust Voucher',postTrustVoucher=),
  break(obj:a18='Trust Voucher'),
- d1select('exec dbo.paymentCRUD @mode=2,@paymentType=''MISCELLANEOUS'',@id='&obj:id&',@debitAcct='''&obj:a4&''',@creditAcct='''&obj:a5&''',@voucherDate='&obj:key2+0&',@amount='&obj:a3+0&''),
+ d1select('exec dbo.paymentCRUD @mode=2,@paymentType='''&obj:a18&''',@id='&obj:id&',@debitAcct='''&obj:a4&''',@creditAcct='''&obj:a5&''',@voucherDate='&obj:key2+0&',@amount='&obj:a3+0&''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Posting to the G/L...')),
  if(readstring(obj7:d1,'@code=')>0,lcContinue='FALSE');
 
@@ -269,3 +270,20 @@ bbproc4=
   break(gcretval<>2),
   sql('insert object (typ,link1,link2,key1,key2,key3,a1) select 4775,'&obj:id&',receiptId,'''&obj:key1&''',purpose,amount,isnull((select key1 from object where typ=4502 and id=receiptId),'''') from purposedetail where amount > 0.00 and purpose='''&obj:a6&''' and receiptId not in (select link2 from object where typ=4775 and link1='&obj:id&')'),
   refreshbrw=;
+
+\h113obj:a17<>'Posted' or cur:securitylevel<75;
+\t113Mark as Duplicate;
+ @acc113=m('Are you sure that you want to mark this '&obj:a18&' as duplicated on today''s date?','Are you sure?',,6),
+ break(gcretval<>2),
+ set(010,left(clip(obj:a2)&' - '&format(today(),@d2)&' DUPLICATE',49)),
+ update,
+ tsc;
+
+\t120&Undo G/L Posting; \h120cur:securitylevel<100;
+@acc120=
+ m('Are you sure you wish to unPost this '''&obj:a18&'''?','UnPosting Payment...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
+ d1select('select a18 from object where id='&obj:id),
+ set(040,obj7:d1),tsc;

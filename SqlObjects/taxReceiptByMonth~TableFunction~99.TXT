@@ -1,0 +1,32 @@
+create function dbo.taxReceiptByMonth(@year varchar(10)) returns 
+  @rt table(period varchar(10),taxPaid money,totalPaid money,protest money,ord varchar(100))
+ as begin
+  insert @rt
+  select 
+     left(dbo.date112(date),6),SUM(amount),0,0,'X'
+  from dbo.taxrollAuditDetail
+   where apyear = @year and LEFT(auditorigin,1)='3'
+   group by left(dbo.date112(date),6)
+   
+  insert @rt
+  select 
+     left(dbo.date112(date),6),0,0,SUM(amount),'X'
+  from dbo.taxrollAuditDetail
+   where apyear = @year and LEFT(auditorigin,1)='7'
+   group by left(dbo.date112(date),6)
+
+ insert @rt
+  select left(dbo.date112(date),6),0,SUM(amount)*-1,0,'X'
+   from gldetail where  accountCode = @year+'_ADVALOREM_AR' and LEFT(slink,1)='l' group by left(dbo.date112(date),6)
+
+insert @rt
+ select period, SUM(taxPaid),SUM(totalPaid),SUM(protest),period+'b' 
+ from @rt group by period
+ 
+ delete from @rt where ord='x'
+  
+insert @rt
+ select 'Total', SUM(taxPaid),SUM(totalPaid),SUM(protest),'totalc' 
+ from @rt 
+return
+end
