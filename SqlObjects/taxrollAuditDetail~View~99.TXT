@@ -7,14 +7,18 @@ select *,
       when sourceType = '4502' then '3. Receipt'
       when sourceType = '4512' and isnull(contraId,0) <> 0 then '5. Receipt Adjustment'
       when sourceType = '4512' and isnull(contraId,0) = 0 then '6. Apportioned'
-      else 'Unidentified - '+origin end as auditOrigin
+      else 'Unidentified - '+origin end as auditOrigin,
+      case when isnull(slink2,'NULL')<>'NULL' then 
+      isnull((select penaltyAmount from dbo.taxrollAuditDetailPenaltyAdjust where invoiceId=gldetailreports.invoiceId),0)
+      else 0 end  as penaltyAmount
 from dbo.gldetailreports 
 where apdistrict > ' 0' and sourcekey3 not in ('misc')
 union all 
 select a.*,
- case when right(b.accountDesc,7) = 'PROTEST' then '7. Unppportioned Protest'
+ case when right(b.accountDesc,7) = 'PROTEST' then '7. Unapportioned Protest'
       else '8. Pending Apportionment' 
-      end as auditOrigin
+      end as auditOrigin,
+      0 as penaltyAmount
 from dbo.gldetailreports a, glaccounts b
 where a.contraId = b.accountId
   and a.apdistrict > ' 0' 

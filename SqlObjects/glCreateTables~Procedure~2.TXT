@@ -806,11 +806,16 @@ begin
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[apiDeleted]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table dbo.apiDeleted (
 	id int identity(1,1),
-	link varchar(50),
+	slink varchar(15),
 	apiResource varchar(50),
+        blob varchar(max),
 	modified datetime not null default getDate(),
 	apiUpdated datetime 
   )
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'apiDeleted' and COLUMN_NAME = 'slink')
+  exec sp_RENAME 'apiDeleted.link', 'slink' , 'COLUMN'
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'apiDeleted' and COLUMN_NAME = 'blob')
+  alter table apiDeleted add blob varchar(max)
 
 -- documentProcessing
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[documentProcessing]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -819,14 +824,11 @@ begin
    invoiceId int,
    documentName varchar(50),
    documentDate int,
-   processCode varchar(50)
+   processCode varchar(50),
+   printOrder varchar(50) not null default '',
+   ownerNumber numeric(14,2) not null default 0.0,
+   name varchar(50) not null default ''
   ) 
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'printOrder')
-   alter table documentProcessing add printOrder varchar(50) not null default ''
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'ownerNumber')
-   alter table documentProcessing add ownerNumber numeric(14,2) not null default 0.0
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'name')
-   alter table documentProcessing add name varchar(50) not null default ''
 
 -- diagnostics
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[diagnosticResults]') and OBJECTPROPERTY(id, N'IsTable') = 1)

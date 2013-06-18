@@ -1,5 +1,4 @@
 create function dbo.rpCounty4MillReport(@begindate varchar(20),@enddate varchar(20)) 
-
 returns @rt table(
   accountId int,
   accountCode varchar(60),
@@ -56,7 +55,8 @@ update @det set comment2='GENERAL' where accountType in ('SCHOOL','VOTECH','CITY
 update @det set comment2=substring(comment2,8,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,7) in ('SCHDIST')
 update @det set comment2=substring(comment2,7,20) where accountType in ('SCHOOL','VOTECH','CITY') and left(comment2,6) in ('VOTECH')
 
-
+update d set comment2 = case when a.monthEndCategory > ' 0' then monthEndCategory else d.comment2 end 
+ from @det d, glaccounts a where d.sourceCode=a.accountCode 
 
 update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
 and accountCode in (select accountCode from @det where comment2 like '%4 MIL%' and comment2 not like '%JOINT%' )
