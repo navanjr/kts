@@ -17,10 +17,12 @@ begin
    select @date = key2 from object where id = @receiptId
    select @fiscalYear = fiscalYear from dbo.fiscalCalendar where @date between startDate and endDate
 
-   set @additionalWhereClause = ' olink1 = '''+@fiscalYear+''' '
+   set @additionalWhereClause = ' olink1 = ''' + @fiscalYear + ''' '
   end
 
-  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @additionalWhereClause=@additionalWhereClause, @newNumber = @retval output
+  exec dbo.logit @@procid, '@receiptId', @receiptId, '@series', @series, '@objectType', @objectType, '@additionalWhereClause', @additionalWhereClause
 
-  update object set key1=@retval where typ=@objectType and id=@receiptId
+  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @additionalWhereClause = @additionalWhereClause, @newNumber = @retval output
+
+  update object set key1 = @retval where typ = @objectType and id = @receiptId
 end
