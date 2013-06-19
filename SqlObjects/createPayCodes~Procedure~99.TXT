@@ -1,0 +1,52 @@
+create procedure dbo.createPayCodes 
+ as 
+ begin
+
+set nocount on
+
+declare @wt table (String varchar(1000))
+
+ insert @wt
+  select '@paycode=CASH;'
+ insert @wt
+  select '@paycode=CC;' 
+ insert @wt
+  select '@paycode=CHECK;@reqChk=1;'
+ insert @wt
+  select '@paycode=WARRANT;@reqChk=1;'
+ insert @wt
+  select '@paycode=VOUCHER;@reqChk=1;'
+ insert @wt
+  select '@paycode=MO;@reqChk=1;'
+ insert @wt
+  select '@paycode=COIN;'
+ insert @wt
+  select '@paycode=ETR;'
+
+declare 
+ @token varchar(1000) = '',
+ @suspenseCode varchar(100) = '',
+ @suspenseId int = 0,
+ @suspenseDescr varchar(200) = '',
+ @paycodeId int = 0
+while exists (select * from @wt)
+ begin
+  select @token = string from @wt
+  if @token>'  0'
+   begin
+    set @suspenseCode='SUS'+dbo.readstring('@paycode=',@token)
+
+    exec dbo.glAccountVerification @suspenseCode, 'SUSPENSE','CREATE'
+    select @suspenseId = ID, @suspenseDescr = key2 from object where TYP=4701 and key1 = @suspenseCode
+    select @paycodeId = id from object where TYP = 4505 and key1 = dbo.readstring('@paycode=',@token)
+    if isnull(@paycodeId,0)<1
+     begin
+      insert into object(typ,link1,key1,key3,a1,A16)
+       select 4505,@suspenseId,dbo.readstring('@paycode=',@token),@suspenseCode,@suspenseDescr,dbo.readstring('@reqChk=',@token)
+     end
+ 
+    delete from @wt where String = @token
+   end
+ end
+
+end

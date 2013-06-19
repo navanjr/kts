@@ -336,6 +336,8 @@ class ktsMenu():
             print 'journalTypes...', self.sqlAlterProc('journalTypes','TableFunction','99')
             print 'glCreateTables...', self.sqlAlterProc('glCreateTables')
             print 'Run glCreateTables...', self.sqlQuery('exec dbo.glCreateTables',True)['code']
+            print 'createPayCodes...', self.sqlAlterProc('createPayCodes','Procedure','99')
+            print 'Run createPayCodes...', self.sqlQuery('exec dbo.createPayCodes',True)['code']
             print 'diagnostics...', self.sqlAlterProc('diagnostics','Procedure','99')
             print 'dir...', self.sqlAlterProc('dir','TableFunction')
             print 'spOverwriteTextFile...', self.sqlAlterProc('spOverwriteTextFile')
