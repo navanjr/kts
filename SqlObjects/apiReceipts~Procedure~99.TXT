@@ -78,10 +78,10 @@ begin
 
 -- deleted receipts
   declare
-   @deletedBatchSize int = 50,
+   @deletedBatchSize int = 20,
    @deletedReceiptsStringBlob stringBlob
 
-  if @batchsize < 50
+  if @batchsize < @deletedBatchSize
    set @deletedBatchSize = @batchSize
 
   insert @deletedReceiptsStringBlob
@@ -98,7 +98,7 @@ begin
    exec dbo.pipedStringToJson @deletedReceiptsStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
 
    exec spOverwriteTextFile @postFileFull, @payload
-
+   exec dbo.logit @@procid, '@deletedBatchSize', @deletedBatchSize
    exec dbo.api
     @method = 'DELETE',
     @resource = @apiResource,
@@ -151,7 +151,6 @@ begin
        0,
        0,
        sum(b.amount)
-   
       from receiptLink a, receiptDetail b, invoices c
      where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.receiptId in (select i.receiptId from @it i)
