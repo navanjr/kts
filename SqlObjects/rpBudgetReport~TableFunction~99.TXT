@@ -72,106 +72,25 @@ insert @wt (apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
  select apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
   group by apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA
   
-insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,ord)
-select distinct accountCode,accountDesc,sourceSECA,sourceDesc,accountCode+rtrim(accountDesc)+sourceSECA+'b' from @wt
 
-update r set January=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=1
-
-update r set February=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=2
-
-update r set March=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=3
-
-update r set April=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=4
-
-update r set May=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=5
-
-update r set June=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=6
-
-update r set July=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=7
-
-update r set August=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=8
-
-update r set September=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=9
-
-update r set October=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=10
-
-update r set November=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=11
-
-update r set December=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=12
-
- update @rt set total = cast(july as money)+cast(august as money)+cast(september as money)+cast(october as money)+cast(november as money)+cast(december as money)+cast(january as money)+cast(february as money)+cast(march as money)+cast(april as money)+cast(may as money)+cast(june as money)
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,July,August,September,October,November,December,January,February,March,April,May,June,Total,ord)
+ select accountCode,accountDesc,sourceSECA,sourceDesc,
+  sum(case when apportionmonth=7 then amount else 0 end),
+  sum(case when apportionmonth=8 then amount else 0 end),
+  sum(case when apportionmonth=9 then amount else 0 end),
+  sum(case when apportionmonth=10 then amount else 0 end),
+  sum(case when apportionmonth=11 then amount else 0 end),
+  sum(case when apportionmonth=12 then amount else 0 end),
+  sum(case when apportionmonth=1 then amount else 0 end),
+  sum(case when apportionmonth=2 then amount else 0 end),
+  sum(case when apportionmonth=3 then amount else 0 end),
+  sum(case when apportionmonth=4 then amount else 0 end),
+  sum(case when apportionmonth=5 then amount else 0 end),
+  sum(case when apportionmonth=6 then amount else 0 end),
+  SUM(amount),
+  accountCode+rtrim(accountDesc)+sourceSECA+'b' 
+  from @wt -- where accountDesc='general' and sourceDesc in ('current tax','prior tax','back tax')
+   group by accountCode,accountDesc,sourceSECA,sourceDesc
 
 insert @rt (accountcode,accountdesc,sourceDesc, ord)
  select accountcode,accountdesc,
