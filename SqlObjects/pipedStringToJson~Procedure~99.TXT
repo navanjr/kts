@@ -1,21 +1,23 @@
 create procedure dbo.pipedStringToJson(
  @object stringBlob readonly,
  @fields blobFields readonly,
+ @includeSiteId varchar(5) = 'TRUE',
  @includeBlanks varchar(5) = 'FALSE', 
  @urlEncode varchar(5) = 'FALSE',
  @payload nvarchar(max) = null output
-)
+) as
 begin
 
  declare
   @jsonPrep jsonPrep,
   @apiwt JSONHierarchy,
   @tokenId int,
-  @tally int = -1,
+  @tally int = 0,
   @jsonString nvarchar(max),
   @siteCode varchar(50),
   @goofyChars varchar(100) = '13,10,9,167,248,34,39',
-  @blob varchar(max)
+  @blob varchar(max),
+  @arrayId int
 
  select @siteCode = apiSiteCode from dbo.site
 
@@ -40,13 +42,27 @@ begin
    join @fields f on f.id = s.id 
   where case when @includeBlanks = 'FALSE' then s.data else '1' end > '  0'
 
--- add the blob object contanier
-  insert @jsonPrep (parentId,objectId,name,value,type, origin) 
-  select @tally, @tokenId, 'blob', @tokenId, 'object', 2
+  if @includeSiteId = 'TRUE'
+   insert @jsonPrep (parentId,name,value,type,origin)
+   select 
+    @tally, 
+    'site_id',
+    @siteCode,
+    'int',
+    1
+
+
+-- add the blob object contanier if we need it
+  if exists(select * from @fields where blobIt = 1)
+   insert @jsonPrep (parentId,objectId,name,value,type, origin) 
+   select @tally, @tokenId, 'blob', @tokenId, 'object', 2
+
 -- add the objectId
 --  union select @tally, null, 'objectId', cast(@tokenId as varchar), 'int', 3
+
 -- add the object row contanier
-  union select -1, @tally, null, @tally, 'object', 4
+  insert @jsonPrep (parentId,objectId,name,value,type, origin) 
+   select -1, @tally, null, @tally, 'object', 4
   
   fetch next from ids into @tokenId
  end
@@ -54,21 +70,24 @@ begin
  deallocate ids
 
 -- remove the blob container if we dont need it
- if not exists(select * from @fields where blobIt = 1)
-  delete @jsonPrep where origin = 2 and name = 'blob'
+-- if not exists(select * from @fields where blobIt = 1)
+--  delete @jsonPrep where origin = 2 and name = 'blob'
 
  update @jsonPrep set value = dbo.stripChars(value,@goofyChars) where type = 'string'
 
+ select @arrayId = max(objectId) + 1 from @jsonPrep
+ update @jsonPrep set parentId = @arrayId where type = 'object' and parentId = -1
  insert @jsonPrep (objectId, name, type) 
- select -1, '-', 'array'
+ select @arrayId, '-', 'array'
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
 -- select @jsonString = dbo.toJSON(@apiwt)
 
  if @urlEncode = 'TRUE'
-  select @jsonString = 'siteCode=' + @siteCode + '&rows=' + dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.URLEncode(dbo.toJSON(@apiwt))
  else
-  select @jsonString = 'siteCode=' + @siteCode + '&rows=' + dbo.toJSON(@apiwt)
+  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.toJSON(@apiwt)
 
- return @jsonString
+ set @payload = @jsonString
+
 end
