@@ -42,8 +42,15 @@ declare @det table(apportionmonth int,
                    sourceSECA varchar(50),
                    journalDesc varchar(50),
                    amount money)
+
+declare @exclude varchar(max) = ''
+ select @exclude= @exclude + accountcode from glaccounts where bsSummary like '%Ad Val%'
+
+
+
+
 insert @det
-select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(amount*-1) 
+select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(case when charindex(accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
 from dbo.rpMonthEndDetail(
  @beginDate,
  @endDate,
@@ -51,9 +58,13 @@ from dbo.rpMonthEndDetail(
  where left(journalType,13)='APPORTIONMENT'
        and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
        and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
-       and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
+      -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
 group by 
  month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
+
+
+delete from @det where amount=0
+
 
 update d set accountdesc = a.accountdesc from @det d, glaccounts a where d.accountcode=a.accountcode
  
