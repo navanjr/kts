@@ -73,22 +73,63 @@ begin
   exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
  end
 
-
-
  if @method = 'POST'
  begin
 
+-- deleted receipts
+  declare
+   @deletedBatchSize int = 50,
+   @deletedReceiptsStringBlob stringBlob
+
+  if @batchsize < 50
+   set @deletedBatchSize = @batchSize
+
+  insert @deletedReceiptsStringBlob
+  select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(invoice_link as varchar) from dbo.apiReceiptIds() where typ = 'deletedReceipt'
+  if exists(select * from @deletedReceiptsStringBlob)
+  begin
+   declare 
+    @apiDeletedFields blobFields,
+    @payload varchar(max),
+    @deletedTally int
+
+   insert @apiDeletedFields select 'receipt_link','int',0
+   insert @apiDeletedFields select 'invoice_link','int',0
+   exec dbo.pipedStringToJson @deletedReceiptsStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
+
+   exec spOverwriteTextFile @postFileFull, @payload
+
+   exec dbo.api
+    @method = 'DELETE',
+    @resource = @apiResource,
+    @postFile = @postFile,
+    @debugMode = @debugMode,
+    @scratchfile = @scratchFile,
+    @cmdOutput = @tokenId output,
+    @dump = @dump output
+
+   select @deletedTally = dbo.apiResultDecoder('deleted', @dump) 
+   if isnull(@deletedTally,0) = @deletedBatchSize
+   begin
+    set @theDate = getDate()
+    update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
+    exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
+   end
+   else
+   begin
+    exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+   end
+
+  end
+
 -- create the post data file then call the API
-declare @it table (receiptId int)
+  declare @it table (receiptId int)
 
- insert @it select top (@batchsize)
-    
-		Id
-		from Object 
-		where typ = 4502 and Key3 = 'TAX' and k7 < dbo.date112(LastEditDate) and a17 = 'posted'
-		order by ID 
-
-
+  insert @it 
+  select top (@batchsize) id
+  from dbo.apiReceiptIds()
+  where typ = 'receipt'
+  order by ID 
 
 -- bail if your done... 
   select @tally = count(*) from @it
@@ -98,8 +139,6 @@ declare @it table (receiptId int)
      set @tally = 0
      return
   end
-
-
 		
   insert @wt
      select
@@ -173,7 +212,7 @@ declare @it table (receiptId int)
   select @dumpRaw = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
 
   exec spOverwriteTextFile @postFileFull, @dump
-exec dbo.logit @@procId, 'Nate', @dropRawFile
+--exec dbo.logit @@procId, 'Nate', @dropRawFile
   if @dropRawFile = 'TRUE'
    exec spOverwriteTextFile @postFileFullRaw, @dumpRaw
 

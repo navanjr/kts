@@ -21,7 +21,7 @@ if (method == 'get'){
  var path = (data)? pathSeed + '?' + data:pathSeed;
 }
 
-if (method == 'post'){
+if (['post','delete'].indexOf(method) !== -1){
  var path = pathSeed;
 }
 var options = {
@@ -40,8 +40,8 @@ function getDataForPost(filename){
         if (err) {
             return console.log(err);
         }
-        if (method == 'get'){
-            getData();
+        if (['get','delete'].indexOf(method) !== -1){
+            getData(dataZ);
         }else{
             postData(dataZ);
         }
@@ -49,7 +49,11 @@ function getDataForPost(filename){
 }
 
 
-function getData(){
+function getData(encodedDataFromFile){
+    if (encodedDataFromFile){
+        options.path = options.path + '?' + encodedDataFromFile
+    }
+//    console.log(options)
     var req = http.request(options, function(res) {
     //  console.log('STATUS: ' + JSON.stringify(res.statusCode));
     //  console.log('HEADERS: ' + JSON.stringify(res.headers));
@@ -85,13 +89,25 @@ function postData(data){
         res.on('data', function (chunk) {
           console.log(chunk);
         });
+        res.on('error', function(error){
+            console.log('response error',error);
+        });
     });
+    req.on('error', function(error){
+        console.log('request Error not a response error you dummy....', error);
+    });
+//    req.useChunkedEncodingByDefault = false;
+//    console.log(req)
+
+//    console.log('data I used: ',options.path);
+
     req.write(data);
     req.end();
 }
 
 // write data to request body
-if (method == 'get'){
+if (['get','delete'].indexOf(method) !== -1){
+//if (method == 'get'){
     if (postFileName){
         getDataForPost(postFileName);
     }else{
@@ -99,7 +115,7 @@ if (method == 'get'){
     }
 }
 
-if (method == 'post'){
+if (['post'].indexOf(method) !== -1){
     if (n[0] == 'file'){
         getDataForPost(postFileName);
     }else{

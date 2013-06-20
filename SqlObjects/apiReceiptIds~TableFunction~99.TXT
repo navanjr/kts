@@ -1,0 +1,29 @@
+create function dbo.apiReceiptIds() returns @rt table(
+ id int,
+ slink varchar(15),
+ invoice_link int,
+ typ varchar(50)
+) as 
+begin
+  
+ insert @rt
+ select
+  o.id,
+  'o' + cast(o.id as varchar),
+  (select max(r.invoiceId) from receiptLink r where r.receiptId = o.id),
+  'receipt'
+ from Object o 
+ where o.typ = 4502 and o.Key3 = 'TAX' and o.k7 < dbo.date112(o.LastEditDate) and o.a17 = 'posted'
+ order by o.ID 
+
+ insert @rt
+ select
+  id,
+  slink,
+  dbo.readstring('invoice_link=', blob),
+  'deletedReceipt'
+ from apiDeleted
+ where apiResource = 'receipts'
+
+ return
+end
