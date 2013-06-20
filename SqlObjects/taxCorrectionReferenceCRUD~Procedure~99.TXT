@@ -4,8 +4,11 @@ create procedure [dbo].[taxCorrectionReferenceCRUD](
 ) as
 begin
 
+  declare @newIdWt newIdWt
+
  -- insert tax reference invoice
    insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS],[interestDate],[origin])
+   output inserted.id into @newIdWt
    select
     [ID],
     dbo.taxCorrectionsSF([RECORDTYPE],@taxrollId,'010'),
@@ -20,9 +23,8 @@ begin
     'Taxroll Correction'
    from adtax where id = @taxrollId
 
-   set @newInvoiceId = @@identity
+   select @newInvoiceId = max(id) from @newIdWt
+
    exec dbo.logit @@procid, 'Created new invoice - @newInvoiceId', @newInvoiceId
-
-
 
 end
