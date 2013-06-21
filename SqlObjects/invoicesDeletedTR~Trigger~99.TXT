@@ -1,0 +1,13 @@
+create TRIGGER dbo.invoicesDeletedTR ON dbo.invoices
+for delete 
+AS
+
+ if (@@ROWCOUNT != 1)
+  return
+
+ declare @id int
+ select @id = id from deleted
+
+ exec dbo.logit @@procid, 'Oh so you want to delete an invoice eh... @id', @id
+ 
+ exec dbo.apiDeletedProc 'I', @id, 'invoices'
