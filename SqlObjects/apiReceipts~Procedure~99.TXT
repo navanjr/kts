@@ -44,7 +44,6 @@ begin
  if @scratchFile is null
   set @scratchFile = @tempPath + '\' + 'apiResultReceipts.tmp'
 
-
  declare @jsonPrep table(
   id int identity(1,1),
   parentId int,
@@ -93,6 +92,9 @@ begin
     @payload varchar(max),
     @deletedTally int
 
+-- reset the batch size for use in the final comparison
+   select @deletedBatchSize = count(*) from @deletedReceiptsStringBlob
+
    insert @apiDeletedFields select 'receipt_link','int',0
    insert @apiDeletedFields select 'invoice_link','int',0
    exec dbo.pipedStringToJson @deletedReceiptsStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
@@ -113,13 +115,17 @@ begin
    begin
     set @theDate = getDate()
     update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
-    exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
+    exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
    end
    else
    begin
     exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
    end
 
+  end
+  else
+  begin
+   exec dbo.logit @@procid, 'all deleted receipt records updated... nothing to do. :)', @override = 'TRUE'
   end
 
 -- create the post data file then call the API
@@ -135,7 +141,7 @@ begin
   select @tally = count(*) from @it
   if isnull(@tally,0) = 0
   begin
-     exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
+     exec dbo.logit @@procid, 'all receipt records updated... nothing to do. :)', @override = 'TRUE'
      set @tally = 0
      return
   end
