@@ -7,6 +7,7 @@
 @insertsite=new(40);
 @save;
 @loadwindow=
+ if(cur:securitylevel<89,vomode(1)),
  sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
  if(tier<>3,create(151,2,188,13,'Penalty Calculation')),
  create(152,12,3,185,'Clear Tax Filter',28),
@@ -18,6 +19,9 @@
  create(81,9),
  brwstuff=,
  prop(070,'color',65280);
+
+@closewindow=
+ vomode(0);
 
 @brwstuff=
  gcbrw1sql='select id,display,rowType from dbo.settingsBRW(''site'') order by ord',
@@ -126,7 +130,12 @@
 
 \t057Refund Fund; \w05860; \l0584701; @lf058='typ=4701 and a1=''FUND'' and b3!=1',2;
 \t059Back Days; \t060@n2.0; \w06020;
-@acc059=do(43,menuprocess=);
+@acc059=
+ lcBackupFile=kp('select path from dbo.paths() where name = ''backup'''),
+ m('Do you wish to preform a SQL Backup now?||'&lcBackupFile,'SQL Backup','question.ico',6,2),
+ break(gcretval<>2),
+ d1select('exec dbo.sqlBackup'),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'SQL Backup...'));
 
 \t079Tax Year Include Assessment; \w079+50; \x079-40; \u080; @choose080:YN; \f080Y; \w08013;
  
@@ -143,7 +152,6 @@
 \t073apiControlString; \y067074+13;r
 \t075County No.; \t076@n02; \w07620; \y075076-130;r
 \t077Mrtg Stmt Note; \x0773; \x07863; \y077078249;r \w078301;
-\t083Commish Chair; \x0833; \x08463; \y083084+195;r \w084120;
 
 \t114&Invoice Update;
 @acc114=
