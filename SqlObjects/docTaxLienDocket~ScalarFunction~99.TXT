@@ -1,4 +1,4 @@
-create function dbo.docTaxLienDocket(@invoiceid int,@interestDate varchar(50))
+create function dbo.docTaxLienDocket(@invoiceid int,@interestDate varchar(50),@yearFrom int,@yearTo int)
 returns varchar(max)
 
 as
@@ -48,7 +48,7 @@ declare  @middleSplit table
     LEN(    dbo.padright(taxYear,' ',6)
     + dbo.padLeft(dbo.formatCurr(taxDue),' ',13)
     + dbo.padLeft(dbo.formatCurr(total),' ',12))
-     from  dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1)='c'
+     from  dbo.docUnpaidTF(@invoiceId,@interestDate) where RIGHT(ord,1)='c' and isnumeric(taxYear)>0 and taxYear between @yearFrom and @yearTo
 
 declare @wt table (rowNumber int,
 		rowStringLeft varchar(1000),
