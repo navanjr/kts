@@ -80,6 +80,9 @@ begin
 -- this way we don't mess up any normal kts users during an import/update
  delete @groups where name in (select name from users where securityLevel between 1 and 99)
 
+---remove @tim access for any user that's not a dev or support
+ update users set options = replace(cast(options as varchar(max)),'@tim;','') from Users where CHARINDEX('@tim',Options)>0 and securitylevel<100
+
 -- now we overwrite the real settings in the users table
  insert users (name) select name from @groups where name not in (select name from users)
 
