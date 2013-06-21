@@ -14,6 +14,7 @@ begin
  declare @apiControl table( resource varchar(50), batchSize int ) 
  select top 1 @apiControlString = b14 from object where typ = 40 order by id    
  insert @apiControl select dbo.splitF(data,':',1), dbo.splitF(data,':',2) from dbo.split(@apiControlString,',') 
+ declare @receipts table(total int, stale int)
 
 --taxrolls
  insert @rt
@@ -41,24 +42,32 @@ begin
 --invoices
  insert @rt
  select 'invoices',
+  (select count(*) from invoices)
+  + (select count(distinct slink) from apiDeleted where apiResource = 'invoices'),
   count(*),
-  sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
   null,
   '@resource=invoices;',
   null,
   'c'
- from invoices
+ from dbo.apiInvoiceIds()
 
 --receipts
+ insert @receipts
+  select 
+   (select COUNT(*) from object where typ=4502 and key3='TAX' and a17 = 'posted')
+   + (select COUNT(distinct slink) from dbo.apiDeleted where apiResource = 'receipts'),
+   count(distinct slink)
+  from dbo.apiReceiptIds()
+
  insert @rt
  select 'receipts',
-  count(id),
-  sum(case when dbo.date112(lasteditDate) > isnull(k7,0) then 1 else 0 end),
+  sum(total),
+  sum(stale),
   null,
   '@resource=receipts;',
   null,
   'd'
- from object where typ=4502 and key3='TAX' and a17 = 'posted'
+ from @receipts
 
 --mortgageCodes
  insert @rt

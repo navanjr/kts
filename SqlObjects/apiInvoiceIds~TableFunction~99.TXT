@@ -1,0 +1,30 @@
+create function dbo.apiInvoiceIds() returns @rt table(
+ id int,
+ slink varchar(15),
+ invoice_link int,
+ typ varchar(50)
+) as 
+begin
+  
+ insert @rt
+ select 
+   id, 
+   'i' + cast(id as varchar),
+   id as invoice_link, 
+   'invoice'
+  from invoices
+  where isnull(apiUpdated,0) < modified
+  order by id  
+
+ insert @rt
+ select
+  id,
+  slink,
+  dbo.readstring('invoice_link=', blob),
+  'deletedInvoice'
+ from apiDeleted
+ where apiResource = 'invoices'
+  and isnull(apiUpdated,'') < isnull(modified,'')
+
+ return
+end
