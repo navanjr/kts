@@ -1,0 +1,48 @@
+create procedure dbo.cloneReceipt(@receiptId int)
+ as 
+begin
+set nocount on
+ declare 
+  @typ int,
+  @recType varchar(50),
+  @code int,
+  @message varchar(500) = '',
+  @resultString varchar(2000) = '',
+  @name varchar(60),
+  @objectId int,
+  @comments varchar(300),
+  @other varchar(max)
+
+ exec dbo.logit @@procid, '@receiptId=', @receiptId
+
+ select @typ = typ, @recType = key3, @name = a1,@comments = isnull(D1,''), @other = isnull(E1,'') from object where ID = @receiptId
+ 
+ if @recType not in ('Misc')
+  begin
+   select @resultString = '@code=1;@message=This receipt type cannot be copied;'
+   select '@code=1;@message=This receipt type cannot be copied;'
+   exec dbo.logit @@procid, @resultString
+   return
+  end 
+ 
+ exec dbo.receiptCRUD
+  @mode = 0,
+  @series=@recType,
+  @newReceiptId = @objectid output
+
+  exec dbo.logit @@procid, '@series', @recType,'@newReceiptId',@objectid
+ 
+if  @objectid>0
+ begin  
+  update object set a1 = @name,d1 = @comments,e1 = @other where id =  @objectid
+  
+  insert into receiptDetail
+  select description,subDescription,sourceCode,fundCode,amount,'o'+cast(@objectid as varchar),altContraId from receiptDetail where slink='o'+cast(@receiptId as varchar)
+
+  exec dbo.receiptDetailCRUD @objectid,@typ
+  exec dbo.logit @@procid, '@objectid=', @objectid
+ end
+
+ select @objectId
+
+end
