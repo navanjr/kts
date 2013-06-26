@@ -1,7 +1,9 @@
 create function dbo.collectionsDtypeToggleTF(
  @dtype varchar(50),
  @taxrollDetailId int,
- @taxYear int
+ @taxYear int,
+ @date int,
+ @days int
 ) returns @rt table(
  id int,
  invoiceIdMain int,
@@ -51,7 +53,7 @@ begin
    0   
   from taxrollDetail d
   left outer join invoices i on d.parcelNumber = i.parcel and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
-  where d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
+  where dbo.clariondate(d.creationDateTime) between @date and @date+@days and d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.parcelNumber
  
  else
@@ -81,7 +83,7 @@ begin
   from taxrollDetail d
   left outer join invoices i on d.itemNumber = i.item and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0  
    and case when @dtype = 'taxwarrant' and @limitToCurrentDelinquent = 'True' then @taxYear else i.taxYear end = i.taxYear
-  where d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
+  where dbo.clariondate(d.creationDateTime) between @date and @date+@days  and d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.itemNumber
 
  return

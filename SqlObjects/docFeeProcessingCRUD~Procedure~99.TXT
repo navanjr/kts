@@ -7,7 +7,9 @@ create proc dbo.docFeeProcessingCRUD(
  @debugMode varchar(5) = 'FALSE',
  @dType varchar(50) = '',
  @documentId int = 0,
- @verbose varchar(5) = 'FALSE'
+ @verbose varchar(5) = 'FALSE',
+ @date int = null,
+ @days int = null
  
 ) as
 begin
@@ -70,7 +72,7 @@ begin
     @documentName = key1,
     @processCode = key1+'.'+dbo.date1(coalesce(@invoiceDate, @documentDate))
    from object where id = @documentId
-   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, null, null,0)
+   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,0)
     where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
    end
 
