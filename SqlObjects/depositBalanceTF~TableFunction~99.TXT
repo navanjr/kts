@@ -155,7 +155,25 @@ if @depositId = 0
 	select 'Grand Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzzzzeee','Grand Total'
 	from @rt  where RIGHT(ord,3)='bbb' 
 
- delete from @rt where paycode in ('cash','coin') and RIGHT(ord,3)='bbb'
+
+ declare @detailCashonOfficialDeposit varchar(5),
+         @depositBank varchar(60),
+         @officialBank varchar(5)
+
+ select @detailCashonOfficialDeposit = settingValue from settings where settingName='site.detailCashonOfficialDeposit'
+
+ if @detailCashonOfficialDeposit = 'TRUE'
+  begin
+   select @depositBank = a.accountcode from glaccounts a, object d where d.typ=4513 and d.id=@depositId and a.accountid=d.link1
+   if not exists(select * from object where typ=4601 and a4=@depositBank)
+    begin
+     delete from @rt where paycode in ('cash','coin') and RIGHT(ord,3)='bbb'
+    end
+  end
+ else 
+  begin
+   delete from @rt where paycode in ('cash','coin') and RIGHT(ord,3)='bbb'
+  end
 
 
  end
