@@ -13,18 +13,20 @@ returns @rt table(accountCode varchar(60),
                   OfficerName varchar(60),
                   OfficerTitle varchar(60),
                   purposeAmount money,
-                  ord varchar(10))
+                  ord varchar(10),
+                  electronicAmount money,
+                  otherAmount money)
 as
 begin
 insert @rt
-select accountCode,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,sum(amount*-1) as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle,0 as purposeAmount,'a' as ord 
+select accountCode,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,sum(amount*-1) as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle,0 as purposeAmount,'a' as ord,0,0 
 from dbo.gldetailreports 
 where sourceDate<@begindate 
  and accounttype='OFFICIAL'
 group by accountCode
 
 insert @rt
-select a3,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,0 as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle,0 as purposeAmount,'a' as ord 
+select a3,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as person,'BeginBalance' as purpose,0 as creditmemo,0 as deposits,0 as withdrawals,0 as balance,'' as DeptNo,'' as OfficerName,'' as OfficerTitle,0 as purposeAmount,'a' as ord,0,0 
  from object
  where typ=4601 and a3 >' 0' and a3 not in (select accountcode from @rt)
 
@@ -59,7 +61,7 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'da'
+   'da',0,0
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -83,7 +85,7 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'db'
+   'db',0,0
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -108,7 +110,7 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'db'
+   'db',0,0
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -133,7 +135,7 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'ba'
+   'ba',0,0
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -157,7 +159,9 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'ba'
+   'ba',
+   case when isnull(comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C')) then amount*-1 else 0 end as electronicAmount,
+   case when isnull(comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then amount*-1 else 0 end as otherAmount
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
@@ -167,7 +171,7 @@ select accountCode,
 
 insert @rt
 
-select accountcode,sourcedate,sourcekey1,'','',left(cast(purposeamount as varchar)+' - '+purpose,59),0,0,0,0,'','','',abs(purposeamount),ord from (
+select accountcode,sourcedate,sourcekey1,'','',left(cast(purposeamount as varchar)+' - '+purpose,59),0,0,0,0,'','','',abs(purposeamount),ord,0,0 from (
 select accountcode,sourcedate,sourcekey1,purpose,sum(purposeamount) as purposeamount,ord from (
 select (select key3 from object where typ=4503 and key1='TRUST') as accountCode,
    sourcedate,
@@ -210,7 +214,7 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'c'
+   'c',0,0
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate

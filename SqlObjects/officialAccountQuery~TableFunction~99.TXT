@@ -10,7 +10,9 @@ Journals money,
 Deposits money,
 Vouchers money,
 EndBalance money,
-bankAccountCode varchar(50)
+bankAccountCode varchar(50),
+electronicAmount money,
+otherAmount money
 )
 as 
 begin
@@ -21,7 +23,9 @@ declare @wt table(AccountCode varchar(60),
                   Journals money,
                   Deposits money,
                   Vouchers money,
-                  EndBalance money)
+                  EndBalance money,
+                  electronicAmount money,
+                  otherAmount money)
 
 declare @wt2 table(AccountCode varchar(60),
                   BeginBalance money,
@@ -29,7 +33,9 @@ declare @wt2 table(AccountCode varchar(60),
                   Journals money,
                   Deposits money,
                   Vouchers money,
-                  EndBalance money)
+                  EndBalance money,
+                  electronicAmount money,
+                  otherAmount money)
 
 
 insert @wt (accountcode,BeginBalance)
@@ -60,15 +66,17 @@ insert @wt (accountcode,Journals)
    and accounttype = 'OFFICIAL'
  group by accountcode
 
-insert @wt (accountcode,Deposits)
- select accountcode,sum(amount*-1) 
+insert @wt (accountcode,Deposits,electronicAmount,otherAmount)
+ select accountcode,sum(amount*-1),
+   case when isnull(comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C')) then sum(amount*-1) else 0 end as electronicAmount,
+   case when isnull(comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then sum(amount*-1) else 0 end as otherAmount 
  from dbo.glDetailReports 
  where 
   sourceType not in ('4771','4512')
    and sourceDate>=@beginDate 
    and sourceDate<=@endDate
    and accounttype = 'OFFICIAL'
- group by accountcode
+ group by accountcode,isnull(comment,'')
 
 insert @wt (accountcode,Vouchers)
  select accountcode,sum(amount) 
@@ -95,7 +103,9 @@ insert @wt2
             sum(isnull(Journals,0)),
             sum(isnull(Deposits,0)),
             sum(isnull(Vouchers,0)),
-            sum(isnull(EndBalance,0))
+            sum(isnull(EndBalance,0)),
+            sum(isnull(electronicAmount,0)),
+            sum(isnull(otherAmount,0))
             from @wt
             group by accountcode
 
@@ -108,7 +118,9 @@ insert @rt
  Deposits,
  Vouchers,
  EndBalance,
- a4
+ a4,
+ electronicAmount,
+ otherAmount
  from object o, @wt2 w where o.typ=4601 and o.a3=w.accountcode
  
  union 
@@ -120,7 +132,9 @@ insert @rt
  0.00 Deposits,
  0.00 Vouchers,
  0.00 EndBalance,
- a4
+ a4,
+ 0.00 electronicAmount,
+ 0.00 otherAmount
  from object
  where typ=4601 and a3 >' 0' and a3 not in (select accountcode from @wt2)
  return
