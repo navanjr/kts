@@ -30,7 +30,8 @@ begin
   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
  from object where typ = 4770 and id = @id
 
- select @fiscalYear = fiscalYear from dbo.fiscalCalendar where dbo.clariondate(getdate()) between startDate and endDate
+--removed to use the payment register date instead
+ --select @fiscalYear = fiscalYear from dbo.fiscalCalendar where dbo.clariondate(getdate()) between startDate and endDate
 
  -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
  select 
@@ -74,7 +75,13 @@ begin
 
  update @rt set postCheck = 1 where debitAcct not in (select accountCode from glAccounts)
  update @rt set postCheck = 1 where creditAcct not in (select accountCode from glAccounts)
- update a set postCheck = 2, registerNumber=b.key1 from @rt a, object b where a.voucherNumber = b.key3 and b.typ = 4771 and a18 = 'official Voucher' and a.debitAcct = b.a4
+
+ declare @registerPostDate int = (select dbo.readString('@postdate=',dbo.paymentPostDateLogic(0)))
+ select @fiscalYear = fiscalYear from fpInfo(@registerPostDate)
+
+ update a set postCheck = 2, registerNumber=b.key1
+ from @rt a, object b where a.voucherNumber = b.key3 and b.typ = 4771 and a18 = 'official Voucher' and a.debitAcct = b.a4 and olink1 = @fiscalYear
+
  update @rt set postCheck = 3 where postCheck = 0 and (voucherNumber < '  0' or isdate(dbo.date1(voucherDate)) != 1 or payee < '  0')
 
 -- set the potential register numbers
