@@ -1,0 +1,76 @@
+create function dbo.rpMissingNumbers()
+
+returns @missingNumbers table(taxyear varchar(20),
+                  firstNumber varchar(50),
+                  lastNumber varchar(50))
+as
+begin
+
+ declare @rt table(id int,
+                  slink varchar(16),
+                  rlId int,
+                  invoiceId int,
+                  receiptId int,
+                  receiptNumber varchar(50) UNIQUE CLUSTERED ([receiptNumber],[ID]),
+                  previousNumber varchar(20),
+                  firstNumber varchar(50),
+                  lastNumber varchar(50),
+                  taxyear varchar(20)
+ )
+
+ declare @wt table(id int identity(1,1),
+                  slink varchar(16),
+                  rlId int,
+                  invoiceId int,
+                  receiptId int,
+                  receiptNumber varchar(50) UNIQUE CLUSTERED ([receiptNumber],[ID]),
+                  previousNumber varchar(20),
+                  firstNumber varchar(50),
+                  lastNumber varchar(50),
+                  taxyear varchar(20)
+ )
+
+ insert @wt (slink,rlId,invoiceid,receiptid,receiptNumber,previousNumber)
+  select 'l'+cast(id as varchar), id, invoiceid, receiptid, receiptNumber,right('00000'+cast(cast(receiptNumber as int)-1 as varchar(5)),5) 
+    from receiptlink where isnull(receiptNumber,'') > '00000'
+
+ update w set taxyear = a.apyear 
+   from @wt w, gldetail d, glaccounts a
+   where w.slink=d.slink
+     and a.accountcode=d.accountcode
+     and a.accounttype='ACCRUED RECEIVABLE'
+     and isnull(a.apyear,'') > ' 0'
+
+ update w set taxyear = i.taxyear 
+   from @wt w, invoices i
+   where w.invoiceid=i.id
+     and isnull(w.taxyear,'NULL')='NULL'    
+    
+ update w set taxyear = i.taxyear 
+   from @wt w, invoices i
+   where w.invoiceid*-1=i.id
+     and isnull(w.taxyear,'NULL')='NULL'    
+    
+ insert @rt
+  select w.* from @wt w
+    left outer join @wt wt on w.previousNumber=wt.receiptNumber and w.taxyear=wt.taxyear
+   where isnull(wt.receiptNumber,'NULL')='NULL' 
+   order by w.taxyear, w.receiptnumber
+   
+ update r set 
+    lastNumber = r.previousNumber, 
+    firstNumber = 
+  (select top 1 right('00000'+cast(cast(wt.receiptNumber as int)+1 as varchar(5)),5) 
+   from @wt wt 
+   where r.taxyear=wt.taxyear 
+    and r.previousNumber>wt.receiptNumber
+    order by wt.receiptNumber desc)
+ from @rt r
+
+ delete from @rt where lastNumber='00000' 
+
+ insert @missingNumbers
+  select taxyear,firstNumber,lastNumber from @rt order by taxyear desc, receiptnumber
+
+ return
+end
