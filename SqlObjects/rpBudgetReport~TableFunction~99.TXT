@@ -70,13 +70,16 @@ update d set accountdesc = a.accountdesc from @det d, glaccounts a where d.accou
 update d set sourcedesc = a.accountdesc, sourceSECA = SECA from @det d, glaccounts a where d.sourcecode=a.accountcode
  
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50),ord varchar(50))
+insert @years (yearcode,journalDesc)
+ select yearcode,[year]+'_ADVALOREM' from dbo.taxyears(@endDate)
+  union
+ select yearcode,[year]+'_PROTEST' from dbo.taxyears(@endDate)
 
-insert @years
-select top 1 'Current Tax',journalDesc,'0001' from @det where journalDesc like '%ADVALOREM' order by journalDesc desc
-insert @years
-select top 1 'Prior Tax',journalDesc,'0002' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years) order by journalDesc desc
-insert @years
-select distinct 'Back Tax',journalDesc,'0003' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years)
+update @years set ord='0001' where yearcode = 'Current'
+update @years set ord='0002' where yearcode = 'Prior'
+update @years set ord='0003' where yearcode = 'Back'
+update @years set yearcode = yearcode+' Tax'
+
 
 update d set sourceCode = y.yearcode,sourceDesc = y.yearcode, sourceSECA = y.ord from @det d, @years y where d.journalDesc=y.journalDesc
 

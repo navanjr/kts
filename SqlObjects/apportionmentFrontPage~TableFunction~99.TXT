@@ -81,12 +81,9 @@ update d set [column] = a.monthEndColumn, reportOrder=a.reportOrder from @det d,
 
 declare @years table(id int identity(1,1),yearCode varchar(50),[year] varchar(50))
 
-insert @years
-select top 1 'Current',[year] from @det where [year]>' 0' order by [year] desc
-insert @years
-select top 1 'Prior',[year] from @det where [year]>' 0' and [year] not in (select [year] from @years) order by [year] desc
-insert @years
-select distinct 'Back',[year] from @det where [year]>' 0' and [year] not in (select [year] from @years) order by [year] desc
+insert @years (yearcode,[year])
+ select yearcode,[year] from dbo.taxyears(@endDate) order by [year] desc
+
 
 update @det set sourceSECA='9001A', SourceDesc='CUR TAX' where [year] in (select [year] from @years where yearCode='Current')
 update @det set sourceSECA='9003A', SourceDesc='PRIOR TAX' where [year] in (select [year] from @years where yearCode='Prior')

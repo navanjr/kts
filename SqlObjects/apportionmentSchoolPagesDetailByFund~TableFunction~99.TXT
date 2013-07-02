@@ -119,13 +119,11 @@ update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA =
 
 
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50))
+insert @years (yearcode,journalDesc)
+ select yearcode,[year]+' ADVALOREM' from dbo.taxyears(@endDate)
+  union
+ select yearcode,[year]+' PROTEST' from dbo.taxyears(@endDate)
 
-insert @years
-select top 1 'Current',journalDesc from @det where sourceCode='ADVALOREM' order by journalDesc desc
-insert @years
-select top 1 'Prior',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years) order by journalDesc desc
-insert @years
-select distinct 'Back',journalDesc from @det where sourceCode='ADVALOREM' and journalDesc not in (select journalDesc from @years)
 
 declare @det2 table(id int identity(1,1),
 	[accountCode] [varchar](60) NULL,
