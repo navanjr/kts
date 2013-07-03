@@ -13,7 +13,16 @@ begin
 
  if @useFiscalCalendar = 'TRUE'
  begin
-  select @current = left(isnull(fp.a18,'2012'),4) from object fp where fp.typ=4700 and fp.key3<= @endDate and fp.a1>=@endDate
+  select @current = left(isnull(fp.a18,'2012'),4) from object fp where fp.typ=4700 and fp.key3<= @endDate and fp.a1>=@endDate and a18>' 0'
+  
+  if isnull(@current,'') < ' 0'
+  begin
+  select top 1 @current=left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+    order by left(accountcode,4) desc
+  end
+
   select @prior = cast(cast(@current as int)-1 as varchar(4))
 
 

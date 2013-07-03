@@ -71,6 +71,8 @@ select isnull(accountType,''),
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,5) = 'APPOR'
 
+delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
+
 update @det set [year]='' where sourceCode not in (select accountCode from glaccounts where accountType='SOURCE' and apTableType='M')
 
 update d set [column] = a.monthEndColumn, reportOrder=a.reportOrder from @det d, glaccounts a where d.accountCode=a.accountCode

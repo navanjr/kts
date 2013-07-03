@@ -71,8 +71,8 @@ select isnull(accountType,''),
 	isnull(journalDesc,''),
         '' 
   from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
-  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+ where --isnull(sourceCode,'Not Found') in (select accountCode from glAccounts) and 
+      accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT'
 
 if @includeUnapportioned='SPECIAL'
@@ -92,10 +92,12 @@ select isnull(accountType,''),
 	isnull(journalDesc,''),
         ''
   from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
-  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+ where --isnull(sourceCode,'Not Found') in (select accountCode from glAccounts) and 
+      accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT SPECIAL'
 end
+
+delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
 
 update d set ord=o.a12 from @det d, object o where o.typ=4008 and left(d.comment2,len(o.key1))=o.key1 and o.a12 > ' 0'
 
