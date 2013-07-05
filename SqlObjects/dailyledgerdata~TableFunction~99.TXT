@@ -165,10 +165,8 @@ select @detailBackTax = settingValue from settings where settingname='site.daily
 
 if @detailBackTax <> 'TRUE'
 begin
- select @currentTaxYear = left(max(accountCode),4) from @wt2 where right(accountCode,9)='ADVALOREM'
- select @priorTaxYear = cast(cast(@currentTaxYear as int)-1 as varchar(4))
-
- update @wt2 set accountType='BACK TAX' where right(accountCode,9)='ADVALOREM' and left(accountCode,4) < @priorTaxYear
+ update @wt2 set accountType='BACK TAX' 
+  where right(accountCode,9)='ADVALOREM' and left(accountCode,4) in (select year from dbo.taxyears(@endDate) where yearCode='Back')
 end
 
 insert @rt
