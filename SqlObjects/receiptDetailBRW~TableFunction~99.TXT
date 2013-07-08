@@ -24,15 +24,27 @@ begin
 
  insert @rettable (ord,id,description,subdescription,amount)
  select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
+ if isnull(@showFunds,0) = 1
+ begin
+  insert @rettable (ord,id,description,subdescription,amount)
+  select 'aa1',cast('9'+cast(r.id as varchar) as int)*-1,
+         '     '+rtrim(s.accountdesc),
+         '     '+rtrim(f.accountdesc),
+         amount 
+   from receiptDetail r, glaccounts s, glaccounts f 
+   where r.slink = @slink 
+     and s.accountcode = r.sourceCode
+     and f.accountcode = r.fundCode
+ end
  
  update @rettable 
-      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1)
+      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1) and ord<>'aa1'
 
   update @rettable 
-      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50)
+      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50) and ord<>'aa1'
 
   update @rettable 
-      set subDescription = subDescription2
+      set subDescription = subDescription2 where ord<>'aa1'
 
 
 /*
