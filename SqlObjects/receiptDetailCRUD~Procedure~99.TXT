@@ -91,6 +91,12 @@ begin
   if @receiptType = 'TRUST' 
    select @altContraId = t.accountid from glaccounts a, glaccounts t where a.accountcode=@fundCode and a.targetaccountcode=t.accountcode and a.targetaccountcode>' 0'
 
+  if @receiptType = 'SUMMARY'
+   select @altcontraId = isnull(f.accountid,0) from glaccounts a, glaccounts f where @fundcode=a.accountcode and rtrim(a.apyear)+'_ADVALOREM' = f.accountcode
+
+  if @receiptType = 'SUMMARY' and isnull(@altcontraId,0)=0
+   select @altcontraId = isnull(f.accountid,0) from glaccounts f where left(@description,4)+'_ADVALOREM' = f.accountcode
+
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount,altContraId) 
     select
