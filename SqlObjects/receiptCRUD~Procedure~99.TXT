@@ -54,13 +54,26 @@ begin
 
 
 -- Refund
- if @mode = 1 and @receiptId > 0
+ if @mode = 1 and @receiptId > 0 
     begin
      if @debugMode = 'FALSE' 
        begin
+          if @receiptType <> 'TAX' and exists(select * from gldetail where slink='o'+cast(@receiptId as varchar) and isnull(bsId,0)>0)
+          begin
+           select '@code=1;@message=Money from this receipt has already been apportioned aborting cancel request.;'
+           return
+          end
+
+          if @receiptType <> 'TAX' and exists(select * from journallink where receiptid=@receiptId)
+          begin
+           select '@code=1;@message=This receipt has already been cancelled or modified aborting cancel request. ;'
+           return
+          end
 
          -- create new JE
-               	select  @jeType = 'Tax Refund', @accountDesc = 'Tax Receipt Refund Control #'+cast(key1 as varchar) from object where id = @receiptId 
+               	select  @jeType = case when key3='Tax' then 'Tax Refund' else 'Receipt Cancel' end, 
+                        @accountDesc = case when key3='Tax' then 'Tax Receipt Refund Control #' else rtrim(key3)+' Receipt Cancel Receipt #' end+cast(key1 as varchar) 
+                 from object where id = @receiptId 
             exec dbo.journalEntryCRUD
                  @mode = 0,
                  @description = @accountDesc,
@@ -152,10 +165,16 @@ begin
          else
          begin
 
-
          -- create journalLinks
                 insert into journalLink
                   select @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId 
+
+            if @receiptType <> 'TAX' 
+            begin
+                insert into journalLink
+                  select @newId,0,0,@receiptId
+            end
+
 
          -- create gldetailstaged linked to object record
                 insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
