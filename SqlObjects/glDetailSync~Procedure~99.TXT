@@ -9,12 +9,14 @@ begin
   @fpCode varchar(10),
   @fpId int,
   @fpLock int,
-  @log varchar(1000)
+  @log varchar(1000),
+  @fiscalYear varchar(50)
 
  select
   @fpCode = fpCode,
   @fpId = fpId,
-  @fpLock = locked
+  @fpLock = locked,
+  @fiscalYear = fiscalYear
  from dbo.fiscalCalendar
  where @postDate between startDate and endDate
  
@@ -33,6 +35,11 @@ begin
   a.fpId = @fpId
  from dbo.glDetail a
  where a.slink = @slink
+
+ if dbo.slinktype(@slink)='o'
+ begin
+  update object set olink1=@fiscalYear where id = dbo.slinkId(@slink)
+ end
 
  exec dbo.logit @@procId, 'Just Updated... @@rowCount', @@rowCount, '@typ', @typ, '@postDate', @postDate
 
