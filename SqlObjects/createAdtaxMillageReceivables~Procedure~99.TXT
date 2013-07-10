@@ -1,6 +1,9 @@
-create procedure dbo.createAdtaxMillageReceivables
+create procedure dbo.createAdtaxMillageReceivables(
+ @debugMode varchar(5) = 'FALSE'
+) 
 as 
 begin
+ exec dbo.logit @@procid, 'Started...'
  declare
   @year varchar(4),
   @district varchar(50),
@@ -15,23 +18,28 @@ begin
 
  insert @pt 
  select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' 
+ where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' 
 
  insert @pt 
  select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTTAXRATE], [SCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]<'0' and [SCHOOLDISTRICTTAXRATE]>'0' and [RECORDTYPE]='O'
+ where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]<'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' and [RECORDTYPE]='O'
 
  delete from @pt where exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=[realtaxyear] 
   and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE])   
 
+ if @debugMode = 'TRUE'
+ begin
+  select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE] from @pt 
+  return
+ end
 
  while exists(select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE] from @pt 
- where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' and 
+ where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' and 
   not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
   and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE]))
  begin
   select top 1 @year=cast([realtaxyear] as varchar(4)), @district=[SCHOOLDISTRICTMAIN], @rate=[SCHOOLDISTRICTTAXRATE], @pilottable='' from @pt
-  where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'0' and [SCHOOLDISTRICTTAXRATE]>'0' and 
+  where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' and 
    not exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=cast([realtaxyear] as varchar(4)) 
    and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE])
  
