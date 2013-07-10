@@ -367,8 +367,8 @@ begin
   (
    typ,
    key1, key2, Key3, a1,
-   a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14
+   a2, a3, a4, b3, a5, b4, A17, a18,
+   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14, oLink1
   )
   output inserted.id into @newIdWt
   select 
@@ -381,17 +381,19 @@ begin
    @amount,
    @debitAcct,isnull((select accountDesc from glAccounts where accountCode=@debitAcct),''),
    @creditAcct,isnull((select accountDesc from glAccounts where accountCode=@creditAcct),''),
+   case when @amount = 0 then 'VOID' else '' end,
    dbo.proper(@paymentType),
    @officialName,
    isnull(@officialDepositCode,''),
    isnull(@officialBankCode,''),
-   @fiscalYear,
+   case when @paymentType = 'official voucher' then @vfiscalYear else @fiscalYear end,
    @importStamp,
    @comments,
    @warrantPayee,
    @myIni,
    @myStation,
-   @reasonToCancel
+   @reasonToCancel,
+   case when @amount = 0 and @paymentType = 'official voucher' then @vfiscalYear  when @paymentType = 'warrant' then @fiscalYear else '' end
  end try
  begin catch
   set @log = error_message()
