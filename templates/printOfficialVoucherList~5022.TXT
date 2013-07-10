@@ -20,7 +20,7 @@
     case when reasonCanceled > ''  0'' then reasonCanceled + '' - '' else '''' end + cast(comment as varchar),
     creditAccountDesc,
     case when amount <= 0 then amount*-1 else 0 end
-    from dbo.payments where paymentType in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'') and dateRegistered >= '''&gcBeginDate+0&''' and  dateRegistered <= '''&gcEndDate+0&''' and ('''&gcOfficialName&'''< '' 0'' or debitAccountDesc in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''')) order by treasurersNumber',
+    from dbo.payments where paymentType in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'') and dateRegistered >= '''&gcBeginDate+0&''' and  dateRegistered <= '''&gcEndDate+0&''' and ('''&gcOfficialName&'''< '' 0'' or debitAccountDesc in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''')) '&choose(gcFundCode>'  0',' and debitAccountCode='''&gcFundCode&'''','')&' order by treasurersNumber',
   lcRecCnt=0,
   lcVoucherTotal=0,
   lcVoucherCreditTotal=0,
@@ -53,6 +53,8 @@
   bnd(,gcCounty&' County',10500C),
   bnd(,gcCity&', '&gcState,10500C),
   bnd(,'Report From: '&format(gcBeginDate,@d1)&' to '&format(gcEndDate,@d1),10500C),
+  if(gcFundCode>'  0'),bnd(,'Official Account: '&gcFundCode,10500C),
+  if(gcOfficialName>'  0'),bnd(,'Official: '&gcOfficialName,10500C),
   nl, 
   prn(,lcLm,pagey),
   box(pagex-100,pagey-50,pagex+10150,pagey+300,,lcBoxColor),
