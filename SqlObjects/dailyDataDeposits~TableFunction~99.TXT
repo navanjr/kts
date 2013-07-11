@@ -39,7 +39,8 @@ begin
   slink2 varchar(15),
   typ int,
   electronicAmount money,
-  otherAmount money
+  otherAmount money,
+  sourcea18 varchar(50)
  )
   declare @accounts table(
   accountId int,
@@ -66,7 +67,8 @@ declare @byAccount int = 0
   b.slink,
   c.typ,
   case when isnull(b.comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as electronicAmount,
-  case when isnull(b.comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount
+  case when isnull(b.comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount,
+  c.a18
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4513,4771)
@@ -86,7 +88,8 @@ declare @byAccount int = 0
   b.slink,
   c.typ,
   case when b.comment in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as electronicAmount,
-  case when b.comment not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount
+  case when b.comment not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount,
+  c.a18
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4512) and c.a18='Miscellaneous Deposit'
@@ -127,21 +130,22 @@ begin
   ord + cast(id as varchar) + 'b',
   ord,
   description,
-  case when typ = 4771 then '   Disbursements' else '   Deposits' end, --subDescription,
+  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end, --subDescription,
   min(depositNumber),
   max(depositNumber),
   COUNT(depositNumber),
-  SUM(amount) * case when typ=4771 then -1 else 1 end, -- removed abs()
+  SUM(amount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end, -- removed abs()
   0,
-  SUM(electronicAmount) * case when typ=4771 then -1 else 1 end,
-  SUM(otherAmount) * case when typ=4771 then -1 else 1 end
+  SUM(electronicAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end,
+  SUM(otherAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end
  from @wtRaw
  group by
   id,
   ord,
   description,
   subDescription,
-  typ
+  typ,
+  sourcea18
  order by ord
 
 --insert main data
@@ -246,38 +250,40 @@ begin
  insert @wt
  select
   id,
-  ord  + case when typ = 4771 then 'Dis' else 'Dep' end + CAST(id as varchar) + 'b',
+  ord  + case when typ = 4771 and sourcea18 <> 'Transfer' then 'Dis' when typ = 4771 and sourcea18 = 'Transfer' then 'Tra' else 'Dep' end + CAST(id as varchar) + 'b',
   ord,
-  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
+  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
   '   '+subDescription,
   min(depositNumber),
   max(depositNumber),
   COUNT(depositNumber),
-  SUM(amount) * case when typ=4771 then -1 else 1 end, -- removed abs()
+  SUM(amount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end, -- removed abs()
   0,
-  sum(electronicAmount) * case when typ=4771 then -1 else 1 end,
-  sum(otherAmount) * case when typ=4771 then -1 else 1 end
+  sum(electronicAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end,
+  sum(otherAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end
  from @wtRaw
  group by
   id,
   ord,
-  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
+  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
   subDescription,
-  typ
+  typ,
+  sourcea18
   order by ord
   
 insert @wt (id,ord,reportOrder,description,subDescription)
  select
   0,
-  ord  + case when typ = 4771 then 'Dis' else 'Dep' end + '000' + 'a',
+  ord  + case when typ = 4771 and sourcea18 <> 'Transfer' then 'Dis' when typ = 4771 and sourcea18 = 'Transfer' then 'Tra' else 'Dep' end + '000' + 'a',
   ord,
-  case when typ = 4771 then 'Disbursements' else 'Deposits' end,
-  case when typ = 4771 then 'Disbursements' else 'Deposits' end
+  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
+  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end
  
  from @wtRaw
  group by
   typ,
-  ord
+  ord,
+  sourcea18
   
 --insert main data
  insert @rt
