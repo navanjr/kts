@@ -6,6 +6,8 @@ create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50))
  paid money,
  appout money,
  appin money,
+ specappout money,
+ specappin money,
  tranout money,
  tranin money,
  deposits money,
@@ -17,9 +19,9 @@ create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50))
 )
 as 
 begin 
-declare @wt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
+declare @wt table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, specappout money, specappin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
 
-declare @wt2 table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
+declare @wt2 table(accountCode varchar(50), accountDesc varchar(50), beginbalance money, paid money, appout money, appin money, specappout money, specappin money, tranout money, tranin money, deposits money, elecdeposits money, endbalance money, accountType varchar(50), ledgerGroup varchar(50))
 
 insert @wt (accountCode, accountDesc, beginbalance, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup from dbo.glDetailReports 
@@ -107,15 +109,15 @@ and sourceType not in ('4502','4513','4522','4771')
 and not (sourceType='4512' and sourcea18 = 'Miscellaneous Deposit')
 group by accountCode, accountDesc, accountType, ledgerGroup
 
---Apportionment
+--Apportionment - Month End
 
 insert @wt (accountCode, accountDesc, appin, accountType, ledgerGroup)
 select accountCode, accountDesc,sum(cast(credit as money)) as amount, accountType, ledgerGroup from dbo.glDetailReports 
 where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType ='4512'
-and left(sourcea18,13) = 'APPORTIONMENT'
-and credit > ' 0'
+and sourcea18 = 'APPORTIONMENT'
+and amount < 0
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, appout, accountType, ledgerGroup)
@@ -124,9 +126,9 @@ where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType not in ('4502','4513','4522','4771') 
 and sourceType ='4512'
-and left(sourcea18,13) = 'APPORTIONMENT'
-and left(accountdesc,len(sourceKey3))=sourceKey3
-and debit > ' 0'
+and sourcea18 = 'APPORTIONMENT'
+and (left(accountdesc,len(sourceKey3))=sourceKey3 or apportionContraCode=accountcode)
+and amount > 0
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 insert @wt (accountCode, accountDesc, appin, accountType, ledgerGroup)
@@ -135,9 +137,45 @@ where sourceDate>=@beginDate and sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 and sourceType not in ('4502','4513','4522','4771') 
 and sourceType ='4512'
+and sourcea18 = 'APPORTIONMENT'
+and (left(accountdesc,len(sourceKey3))<>sourceKey3 and apportionContraCode<>accountcode)
+and amount > 0
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+--Apportionment - Special
+
+insert @wt (accountCode, accountDesc, specappin, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(cast(credit as money)) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and sourceType ='4512'
 and left(sourcea18,13) = 'APPORTIONMENT'
-and left(accountdesc,len(sourceKey3))<>sourceKey3
-and debit > ' 0'
+and sourcea18 <> 'APPORTIONMENT'
+and amount < 0
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, specappout, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(cast(debit as money)) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and sourceType not in ('4502','4513','4522','4771') 
+and sourceType ='4512'
+and left(sourcea18,13) = 'APPORTIONMENT'
+and sourcea18 <> 'APPORTIONMENT'
+and (left(accountdesc,len(sourceKey3))=sourceKey3 or apportionContraCode=accountcode)
+and amount > 0
+group by accountCode, accountDesc, accountType, ledgerGroup
+
+insert @wt (accountCode, accountDesc, specappin, accountType, ledgerGroup)
+select accountCode, accountDesc,sum(cast(debit as money)*-1) as amount, accountType, ledgerGroup from dbo.glDetailReports 
+where sourceDate>=@beginDate and sourceDate<=@endDate
+and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+and sourceType not in ('4502','4513','4522','4771') 
+and sourceType ='4512'
+and left(sourcea18,13) = 'APPORTIONMENT'
+and sourcea18 <> 'APPORTIONMENT'
+and (left(accountdesc,len(sourceKey3))<>sourceKey3 and apportionContraCode<>accountcode)
+and amount > 0
 group by accountCode, accountDesc, accountType, ledgerGroup
 
 --End Apportionment
@@ -169,7 +207,7 @@ group by accountCode, accountDesc, accountType, ledgerGroup
 
 
 insert @wt2
-select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)), sum(isnull(appout,0)), sum(isnull(appin,0)), sum(isnull(tranout,0)), sum(isnull(tranin,0)), sum(isnull(deposits,0)), sum(isnull(elecdeposits,0)), sum(isnull(endbalance,0)), accountType, ledgerGroup from @wt
+select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)), sum(isnull(appout,0)), sum(isnull(appin,0)), sum(isnull(specappout,0)), sum(isnull(specappin,0)), sum(isnull(tranout,0)), sum(isnull(tranin,0)), sum(isnull(deposits,0)), sum(isnull(elecdeposits,0)), sum(isnull(endbalance,0)), accountType, ledgerGroup from @wt
  group by accountCode, accountDesc, accountType, ledgerGroup
  
 update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, elecdeposits=elecdeposits*-1, endbalance=endbalance*-1 where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
@@ -191,7 +229,7 @@ insert @rt
  select *,'' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
 
 insert @rt
-select accountType+' '+rtrim(ledgerGroup), accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(tranout), sum(tranin), sum(deposits), sum(elecdeposits), sum(endbalance), accountType, ledgerGroup,'' from @wt2
+select accountType+' '+rtrim(ledgerGroup), accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin), sum(tranout), sum(tranin), sum(deposits), sum(elecdeposits), sum(endbalance), accountType, ledgerGroup,'' from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
  group by accountType, ledgerGroup
 
