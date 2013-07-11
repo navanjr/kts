@@ -27,17 +27,27 @@ begin
   @mikePath varchar(max),
   @sql nvarchar(max)
 
- select
-  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select srt,substring(val2,9,30),left(val2,8),"","" from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where type="ASGN" and !deleted()'')'
+ select @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf'
+ select @sql = 'select srt,substring(val2,9,30),left(val2,8),"","" from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where type="ASGN" and !deleted()'')'
 
  insert @st exec(@sql)
+
+-- clean up the funds with missing descriptions...
+ declare @funds table(fundCode varchar(10), name varchar(50))
+ select @sql = 'select fundcode, name from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT fundcode, name FROM fund where !deleted()'')'
+
+ insert @funds exec(@sql)
+
+ update a set
+  a.name = b.name
+ from @st a, @funds b
+ where a.kpsfund = b.fundCode
 
  update a set
   a.accountCode = b.accountCode,
   a.accountDesc = b.accountDesc
  from @st a, dbo.glAccounts b
- where a.kpofund = b.accountCode and b.accountType = 'FUND'
+ where a.kpsfund = b.accountCode and b.accountType = 'FUND'
 
  if @method = 'GET'
  begin  
@@ -49,6 +59,7 @@ begin
    @message = 'clerks fund list not found in KTS'
   from @st
   where kpofund not in (select clerksFundCode from dbo.clerksFundList)
+   and kpsfund > '  0'
  end
 
  if @method = 'SHOW'
