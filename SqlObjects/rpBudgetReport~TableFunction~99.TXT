@@ -1,6 +1,7 @@
 create function dbo.rpBudgetReport(@beginDate varchar(20),
         @endDate varchar(20),
-        @fundCode varchar(20))
+        @fundCode varchar(20),
+        @includeSpecialAssessment varchar(5))
 
 returns @rt table(accountCode varchar(60) default '',
                   accountDesc varchar(50) default '',
@@ -55,13 +56,29 @@ from dbo.rpMonthEndDetail(
  @beginDate,
  @endDate,
  'FALSE')
- where journalType='APPORTIONMENT'
+ where (journalType='APPORTIONMENT' or (isnull(@includeSpecialAssessment,'')='TRUE' and left(journalType,13)='APPORTIONMENT'))
        and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
        and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
       -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
 group by 
  month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
 
+if isnull(@includeSpecialAssessment,'')='TRUE'
+begin
+ insert @det
+ select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(case when charindex (accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
+ from dbo.rpMonthEndDetail(
+  @beginDate,
+  @endDate,
+  'FALSE')
+  where journalType='APPORTIONMENT'
+        and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
+        and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+       -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
+ group by 
+  month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
+
+end
 
 delete from @det where amount=0
 
