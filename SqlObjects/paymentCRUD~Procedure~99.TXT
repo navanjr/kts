@@ -244,6 +244,9 @@ begin
    end
 -- if you are buying a warrant with a treasurers check, payment type needs to change, among other things
 -- Notice the DB and CR accounts are swapped.
+   select @fiscalYear = fiscalyear from dbo.fpinfo(dbo.clarionDate(getDate()))
+
+
    select
     @paymentType = 'Treasurers Check',
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
@@ -253,8 +256,7 @@ begin
     @officialName = a.a7,
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
-    @fiscalYear = c10,
-    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(c10) + '''',
+    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(@fiscalYear) + '''',
     @warrantPayee = a.a2
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
@@ -295,6 +297,12 @@ begin
   end
 
   if @paymentType not in ('Miscellaneous','Transfer')
+   exec dbo.logit @@procid,
+    'Firing nextObjectAuotNumber  @paymentType', @paymentType,
+    '@additionalWhereClause', @nextNumAdditionalWhere,
+    '@clobberKey1', @clobberKey1
+
+
    exec dbo.nextObjectAutoNumber
     4771,
     @paymentType,
@@ -359,8 +367,8 @@ begin
   (
    typ,
    key1, key2, Key3, a1,
-   a2, a3, a4, b3, a5, b4, a18,
-   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14
+   a2, a3, a4, b3, a5, b4, A17, a18,
+   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14, oLink1
   )
   output inserted.id into @newIdWt
   select 
@@ -373,17 +381,19 @@ begin
    @amount,
    @debitAcct,isnull((select accountDesc from glAccounts where accountCode=@debitAcct),''),
    @creditAcct,isnull((select accountDesc from glAccounts where accountCode=@creditAcct),''),
+   case when @amount = 0 and @paymentType in  ('Official voucher','Warrant') then 'VOID' else '' end,
    dbo.proper(@paymentType),
    @officialName,
    isnull(@officialDepositCode,''),
    isnull(@officialBankCode,''),
-   @fiscalYear,
+   case when @paymentType = 'official voucher' then @vfiscalYear else @fiscalYear end,
    @importStamp,
    @comments,
    @warrantPayee,
    @myIni,
    @myStation,
-   @reasonToCancel
+   @reasonToCancel,
+   case when @amount = 0 and @paymentType = 'official voucher' then @vfiscalYear  when @paymentType = 'warrant' then @fiscalYear else '' end
  end try
  begin catch
   set @log = error_message()

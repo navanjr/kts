@@ -34,6 +34,10 @@ begin
     and b.slink in (select slink from dbo.journalSLinks(@accountId))
     and ISNULL(b.bsId,0) = 0
 
+ if @accountId = 0
+  set @accountDesc = 'MONTHEND APOORTIONMENT' 
+
+
  
 -- create new JE
   set @jeType = 'APPORTIONMENT'+case when (@accountType in (4502,4512) or @accountTypeDesc='ACCRUED RECEIVABLE') then ' SPECIAL' else '' end  
@@ -49,8 +53,8 @@ begin
  select @slink = 'o' + cast(@newId as varchar)
 
 -- create stage 
- insert glDetailStage ( accountId, accountCode, accountDesc, amount, slink, comment, comment2, sourceCode)
- select accountId, accountCode, accountDesc, amount, @slink, comment, comment2, sourceCode
+ insert glDetailStage ( accountId, accountCode, accountDesc, amount, slink, comment, comment2, sourceCode, apportionContraCode)
+ select accountId, accountCode, accountDesc, amount, @slink, comment, comment2, sourceCode, contraAccountCode
   from dbo.apportionCollectionsBRW( @accountId, @apportionToDate )
 
 

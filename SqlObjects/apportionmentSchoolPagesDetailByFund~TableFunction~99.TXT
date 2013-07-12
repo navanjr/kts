@@ -53,7 +53,8 @@ declare @det table(
 	[sourceDesc] [varchar](50) NOT NULL default '',
 	[sourceSECA] [varchar](50) NOT NULL default '',
 	[journalDesc] [varchar](50) NOT NULL default '',
-        [ord] [varchar](50) NOT NULL default ''
+        [ord] [varchar](50) NOT NULL default '',
+        [apportionContraCode] [varchar](50) 
 )
 
 insert @det
@@ -69,10 +70,11 @@ select isnull(accountType,''),
 	isnull(sourceDesc,''),
 	isnull(sourceSECA,''),
 	isnull(journalDesc,''),
-        '' 
+        '',
+        apportionContraCode 
   from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
-  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+ where accountcode<>apportionContraCode and 
+      accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT'
 
 if @includeUnapportioned='SPECIAL'
@@ -90,12 +92,17 @@ select isnull(accountType,''),
 	isnull(sourceDesc,''),
 	isnull(sourceSECA,''),
 	isnull(journalDesc,''),
-        ''
+        '',
+        apportionContraCode
   from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
-  and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+ where accountcode<>apportionContraCode and 
+      accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and journalType = 'APPORTIONMENT SPECIAL'
 end
+
+delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
+
+update d set journalDesc = a.accountDesc from @det d, glaccounts a where d.apportionContraCode=a.accountcode and isnull(d.apportionContraCode,'')>' 0'
 
 update d set ord=o.a12 from @det d, object o where o.typ=4008 and left(d.comment2,len(o.key1))=o.key1 and o.a12 > ' 0'
 

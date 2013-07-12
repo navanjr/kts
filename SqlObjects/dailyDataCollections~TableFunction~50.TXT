@@ -80,7 +80,7 @@ begin
   a.reportOrder,
   a.collectionDescription,
   b.accountDesc,
-  case when c.key3 = 'TAX' then null else c.key1 end,
+  case when c.key3 = 'TAX' then null when c.key3 = 'SUMMARY' then left(c.d1,49) else c.key1 end,
   b.amount,
   b.slink,
   case when c.typ=4522 then c.b2 else '' end,
@@ -127,6 +127,10 @@ insert @wt
  from @wtRaw --where  slink2 = 'o29091'
  group by
   subDescription
+
+ update @wt set minControlNumber = left(minControlNumber,charindex('-',minControlNumber)) where charindex('-',minControlNumber)>0
+
+ update @wt set maxControlNumber = right(maxControlNumber,charindex('-',reverse(maxControlNumber))) where charindex('-',maxControlNumber)>0
 
  update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.id) from @wt a
 

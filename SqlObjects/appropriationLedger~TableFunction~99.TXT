@@ -1,4 +1,4 @@
-create function dbo.appropriationLedger(@begindate varchar(20),@enddate varchar(20)) 
+create function dbo.appropriationLedger(@begindate varchar(20),@enddate varchar(20),@activeOnly varchar(5)) 
 returns @rt table(FundDesc varchar(60),
                   accountNumber varchar(60),
                   warrants varchar(50),
@@ -16,9 +16,9 @@ insert @rt
   SUM(payments),
   SUM(budget),
   sum(balance),
-  fiscalYear+fundDesc+accountnumber+'bbb',
+  right(fiscalYear,2)+fundDesc+accountnumber+'bbb',
   fiscalYear
-  from dbo.appropriationLedgerDetail(@begindate,@enddate) group by fiscalYear,funddesc,accountNumber
+  from dbo.appropriationLedgerDetail(@begindate,@enddate,@activeOnly) group by right(fiscalYear,2),fiscalYear,funddesc,accountNumber
 
 insert @rt
   select 
@@ -27,18 +27,18 @@ insert @rt
   SUM(cast(warrants as money)),
   SUM(cast(budget as money)),
   sum(cast(balance as money)),
-  fiscalYear+fundDesc+'zzzzz'+'ccc',
-  fiscalYear from @rt group by fiscalYear,FundDesc
+  right(fiscalYear,2)+fundDesc+'zzzzz'+'ccc',
+  fiscalYear from @rt group by right(fiscalYear,2),fiscalYear,FundDesc
 
-insert @rt (FundDesc,ord)
+insert @rt (FundDesc,ord,fiscalyear)
   select 
   fundDesc,
-  fiscalYear+fundDesc+'     '+'aaa' from @rt group by fiscalYear,FundDesc
+  right(fiscalYear,2)+fundDesc+'     '+'aaa',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear,FundDesc
 
-insert @rt (FundDesc,ord)
+insert @rt (FundDesc,ord,fiscalyear)
   select 
   'Fiscal Year: '+fiscalYear,
-  fiscalYear+'          '+'aa1' from @rt group by fiscalYear
+  right(fiscalYear,2)+'          '+'aa1',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear
 
 
 update @rt

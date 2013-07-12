@@ -26,8 +26,10 @@ begin
   @certno varchar(50),
   @certid int,
   @certFees money,
-  @firstDate int
+  @firstDate int,
+  @sourceType int
 
+ select @sourceType = typ from object where id = @sourceId
 
  select
   @taxdescription = key1,
@@ -41,12 +43,18 @@ begin
   @feefundCode = key3
  from object where typ = 4504 and a1='INDIV' and key1 like '%FEE%'
 
- select
-  @certno = b3,
-  @status = a17
- from object where id = @sourceId
+ if @sourceType = 4502
+ begin
+  select
+   @certno = b3,
+   @status = a17
+  from object where id = @sourceId
 
- set @certid=isnull((select id from object where typ=4100 and a4=@certno),0)
+  set @certid=isnull((select id from object where typ=4100 and a4=@certno),0)
+ end
+ 
+ if @sourceType = 4100
+  set @certId = @sourceId
 
  select @certFees = cast(isnull(a12,0) as money)+cast(isnull(a14,0) as money)+cast(isnull(a16,0) as money) from object where id=@certid
 

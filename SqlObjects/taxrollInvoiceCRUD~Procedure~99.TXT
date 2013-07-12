@@ -29,14 +29,13 @@ begin
   @taxrollCheckBlob varchar(max),
   @log varchar(max)
 
+-- if this is not being run from a taxrollid then we need to set the taxrollId from the invoice
  if isnull(@invoiceId,0) > 0 and @taxrollId is null
   select @taxrollId = taxrollId from invoices where id = @invoiceId
-
  
  exec dbo.logit @@procid, '@taxrollId', @taxrollId, '@invoiceType', @invoiceType, '@invoiceId', @invoiceId
 
 --TODO: We wants this check to use the postdate from the invoice however we are too lazy to fix this now.
-
  exec dbo.taxrollCheckProc @taxrollId,@invoiceType,@invoiceId,
   @code = @code output,
   @message = @message output,
@@ -57,12 +56,11 @@ begin
 
  exec dbo.logit @@procid, 'taxrollCheckProc', @taxrollCheckBlob
 
+-- we bail if the test failed
  if @code = 1 
  begin
-  if @smode=0
-   begin
+  if @smode = 0
     select '@code=1;@message=' + @message + ';'
-   end
   return
  end
 
@@ -115,15 +113,18 @@ begin
     select id,description,subDescription,sourceCode,sourceId,fundCode,fundId,amount from dbo.getRates('taxinvoice',null,null,@taxrollId,@invoiceType)
  end
 
+ set @log = 'select * from dbo.getRates(''taxinvoice'',null,null,' + cast(@taxrollId as varchar) + ',''' + @invoiceType + ''')'
+ if @debugMode = 'TRUE'
+  exec dbo.logit @@procid, @log 
+
+-- bail if no tax rate data returned from getRates()
  if not exists(select * from @invd)
  begin
   if @smode = 0
    begin
     select '@code=1;@message=No tax rate detail available.;'
     exec dbo.logit @@procid, '@code=1;@message=No tax rate detail available.;'
-    set @log = 'select * from dbo.getRates(''taxinvoice'',null,null,' + cast(@taxrollId as varchar) + ',' + @invoiceType + ')'
     exec dbo.logit @@procid, @log
-
    end
   return
  end
@@ -131,7 +132,8 @@ begin
   declare 
    @idToken int,
    @newAccountId int,
-   @acctCodeToken varchar(50)
+   @acctCodeToken varchar(50),
+   @invdCount int
   
   while exists(select * from @invd where sourceId = 0) 
   begin
@@ -140,13 +142,18 @@ begin
     @idToken = id,
     @acctCodeToken = sourceCode 
    from @invd where sourceId = 0 
-   
-   exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @accountId = @newAccountId OUTPUT
 
-   update @invd set sourceId = isnull((select accountid from glaccounts where accountType='SOURCE' and accountCode=@acctCodeToken),0)
-     where id = @idToken   
+   exec dbo.glAccountVerification @acctCodeToken, 'SOURCE', 'CREATE', @accountId = @newAccountId OUTPUT
+   if @debugMode = 'TRUE'
+    exec dbo.logit @@procid, '@idToken', @idToken, '@acctCodeToken', @acctCodeToken, '@newAccountId', @newAccountId   
+
+   update @invd set sourceId = isnull(@newAccountId,0) where sourceCode = @acctCodeToken   
 
   end
+
+  select @invdCount = count(*) from @invd where isnull(fundId,0) = 0 and @invoiceType<>'S'
+  if @debugMode = 'TRUE'
+   exec dbo.logit @@procid, 'count for failed fundId check... @invdCount', @invdCount, '@invoiceType', @invoiceType
 
   while exists(select * from @invd where fundId = 0 and @invoiceType<>'S') 
   begin
@@ -157,10 +164,13 @@ begin
    from @invd where fundId = 0 
 
    exec dbo.glAccountVerification @acctCodeToken, 'ACCRUED RECEIVABLE', 'CREATE', @accountId = @newAccountId OUTPUT
+exec dbo.logit @@procid, '@acctCodeToken', @acctCodeToken, '@newAccountid', @newAccountid
 
    update @invd set fundId = @newAccountId where id = @idToken   
 
   end
+
+exec dbo.logit @@procid, 'hi mom #2'
  
   if exists(select * from @invd where isnull(sourceId,0) = 0)
   begin
@@ -173,14 +183,15 @@ begin
     end
    return
   end
+
   if exists(select * from @invd where isnull(fundId,0) = 0 and @invoiceType<>'S')
   begin
-   exec dbo.logit @@procid, '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+   exec dbo.logit @@procid, '@code=1;@message=Missing Fund Account Information. Contact Support. (txinv.2);'
    if @debugMode = 'TRUE'
     select * from @invd
    if @smode = 0
     begin
-     select '@code=1;@message=Missing Source Account Information. Contact Support. (txinv.2);'
+     select '@code=1;@message=Missing fund Account Information. Contact Support. (txinv.2);'
     end
    return
   end

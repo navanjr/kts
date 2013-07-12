@@ -34,7 +34,20 @@ TO DO: make sure that if a collection account is listed here that the appropriat
 @afterloadwindow=
  refreshbrw=,
  gccomment='',
- if(obj:a18='Apportion Protest' and obj:a17<>'Posted',doApportionProtest=);
+ if(obj:a18<' 0',getType=),
+ if(obj:a18='Apportion Protest' and obj:a17<>'Posted',doApportionProtest=),
+ create(175,2,3,70,'Remember: Fund Type Accounts require you to change the sign for the amount.'),
+ prop(175,fontcolor,255),
+ prop(175,7C65H,1);
+
+@getType=
+ m('When creating a new Journal Entry,| Please Choose one of the following TYPEs of Journal Entry to create...','Journal Entry...',,'&Manual|Co&rrection|&Transfer|&Payroll Tax|&Cancel'),
+ if(gcretval+0=5,close('cancel+')),
+ gcType=gcretval,
+ if(gcretval+0=3,m('Transfer type Journal Entries are for annual report fund-to-fund transfers only.  Are you sure you want to continue?','Continue Transfer',,6)),
+ if(gcretval<>2 and gcType+0=3,close('cancel+')),
+ set(042,choose(gcType,'MANUAL','CORRECTION','TRANSFER','PAYROLL TAX'));
+
 
 @doApportionProtest=
  prop(007,'7C00H','Interest Acct'),
@@ -62,6 +75,9 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 \t041Journal Type; \w04255; \p0427cfah,13499135; \p0427c13h,700; \p0427c06h,1; \p0427c10h,Arial; \p0427c11h,7; \d042;
 
 \t007&Account Code; \l0084701,1;r008002010004; @lf008='typ = 4701 and b3!=1',2;
+ @acc008=d1select('select accounttype from glaccounts where accountcode='''&obj:a1&''''),
+         d1select('select case when '''&obj7:d1&''' in (select accounttype from dbo.glbankfundtypes(''FUND'')) then ''FUND'' else '''' end'),
+         if(obj7:d1='FUND',prop(175,7C65H,0),prop(175,7C65H,1));
 \t009Description; \d010; 
 \t045Amount; \t046@n-14.2;  \p0467c0ch,1; \w04660; \x045210; \x046240; @acc046=saveRow=;
  \h007010obj:a17='Posted';r \h045046obj:a17='Posted';r \h351obj:a17='Posted';
@@ -156,7 +172,7 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 @brwstuff=
  lcShowGL=readstring(cur:options,'@showgl='),
  gcsql='select id,accountDesc,comment,amount,rowType from dbo.journalEntryBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&') order by ord',
- brw(150,1,gcsql,3,70,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2b@#4#|M',7,1),
+ brw(150,1,gcsql,3,85,330,202,'150L(2)~Account~#2#|M100L(2)~Comment~#3#|M50R(2)~debit(+) or credit(-)~@n-14.2b@#4#|M',7,1),
  break(obj:a18<>'Apportion Protest'),
  gcsql='select id,a2,a3,a4,key3 from object where typ=4775 and link1='&obj:id,
  brw(151,2,gcsql,3,288,300,102,'100L(2)~Name~#2#|M100L(2)~Parcel~#3#|M50L(2)~Item~#4#|M50R(2)~Amount~@n-14.2b@#5#|M',7,1), ;

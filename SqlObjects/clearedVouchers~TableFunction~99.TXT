@@ -1,4 +1,4 @@
-create function dbo.clearedVouchers(@beginDate int,@endDate int) 
+create function dbo.clearedVouchers(@beginDate int,@endDate int,@official varchar(50)) 
  returns
   @rt table(
    voucher varchar(50),
@@ -32,7 +32,12 @@ insert @rt
     dateCleared+debitAccountDesc+dbo.popro6(clerksNumber,6,1)+'b' 
       from dbo.payments where paymentType like '%VOUCHER%' and slink in 
       (select slink from gldetailreports where accountType in (select accountType from dbo.glBankFundTypes('BANK')) 
-      and bsId > 0 and dateCleared between @beginDate and @endDate) order by dateCleared,debitAccountDesc, dbo.popro6(clerksNumber,6,1)
+      and bsId > 0 and dateCleared between @beginDate and @endDate)
+      order by dateCleared,debitAccountDesc, dbo.popro6(clerksNumber,6,1)
+
+if @official>'  0'
+  delete from @rt where fund not in (select b2 from object where typ=4601 and key2=@official)
+
 
 insert @rt (regDate,amountPaid,amountCredit,ord)
  select 

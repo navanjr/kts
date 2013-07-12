@@ -1,4 +1,4 @@
-create function dbo.journalReportRp(@year int) returns 
+create function dbo.journalReportRp(@year int,@asOf int) returns 
  @rt table(taxYear varchar(10),item varchar(10),adjustmentDate varchar(20),apDistrict varchar(50),apRate varchar(50),amount money,penalties money,name varchar(60),id int,invoiceId int,slink varchar(30),ord varchar(1000))
 as begin
 
@@ -6,7 +6,7 @@ as begin
   select 
      apyear,'',dbo.date112(date),apdistrict,aprate,SUM(amount*-1),SUM(penaltyAmount),'',substring(slink,2,20),invoiceId,slink,apdistrict+aprate+'  '+cast(date as varchar)+'bbb' 
   from dbo.taxrollAuditDetail
-   where apyear = @year and LEFT(auditorigin,1)='5'
+   where apyear = @year and LEFT(auditorigin,1)='5' and date <= @asOf
    group by apyear,sourceKey1,date,apdistrict,aprate,slink,invoiceId
    
  

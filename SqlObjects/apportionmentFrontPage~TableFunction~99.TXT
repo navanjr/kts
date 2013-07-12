@@ -46,7 +46,8 @@ declare @det table(
  [journalDesc] [varchar](50) NOT NULL default '',
  [year] varchar(10),
  [column] varchar(50),
- [reportOrder] varchar(50)
+ [reportOrder] varchar(50),
+ [apportionContraCode] [varchar](50)
 )
 
 insert @det
@@ -64,12 +65,17 @@ select isnull(accountType,''),
  isnull(journalDesc,''),
  right(isnull(sourceCode,''),4),
  '',
- ''
+ '',
+ apportionContraCode
  from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned)
 -- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts) and 
- where left(accountdesc,len(journaldesc))<>journaldesc
+ where accountcode<>apportionContraCode
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,5) = 'APPOR'
+
+delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
+
+update d set journalDesc = a.accountDesc from @det d, glaccounts a where d.apportionContraCode=a.accountcode and isnull(d.apportionContraCode,'')>' 0'
 
 update @det set [year]='' where sourceCode not in (select accountCode from glaccounts where accountType='SOURCE' and apTableType='M')
 

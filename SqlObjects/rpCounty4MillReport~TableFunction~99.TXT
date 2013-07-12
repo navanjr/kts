@@ -8,7 +8,8 @@ returns @rt table(
   MonthDistributed varchar(60),
   MonthApportioned varchar(60),
   schooldistrict varchar(60),
-  schoolname varchar(60)
+  schoolname varchar(60),
+  accounttype varchar(50)
 )
 as
 begin
@@ -58,8 +59,13 @@ update @det set comment2=substring(comment2,7,20) where accountType in ('SCHOOL'
 update d set comment2 = case when a.monthEndCategory > ' 0' then monthEndCategory else d.comment2 end 
  from @det d, glaccounts a where d.sourceCode=a.accountCode 
 
+update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL' 
+and accountCode in (select accountCode from @det where comment2 like '%4%' and comment2 like '%MIL%' and comment2 like '%JOINT%' )
+
+
 update @det set accountType='COUNTY SCHOOL' where accountType='SCHOOL' 
 and accountCode in (select accountCode from @det where comment2 like '%4 MIL%' and comment2 not like '%JOINT%' )
+
 
 insert @rt 
 select accountid,accountcode,accountdesc,sum(amount*-1),journaltype, 
@@ -69,10 +75,15 @@ select accountid,accountcode,accountdesc,sum(amount*-1),journaltype,
          else cast(year(dbo.date1(@enddate+20)) as varchar) end,
          upper(datename(M,dbo.date1(@enddate)))+' - '+cast(year(dbo.date1(@enddate)) as varchar),
  case when len(isnull((select max(a1) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a1) from object where typ=4010 and key2=accountcode),'') else accountcode end,
- case when len(isnull((select max(a2) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a2) from object where typ=4010 and key2=accountcode),'') else accountdesc end
+ case when len(isnull((select max(a2) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a2) from object where typ=4010 and key2=accountcode),'') else accountdesc end,
+ accounttype
          
- from @det where accountType='COUNTY SCHOOL' and comment2='4 MILL' 
-  group by accountid,accountcode,accountdesc,journaltype
+ from @det where accountType <> 'JOINT SCHOOL' and comment2='4 MILL' 
+  group by accountid,accountcode,accountdesc,journaltype,accounttype
   
+
+  update r set schooldistrict = o.a1,schoolname = o.a2 from @rt r, object o where r.accounttype <> 'COUNTY SCHOOL' and o.typ=4010 and o.key2 > ' 0' and o.key2=left(r.accountcode,len(o.key2))
+
+
   return
   end
