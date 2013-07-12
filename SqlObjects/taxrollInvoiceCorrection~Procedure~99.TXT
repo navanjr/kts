@@ -4,6 +4,7 @@ as begin
     @newInvoiceId int
 
   begin transaction
+-- create a brand new invoice
    exec dbo.taxCorrectionReferenceCRUD @taxrollId, @newInvoiceId = @newInvoiceId output
 
    exec dbo.taxrollInvoiceCRUD @taxrollId, 1, '', @invoiceId=@newInvoiceId, @priorPayments=@payments, @correctionInvoice = 'TRUE'
@@ -11,11 +12,19 @@ as begin
   
   select @slink = slink from dbo.taxrollCheck(@taxrollId,'',@newInvoiceId)
 
+-- relocate any receipts to the newly created invoice
   if exists(select * from receiptlink where invoiceId in (select id from invoices where taxrollId=@taxrollId))
   begin
    update receiptlink set invoiceId=@newInvoiceId where invoiceId in (select id from invoices where taxrollId=@taxrollId)
   end
 
+-- relocate any journals to the newly created invoice
+  if exists(select * from journallink where invoiceId in (select id from invoices where taxrollId=@taxrollId))
+  begin
+   update journallink set invoiceId=@newInvoiceId where invoiceId in (select id from invoices where taxrollId=@taxrollId)
+  end
+
+-- now lets check to see if we are all good
   if dbo.glPostCheck(@slink) = 0
    begin
     commit transaction

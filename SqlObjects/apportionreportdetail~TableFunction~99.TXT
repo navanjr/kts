@@ -20,13 +20,16 @@ declare @det table(
 	[sourceSECA] [varchar](50) NULL,
 	[journalDesc] [varchar](50) NULL,
         monthEndCategory varchar(50),
-        apportiondate varchar(50)
+        apportiondate varchar(50),
+        apportionContraCode varchar(50)
 )
 
 insert @det
 select * from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned) 
- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
---  and journalDesc like '%ADVALOREM%'
+ where accountcode<>apportionContraCode
+
+update d set journalDesc = a.accountDesc from @det d, glaccounts a where d.apportionContraCode=a.accountcode and isnull(d.apportionContraCode,'')>' 0'
+
   
 update d set comment2=left(comment2,len(b.heading)) from @det d, (select * from dbo.apportionHeadings()) b
    where b.heading=left(d.comment2, len(b.heading))

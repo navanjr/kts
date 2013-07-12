@@ -1,3 +1,9 @@
+\t103;\w10465;\z10437;\p1047c0ch,1;
+@acc104=sums=;
+@afterloadwindow=
+ prop(104,'7C02H',63),
+ prop(104,'7C03H',54);
+
 @dk1;
 @format=55R(2)~Statement Date~@d2@#5#|M150L(2)~Account~#2#|M70R(2)~Beginning Balance~@n-14.2@#32#|M70R(2)~Ending Balance~@n-14.2@#33#|M50R(2)~Bank Variance~@n-12.2@#22#|M;
 @key2=999999-obj:a1&obj:key1;
@@ -29,8 +35,8 @@
 \t003Description;  \d004; \d002obj:a4+0>0;
 
 \t007Statement Date;  \w00850;  \t008@d2; @acc008=lcD=8,dateCheck=,refreshBRW=; \d008obj:a4+0>0;
-\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=;
-\t011Stated Ending Balance; @acc012=sums=; \w011100; \w01255; \x01280; \p0127c0ch,1; \t012@n-14.2;
+\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=; \y007010-13;r
+\t011Statement Balance; @acc012=sums=; \w011100; \w01260; \x01280; \d012; \p0127cfah,13499135; \p0127c13h,700; \p0127c0ch,1; \t012@n-14.2; \x011012+122;r \x011+15;
 \t013Count; \h013014;r
 \t015Clearing &Date; \t016@d1; \x015200; \x016250; \y01527; \y01615;
  \p0167c11h,24; \z01622; \w01690; \p0167cfah,13499135; \p0167c13h,700; \p0167c06h,1; \p0167c12h,16711935;
@@ -51,7 +57,7 @@
 \x045050-45;r
 \t045Begin Balance; \w04660;
 \t047Ending Balance; \w04860;
-\t049Variance; \w05060; @calculate:050=obj:a3-obj:b1;
+\t049Variance; \w05060; @calculate:050=obj:a3-obj:b1; \y049050+13;r
  \p0460507cfah,13499135;r2 \p0460507c13h,700;r2 \d046050;r2 \p0460507c0ch,1;r2 \t046050@n-14.2;r2
 
 \t075OrderClearedFlag; \h075076;r
@@ -67,7 +73,9 @@
 
 \t087Collateral; \w08860; \t088@n-23.2;
 \t089FDIC; \w09060; \t090@n-23.2;
+
 @loadwindow=
+ tabord(104),
  set(016,today()),
  fontSizeCheck=,
  lcXCord=choose(lcLargeFontSize='FALSE',500,725),
@@ -87,7 +95,6 @@
 
 @fontSizeCheck=
  lcLargeFontSize=kp('select dbo.settingsf(''site.largeFontOnBrw'',''FALSE'')');
- 
 
 \w03350;
 \w03550;
@@ -150,7 +157,7 @@
  gcbegindate=obj7:key1,
  gcenddate=obj7:key2,
  if(gcenddate>obj:a2,gcenddate=obj:a2),
- d1select('update gldetail set bsId='&obj:id&' where accountcode='''&obj:key1&''' and isnull(bsId,0)=0 and date >='&gcbegindate&' and date <='&gcenddate&' 
+ d1select('update gldetail set bsId='&obj:id&',dateCleared='&gcenddate&' where accountcode='''&obj:key1&''' and isnull(bsId,0)=0 and date >='&gcbegindate&' and date <='&gcenddate&' 
  and slink in (select ''o''+cast(id as varchar(15)) from object '&gcClearWhere&')')
 ;
 
@@ -163,6 +170,8 @@
 @gfwindow=refreshBRW=;
 
 @sums=
+ lcSEB=kp('select dbo.sumTextArea('''&clip(obj:e2)&''')'),
+ set(012,lcSEB),
  lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
  set(014,readstring(lcBlob,'@tally=')),
  set(046,readstring(lcBlob,'@bBalance=')),

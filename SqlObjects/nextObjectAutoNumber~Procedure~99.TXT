@@ -6,7 +6,8 @@ create procedure dbo.nextObjectAutoNumber(
  @clobber varchar(50) = null,
  @debugMode varchar(5) = 'FALSE',
  @verbose varchar(5) = 'FALSE',
- @newNumber nvarchar(max) = null output 
+ @newNumber nvarchar(max) = null output,
+ @objectId int = null 
 ) as
 -- this function looks for \0002 in the template code to know what format to return the next number as
 --  also, looks for @seriesField= to know what object column to find the series data
@@ -39,7 +40,8 @@ begin
 
   select @sql = 
   N' select @returnThis =  cast(cast(max(case when isnumeric(key1) = 1 then cast(key1 as int) else 0 end) as int) + 1 as varchar) ' + 
-  N' from object where ' + case when @ignoreDeleted = 'TRUE' then 'typ' else 'abs(typ)' end + ' = ' + cast(@typ as varchar) 
+  N' from object where ' + case when @ignoreDeleted = 'TRUE' then 'typ' else 'abs(typ)' end + ' = ' + cast(@typ as varchar) + 
+   case when isnull(@objectId,0)<1 then '' else ' and id <> '+cast(@objectId as varchar(30)) end 
 
   if isNull(@seriesString,'') > '  0'
    select @sql = @sql + N'  and ''' + @seriesString + ''' = dbo.nextObjectAutoNumberControl(' + cast(@typ as varchar) + ',' + @seriesField + ')'

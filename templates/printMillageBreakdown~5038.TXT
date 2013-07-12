@@ -41,6 +41,10 @@ printFourMill= ;
   prn(gcapYear&' - '&gcapDistrict&' - '&gcapRate,t2),
   prn(,lcx), 
   if(curpag=1),
+  lcTotAmount=0,
+  if(curpag=1),
+  lcTotMillRate=0,
+  if(curpag=1),
   bnd('H9','Account',1000,'Millage',2000,'Mill Amount',-700,'Ratio',-800,'Amount',-700),
    nl, 
    det(lcsql5038),
@@ -52,6 +56,49 @@ printFourMill= ;
      bnd('HO','',1000,'Report Total:',2700,format(lcTotMillRate,@n-19.2),800R,format(lcTotAmount,@n-19.2),700R),
  );
 
+@printReceiptBreakdown=
+ do(452,getSiteInfo=),
+ lcgrpToken='',
+ lcsql5038='select a.accountId, a.accountCode, a.accountDesc, a.accountType, a.monthEndColumn, ap.ord,left(ap.stepDesc,40),ap.amount, ap.sourceCode, a.apdistrict, a.aprate, a.apyear, ap.tableamount, ap.tableratio, s.accountdesc as sourcedesc from glaccounts a,
+(select * from dbo.apportionCollectionsWT( '&gcAccountId+0&', '&gcApportionToDate&', '''&gcApportionCode&''', null, '&gcAmount+0&') ) ap, glaccounts s
+  where a.accountCode = ap.creditCode
+   and s.accountcode = ap.sourcecode
+   and a.accountType in (select accountType from dbo.glBankFundTypes(''FUND''))
+  order by a.accountType desc,a.accountCode,a.monthEndColumn, ap.ord, ap.stepDesc',
+ lcDetFont='Arial',
+ lcFont='Arial',
+ lcFontSize=11,
+ d1select('select key3 from object where id='&gcAccountId),
+ gcReceiptType=obj7:d1,
+ d1select('select key1 from object where id='&gcAccountId),
+ gcReceiptNumber=obj7:d1,
+ lcTotAmount=0,
+ lcBoxColor=14539482,
+ tr(
+  lcx=600,
+  lcTm=400,
+  box(lcx-250,lcTm,lcx+2000,lcTm+550,0,lcBoxColor),
+  prn(printed),
+  prn(page),
+  lcy=lcTm+100,
+  prn(gcCounty&' COUNTY TREASURER',lcx+700,lcy,lcHeaderFontSize-2,,lcFont),
+  lcy=lcy+200,
+  prn(gcOfficial,lcx+700,lcy),
+  prn(gcReceiptType&' RECEIPT - '&gcReceiptNumber,t1),
+  prn('BREAK DOWN',t2),
+  prn(,lcx), 
+  if(curpag=1),
+  lcTotAmount=0,
+  if(curpag=1),
+  bnd('H9','Fund',2000,'Source',2000,'Comment',1500,'Amount',-1000),
+   nl, 
+   det(lcsql5038),
+   bnd('H9',obj5:a3,2000,obj5:a15,2000,obj5:a7,1500,format(obj5:a8,@n-19.2),-1000),
+   lcTotAmount=lcTotAmount+obj5:a8,
+  edt,
+  nl,
+     bnd('HO','',2000,'Report Total:',3500,format(lcTotAmount,@n-19.2),1000R),
+ );
   
 @printFourMill=
   do(452,getSiteInfo=),

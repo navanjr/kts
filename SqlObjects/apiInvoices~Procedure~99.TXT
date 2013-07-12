@@ -112,6 +112,62 @@ begin
  if @method = 'POST'
  begin
 
+-- deleted invoices
+  declare
+   @deletedBatchSize int = 20,
+   @deletedInvoiceStringBlob stringBlob
+
+  if @batchsize < @deletedBatchSize
+   set @deletedBatchSize = @batchSize
+
+  insert @deletedInvoiceStringBlob
+  select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(invoice_link as varchar) from dbo.apiInvoiceIds() where typ = 'deletedInvoice'
+  if exists(select * from @deletedInvoiceStringBlob)
+  begin
+   declare 
+    @apiDeletedFields blobFields,
+    @payload varchar(max),
+    @deletedTally int
+
+-- reset the batch size for use in the final comparison
+   select @deletedBatchSize = count(*) from @deletedInvoiceStringBlob
+
+   insert @apiDeletedFields select 'invoice_link','int',0
+   exec dbo.pipedStringToJson @deletedInvoiceStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
+
+   exec spOverwriteTextFile @postFileFull, @payload
+   exec dbo.logit @@procid, '@deletedBatchSize', @deletedBatchSize
+   exec dbo.api
+    @method = 'DELETE',
+    @resource = @apiResource,
+    @postFile = @postFile,
+    @debugMode = @debugMode,
+    @scratchfile = @scratchFile,
+    @cmdOutput = @tokenId output,
+    @dump = @dump output
+
+   select @deletedTally = dbo.apiResultDecoder('deleted', @dump) 
+   if isnull(@deletedTally,0) = @deletedBatchSize
+   begin
+    set @theDate = getDate()
+    update apiDeleted set apiUpdated = @theDate where apiResource = 'invoices' and slink in (select 'i' + dbo.splitF(blob,'|',1) from @deletedInvoiceStringBlob)
+    exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
+   end
+   else
+   begin
+    exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+   end
+
+  end
+  else
+  begin
+   exec dbo.logit @@procid, 'all deleted invoice records updated... nothing to do. :)', @override = 'TRUE'
+  end
+
+-- invoices
+  declare @ids ids
+  insert @ids select dbo.slinkId(slink) from dbo.apiInvoiceIds() where typ = 'invoice'
+
 -- create the post data file then call the API
   insert @wt select top (@batchSize)
    id, 
@@ -126,8 +182,8 @@ begin
    typ, 
    dbo.stripChars(name,@goofyChars), 
    dbo.stripChars(parcel,@goofyChars)
-  from invoices where taxyear in (select year from @taxyears)
-   and isnull(apiUpdated,0) < modified
+  from invoices 
+  where id in (select id from @ids)
   order by id  
 
 -- bail if your done or update batchSize from tally, maybe... 

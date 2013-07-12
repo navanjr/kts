@@ -26,6 +26,12 @@ begin
  exec dbo.glGetPostDate @id, @styp, @postDate OUTPUT
  select @fpid = dbo.glGetFiscalPeriodId(@postDate)
 
+ if isnull(@fpid,0)<1 and @postDate >= dbo.clariondate(getdate())
+ begin
+  exec dbo.createFiscalPeriod @postDate
+  select @fpid = dbo.glGetFiscalPeriodId(@postDate)
+ end
+
  -- we dont post if there are already records with this sourceId
  if exists(select * from glDetail where slink = @slink)
  begin

@@ -150,13 +150,25 @@ class ktsMenu():
                 function[0](function[1])
 
     def diagnostic_auto(self):
+        settings = self.command_testConnection(False)
+        requiredSettings = [
+            'conversion.mikepath',
+            'conversion.mikepathtax',
+            'conversion.officialbankcode',
+	    'conversion.initials',
+        ]
+        for x in requiredSettings:
+            if x not in settings['dict']:
+                print x, 'setting was not found'
+                return
+
         conversionProcs = [
             'mikeGLedgerBanks',
             'mikeGLedgerFunds',
             'mikeSource',
             'mikeClerksFundList',
-            # mikeFund
-            # mikeOfficers
+            'mikeFund',
+            'mikeOfficers',
             # mikeTaxRates
             # mikeTaxroll
             # mikeVouchersOutstanding
@@ -336,7 +348,9 @@ class ktsMenu():
             print 'journalTypes...', self.sqlAlterProc('journalTypes','TableFunction','99')
             print 'glCreateTables...', self.sqlAlterProc('glCreateTables')
             print 'Run glCreateTables...', self.sqlQuery('exec dbo.glCreateTables',True)['code']
-            print 'createPayCodes...', self.sqlAlterProc('createPayCodes','Procedure','99')
+            print 'glAccounts...', self.sqlAlterProc('glAccounts','View','99')
+            print 'glAccountVerification...', self.sqlAlterProc('glAccountVerification','Procedure','99')
+            print 'creates...', self.sqlAlterProc('createPayCodes','Procedure','99')
             print 'Run createPayCodes...', self.sqlQuery('exec dbo.createPayCodes',True)['code']
             print 'diagnostics...', self.sqlAlterProc('diagnostics','Procedure','99')
             print 'dir...', self.sqlAlterProc('dir','TableFunction')
@@ -531,7 +545,7 @@ class ktsMenu():
             self.command_setSetting('git')
         elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd == 'taxyear':
+        elif cmd in ('taxyear','officialbankcode','initials'):
             self.command_setSetting('conversion')
         elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
             if cmd == 'ftppath':

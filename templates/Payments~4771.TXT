@@ -1,7 +1,7 @@
 @noins;
 @gfbnr=1;
 @dk1;
-@format=60L(2)~Payment Type~#30#|M50L(2)~Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
+@format=60L(2)~Payment Type~#30#|M50L(2)~Reg Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 \00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -151,16 +151,16 @@ bbproc4=
 
 @seriesField=a18;
 
-\t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002readstring(gcSiteBlob,'@unlockReceipt=')=0; obj:a18<>'Miscellaneous'; 
+\t001Treasurer Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002readstring(gcSiteBlob,'@unlockReceipt=')=0; 
 \t003Date Registered; \t004@d2; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a15+0=1 and cur:securitylevel<81;
-\t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; \h005008obj:a18='Miscellaneous';r \00060600;
+\t005Clerk Number; \p0067cfah,13499135; \p0067c13h,700; \p0067c0ch,1; \d006; \h005008obj:a18='Miscellaneous' or obj:a18='Transfer';r \00060600;
 \t007Clerk Date; \t008@d2; \p0087cfah,13499135; \p0087c13h,700; \p0087c0ch,1; 
  \w00200855;r2 \d006008obj:a1+0=1;r2
 
 \t009Payee; \w010+80;
 \t085Warrant Payee; \h085; \h086obj:a18<>'Treasurers Check'; \x086184; \w086117; \d086;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
-\t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'',''SCHOOL'',''CITY'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
+\t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'',''SCHOOL'',''CITY'',''BANK'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
   \h013014obj:a18='Protest Voucher';r
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE'' and b3!=1',2;
@@ -182,7 +182,7 @@ bbproc4=
 \t053CreditAccountDesc; \h053;
 \t055PurposeAccountDesc; \h055;  \h056obj:a18<>'Trust Voucher';
  \x052056136;r2 \w052056150;r2 \d052056;r2 \p0520567cfah,13499135;r2
-\t093Amount; \t094@n-19.2; \y0930943;r \x093320; \w09350; \x094370; \d094; \s094+'select sum(cast(key3 as money)) from object where typ=4775 and link1='&obj:id&' and key2='''&obj:a6&''''; \h093096obj:a18='Miscellaneous';r
+\t093Amount; \t094@n-19.2; \y0930943;r \x093320; \w09350; \x094370; \d094; \s094+'select sum(cast(key3 as money)) from object where typ=4775 and link1='&obj:id&' and key2='''&obj:a6&''''; \h093096obj:a18='Miscellaneous' or obj:a18='Transfer';r
 \t095Fiscal Year; \y09509616;r \x095320; \w09550; \x096370;
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
@@ -199,7 +199,7 @@ bbproc4=
  update,
  postGL=,
  break(lcContinue<>'TRUE'),
- if(obj:a18<>'Miscellaneous',closeIt=,miscCloseStuff=);
+ if(obj:a18<>'Miscellaneous' and obj:a18<>'Transfer',closeIt=,miscCloseStuff=);
 
 @closeIt=
  amounta3Check=,

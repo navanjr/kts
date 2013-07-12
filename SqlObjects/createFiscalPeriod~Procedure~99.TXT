@@ -1,0 +1,36 @@
+create procedure dbo.createFiscalPeriod(@postDate int) as
+begin
+ declare @workDate datetime,
+         @fpCode varchar(10),
+         @fpDesc varchar(50),
+         @fiscalYear varchar(10),
+         @year int,
+         @yearModifier int,
+         @month int,
+         @monthModifier int,
+         @monthName varchar(50),
+         @beginDate varchar(10),
+         @endDate varchar(10)
+        
+        
+
+ select @workDate = dbo.date1(@postDate)
+ select @year = year(@workDate), 
+        @month = month(@workDate), 
+        @yearModifier = case when month(@workDate)>6 then 1 else 0 end, 
+        @monthModifier = case when month(@workDate)>6 then -6 else 6 end,
+        @monthName = datename(month,@workDate)
+       
+ select @fiscalYear = dbo.validateFiscalYear(@year+@yearModifier)
+ select @fpCode = right(@fiscalYear,4)+right('00'+cast(@month+@monthModifier as varchar),2),
+       @fpDesc = @monthName+' '+cast(@year as varchar(4))
+
+ select @beginDate=dbo.clariondate(dateadd(month, datediff(month, 0, @workDate), 0))
+ select @endDate=dbo.clariondate(dateadd(month, datediff(month, 0, @workDate) + 1, -1))
+
+ if not exists(select * from object where typ=4700 and key1=@fpCode)
+ begin
+ insert object (typ,key1,key2,key3,a1,a18)
+  select 4700,@fpCode,@fpDesc,@beginDate,@endDate,@fiscalYear
+ end
+end

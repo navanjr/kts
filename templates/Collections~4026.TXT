@@ -35,7 +35,7 @@
  gcbrwsql4026Report='select id*-1,display, keyCode, totalDue, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&',0) where rowType = 0 order by '&choose(gcColOrder='PARCEL','ordB','ord'),
  gcbrwsql4026='select id*-1,display, keyCode, totalDue, documentStatus, invoiceBlob, rowType from dbo.collectionsBRW('''&gcDType&''','&lcDocumentId&','&lcStartDate&','&lcDays&',0) order by '&choose(gcColOrder='PARCEL','ordB','ord'),
  gcbrwFormat4026='150L(5)~Name~#2#M'&lcKeyWidth&'L(2)~'&lcKeyName&'~#3#M80R(2)~Due~@n14.2b@#4#M200L(2)~Doc Status~#5#M200L(5)~~#6#M',
- gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW(0) order by ord',
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW(0,'&lcStartDate&','&lcDays&') order by ord',
  gcbrw2Format4026='200L(5)~~#2#M';
 
 @brwstuff=
@@ -64,7 +64,7 @@
  refreshbrw2=;
 
 @refreshbrw2=
- gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&') order by ord',
+ gcbrw2sql4026='select id*-1,display, date,color from dbo.collectionsDetailBRW('&kpbrwid(1)*-1&','&lcStartDate&','&lcDays&') order by ord',
  gcbrw2Format4026='200L(5)~~#2#M',
  brwreload(2,gcbrw2sql4026,gcbrw2Format4026);
 
@@ -299,7 +299,7 @@
 
 \t116Process Fees;
 @acc116=
- d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1+0&',@dType='''&gcDType&''',@status=''StageAll'''),
+ d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1+0&',@dType='''&gcDType&''',@status=''StageAll'',@date='&obj:key1&',@days='&obj:a17),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
  lcMessage=readstring(obj7:d1,'@message='),
  lcTally=readstring(obj7:d1,'@tally='),
@@ -313,7 +313,7 @@
 
 @processFeesYes=
  kpmo('Creating Fee Invoices...','Please Wait...'),
- d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'''),
+ d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'',@date='&obj:key1&',@days='&obj:a17),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
  kpmc(),
  refreshbrw=;

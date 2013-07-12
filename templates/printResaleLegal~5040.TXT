@@ -215,13 +215,16 @@ tr(
  nl,
  txt(lcLegal,,,6600,100,1));
 
+
 @printTaxLienDocket=
- iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
+ iw('\t001Interest To; \t002@d2; \w00250; \f002=c; \t003Year From; \t004@n4b; \t005Year To; \t006@n4b; \w00400620;r2'),
  break(gcretval='esc'),
  do(452,getSiteInfo=),
  lcInterestTo=format(obj7:key1,@d2),
+ lcYearFrom=obj7:key2,
+ lcYearTo=obj7:key3,
  lcOrder=gcColOrder,
- lc5040sql='select invoiceId from dbo.docTaxLienDocketTF() order by Name,taxYear',
+ lc5040sql='select invoiceId from dbo.docTaxLienDocketTF('&lcYearFrom+0&','&lcYearTo+0&') order by Name,taxYear',
  lcTm=300,
  lcLm=500,
  lcFont='',
@@ -239,6 +242,7 @@ tr(
   prn(,lcLm,,lcHeaderFontSize-2,bold,lcFont),
   prn(,,,10),
   bnd(,'Interest To: '&lcInterestTo,7500C),
+  bnd(,'Tax Years: '&lcYearFrom&' - '&lcYearTo,7500C),
   bnd(,'Ordered by: '&lcOrder,7500C),
  nl,
  box(lcLm-50,pagey-25,lcLM+7500,pagey+150,,lcBoxColor),
@@ -253,7 +257,7 @@ tr(
  bnd('H','Name',2050,'Address',2275,'Filed',700,'Tax Year',500,'Tax',-700,'Total',-700),
  prn(,lcLm,pagey+50,8,regular,'courier new'),
  det(lc5040sql,,,,10700),
- lcData=kp('select dbo.docTaxLienDocket('&obj5:a1&','''&lcInterestTo&''')'),
+ lcData=kp('select dbo.docTaxLienDocket('&obj5:a1&','''&lcInterestTo&''','&lcYearFrom+0&','&lcYearTo+0&')'),
  txt(lcData,,,6600,,1),
  nl,
  edt);

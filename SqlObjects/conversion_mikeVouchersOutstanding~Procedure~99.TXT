@@ -31,7 +31,9 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   vchamt money,
   comment varchar(1000),
   ktsPaymentId int,
-  ktsAmount money
+  ktsAmount money,
+  csv varchar(max),
+  ord varchar(50)
  )
 
  declare
@@ -41,7 +43,7 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
 
  select
   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where pcdate = " " and vchamt != 0.00 and !deleted()'') order by dptno, vchno'
+  @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where pcdate = " " and vchamt != 0.00 and !deleted()'') order by dptno, vchno'
 
  insert @st exec(@sql)
 
@@ -53,6 +55,12 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
  from @st a, dbo.payments b
  where a.officialAccountCode = b.debitAccountCode 
   and cast(a.vchno as int) = cast(b.clerksNumber as int)
+
+ update @st set
+  ord = officialAccountCode + 'b',
+  csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
+ insert @st (ord,csv) select officialAccountCode + 'a','officialAccountCode: '+officialAccountCode from @st group by officialAccountCode
+ insert @st (ord,csv) select officialAccountCode,'' from @st where officialAccountCode is not null group by officialAccountCode
 
  if @method = 'GET'
  begin  
@@ -72,12 +80,19 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   select * 
   from @st
 --  where kpofund not in (select clerksFundCode from dbo.clerksFundList)
+  order by ord
 
  end
 
  if @method = 'FIX'
  begin
+-- let's paste the csv in the importer for them...
+  declare @objId int
+  select top 1 @objId = id from object where typ=4770 and lasteditini = dbo.settingsF('conversion.initials','')
 
+  if @objId is null
+   exec dbo.logit @@procid, 'No Importer record exists for initials:'
+--  select vchno, vchdate, paywhom, vchamt, comment
 --  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
   
   return

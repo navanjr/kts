@@ -18,6 +18,7 @@
  \h026038obj:b15<>1;r2
 
 @dk1;
+@dup;
 
 @fireNewWarrant=
  if(obj:a10>'  0' and obj:a11>'  0' and obj:a12>'  0' and obj:a13+0>0 and obj:a15+0<>0 and obj:a16>'  0',addNewWarrant=),
@@ -169,7 +170,9 @@
 
 @openClerksFund=
  fundCheck=,
- if(lcFundId+0>0,change(lcFundId),clerksFundMissing=);
+ if(lcFundId+0>0,change(lcFundId,,1),clerksFundMissing=),
+ break(lcFundId+0=0),
+ refreshBRW=;
 
 @fundCheck=
  lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&') where id = '&lcid),
@@ -226,6 +229,12 @@
  \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
  \x1023; \y102215; \w102480; \z102100; \d102obj:c4=0;
 
+\t103Raw Import Data2; \h103; \h104len(clip(obj:e2))=0;
+ @acc104=acc102=;
+ \p1047cfah,13499135; \p1047c10h,courier new; \p1047c11h,8;
+ \x1043; \y104315; \w104480; \z104100; \d104obj:c4=0;
+
+
 \t108Payments(F7);
 @acc108=
  lcPaymentFilter=choose(obj:c1+0=1,2,4),
@@ -239,13 +248,15 @@
  break(gcretval<>2 and gcretval<>''),
  filedialog('Locate file...',),
  readdos(gcretval),
- if(workmemo>'  0',set(102,workmemo)),
+ if(workmemo>'  0' ,set(102,left(workmemo,34000))),
+ if(workmemo>'  0' and len(workmemo)>3400,set(104,sub(workmemo,34001,34000))),
  acc102=;
 
 @overwritememo=
  m('The workfield will be overwritten...||Do you want to proceed?','Warning',,6),
  break(gcretval<>2),
  set(102,''),
+ set(104,''),
  acc102=;
 
 
@@ -253,11 +264,11 @@
  @acc113=gcimportId=obj:id,
  trreport('Import Warrants Report=',5037,'printImportWarrants='),
  gcimportId=0;
-
+'&choose(obj:c1+0=1,'',' and CAST(amount as money)<>0')&'
 \t114&Import;
 @acc114=
  update,
- lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 and CAST(amount as money)<>0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 and CAST(amount as money)<>0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&')'),
+ lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&')'),
  lcCount=readstring(lcMsgBlob,'@count='),
  lcAmount=readstring(lcMsgBlob,'@amount='),
  lcRed=readstring(lcMsgBlob,'@red='),
@@ -274,4 +285,5 @@
  messagemdi('Would you like for me to clear the workfield for you?','Clear Field','question.ico',6),
  break(gcretval<>2),
  set(102,''),
+ set(104,''),
  acc102=;

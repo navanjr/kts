@@ -16,7 +16,8 @@ create function dbo.rpMonthEndDetail(
  sourceSECA varchar(50),
  journalDesc varchar(50),
  monthEndCategory varchar(50),
- apportiondate varchar(50)
+ apportiondate varchar(50),
+ apportionContraCode varchar(50)
 ) as
 begin
 
@@ -46,11 +47,12 @@ begin
     '' as  sourceSECA,
     left(a.contraAccountDesc,4)+' ADVALOREM' as journalDesc,
     '' as monthEndCategory,
-    @enddate as apportiondate
+    @enddate as apportiondate,
+    a.contraAccountCode
    from (select * from apportioncollectionsWT(@protestAccountId,@endDate,'', null, null)) a, glAccounts b
    where a.creditCode=b.accountCode
     and b.accountType not in ('EXPENSE')
-   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc, a.contraAccountCode
    having sum(amount)<>0.00
  
    insert @rt 
@@ -68,11 +70,12 @@ begin
     '' as  sourceSECA,
     left(a.contraAccountDesc,4)+' ADVALOREM' as journalDesc,
     '' as monthEndCategory,
-    @enddate as apportiondate
+    @enddate as apportiondate,
+    a.contraAccountCode
    from (select * from apportioncollectionsWT(@protestAccountId,@endDate,'', null, null)) a, glAccounts b
    where a.debitCode=b.accountCode
     and b.accountType not in ('EXPENSE')
-   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc, a.contraAccountCode
    having sum(amount)<>0.00 
 
   end
@@ -93,14 +96,15 @@ begin
    '' as  sourceSECA,
    o.key3 as journalDesc,
    '' as monthEndCategory,
-   o.key2 as apportiondate
+   o.key2 as apportiondate,
+   a.apportionContraCode
   from gldetail a, glAccounts b, (select * from dbo.rpMonthEndSLinks(@beginDate,@endDate)) c, object o  
   where o.typ=4512
    and left(slink,1)='o' and dbo.slinkId(slink)=o.id
    and a.accountCode=b.accountCode 
    and slink = c.journalSlink
    and accountType not in ('EXPENSE')
-  group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3, o.key2
+  group by b.accountType, a.accountId, a.accountCode, a.accountDesc, a.comment, a.comment2, a.sourceCode, c.journalType, o.key3, o.key2, a.apportionContraCode
   having sum(amount)<>0.00  
 
   if @includeUnapportioned = 'TRUE'
@@ -121,11 +125,12 @@ begin
     '' as  sourceSECA,
     a.contraAccountDesc as journalDesc,
     '' as monthEndCategory,
-    @enddate as apportiondate
+    @enddate as apportiondate,
+    a.contraAccountCode
    from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
    where a.creditCode=b.accountCode
     and b.accountType not in ('EXPENSE')
-   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   group by b.accountType, a.accountId, a.creditCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc, a.contraAccountCode
    having sum(amount)<>0.00
  
    insert @rt 
@@ -143,11 +148,12 @@ begin
     '' as  sourceSECA,
     a.contraAccountDesc as journalDesc,
     '' as monthEndCategory,
-    @enddate as apportiondate
+    @enddate as apportiondate,
+    a.contraAccountCode
    from (select * from apportioncollectionsWT(0,@endDate,'', null, null)) a, glAccounts b
    where a.debitCode=b.accountCode
     and b.accountType not in ('EXPENSE')
-   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc
+   group by b.accountType, a.accountId, a.debitCode, b.accountDesc, a.comment, a.stepDesc, a.sourceCode, a.contraAccountDesc, a.contraAccountCode
    having sum(amount)<>0.00 
   end
  end

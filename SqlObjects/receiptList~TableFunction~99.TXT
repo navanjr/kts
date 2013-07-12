@@ -38,8 +38,8 @@ as
 begin                  
 
 -- here we get all rows from object where typ = 4502 and the receiptType is NOT Tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station,recStatus)
- select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station, recStatus
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station,recStatus,recId)
+ select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station, recStatus, recId
  from receipt 
  where 
   postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
@@ -208,9 +208,10 @@ update w set
    and isnull(d.taxYear,'NULL')<>'NULL'
  
 update w set
-  w.fee = isnull(w.paid,0)-isnull((select sum(amount) from gldetail 
+  w.fee = isnull((select sum(amount) from gldetail 
   where slink=w.slink 
-   and accountcode = (select key3 from object where typ=4504 and a1='MTG' and key1 not like '%Fee%')),0)
+   and accountcode in (select a.accountCode from object o,glaccounts a 
+   where o.typ=4504 and o.key3=a.targetAccountCode and o.a1='MTG' and o.key1 like '%Fee%')),0)
   from @wt w where w.recType='MTG'
 
 delete from @wt where parentInvoiceId>0

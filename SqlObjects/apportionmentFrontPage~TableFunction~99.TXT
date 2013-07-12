@@ -46,7 +46,8 @@ declare @det table(
  [journalDesc] [varchar](50) NOT NULL default '',
  [year] varchar(10),
  [column] varchar(50),
- [reportOrder] varchar(50)
+ [reportOrder] varchar(50),
+ [apportionContraCode] [varchar](50)
 )
 
 insert @det
@@ -64,12 +65,17 @@ select isnull(accountType,''),
  isnull(journalDesc,''),
  right(isnull(sourceCode,''),4),
  '',
- ''
+ '',
+ apportionContraCode
  from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned)
 -- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts) and 
- where left(accountdesc,len(journaldesc))<>journaldesc
+ where accountcode<>apportionContraCode
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,5) = 'APPOR'
+
+delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
+
+update d set journalDesc = a.accountDesc from @det d, glaccounts a where d.apportionContraCode=a.accountcode and isnull(d.apportionContraCode,'')>' 0'
 
 update @det set [year]='' where sourceCode not in (select accountCode from glaccounts where accountType='SOURCE' and apTableType='M')
 
@@ -81,12 +87,9 @@ update d set [column] = a.monthEndColumn, reportOrder=a.reportOrder from @det d,
 
 declare @years table(id int identity(1,1),yearCode varchar(50),[year] varchar(50))
 
-insert @years
-select top 1 'Current',[year] from @det where [year]>' 0' order by [year] desc
-insert @years
-select top 1 'Prior',[year] from @det where [year]>' 0' and [year] not in (select [year] from @years) order by [year] desc
-insert @years
-select distinct 'Back',[year] from @det where [year]>' 0' and [year] not in (select [year] from @years) order by [year] desc
+insert @years (yearcode,[year])
+ select yearcode,[year] from dbo.taxyears(@endDate) order by [year] desc
+
 
 update @det set sourceSECA='9001A', SourceDesc='CUR TAX' where [year] in (select [year] from @years where yearCode='Current')
 update @det set sourceSECA='9003A', SourceDesc='PRIOR TAX' where [year] in (select [year] from @years where yearCode='Prior')

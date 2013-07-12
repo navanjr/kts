@@ -16,7 +16,7 @@ create function dbo.warrantImportBRW( @id int ) returns @rt table(
  fundCode varchar(60),
  fundDesc varchar(50),
  rowType int,
- ord varchar(50),
+ ord varchar(100),
  accountNumberBLOB varchar(max)
 )
 begin
@@ -52,7 +52,7 @@ begin
  select
   @officalLink = link2,
   @debitAcct = key2,
-  @csv = e1
+  @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
  from object where typ = 4770 and id = @id
 
 -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
@@ -150,7 +150,7 @@ begin
  select top 1 @lastNumber = cast(key1 as int) from object where typ = 4771 and a18 = 'Warrant' order by key2 desc, key1 desc
  declare @reg table(regSeed int identity(1,1), id int)
  insert @reg select id from @rt where postCheck = 0 order by clerksFund,warrantNumber
- update a set registerNumber = @lastNumber + b.regSeed from @rt a, @reg b where a.id = b.id
+ update a set registerNumber = dbo.padLeft(@lastNumber + b.regSeed,'0',5) from @rt a, @reg b where a.id = b.id
 
 -- lets add a total of amount to the top of the BRW
  insert @rt (rowType, amount, vendorCode, ord)

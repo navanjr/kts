@@ -67,6 +67,7 @@ select
 	and g.accountType = 'Accrued Receivable'
 	and g.sourcea18 = 'APPORTIONMENT SPECIAL'
 
+/*
 insert @wtdetail
 select 
 	'PROTEST RELEASE' as auditorReportGroup,
@@ -77,6 +78,18 @@ select
   where g.sourceDate between @begindate and @enddate
 	and g.accountType = 'Accrued Receivable'
 	and g.sourcea18 = 'Apportion Protest'
+	and g.contraId = a.accountId
+*/
+insert @wtdetail
+select 
+	'PROTEST RELEASE' as auditorReportGroup,
+	'PLUS PROTEST RELEASED',
+	sum(amount),
+	'CCCC'
+	from gldetailreports g, glaccounts a
+  where g.sourceDate < @begindate 
+        and g.bsId in (select id from object where typ=4512 and left(upper(a18),5)='APPOR' and key2 between @begindate and @enddate)
+	and g.accountType = 'Accrued Receivable'
 	and g.contraId = a.accountId
 
 

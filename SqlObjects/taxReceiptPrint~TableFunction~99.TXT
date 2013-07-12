@@ -90,12 +90,19 @@ end
                          from Object where ID = @recid
 
         update r set 
-                                receiptNo = a.receiptNumber 
-                         from receiptlink a,@rt r where r.invoiceId = a.invoiceId and r.recId = a.receiptId and r.recId = @recId
+                                receiptNo = a.receiptNumber, 
+                                r.schoolDistrict=g.apdistrict
+                                
+                         from receiptlink a,@rt r,gldetailreports g 
+                          where r.invoiceId = a.invoiceId 
+                           and r.recId = a.receiptId 
+                           and r.recId = @recId 
+                           and g.slink='l'+cast(a.id as varchar)
+                           and g.accounttype='ACCRUED RECEIVABLE'
+
 
 	update r set 
-				r.schoolDistrict = dbo.taxCorrectionsSF(a.SCHOOLDISTRICTMAIN,a.id,'042'),
-				r.legal = cast(dbo.taxCorrectionsSF(a.LEGALDESCRIPTION,a.id,'102') as varchar(max))+CHAR(13)+CHAR(10)+dbo.taxCorrectionsSF(a.SCHOOLDISTRICTMAIN,a.id,'042'),
+				r.legal = cast(dbo.taxCorrectionsSF(a.LEGALDESCRIPTION,a.id,'102') as varchar(max))+CHAR(13)+CHAR(10)+ r.schoolDistrict,
 				r.acres = dbo.taxCorrectionsSF(a.acres,a.id,'036'),			
 				r.blk = a.TOWNSHIPBLOCK,
 				r.sec = a. SECTIONNUMBER,

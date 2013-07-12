@@ -34,7 +34,7 @@ begin
   @fields nvarchar(max) = 'type,dist,name,fcgen,fcbld,fcsink,ada,pop,popalco,popmvt'
 
  select
-  @mikePath = dbo.settingsF('git.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
   @sql = 'select ' + @fields + ' from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
 
  insert @apportionLookup exec(@sql)
@@ -63,6 +63,8 @@ begin
  if @method = 'FIX'
  begin  
 
+  exec dbo.logit @@procid, 'Here'
+
   declare
    @acctTypeId int,
    @acctTypeCode varchar(50),
@@ -89,6 +91,8 @@ begin
    exec dbo.logit @@procid, 'you are missing a taxyear setting... sorry'
    return
   end
+
+  exec dbo.logit @@procid, 'Running Fix... @taxyear', @taxyear, '@acctTypeCode', @acctTypeCode
 
 -- insert city accounts
   insert object (typ,key1,key2,a1,a2,link1,a3)

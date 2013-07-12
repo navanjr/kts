@@ -162,8 +162,9 @@ begin
 
    if @accountType = 4502
     begin
-    -- declare @slink varchar(15) = 'o'+cast(@accountId as varchar(15)) 
-  
+      declare @posted varchar(50)
+      select @posted = a17 from object where id=@accountId
+
     -- Add glDetail when special apportioning a receipt
        insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],[bsId],            [slink2],[comment],[contraId],[comment2],[sourceCode],
       '' as contraAccountCode,
@@ -173,6 +174,19 @@ begin
       '' as acrAccountDesc,
       ''   from gldetail 
        where slink in (select slink from dbo.receiptSLinks(@accountId) union all select 'o'+cast(jeId as varchar) from journallink where receiptId=@accountId) and      contraId > 0 and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+
+      if @posted <> 'Posted'
+      begin
+       insert into @twt select [id],[fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[amount],[creationdate],[creationtime],[date],[slink],0,            [slink2],[comment],[contraId],[comment2],[sourceCode],
+      '' as contraAccountCode,
+      '' as contraAccountDesc,
+      accountId as acrAccountId, 
+      '' as acrAccountCode,
+      '' as acrAccountDesc,
+      ''   from gldetailstage 
+       where slink in (select slink from dbo.receiptSLinks(@accountId) union all select 'o'+cast(jeId as varchar) from journallink where receiptId=@accountId) and      contraId > 0 
+      end
+
    end
   end
  end

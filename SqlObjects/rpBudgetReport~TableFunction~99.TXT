@@ -1,6 +1,7 @@
 create function dbo.rpBudgetReport(@beginDate varchar(20),
         @endDate varchar(20),
-        @fundCode varchar(20))
+        @fundCode varchar(20),
+        @includeSpecialAssessment varchar(5))
 
 returns @rt table(accountCode varchar(60) default '',
                   accountDesc varchar(50) default '',
@@ -42,29 +43,60 @@ declare @det table(apportionmonth int,
                    sourceSECA varchar(50),
                    journalDesc varchar(50),
                    amount money)
+
+declare @exclude varchar(max) = ''
+ select @exclude= @exclude + accountcode from glaccounts where bsSummary like '%Ad Val%'
+
+
+
+
 insert @det
-select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(amount*-1) 
+select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(case when charindex(accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
 from dbo.rpMonthEndDetail(
  @beginDate,
  @endDate,
  'FALSE')
- where left(journalType,13)='APPORTIONMENT'
+ where (journalType='APPORTIONMENT' or (isnull(@includeSpecialAssessment,'')='TRUE' and left(journalType,13)='APPORTIONMENT'))
        and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
        and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
-       and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
+      -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
 group by 
  month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
 
+if isnull(@includeSpecialAssessment,'')='TRUE'
+begin
+ insert @det
+ select month(dbo.date1(apportiondate)) as apportionmonth,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,journalDesc,sum(case when charindex (accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
+ from dbo.rpMonthEndDetail(
+  @beginDate,
+  @endDate,
+  'FALSE')
+  where journalType='APPORTIONMENT'
+        and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
+        and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+       -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
+ group by 
+  month(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,journalDesc
+
+end
+
+delete from @det where amount=0
+
+
 update d set accountdesc = a.accountdesc from @det d, glaccounts a where d.accountcode=a.accountcode
+update d set sourcedesc = a.accountdesc, sourceSECA = SECA from @det d, glaccounts a where d.sourcecode=a.accountcode
  
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50),ord varchar(50))
+insert @years (yearcode,journalDesc)
+ select yearcode,[year]+'_ADVALOREM' from dbo.taxyears(@endDate)
+  union
+ select yearcode,[year]+'_PROTEST' from dbo.taxyears(@endDate)
 
-insert @years
-select top 1 'Current Tax',journalDesc,'0001' from @det where journalDesc like '%ADVALOREM' order by journalDesc desc
-insert @years
-select top 1 'Prior Tax',journalDesc,'0002' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years) order by journalDesc desc
-insert @years
-select distinct 'Back Tax',journalDesc,'0003' from @det where journalDesc like '%ADVALOREM' and journalDesc not in (select journalDesc from @years)
+update @years set ord='0001' where yearcode = 'Current'
+update @years set ord='0002' where yearcode = 'Prior'
+update @years set ord='0003' where yearcode = 'Back'
+update @years set yearcode = yearcode+' Tax'
+
 
 update d set sourceCode = y.yearcode,sourceDesc = y.yearcode, sourceSECA = y.ord from @det d, @years y where d.journalDesc=y.journalDesc
 
@@ -72,106 +104,25 @@ insert @wt (apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
  select apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
   group by apportionmonth,accountCode,accountDesc,sourceDesc,sourceSECA
   
-insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,ord)
-select distinct accountCode,accountDesc,sourceSECA,sourceDesc,accountCode+rtrim(accountDesc)+sourceSECA+'b' from @wt
 
-update r set January=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=1
-
-update r set February=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=2
-
-update r set March=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=3
-
-update r set April=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=4
-
-update r set May=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=5
-
-update r set June=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=6
-
-update r set July=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=7
-
-update r set August=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=8
-
-update r set September=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=9
-
-update r set October=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=10
-
-update r set November=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=11
-
-update r set December=d.amount from @rt r, @det d
- where 
- r.accountCode=d.accountCode
- and r.accountDesc=d.accountDesc
- and r.sourceSECA=d.sourceSECA
- and r.sourceDesc=d.sourceDesc
- and d.apportionmonth=12
-
- update @rt set total = cast(july as money)+cast(august as money)+cast(september as money)+cast(october as money)+cast(november as money)+cast(december as money)+cast(january as money)+cast(february as money)+cast(march as money)+cast(april as money)+cast(may as money)+cast(june as money)
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,July,August,September,October,November,December,January,February,March,April,May,June,Total,ord)
+ select accountCode,accountDesc,sourceSECA,sourceDesc,
+  sum(case when apportionmonth=7 then amount else 0 end),
+  sum(case when apportionmonth=8 then amount else 0 end),
+  sum(case when apportionmonth=9 then amount else 0 end),
+  sum(case when apportionmonth=10 then amount else 0 end),
+  sum(case when apportionmonth=11 then amount else 0 end),
+  sum(case when apportionmonth=12 then amount else 0 end),
+  sum(case when apportionmonth=1 then amount else 0 end),
+  sum(case when apportionmonth=2 then amount else 0 end),
+  sum(case when apportionmonth=3 then amount else 0 end),
+  sum(case when apportionmonth=4 then amount else 0 end),
+  sum(case when apportionmonth=5 then amount else 0 end),
+  sum(case when apportionmonth=6 then amount else 0 end),
+  SUM(amount),
+  accountCode+rtrim(accountDesc)+sourceSECA+'b' 
+  from @wt -- where accountDesc='general' and sourceDesc in ('current tax','prior tax','back tax')
+   group by accountCode,accountDesc,sourceSECA,sourceDesc
 
 insert @rt (accountcode,accountdesc,sourceDesc, ord)
  select accountcode,accountdesc,

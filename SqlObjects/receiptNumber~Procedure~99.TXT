@@ -12,7 +12,7 @@ begin
 
    select @objectType=typ from object where id=@receiptId
 
-  if @objectType = 4522
+  if @objectType in (4522,4502)
   begin
    select @date = key2 from object where id = @receiptId
    select @fiscalYear = fiscalYear from dbo.fiscalCalendar where @date between startDate and endDate
@@ -22,7 +22,10 @@ begin
 
   exec dbo.logit @@procid, '@receiptId', @receiptId, '@series', @series, '@objectType', @objectType, '@additionalWhereClause', @additionalWhereClause
 
-  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @additionalWhereClause = @additionalWhereClause, @newNumber = @retval output
+  exec dbo.nextObjectAutoNumber @objectType, @series, @ignoreDeleted='TRUE', @additionalWhereClause = @additionalWhereClause, @objectId = @receiptId, @newNumber = @retval output
 
+
+  select @retval
   update object set key1 = @retval where typ = @objectType and id = @receiptId
+
 end

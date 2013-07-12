@@ -77,6 +77,10 @@ close('ok');
  d1select('exec dbo.receiptNew ''MISC'''),
  change(obj7:d1);
 
+@newSummary=
+ d1select('exec dbo.receiptNew ''SUMMARY'''),
+ change(obj7:d1);
+
 @newMort=
  lccheck=kp('select id from object where typ = 4504 and a1=''MTG'' and key1 like ''%TAX%'''),
  if(lccheck+0=0,addtaxcode=),
@@ -150,7 +154,7 @@ close('ok');
 
 @brwstuff=
  set(-69,0),
- if(obj:key3='TAX',create(550,12,5,100,'show &Funds',-69),),
+ if(obj:key3='TAX' or obj:key3='MISC',create(550,12,5,100,'show &Funds',-69),),
  create(551,12,5,124,'Exempt',-70),
  lcShowGL=readstring(cur:options,'@showgl='),
  gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
@@ -195,6 +199,7 @@ close('ok');
  gcRecType=obj:key3,
  lcPostDate=kp('select dbo.depositDate('''&gcRecType&''')'),
  if(obj:a17<>'Posted' and obj:key2<>lcPostDate,set(4,lcPostDate)),
+ if(obj:key3='INDIV',prop(117,'text','Print Quote')),
  update;
 
 
@@ -228,7 +233,7 @@ close('ok');
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail; \l0124504,3;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
-\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE'' and a9<>''M'' and b3!=1',2;
+\t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE'' and (a9<>''M'' or '''&obj:key3&'''=''SUMMARY'') and b3!=1',2;
 \t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE'')) and b3!=1',2,2;
  @acc016=if(obj:key3='OFFICIAL',update);
 \t049OFFICIAL ACCOUNT DESC; \x050-100;\h049; \h050obj:key3<>'OFFICIAL' and (obj:key3<>'TRUST' or obj:a17='Posted');
@@ -413,7 +418,7 @@ close('ok');
 \h113obj:key3<>'INDIV';
 \t113Redeem Amount;
  @acc113=update,iw('@afterloadwindow=set(002,today()),set(004,8),set(006,5);\t001Interest Date; \t002@d2; \w00250; \t003Interest%; \t004@n7.2; \w00425; \t005Fee Amount; \t006@n-14.2; \w00650;'),d1select('exec dbo.redemptionReceiptDetailCRUD '&obj:id&', '&obj7:key1&', '&obj7:key2&', '&obj7:key3),
- if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),refreshDetail=;
+ if(readstring(obj7:d1,'@code=;')>0,m(obj7:d1)),sql('update object set d1=d1+''Interest Calculated To:'&format(obj7:key1,@d2)&''' where typ=4502 and id='&obj:id),refreshDetail=;
 
 @cashoverpay=
  lcdiff=kp('select dbo.receiptBalanceDue('&obj:id&')')-obj:a8,
@@ -478,7 +483,7 @@ close('ok');
  refreshDetail=,
  update;
 
-\t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114obj:a17<>'Posted' or gcAlreadyCancelled='TRUE' or obj:key3<>'TAX';
+\t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114obj:a17<>'Posted' or gcAlreadyCancelled='TRUE'; or obj:key3<>'TAX';
 @refundReceipt=
  if(gcMode+0=1,m('Canceling a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
  break(gcretval<>2),
@@ -492,15 +497,21 @@ close('ok');
 
 \t117Print Spec Apport; @acc117=
  gcAccountId=obj:id,
+ gcRecId=obj:id,
+ update,
+ if(obj:key3='INDIV',trreport('INDIVQuote',5062,'printIndivQuote=')),
+ break(obj:key3='INDIV'),
  gcAmount=0,
  gcApportionCode='MISCREPORT',
  gcApportionToDate=obj:key2,
- trreport('MillageBreakdown=',5038,'printMillageBreakdown='),
+ trreport('ReceiptBreakdown=',5038,'printReceiptBreakdown='),
  gcAccountId=0,
  gcApportionCode='',
- gcApportionToDate='';
+ gcApportionToDate='',
+ gcRecId=0;
 
  trreport(Test Report,5008,testreportSLS=,,,,);
+
 
 \h118obj:key3<>'TAX' and obj:key3<>'TRUST';
 \t118Decal;
@@ -722,7 +733,8 @@ gcPrintOneTaxReceiptId=0,
  if(gcRecType='MTG',trreport('MTGReceipt',5006,'printMTGRec=')),
  if(gcRecType='TAX',trreport('TAXReceipt',5002,'printTaxRecGr=')),
  if(gcRecType='MISC',trreport('MISCReceipt',5003,'printMiscRec=')),
- if(gcRecType='TRUST',trreport('TRUSTReceipt',5005,'printTrustRec='));
+ if(gcRecType='TRUST',trreport('TRUSTReceipt',5005,'printTrustRec=')),
+ if(gcRecType='INDIV',trreport('INDIVReceipt',5062,'printIndivRec=')),;
 
 @mortSetVar=
  lcBranch=1,
@@ -766,6 +778,13 @@ o066004; o006066; o098008; o012098; o068064;
  break(gcretval<>2),
  d1select('exec dbo.receiptCRUD 3,'&obj:id&',@deletePosted=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'receiptCRUD...'));
+@bb3=Copy Receipt; 
+ @bbproc3=
+  d1select('exec dbo.cloneReceipt '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Copy Receipt...'),change(obj7:d1));
+
+
+
 
 @bb4=Import,,,gcadmin=1;
 @bbproc4=sql('insert into object (typ,key1,key2,a1,a2,a17,a18,a19,a20,d1,a10,a11,a12,a13,a14,a15,b13,b14,b15,e1)

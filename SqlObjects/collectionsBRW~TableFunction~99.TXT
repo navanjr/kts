@@ -55,7 +55,7 @@ declare
   a.invoiceBlob,
   a.rowType,
   case when c.keyCode is null then '' else 'Fees Added' end + case when b.keyCode is null then '' else case when c.keyCode is null then '' else ',' end + 'Printed' end 
- from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId,@taxYear) a
+ from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId,@taxYear,@date,@days) a
  left outer join @printed b on a.keyCode = b.keyCode
  left outer join @fees c on a.keyCode = c.keyCode
 
@@ -77,6 +77,8 @@ delete r from @rt r,taxrolldetail t where t.dtype='bankrupt' and isnull(actionDa
 if @taxrollDetailId = 0
  insert @rt (keyCode, totalDue, ord, rowType)
  select cast(count(*) as varchar) + ' - ' + case when @dtype = 'RESALE' then 'Parcels' else 'Items' end, sum(totalDue), ' ', 2  from @rt where rowType = 0
+
+delete from @rt where totaldue is null
 
  return
 end

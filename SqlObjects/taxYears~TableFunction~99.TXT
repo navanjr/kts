@@ -1,0 +1,63 @@
+create function dbo.taxYears(@endDate varchar(20)) 
+returns @years table(id int identity(1,1),yearCode varchar(50),[year] varchar(50))
+
+as 
+begin
+
+ declare @useFiscalCalendar varchar(5),
+         @current varchar(4),
+         @prior varchar(5)
+
+ 
+ select @useFiscalCalendar = settingvalue from settings where settingname='site.useFiscalCalendarforCurrentTax'
+
+ if @useFiscalCalendar = 'TRUE'
+ begin
+  select @current = left(isnull(fp.a18,'2012'),4) from object fp where fp.typ=4700 and fp.key3<= @endDate and fp.a1>=@endDate and a18>' 0'
+  
+  if isnull(@current,'') < ' 0'
+  begin
+  select top 1 @current=left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+    order by left(accountcode,4) desc
+  end
+
+  select @prior = cast(cast(@current as int)-1 as varchar(4))
+
+
+  insert @years
+   select 'Current',@current
+  insert @years
+   select top 1 'Prior',@prior
+  insert @years
+   select distinct 'Back',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+     and accountcode like '%ADVALOREM%'
+     and left(accountcode,4) not in (select [year] from @years) 
+    order by left(accountcode,4) desc
+
+ end
+ else
+ begin
+  insert @years
+  select top 1 'Current',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+    order by left(accountcode,4) desc
+  insert @years
+  select top 1 'Prior',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+      and left(accountcode,4) not in (select [year] from @years) 
+    order by left(accountcode,4) desc
+  insert @years
+  select distinct 'Back',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+      and left(accountcode,4) not in (select [year] from @years) 
+    order by left(accountcode,4) desc
+ end
+
+ return
+end

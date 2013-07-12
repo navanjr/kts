@@ -7,7 +7,9 @@ create proc dbo.docFeeProcessingCRUD(
  @debugMode varchar(5) = 'FALSE',
  @dType varchar(50) = '',
  @documentId int = 0,
- @verbose varchar(5) = 'FALSE'
+ @verbose varchar(5) = 'FALSE',
+ @date int = null,
+ @days int = null
  
 ) as
 begin
@@ -54,8 +56,9 @@ begin
     @documentName = documentName,
     @processCode = processCode
    from dbo.docBRWDecoder(@batchId)
+
    insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
-    where printed > '  0' and invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+    where  invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName) --printed > '  0' and 
    end
  if @dtype > '  0' 
   begin
@@ -70,11 +73,11 @@ begin
     @documentName = key1,
     @processCode = key1+'.'+dbo.date1(coalesce(@invoiceDate, @documentDate))
    from object where id = @documentId
-   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, null, null,0)
+   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,0)
     where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
    end
 
-  select @tally = @@rowcount
+  select @tally = count(id) from @invoicesToProcess
 
   exec dbo.logit @@procId, '@status', @status, '@batchId', @batchId, '@invoiceId', @invoiceId, '@tally', @tally
 

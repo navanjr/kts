@@ -1,0 +1,30 @@
+create function dbo.rpCollectionsByYearAndMonth(@year varchar(4),@endDate int) 
+returns @rt table(yearmonth varchar(10),taxamount money,totalamount money,protestamount money)      
+  as 
+begin
+        
+ declare @wt table(yearmonth varchar(10),sourcecode varchar(60),sourcedesc varchar(50),amount money,totalamount money,protestamount money)
+  
+ insert @wt(yearmonth,sourcecode,amount,totalamount)       
+   select cast(year(dbo.date1(date)) as varchar)+right('00'+cast(month(dbo.date1(date)) as varchar),2),sourcecode,
+    case when sourcecode <' 0' then sum(amount) else 0 end,sum(amount)
+   from gldetailreports 
+  where slink in (select slink from gldetail where accountcode=@year+'_ADVALOREM_AR')
+    and accounttype='ACCRUED RECEIVABLE' and date <= @endDate
+  group by cast(year(dbo.date1(date)) as varchar)+right('00'+cast(month(dbo.date1(date)) as varchar),2),sourcecode
+ 
+ insert @wt(yearmonth,protestamount)       
+   select cast(year(dbo.date1(date)) as varchar)+right('00'+cast(month(dbo.date1(date)) as varchar),2),sum(amount*-1)
+   from gldetailreports 
+  where  accountcode=@year+'_PROTEST'
+  group by cast(year(dbo.date1(date)) as varchar)+right('00'+cast(month(dbo.date1(date)) as varchar),2)
+  
+  
+ insert @rt
+   select yearmonth, sum(amount), sum(totalamount), sum(protestamount)
+   from @wt
+   group by yearmonth
+     
+ return
+end
+     
