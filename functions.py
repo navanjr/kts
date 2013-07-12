@@ -155,6 +155,7 @@ class ktsMenu():
             'conversion.mikepath',
             'conversion.mikepathtax',
             'conversion.officialbankcode',
+	    'conversion.initials',
         ]
         for x in requiredSettings:
             if x not in settings['dict']:
@@ -544,7 +545,7 @@ class ktsMenu():
             self.command_setSetting('git')
         elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd in ('taxyear','officialbankcode'):
+        elif cmd in ('taxyear','officialbankcode','initials'):
             self.command_setSetting('conversion')
         elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
             if cmd == 'ftppath':
