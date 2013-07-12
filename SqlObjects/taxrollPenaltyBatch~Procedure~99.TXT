@@ -1,4 +1,4 @@
-CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int)
+CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int, @forceInvoiceId int = null, @forceAmount money = null)
 as
 
 begin
@@ -38,26 +38,37 @@ begin
 
  exec dbo.logit @@procid, '@description', @description, '@sourceCode', @sourceCode, '@fundCode', @fundCode
 
- declare @pttemp table(invoiceId int, amount money, dueDate varchar(50))
- insert @pttemp
-  select a.invoiceId,
-         0,
-         case when i.interestdate > 0 then cast(i.interestdate as varchar(50)) else dbo.clariondate('12/31/' + cast(i.taxyear as varchar)) end as dueDate
-   from receiptLink a, invoices i
-   where a.invoiceId=i.id and a.receiptId=@receiptId and a.invoiceId not in (select id from invoices where typ='A')
-
- delete from @pttemp where dueDate > @penaltyDate
-
  declare @pt table(invoiceId int, amount money,description varchar(50),sourceCode varchar(50),fundCode varchar(50))
 
- insert @pt
-  select a.invoiceId,
-         dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(@penaltyDate))/100,
-         '',
-         '',
-         ''
-   from @pttemp a
+ if isnull(@forceInvoiceId,0)<1 or isnull(@forceAmount,0)<1
+ begin
+  declare @pttemp table(invoiceId int, amount money, dueDate varchar(50))
+  insert @pttemp
+   select a.invoiceId,
+          0,
+          case when i.interestdate > 0 then cast(i.interestdate as varchar(50)) else dbo.clariondate('12/31/' + cast(i.taxyear as varchar)) end as dueDate
+    from receiptLink a, invoices i
+    where a.invoiceId=i.id and a.receiptId=@receiptId and a.invoiceId not in (select id from invoices where typ='A')
 
+  delete from @pttemp where dueDate > @penaltyDate
+
+  insert @pt
+   select a.invoiceId,
+          dbo.invoiceTotalAR(a.invoiceId) * dbo.penaltyPercent(a.invoiceId,dbo.date1(@penaltyDate))/100,
+          '',
+          '',
+          ''
+    from @pttemp a
+ end
+ else
+ begin
+  insert @pt
+   select @forceInvoiceId,
+          @forceAmount,
+          '',
+          '',
+          ''
+ end
 -- Set penalty description source and fund for records having an override for the fund that matches invoice typ and pertyp 
  if exists(select * from invoices i, object td, adtax a, @pt p where p.invoiceId=i.id and i.taxrollId=a.id and i.typ <> 'S' and td.typ=4504 and td.a1='PENALTY'
   and i.typ=td.a3 and a.pertyp=td.a4 and p.description < ' 0' and p.sourceCode < ' 0')
@@ -152,7 +163,13 @@ begin
   delete @pt where invoiceId = @idToken
  end
 
-
+ if isnull(@forceInvoiceId,0)>1 and isnull(@forceAmount,0)>1
+ begin
+  insert receiptLink (receiptId,invoiceId,methodRate)
+   select @receiptId, id, 1.00 from invoices 
+    where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId)
+     and id not in (select invoiceid from receiptLink where receiptId=@receiptId)
+ end
 end
 
 -- select @typ = [typ], @interestDate = interestDate from invoices where id=@invoiceId
