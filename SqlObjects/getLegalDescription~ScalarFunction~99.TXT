@@ -1,15 +1,27 @@
 create function dbo.getLegalDescription(@invoiceId int) returns varchar(max)
  as
  begin
-  declare @r varchar(max),
+  declare @r varchar(max) = '',
           @taxRollId int,
-          @goofychar varchar(100) = '13,10'
+          @goofychar varchar(100) = '13,10',
+          @typ varchar(5) = '',
+          @parcel varchar(50) = '',
+          @taxYear varchar(10) = '',
+          @item varchar(50) = '' 
 
+   select @typ = typ,@parcel = parcel,@taxYear = taxYear,@item = item from invoices where id = @invoiceId 
+
+If @typ<>'S'
+  begin
    select @taxRollId = taxrollId from invoices where id = @invoiceId
-
-
    select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
-  
+  end
+ else
+  begin
+   select @taxRollId = taxrollId from invoices where typ='r' and parcel = @parcel and taxYear=@taxYear
+   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
+   select @r = @r + char(13) + char(10) + cast(e1 as varchar(max)) from object where typ = 4002 and a7='lien' and key1=@item and a1=@taxyear
+  end  
 
  return @r
 

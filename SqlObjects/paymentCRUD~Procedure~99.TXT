@@ -248,6 +248,7 @@ begin
 
 
    select
+    @postDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
     @paymentType = 'Treasurers Check',
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
     @amount = a.a3,
@@ -275,7 +276,7 @@ begin
 
 -- set the post date
    select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
-
+         
    select @vfiscalYear = fiscalYear from dbo.fiscalCalendar where coalesce(nullif(@postDate,''),cast(dbo.clarionToday() as varchar)) between startDate and endDate
    set @nextNumAdditionalWhere = 'olink1 = ''' + @vfiscalYear + ''' '
   end
