@@ -4,13 +4,16 @@ create procedure dbo.officialDepositPaymentAdd(
  @amount money = 0,
  @checkNumber varchar(50) = '',
  @bankId int = 0,
- @paymentId int = 0
+ @paymentId int = 0,
+ @field int = 0
 )
 as
 begin
 
  declare @styp char(1) = 'o'
  
+ exec dbo.logit @@procid, '@field', @field
+
  declare 
   @slink varchar(15) = @styp + cast(@receiptId as varchar),
   @code int,
@@ -19,7 +22,12 @@ begin
   @suspenseAccountId int,
   @contraId int,
   @fpId int,
-  @objectTyp int
+  @objectTyp int,
+  @checkReq int
+
+ select 
+  @checkReq = isnull(a16,0)
+  from object where typ=4505 and key1 = @paycode	
   
  select 
   @code = code,
@@ -33,13 +41,20 @@ begin
   return
  end
 
-/* -- bail if paycode is CHECK and no check number is offered
- if @paycode = 'CHECK' and @checkNumber < '  0'
+ --bail if check # required and @field = 22
+ if @checkReq = 1 and @field = 22
+ begin
+  select '@code=2;@message=Sorry, Check number is required.;@field=024;'
+  return
+ end
+
+ -- bail if paycode is  and no check number is offered
+ if @checkReq = 1 and @checkNumber < '  0'
  begin
   select '@code=1;@message=Sorry, Check number is required.;'
   return
  end
-*/
+
  begin transaction
 
   -- add or update paid

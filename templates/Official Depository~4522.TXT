@@ -9,7 +9,6 @@ lmode=2;
 \u002104;r
 @loadwindow=
  if(tier=3,procTier3=),
- create(165,9,3,80,'&Apply Payment'),
  create(160,9,3,120,'Link &Trust'),prop(160,7c04h,56),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  reate(45,9),
@@ -100,13 +99,30 @@ lmode=2;
   if(gcretval=2,postAndPrint=);
 \d046; \w04204487;r2
 
-\t019Paycode; \l0204505; \w02050; @sel020=; @lmode020=2;
-\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=if(obj:a7='CASH' or obj:a7='COIN',acc165=);
-\t023Check #; \w02450; @acc024=acc165=;
+\t019P&aycode; \l0204505; \w02050; @lmode020=2;
+\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,applyPayment=; 
+\t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
  \h019024obj:a17='Posted';r
  \y01969; \x01965; \y02081; \x02065;
  \y02169; \x021120; \y02281; \x022120;
  \y02369; \x023175; \y02481; \x024175;
+
+@applyPayment=
+ update,
+ d1select('exec dbo.officialDepositPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'''&obj:link4+0&''','&lcField+0),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Payment...')),
+ if(readstring(obj7:d1,'@code=')=2 and lcField<>22,applyPaymentA=),
+ set(-06,0),
+ break(readstring(obj7:d1,'@code=')<>0),
+ refreshDetail=,
+ blankEm=,
+ focus(020);
+
+@applyPaymentA=
+ if(readstring(obj7:d1,'@field=')='024',focus(024)), 
+ m(readstring(obj7:d1,'@message='),'AddingPayment Payment...');
+
+
 
 @acc165=
  lcBreak=0,
@@ -115,9 +131,9 @@ lmode=2;
  evalAmount=,break(lcBreak),
  evalCheck=,break(lcBreak),
  update,
- d1select('exec dbo.officialDepositPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'''&obj:link4+0&''''),
+ 
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
- set(-06,0),
+
  break(readstring(obj7:d1,'@code=')=1),
  refreshDetail=,
  blankEm=,
