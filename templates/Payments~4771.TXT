@@ -161,9 +161,9 @@ bbproc4=
 \t009Payee; \w010+80;
 \t085Warrant Payee; \h085; \h086obj:a18<>'Treasurers Check'; \x086184; \w086117; \d086;
 \t011Amount; \t012@n-19.2; \w01255; \p0127c0ch,1; \h011012obj:a18='Trust Voucher' or obj:a18='Protest Voucher';r
-\t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and ((a1 in (''FUND'',''OFFICIAL'',''SCHOOL'',''CITY'',''BANK'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1',2;
+\t013Debit Account; \l0144701;r014002052004; @lf014='typ=4701 and '&choose(obj:a18='Warrant','a1 in (''WARRANT'')','((a1 in (''FUND'',''OFFICIAL'',''SCHOOL'',''CITY'',''BANK'') and '''&obj:a18&'''<>''TRANSFER'') or (a1 in (''BANK'',''INVESTMENT'') and '''&obj:a18&'''=''TRANSFER'')) and b3!=1'),2;
   \h013014obj:a18='Protest Voucher';r
-\t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
+\t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and '&choose(obj:a18='Warrant','a1 in (''ACCRUED PAYABLE'')','a1 in (''BANK'',''INVESTMENT'') and b3!=1'),2;
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE'' and b3!=1',2;
   \h017018obj:a18<>'Trust Voucher';r
  \w01401870;r2 \d010018obj:a15+0=1;r2
@@ -287,4 +287,6 @@ bbproc4=
  d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
  d1select('select a18 from object where id='&obj:id),
- set(040,obj7:d1),tsc;
+ set(040,obj7:d1),
+ calcrecord(),
+ tsc;
