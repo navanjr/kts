@@ -1,4 +1,4 @@
-CREATE function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
+create function dbo.dailyDataCollections(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
 @rt table (
  id int,
  ord varchar(250),
@@ -80,10 +80,10 @@ begin
   a.reportOrder,
   a.collectionDescription,
   b.accountDesc,
-  case when c.key3 = 'TAX' then null when c.key3 = 'SUMMARY' then left(c.d1,49) else c.key1 end,
+  case when c.key3 = 'TAX' then null when c.key3 = 'SUMMARY' then left(c.d1,49) when c.typ=4502 and collectionDescription='Depository' then isnull(nullif((select d.key1 from object d where d.ID  in (select distinct officialDepositId  from dbo.paid where slink = b.slink)),''),'*****') else c.key1 end,
   b.amount,
   b.slink,
-  case when c.typ=4522 then c.b2 else '' end,
+  case when c.typ=4522 then c.B2 else '' end,
   a.dptno,
   c.id,
   1,
