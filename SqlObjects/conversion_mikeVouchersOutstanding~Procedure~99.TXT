@@ -30,6 +30,7 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   paywhom varchar(50),
   vchamt money,
   comment varchar(1000),
+  pcdate varchar(50),
   ktsPaymentId int,
   ktsAmount money,
   csv varchar(max),
@@ -37,41 +38,53 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
  )
 
  declare
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate',''),
   @mikeTableName varchar(50) = 'ovoureg',
   @mikePath varchar(max),
   @sql nvarchar(max)
 
- select
-  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where pcdate = " " and vchamt != 0.00 and !deleted()'') order by dptno, vchno'
+ if @conversionDate > '  0'
+ begin
+  select
+   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+   @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,pcdate,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where vchamt != 0.00 and !deleted() and vchdate <= "'+@conversionDate+'" and (pcdate = " " or pcdate > "'+@conversionDate+'")'') order by dptno, vchno'
 
- insert @st exec(@sql)
+  insert @st exec(@sql)
 
- update a set a.officialAccountCode = b.officialDepositAccountcode
- from @st a, dbo.officers b
- where a.dptno = b.departmentNumber
+  update a set a.officialAccountCode = b.officialDepositAccountcode
+  from @st a, dbo.officers b
+  where a.dptno = b.departmentNumber
  
- update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
- from @st a, dbo.payments b
- where a.officialAccountCode = b.debitAccountCode 
-  and cast(a.vchno as int) = cast(b.clerksNumber as int)
+  update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
+  from @st a, dbo.payments b
+  where a.officialAccountCode = b.debitAccountCode 
+   and cast(a.vchno as int) = cast(b.clerksNumber as int)
 
- update @st set
-  ord = officialAccountCode + 'b',
-  csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
- insert @st (ord,csv) select officialAccountCode + 'a','officialAccountCode: '+officialAccountCode from @st group by officialAccountCode
- insert @st (ord,csv) select officialAccountCode,'' from @st where officialAccountCode is not null group by officialAccountCode
-
+  update @st set
+   ord = officialAccountCode + 'b',
+   csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
+  insert @st (ord,csv) select officialAccountCode + 'a','officialAccountCode: '+officialAccountCode from @st group by officialAccountCode
+  insert @st (ord,csv) select officialAccountCode,'' from @st where officialAccountCode is not null group by officialAccountCode
+ end
+ 
  if @method = 'GET'
  begin  
-  select 
-   @class = 'conversion',
-   @guide = 'GET|SHOW|FIX',
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'Outstanding Vouchers not found in KTS'
-  from @st
-  where ktsPaymentId is null
+  if @conversionDate > '  0'
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = COUNT(*),  
+    @message = 'Outstanding Vouchers not found in KTS'
+   from @st
+   where ktsPaymentId is null
+  else
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = 1,
+    @tally = 1,  
+    @message = 'missing converionDate variable'
  end
 
  if @method = 'SHOW'

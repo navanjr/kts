@@ -15,25 +15,6 @@ begin
   return
 
 
-/*
-
-  select wfy,fundid,warno,dteissue,dtepaid,amnt,intpaid,paymntno,;
-         paywhom  ;
-         from warrant  ;
-         where dtepaid = '  ' and amnt != 0.00
-
-
- as
-begin
-
- insert @rt
- select * from 
-    openrowset('VFPOLEDB','c:\client\dosdata\ctpro\online\warrant.dbf';'';
-    '','SELECT * FROM warrant where !deleted() and dtePaid < ''  0'' and amnt > 0 order by dtePaid')
-
- return
-
-*/
 
  declare @st table(
   wfy varchar(2),
@@ -64,25 +45,39 @@ begin
  declare
   @mikeTableName varchar(50) = 'warrant',
   @mikePath varchar(max),
-  @sql nvarchar(max)
+  @sql nvarchar(max),
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate','')
 
- select
-  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where dtePaid < "  0" and amnt != 0.00 and !deleted()'')'
+ if @conversionDate > '  0'
+ begin
+  select
+   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+   @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and dteRegis <= "'+@conversionDate+'" and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
 
- insert @st exec(@sql)
 
- update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + dteIssue + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+  insert @st exec(@sql)
 
- if @method = 'GET'
+  update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + dteIssue + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+
+ end
+
+ if @method = 'GET' 
  begin  
-  select 
-   @class = 'conversion',
-   @guide = 'GET|SHOW|FIX',
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'Outstanding Warrants not found in KTS'
-  from @st
+  if @conversionDate > '  0'
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = COUNT(*),  
+    @message = 'Outstanding Warrants not found in KTS'
+   from @st
+  else
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = 1,
+    @tally = 1,  
+    @message = 'missing converionDate variable'
  end
 
  if @method = 'SHOW'
@@ -96,8 +91,24 @@ begin
 
  if @method = 'FIX'
  begin
+  declare
+   @importId int,
+   @initials varchar(50) = dbo.settingsF('conversion.initials',''),
+   @csv varchar(max) = '',
+   @csvLength int
 
---  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
+  select top 1 @importId = id from object where typ=4770 and lasteditini = @initials
+  select @csv = @csv + csv + char(13) + char(10) from @st order by fundId, Warno
+  set @csvLength = len(@csv)
+
+  if isnull(@initials,'') < '  0' or isnull(@importId,0) < 1
+  begin
+   exec dbo.logit @@procid, 'Missing Conversion Initials or import Record not found... @initials', @initials, '@importId', @importId, '@csvLength', @csvLength
+   return
+  end
+
+  update object set e1 = @csv where id = @importId
+  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @csvLength', @csvLength, '@initials', @initials, '@importId', @importId
   
   return
 
