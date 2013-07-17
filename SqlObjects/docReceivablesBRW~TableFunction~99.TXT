@@ -82,7 +82,7 @@ begin
  declare @selectedMortgageCodes table(code varchar(50))
  insert @selectedMortgageCodes select code from dbo.docDTypes(@dtypesBlob) where id > 3 and switch = 1
 
- if not exists(select * from @selectedMortgageCodes)
+if not exists(select * from @selectedMortgageCodes)
  insert @wt
  select
   i.id,
@@ -111,6 +111,7 @@ begin
   and invoiceId = 0
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
+  and coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) not in (select code from dbo.docDTypes(@dtypesBlob) where id > 3 and switch = 0) 
  else
  insert @wt
  select
