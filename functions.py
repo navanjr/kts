@@ -26,6 +26,14 @@ class ktsMenu():
 
         self.ftpSettingsInit()
 
+        self.conversionSettings = [
+            'conversion.mikepath',
+            'conversion.mikepathtax',
+            'conversion.officialbankcode',
+            'conversion.initials',
+            'conversion.conversiondate',
+        ]
+
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
         self.createCommand('help',['h','help'],'',self.command_help)
@@ -55,6 +63,7 @@ class ktsMenu():
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs conversion diagnostic battery',[self.diagnostic_run,'conversion'],'conversion')
+        self.createCommand('settings',['settings'],'displays all conversion settings',self.diagnostic_conversionSettings,'conversion')
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
@@ -149,14 +158,18 @@ class ktsMenu():
             elif hasattr(function[0],'__call__'):
                 function[0](function[1])
 
+    def diagnostic_conversionSettings(self):
+        settings = self.command_testConnection(False)['dict']
+        requiredSettings = self.conversionSettings
+        for x in requiredSettings:
+            try:
+                print '     %s = %s' % (x.rjust(30), settings[x])
+            except KeyError:
+                print '     %s = %s' % (x.rjust(30), '*** MISSING ***')
+
     def diagnostic_auto(self):
         settings = self.command_testConnection(False)
-        requiredSettings = [
-            'conversion.mikepath',
-            'conversion.mikepathtax',
-            'conversion.officialbankcode',
-	    'conversion.initials',
-        ]
+        requiredSettings = self.conversionSettings
         for x in requiredSettings:
             if x not in settings['dict']:
                 print x, 'setting was not found'
@@ -545,7 +558,7 @@ class ktsMenu():
             self.command_setSetting('git')
         elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd in ('taxyear','officialbankcode','initials'):
+        elif cmd in ('taxyear','officialbankcode','initials','conversiondate'):
             self.command_setSetting('conversion')
         elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
             if cmd == 'ftppath':
