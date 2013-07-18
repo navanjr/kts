@@ -357,6 +357,7 @@ class ktsMenu():
             print 'createAccountTypes...', self.sqlAlterProc('createAccountTypes','Procedure','99')
             print 'createReceiptTypes...', self.sqlAlterProc('createReceiptTypes','Procedure','99')
             print 'createReasonsToCancel...', self.sqlAlterProc('createReasonsToCancel','Procedure','99')
+            print 'createGLCollectionDescriptions...', self.sqlAlterProc('createGLCollectionDescriptions','Procedure','99')
             print 'paymentTypes...', self.sqlAlterProc('paymentTypes','TableFunction','99')
             print 'journalTypes...', self.sqlAlterProc('journalTypes','TableFunction','99')
             print 'glCreateTables...', self.sqlAlterProc('glCreateTables')
