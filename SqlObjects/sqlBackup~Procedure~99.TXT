@@ -23,10 +23,12 @@ begin
   @pathAndFileName varchar(max),
   @cmd varchar(8000),
   @cmdOutput varchar(8000),
-  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo')
+  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
+  @compresskeyLog varchar(5) = dbo.settingsF('backup.CompressKeyLog','TRUE'),
+  @retainBackup int = dbo.settingsF('backup.retainBackups','14')
 
- set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('site.sqlCompression','TRUE'))
-
+ set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('backup.sqlCompression','TRUE'))
+   
 
 -- use the kts menu to ftp the backup file...
  if @method = 'ktsftp'
@@ -40,12 +42,46 @@ begin
 -- just a one time backup
  if @method = 'backup'
  begin
+
+
+-- compress keyLog
+ if @compressKeyLog='True'
+   begin
+    delete from keylog where id<(select min(id) from (select top 100 id from keyLog order by id desc) data)
+   end
+ 
   select @backupFile = path from dbo.paths() where name = 'backup'
 
   select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT'
    + case when @useSqlCompression = 'TRUE' then ', compression' else '' end
   exec dbo.logit @@procid, @sql
   exec(@sql)
+
+--- remove unretained backups
+ declare @backups table (id int,pathAndFileName varchar(1000),modifiedDate varchar(50))
+  insert @backups
+   select substring(cast(brwId as varchar),2,30),pathAndFileName,modifiedDate From dbo.sqlBackupBRW() where LEFT(cast(brwid as varchar),1)='9'
+
+
+ select @retainBackup = (MAX(id)-@retainBackup) from @backups 
+
+ 
+ delete from @backups where id>@retainBackup
+
+
+ declare @tokenId int
+  while exists (select * from @backups)
+   begin
+     exec dbo.logit @@procid, 'deleting backup @retainBackup', @retainBackup
+    select @tokenId = id from @backups order by id 
+    if @tokenId>0
+    begin
+     exec dbo.logit @@procid, 'deleting backup @tokenId', @tokenId
+     exec dbo.sqlBackup @method='destroy', @brwid=@tokenId, @areYouSure='yes'
+     delete from @backups where id = @tokenId
+    end
+   end
+
 
   return
  end
