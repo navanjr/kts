@@ -301,7 +301,7 @@ close('ok');
 \h109obj:a17='Posted' or obj:key3<>'MTG';
 \t109&New Detail; @acc109=mortDetail=;
 
- and obj:c7<'  0'
+ 
 @mortDetail=
  lcMtgAdd='',
  break(obj:c1<'  0' and obj:c2<'  0' and obj:c3<'  0' and obj:c4<'  0' and obj:c5<'  0' and obj:c6<'  0'),
@@ -314,20 +314,35 @@ close('ok');
 @blankEmMort=
  set(-05,0,1),set(-06,0,1),set(078,'',1),set(080,'',1),set(082,'',1),set(084,'',1),set(086,'',1),set(088,'',1),set(090,'',1);
 
+@lbrwclick151=
+ brw2=;
+
 @brw2=
  break(obj:a17='Posted'),
- lcidMort=kpbrwid(2),
- break(lcidMort+0<1),
- get(lcidMort),
- set(-06,lcidMort),
- set(078,obj7:key1),
- set(080,obj7:key2),
- set(082,obj7:d1),
- set(084,obj7:key3),
- set(086,obj7:a1),
- set(088,obj7:a2),
- set(090,obj7:a3),
+ lcId=kpbrwid(2)*-1,
+ break(lcId+0<1),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit|&Remove|&Cancel'),
+ if(gcretval=1,editMort=),
+ if(gcretval=2,removeMort=);
+
+@editMort=
+ e1select('exec mortgageDetailCRUD @mode=''Verbose'',@mortgageNameId='&lcId),
+ lcMortBlob=obj7:e1,
+ set(-06,lcId),
+ set(078,readstring(lcMortBlob,'@mortgagor=')),
+ set(080,readstring(lcMortBlob,'@mortgagee=')),
+ set(082,readstring(lcMortBlob,'@description=')),
+ set(084,readstring(lcMortBlob,'@section=')),
+ set(086,readstring(lcMortBlob,'@township=')),
+ set(088,readstring(lcMortBlob,'@range=')),
+ set(090,readstring(lcMortBlob,'@lender=')),
  focus(078);
+
+@removeMort=
+ m('Are you sure you want to remove?','Remove Info?.....',,6,4),
+ break(gcretval<>2),
+ sql('exec mortgageDetailCRUD @mode=''3'',@mortgageNameId='&lcId),
+ refreshDetail=;
 
 @mortManualCalc=
  lctaxamount=obj:b1,
@@ -350,8 +365,6 @@ close('ok');
 
 @brwstuffMort=
  break(obj:key3<>'MTG'),
- gcbrw2sql='select id,key1,key2,d1,key3,a1,a2,a3 from object where typ=4507 and link1='&obj:id&' order by id',
- lcbrw2format='80L(2)~Mortgagor~#2#M80L(2)~Mortgagee~#3#M80L(2)~Property Description~#4#M30L(2)~Sec/Lot~#5#M35L(2)~Township~#6#M40R(2)~Range/Blk~#7#M80L(2)~Lender~#8#M',
  gcbrw2sql='select id,displayString,color from dbo.mortgageDetailBRW('&obj:id&') order by ord',
  lcbrw2format='400L(2)~~#2#M',
  brw(151,2,gcbrw2sql,390,93,273,188,lcbrw2format,7,1),
