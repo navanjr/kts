@@ -115,6 +115,14 @@ begin
 -- period Check status
   if @fpStatus = 'locked'
    return
+-- bail if linked to a bank statement
+  if exists (select * from gldetail where slink=@slink and isnull(bsid,0)>0)
+   begin
+    exec dbo.logit @@procid, 'Linked to bankstatement... Bailing.'
+
+   return
+   end
+
 
   begin transaction
 
