@@ -45,6 +45,7 @@ begin
  end
 
  select @objTyp = typ from object where id = dbo.slinkId(@slink)
+ 
  if isnull(@objTyp,0) not in (4513, 4522, 4502, 4512, 4771)
  begin
   select
@@ -68,7 +69,7 @@ begin
 -- bail if we are an officialDeposit and paid records are already linked to depost
  if isnull(@objTyp,0) = 4522
  begin
-  if exists (select * from paid where officialDepositId = dbo.slinkId(@slink) and isnull(depositId,0) > 0)
+  if exists (select * from paid where (officialDepositId = dbo.slinkId(@slink) or slink = @slink) and isnull(depositId,0) > 0)
   begin
    select
     @code = 1,
