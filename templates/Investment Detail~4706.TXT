@@ -1,0 +1,36 @@
+@dk1;
+@link1=4701;
+@sync1=008058024002026004;
+@key2=right(99999999-OBJ:Key2,8);
+@ordername=Investment No,Date;
+@defaultbrowsekey=2;
+\t001Invest No;
+\t003Purchase Date; \w00400650;r \t004@d2;\@accr004008r2=checkDate=; \q004;
+\t005Maturity Date; \t006@d2; \q006;
+\t007Bank Name;\l0084701,1;r008058024002026004; @lf008='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
+\t009Purchase Check; \r010;
+\t011Fund Drawn On; \l0124701;r012004050002;@lf012='typ=4701 and (a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') or id in (select id from dbo.latestReceivables())) and b3!=1',2,2;
+@acc012=if(obj:a3<' 0',set(50,'')),update;
+\t049Fund Code; \d050; \x050-70; \h049;
+\t013Type of Inv;
+\t015Int Rate; \w01450;
+\d018022;r
+\t017Principle; \s018+'select sum(amount) from gldetail where accountcode = '''&obj:a9&''' and date<='&obj:key2+0;
+\t019Interest; \s020+'select sum(amount) from gldetail where sourcecode = '''&obj:a9&''' and date>='&obj:key2+0&' and date<='&obj:key3+0;
+\t021Current Value; \s022+'select sum(amount) from gldetail where accountcode = '''&obj:a9&''' and date<='&obj:key3+0;
+\t023Bank Acct Code; \d024;
+\t025Bank Acct Name; \l0264701,1;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc026=checkDate=;
+
+@checkDate=d1select('select max(key3) from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>='''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3>='''&obj:key3&''' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2>='''&obj:key2&''' and key3<='''&obj:key3&''' and '''&obj:key3&'''>''1''  and '''&obj:key2&'''>''1'''),lcCheck3=obj7:d1,
+  break(lcCheck1+0+lcCheck2+0+lcCheck3+0<1),
+  if(lcCheck1+0>0,m('Invalid Purchase Date. This date is included in a previous term.')),
+  if(lcCheck1+0>0,set(004,gclastDate+1)),
+  if(lcCheck2+0>0,m('Invalid Maturity Date. This date is included in a previous term.')),
+  if(lcCheck2+0>0,set(006,'')),
+  if(lcCheck3+0>0,m('Invalid date range. This range includes a previous term.')),
+  if(lcCheck3+0>0,set(006,'')),
+  if(lcCheck3+0>0,set(004,gclastDate+1)),
+  update;
