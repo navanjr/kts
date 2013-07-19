@@ -48,7 +48,8 @@ begin
   @postDate int,
   @newId int,
   @warrantPayee varchar(50) = '',
-  @vfiscalYear varchar(20)
+  @vfiscalYear varchar(20),
+  @pType varchar(50) = ''
 
  select @postedStatus = status from dbo.glStatus(@slink)
 
@@ -64,7 +65,12 @@ begin
   if @statusInput = 'saved'
    update object set a17 = 'Saved' where typ = 4771 and id = @id
   if @statusInput = 'abandoned'
-   update object set a17 = 'Abandoned', typ = -4771 where typ = 4771 and id = @id
+   begin
+    select @pType = a18 from object where id = @id
+    if @pType='Treasurers Check'
+     update object set link1 = 0 where typ=4771 and link1 = @id
+    update object set a17 = 'Abandoned', typ = -4771 where typ = 4771 and id = @id
+   end
   return
  end
 

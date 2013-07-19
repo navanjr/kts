@@ -30,7 +30,7 @@
  m('This Payment Has not Been Posted, Do you want to:',obj:a18,,'Abandon It|Save It|Cancel'),
  break(gcretval+0=3),
  lcStatus=choose(gcretval+0=1,'Abandoned','Saved'),
- sql('exec dbo.paymentCRUD 6, @id='&obj:id&', @statusInput='''&lcStatus&''''),
+ sql('exec dbo.paymentCRUD 6, @id='&obj:id&',@statusInput='''&lcStatus&''''),
  set(040,kp('select a17 from object where id='&obj:id)),
  update,
  close('ok');
@@ -110,7 +110,9 @@ bbproc4=
 
 @loadbrowse=prop(6,text,'&Void');
 
+
 @loadwindow=
+ if(obj:a17='Saved',set(040,'')),
  create(45,9),
  prop(120,'color',65280);
 
@@ -280,8 +282,10 @@ bbproc4=
  update,
  tsc;
 
-\t120&Undo G/L Posting; \h120cur:securitylevel<100;
+\t120&Undo G/L Posting; \h120cur:securitylevel<100; \y120-70;
 @acc120=
+ if(obj:link1+0>0 and obj:a18='Warrant',treasChk=),
+ break(obj:link1+0>0 and obj:a18='Warrant'),
  m('Are you sure you wish to unPost this '''&obj:a18&'''?','UnPosting Payment...','question.ico',6,4),
  break(gcretval<>2),
  d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
@@ -290,3 +294,7 @@ bbproc4=
  set(040,obj7:d1),
  calcrecord(),
  tsc;
+@treasChk=
+ m('This warrant cannot be unposted. It''s linked to an offsetting record.|| Do you want to view it?','Sorry...unable to unpost....',,6,2),
+ writecurdata(@BrowFil4771=,'1'),
+ if(gcretval=2,browse(,4771,'id='&obj:link1,,,'Y'));
