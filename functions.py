@@ -292,6 +292,8 @@ class ktsMenu():
         elif self.command[1] == 'set':
             usernames = self.ask('enter the default user names (first last, first last, etc...)')
             self.configStuff(self.settings['database'], 'defaultUsers', 'PUT', usernames)
+        elif self.command[1] == 'import' and self.settings['defaultUsers'] > '':
+            print 'running dbo.createGroups with defaultUsers', self.sqlQuery("exec dbo.createGroups '%s'" % self.settings['defaultUsers'],True)['code']
 
     def command_backup(self):
         backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
