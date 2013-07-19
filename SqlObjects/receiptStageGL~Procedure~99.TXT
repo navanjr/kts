@@ -50,10 +50,20 @@ begin
   @log varchar(max),
   @suspenseMethod varchar(50),
   @exempt varchar(10),
-  @blob varchar(max)
+  @blob varchar(max),
+  @message varchar(max)
 
  select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
+ -- Pre Stage check 
+ if exists(select * from glDetail where slink = 'o' + cast(@receiptId as varchar))
+ begin
+  select @blob = '@code=1;@message=This record already has records in gldetail;'
+  exec dbo.logit @@procId,@blob
+  return
+ end
+
+
  select 
   @code = code,
   @contraId = contraId ,
@@ -61,6 +71,7 @@ begin
   @receiptType = receiptType,
   @exempt = exempt
  from dbo.receiptCheck(@receiptId,null)
+
 
 -- fork for trust or tax
  if @receiptType = 'TAX'
