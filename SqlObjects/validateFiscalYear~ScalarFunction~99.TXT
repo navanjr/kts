@@ -1,11 +1,17 @@
 create function dbo.validateFiscalYear(@inputYear varchar(20)) returns varchar(10)
 as
 begin
-declare @fiscalYear varchar(10),
-        @input2 varchar(2)
+ declare
+  @fiscalYear varchar(10),
+  @input4 varchar(4)
 
-select @input2=right(@inputYear,2)
-select @fiscalyear = cast(cast('20'+@input2 as int)-1 as varchar(4))+'-'+'20'+@input2 where @input2 > ' 0' and isnumeric(@input2)=1
+
+ if len(@inputYear) = 4 and isnumeric(@inputYear) = 1
+  select @input4 = @inputYear
+ else
+  select @input4 = '20' + right(@inputYear,2)
+
+select @fiscalyear = cast(cast(@input4 as int) - 1 as varchar(4)) + '-' + @input4 where @input4 > ' 0' and isnumeric(@input4) = 1
 
 return @fiscalYear
 end
