@@ -585,17 +585,31 @@ close('ok');
  brwreload(2);
 
 @lbrwclick150= if(obj:a17='Posted',doposted=),
- break(obj:a17='Posted'),
  lcrdId=kpbrwid(1)*-1,
  lcTyp=left(lcrdId,1),
  lcrdId=sub(lcrdId,2,25),
  break(lcrdId+0<1),
+ if(lcTyp+0=3 and obj:a17='Posted' and cur:securitylevel>75,donewtaxreceiptno=),
+ break(obj:a17='Posted'),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
  lcid=kp('select substring(slink,2,25) from receiptdetail where id='&lcrdId+0),
  if(lcTyp+0=5,donewinvoice=),
- if(lcTyp+0=6,donewpenalty=)
+ if(lcTyp+0=6,donewpenalty=),
+ if(lcTyp+0=3,donewtaxreceiptno=)
 ;
+
+@donewtaxreceiptno=
+ lcReceiptLinkId=lcrdId, 
+ break(lcReceiptLinkId+0<1),
+ m('Would you like to specify the receipt number for this line?','Change Number?',,6),
+ break(gcretval<>2),
+ iw('\t000Enter Number;\t001Number; \w00250; \t002@n05;'),
+ break(gcretval='esc'),
+ lcnewnum=obj7:key1,
+ sql('update receiptlink set receiptnumber='''&format(lcnewnum,@n05)&''' where id='&lcReceiptLinkId),
+ refreshDetail=;
+
 @donewpenalty=
  lcmaininvoiceId=lcrdId,
  break(lcmaininvoiceId+0=0),
