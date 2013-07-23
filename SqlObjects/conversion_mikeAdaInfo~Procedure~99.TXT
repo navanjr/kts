@@ -1,0 +1,53 @@
+create proc dbo.conversion_mikeAdaInfo(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @mike table(
+  dist varchar(50),
+  year varchar(50),
+  ada varchar(50)
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'appsch03',
+  @mikePath varchar(max),
+  @sql nvarchar(max),
+  @fields nvarchar(max) = '*'
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select ' + @fields + ' from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+
+ insert @mike exec(@sql)
+
+
+ if @method = 'GET'
+ begin  
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+  select * from @mike
+ end
+
+ if @method = 'FIX'
+ begin  
+  update a set a.key3 = b.ada
+  from object a, @mike b
+  where a.key1 = b.year and a.key2 = b.dist
+ end
+
+end
