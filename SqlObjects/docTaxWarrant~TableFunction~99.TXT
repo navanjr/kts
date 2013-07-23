@@ -67,11 +67,12 @@ update a set
     from @wt a where invoiceId = @invoiceId
 
 --get document fees
-select	@publication = sum(case when Key2 = 'Publication Fee' then A2 else 0 end), 
-		@lien = sum(case when Key2 = 'Lien Docket Fee' then A2 else 0 end), 
-		@stat = sum(case when Key2 = 'Statutory fee' then A2 else 0 end), 
-		@sheriff = sum(case when Key2 = 'Sheriffs fee' then A2 else 0 end) 
+select	@publication = sum(case when Key2 = 'Publication Fee' then cast(A2 as money) else 0 end), 
+		@lien = sum(case when Key2 = 'Lien Docket Fee' then cast(A2 as money) else 0 end), 
+		@stat = sum(case when Key2 = 'Statutory fee' then cast(A2 as money) else 0 end), 
+		@sheriff = sum(case when Key2 = 'Sheriffs fee' then cast(A2 as money) else 0 end) 
 		from Object where TYP = 4902 and Link1 = @documentId
+
 end
 insert @rt 
 select	@invoiceId,
@@ -92,9 +93,8 @@ select	@invoiceId,
 
 update
  @rt  set
-	warrantTotal = taxAmount + penalty + publication + lien,
-	totalDue = taxAmount + penalty + publication + lien + statFee + sheriffFee
- 
---select * from @rt		
+	warrantTotal = taxAmount + penalty + publication + lien + cost,
+	totalDue = taxAmount + penalty + publication + lien + statFee + sheriffFee  + cost
+		
 return 
 end

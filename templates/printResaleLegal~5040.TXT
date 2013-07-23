@@ -1,6 +1,6 @@
 @bb1=&Print;
 @bbproc1=
- exportPersonalForPub=;
+ delinquentForPub=;
 
 
 @resaleLegal=
@@ -190,7 +190,7 @@
  if(lcDetblob='' or len(lcE1)>0,if(len(lcE1)>0,send(lcfile,clip(obj5:c1),1),send(lcfile,clip(obj5:a1),1)),exportBlob=);
 
 @exportBlob=
- lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''',1)')),
+ lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&choose(lcDetBlob=3,3,1)&')')),
  send(lcfile,clip(lcLegal),1);
  
 
@@ -262,3 +262,47 @@ tr(
  nl,
  edt);
 
+@delinquentForPub=
+ gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice of Delinquent Real Estate'''),
+ gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
+ gcAbstracter='',
+ m('Please Choose one of the following options...','Please choose','question.ico','&Print|&Export|&Cancel'),
+ if(gcretval=1,trreport(printDelinquentForPub=,5040,printDelinquentForPub=)),
+ if(gcretval=2,do(5040,exportDelinquentForPub=));
+
+@delinquentForPubVars=
+ do(4506,getSiteInfo=),
+ iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
+ break(gcretval='esc'),
+ lcInterestTo=format(obj7:key1,@d2),
+ lcfile='c:\client\delinquentForPub.txt',
+ lcDetblob=3,
+ lc5040sql='select invoiceId from dbo.docBatchBRW('&gcBatchId&',null,null,'''') where due>0 order by parcel';
+
+@exportDelinquentForPub=
+ delinquentForPubVars=,
+ exporting=;
+
+@printDelinquentForPub=
+ delinquentForPubVars=,
+ lcy=0,
+ lcTm=500,
+ lcLm=1000,
+ lcE2='exec dbo.docFormLetter '&gcDocumentId2&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE2),
+ gcFoot=obj7:e1,
+ lcE1='exec dbo.docFormLetter '&gcDocumentId&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE1),
+ tr(
+ prn(,,lcTm,9,,'courier new'),
+ rhd(txt(obj7:e1,lcLm,,5000,1000,1)),
+ nl,nl,
+ det(lc5040sql),
+ lcLegal=kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''',3)'),
+ txt(lcLegal,lcLm,,5000,100,1),
+ nl,
+ edt,
+ nl,nl,
+ prn(,lcLm,),
+ if(len(gcFoot)>0),txt(gcFoot,lcLm,,5000,1000,1),
+ if(len(gcFoot)=0),do(bnd(,gcOfficial,3000),bnd(,gcCounty&' COUNTY TREASURER',3000)));
