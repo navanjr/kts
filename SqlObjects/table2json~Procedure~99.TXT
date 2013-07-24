@@ -1,0 +1,49 @@
+create proc dbo.table2json(
+ @tempTableName varchar(max),
+ @includeColumnObject varchar(5) = 'TRUE',
+ @includeAPIPrefix varchar(5) = 'FALSE',
+ @json varchar(max) = null output
+) as 
+begin
+
+ declare
+  @temp varchar(max) = '#' + replace(@tempTableName,'#',''),
+  @data stringBlob,
+  @fields blobFields,
+  @fieldToken varchar(max),
+  @fieldList varchar(max) = '',
+  @sql varchar(max) = '',
+  @payload varchar(max)
+ 
+ declare @wt table(
+  data varchar(max),
+  fields varchar(max)
+ ) 
+
+ select @fieldList = @fieldList + ' + ''|'' + ltrim(rtrim(cast(' + name + ' as varchar)))'
+ from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp)
+ 
+ select @sql = 'select ' + stuff(@fieldList,1,9,'') + ' from ' + @temp
+ 
+ insert @data exec(@sql)
+ 
+ insert @fields select name, 'string', 0 
+ from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp) order by column_id
+
+ exec dbo.pipedStringToJson
+  @data,
+  @fields,
+  @includeSiteId = 'False',
+  @includeAPIPrefix = @includeAPIPrefix,
+  @payload = @payload output
+ 
+ set @json = '"rows":' + @payload
+
+ if @includeColumnObject = 'TRUE'
+ begin
+  set @json = '"columns":[],' + @json
+ end
+
+ set @json = '{' + @json + '}'
+
+end

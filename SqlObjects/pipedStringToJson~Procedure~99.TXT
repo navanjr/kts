@@ -4,6 +4,7 @@ create procedure dbo.pipedStringToJson(
  @includeSiteId varchar(5) = 'TRUE',
  @includeBlanks varchar(5) = 'FALSE', 
  @urlEncode varchar(5) = 'FALSE',
+ @includeAPIPrefix varchar(5) = 'TRUE',
  @payload nvarchar(max) = null output
 ) as
 begin
@@ -88,12 +89,16 @@ begin
  select @arrayId, '-', 'array'
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
--- select @jsonString = dbo.toJSON(@apiwt)
+
+ if @includeAPIPrefix = 'TRUE'
+  select @jsonString = 'site_id=' + @siteCode + '&rows='
+ else 
+  select @jsonString = ''
 
  if @urlEncode = 'TRUE'
-  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @jsonString = @jsonString + dbo.URLEncode(dbo.toJSON(@apiwt))
  else
-  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.toJSON(@apiwt)
+  select @jsonString = @jsonString + dbo.toJSON(@apiwt)
 
  set @payload = @jsonString
 
