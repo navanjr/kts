@@ -14,14 +14,6 @@ begin
  if @mode != 'conversion'
   return
 
-
-/*
-set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as varchar)+'',''comment FROM openrowset(''VFPOLEDB'',''' + @mikePath
- + ''';'''';'''',''select * from ovoureg where !deleted() and pcdate = " " and vchamt != 0.00'')  order by dptno,vchno'
-
---vchno,vchdate,paywhom,vchamt,dptno + '' - '' + comment
-*/
-
  declare @st table(
   dptno varchar(50),
   officialAccountCode varchar(50),
@@ -47,7 +39,10 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
  begin
   select
    @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-   @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,pcdate,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where vchamt != 0.00 and !deleted() and vchdate <= "'+@conversionDate+'" and (pcdate = " " or pcdate > "'+@conversionDate+'")'') order by dptno, vchno'
+   @sql = 'select dptno,null,vchno,vchdate,replace(paywhom,'','',''''),vchamt,comment,pcdate,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where vchamt != 0.00 and !deleted() and (pcdate = "" or pcdate > "'+@conversionDate+'")'') order by dptno, vchno'
+
+-- removed this to get all outstanding vouchers, as if nothing paid since @conversionDate
+-- and vchdate <= "'+@conversionDate+'" 
 
   insert @st exec(@sql)
 
@@ -93,6 +88,18 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   select * 
   from @st
 --  where kpofund not in (select clerksFundCode from dbo.clerksFundList)
+  order by ord
+
+ end
+ if @method = 'cache'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mikeVouchersOutstanding]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   drop table mikeVouchersOutstanding
+
+  select *
+  into mikeVouchersOutstanding 
+  from @st
   order by ord
 
  end
