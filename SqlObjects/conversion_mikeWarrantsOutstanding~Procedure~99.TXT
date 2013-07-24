@@ -52,8 +52,10 @@ begin
  begin
   select
    @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-   @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and dteRegis <= "'+@conversionDate+'" and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
+   @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
 
+-- removed to get all warrants entered, even the ones entered after @conversionDate
+-- and dteRegis <= "'+@conversionDate+'"
 
   insert @st exec(@sql)
 
@@ -89,6 +91,19 @@ begin
 
  end
 
+ if @method = 'cache'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mikeWarrantsOutstanding]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   drop table mikeWarrantsOutstanding
+
+  select *
+  into mikeWarrantsOutstanding 
+  from @st
+  order by fundId, Warno
+
+ end
+
  if @method = 'FIX'
  begin
   declare
@@ -109,6 +124,30 @@ begin
 
   update object set e1 = @csv where id = @importId
   exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @csvLength', @csvLength, '@initials', @initials, '@importId', @importId
+
+
+/*
+declare
+ @idToken int,
+ @conversionDate int = dbo.clarionDate('06/30/2013')
+declare @war ids
+insert @war
+SELECT
+ id
+FROM payments where paymentType = 'Warrant'
+and clerksDate != dateRegistered
+
+while exists(select * from @war)
+begin
+ select @idToken = MIN(id) from @war
+ 
+ update object
+  set Key2 = case when A1 > @conversionDate then A1 else @conversionDate end
+ where typ = 4771 and ID = @idToken
+ 
+ delete @war where id = @idToken
+end
+*/
   
   return
 
