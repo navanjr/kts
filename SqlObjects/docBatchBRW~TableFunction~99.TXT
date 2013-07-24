@@ -44,9 +44,10 @@ begin
   from dbo.docBRWDecoder(@batchBRWId)
 
 -- document processing 
- insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount, ownerNumber)
+ insert @rt (invoiceId, name, parcel, taxyear, item, taxType, amount, due, treamort, printed, printOrder, taxrollId, origin, documentDate, otherAmount, ownerNumber,feesProcessed)
  select i.id, i.name, i.parcel, i.taxYear, i.item, i.typ, i.invoiceAmount, i.invoiceDue,
-  coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate, i.taxRuleDue, d.ownerNumber
+  coalesce(a.treamort,cast(a.mortgageCode as varchar)), '', d.printOrder, i.taxrollId, 1, d.documentDate, i.taxRuleDue, d.ownerNumber,
+   (select SUM(x.invoiceAmount) from invoices x where x.invoiceId = i.ID and x.queue = @processCode and x.printed = @documentName)
  from documentProcessing d
  join invoices i on d.invoiceId = i.id
  left outer join adtax a on i.taxrollId = a.id
