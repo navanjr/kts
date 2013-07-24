@@ -1,0 +1,30 @@
+create procedure dbo.investmentInterestAccountVerification(@bankAccountCode varchar(60))
+as
+begin
+ declare @bankAccountDesc varchar(50),
+         @sourceAccountCode varchar(60),
+         @sourceAccountDesc varchar(50)
+
+
+ select @sourceAccountCode='INT'+rtrim(@bankAccountCode),
+        @bankAccountDesc = accountDesc,
+        @sourceAccountDesc = left('INTEREST FOR '+rtrim(accountDesc),49)
+      from glaccounts where accountcode=@bankAccountCode
+
+ exec glAccountVerification @sourceAccountCode, 'SOURCE', 'CREATE',
+                            @targetaccountcode=@bankAccountCode, 
+                            @monthEndColumn='INTEREST', 
+                            @forceAccountDesc=@sourceAccountDesc
+ 
+ if exists(select * from glaccounts where accountcode=@sourceAccountCode and accounttype='SOURCE' and targetaccountcode=@bankAccountCode)
+  begin
+   select '@code=0;@sourceCode='+rtrim(@sourceAccountCode)+';@message=Source Account Found.;'
+  end
+ else
+  begin
+   select '@code=1;@sourceCode='+rtrim(@sourceAccountCode)+';@message=Source Account Missing.;'
+  end
+ 
+end
+
+

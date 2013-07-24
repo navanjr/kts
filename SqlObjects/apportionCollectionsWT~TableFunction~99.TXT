@@ -165,18 +165,22 @@ declare @twt table(
     @tokenacrAccountCode = acrAccountCode, 
     @tokenacrAccountDesc = acrAccountDesc
   from @wt where processFlag = 1
-  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord,tableAmount,tableRatio)
-  select @tokenAccountId, @tokenCode, accountCode, amount, stepDesc, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '070', millamount, millrate
+
+  insert @wt(accountId, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord,tableAmount,tableRatio,processFlag)
+  select @tokenAccountId, @tokenCode, accountCode, amount, stepDesc, @tokenComment, @tokenSourceCode, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '070', millamount, millrate, 9
    from dbo.millsGetRows(4022,@tokenCode,@tokenAmount,'')
   update @wt set processFlag = 2, creditCode = null where id = @tokenId
  end
+
  update w set apyear=a.apyear,
         apTableType=a.apTableType, 
         appilottable=a.appilottable,
         apdistrict=a.apdistrict,
         aprate=a.aprate,
-        appoptype=a.appoptype
-from @wt w, glaccounts a where w.creditcode=a.accountcode and a.apTableType in ('L','M','A','P')
+        appoptype=a.appoptype,
+        processflag = 0
+from @wt w, glaccounts a where w.creditcode=a.accountcode and a.apTableType in ('L','M','A','P') and processFlag=9
+
  
 -- process the L types
  update @wt set processFlag = 1 where apTableType = 'L'

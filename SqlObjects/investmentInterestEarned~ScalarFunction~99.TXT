@@ -1,0 +1,21 @@
+create function dbo.investmentInterestEarned(@begindate varchar(20),
+        @enddate varchar(20),
+        @targetAccountCode varchar(60)) returns money
+as
+begin
+ declare @rv money
+
+ declare @slinks table(id int, slink varchar(16),effectiveDate varchar(20))
+ insert @slinks (id, slink)
+ select id, slink from gldetail 
+  where accountcode in (select accountcode from glaccounts where targetAccountCode = @targetAccountCode and accounttype='SOURCE') 
+
+ update s 
+  set effectiveDate= case when dbo.readstring('@maturity=',r.e2) > '0' then dbo.readstring('@maturity=',r.e2) else r.key2 end from @slinks s, object r where r.id=dbo.slinkid(s.slink) and dbo.slinktype(s.slink)='o'
+ 
+ select @rv=sum(amount*-1) from gldetail g, @slinks s 
+  where g.id = s.id
+    and s.effectiveDate>=@begindate and (s.effectiveDate<=@enddate or @enddate <'1')
+
+ return @rv
+end
