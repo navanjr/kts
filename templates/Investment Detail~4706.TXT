@@ -19,7 +19,7 @@
 \o042004; \o006042;
 \t005Liquidation; \t006@d2; 
 \t007Bank Name;\l0084701,1;r008058024002026004; @lf008='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc008=checkDate=;
-\t009Purchase Check; \r010;
+\t009Purchase Check; \r010; \s010-'select isnull((select top 1 controlNumber from dbo.investmentDetail where investmentLink='&obj:id&' and activity=''Purchase Check''),''Renewal'')';
 \t011Fund Drawn On; \l0124701;r012004050002;@lf012='typ=4701 and (a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') or id in (select id from dbo.latestReceivables())) and b3!=1',2,2;
 @acc012=if(obj:a3<' 0',set(50,'')),update;
 \t049Fund Code; \d050; \x050-65; \h049;
@@ -60,7 +60,7 @@
  if(lcCode+0>0,m(readstring(lcReturn,'@message='))),
  break(lcCode+0>0),
  lcSourceCode=readstring(lcReturn,'@sourceCode='),
- if(today()+0>obj:a18+0,lcDate=obj:a18,lcDate=today()),
+ if(today()+0>obj:a18+0 or today()+0<obj:key2+0,lcDate=obj:a18,lcDate=today()),
  d1select('exec dbo.receiptNew ''MISC'', @blob='''&'@maturity='&lcDate&';'&''''),
  lcNewReceiptId=obj7:d1,
  break(lcNewReceiptId+0<1),
