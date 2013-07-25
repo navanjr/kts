@@ -135,7 +135,9 @@ select accountCode,
    '' as OfficerName,
    '' as OfficerTitle,
    0,
-   'ba',0,0
+   'ba',
+   case when isnull(comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C')) then amount*-1 else 0 end as electronicAmount,
+   case when isnull(comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then amount*-1 else 0 end as otherAmount
    from dbo.gldetailreports g
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
