@@ -3,7 +3,9 @@ create proc dbo.mike_taxFeeImport(
  @debugMode varchar(5) = 'FALSE' 
 ) as
 begin
- exec dbo.logit @@procid, 'Started...'
+ set nocount on
+
+ exec dbo.logit @@procid, 'Started... @taxyear', @taxyear, '@debugMode', @debugMode
 
  declare @wt TABLE(
     [id] int identity(1,1),
@@ -105,8 +107,10 @@ begin
    @amountToken,
    @smode = 1,
    @origin = 'mike_fee',
-   @originId = @originIdToken
- 
+   @originId = @originIdToken,
+   @skipSQLTransactionOnGLPost = 'TRUE',
+   @verbose = 'FALSE'
+
  exec dbo.logit @@procid, 'SubInvoice countdown... @tally', @tally
  set @tally = @tally - 1
 
