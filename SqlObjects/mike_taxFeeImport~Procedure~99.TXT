@@ -1,5 +1,6 @@
 create proc dbo.mike_taxFeeImport(
- @taxyear varchar(4) 
+ @taxyear varchar(4),
+ @debugMode varchar(5) = 'FALSE' 
 ) as
 begin
  exec dbo.logit @@procid, 'Started...'
@@ -73,6 +74,12 @@ begin
 
  select @tally = count(*) from @wt
  exec dbo.logit @@procid, 'fixing to process @wt, rows', @tally
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @wt
+  return
+ end
 
  while exists(select * from @wt)
  begin
