@@ -4,31 +4,40 @@
 @key2=right(99999999-OBJ:Key2,8);
 @ordername=Investment No,Date;
 @defaultbrowsekey=2;
+@format=80L(2)~Investment No~#1#|M
+50L(2)~Purchase Date~@d2@#2#|M
+50L(2)~Maturity Date~@d2@#30#|M
+50L(2)~Liquidation Date~@d2@#3#|M
+80L(2)~Investment Type~#16#|M
+80L(2)~Fund Drawn On~#7#|M
+80L(2)~Bank Name~#5#|M
+100L(2)~Bank Acct Desc~#22#|M;
+
 \t001Invest No;
-\t003Purchase Date; \w00400650;r \t004@d2;\@accr004008r2=checkDate=; \q004;
-\t041Maturity; \w04250; \x041-70; \x042-100; \q042;
+\t003Purchase Date; \w00400650;r \t004@d2;\@acc004=checkDate=; \q004;
+\t041Maturity; \w04250; \x041-70; \x042-100; \q042; \t042@d2; @acc042=checkDate=;
 \o042004; \o006042;
 \t005Liquidation; \t006@d2; 
-\t007Bank Name;\l0084701,1;r008058024002026004; @lf008='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
-\t009Purchase Check; \r010;
+\t007Bank Name;\l0084701,1;r008058024002026004; @lf008='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc008=checkDate=;
+\t009Purchase Check; \r010; \s010-'select isnull((select top 1 controlNumber from dbo.investmentDetail where investmentLink='&obj:id&' and activity=''Purchase Check''),''Renewal'')';
 \t011Fund Drawn On; \l0124701;r012004050002;@lf012='typ=4701 and (a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') or id in (select id from dbo.latestReceivables())) and b3!=1',2,2;
 @acc012=if(obj:a3<' 0',set(50,'')),update;
 \t049Fund Code; \d050; \x050-65; \h049;
 \t013Type of Inv;
 \t015Int Rate; \w01450;
 \d018022;r
-\t017Principle; \s018+'select sum(amount) from gldetail where accountcode = '''&obj:a9&''' and date<='&obj:key2+0;
-\t019Interest; \s020+'select sum(amount) from gldetail where sourcecode = '''&obj:a9&''' and date>='&obj:key2+0&' and (date<='&obj:key3+0&' or '&obj:key3+0&' <''1'')';
-\t021Current Value; \s022+'select sum(amount) from gldetail where accountcode = '''&obj:a9&''' and (date<='&obj:key3+0&' or '&obj:key3+0&' <''1'')';
+\t017Principle; \t018@n$19.2;\s018+'select principle from dbo.investmentHeader where id='&obj:id;
+\t019Interest; \t020@n$19.2;\s020+'select interest from dbo.investmentHeader where id='&obj:id;
+\t021Ending Value; \t022@n$19.2;\s022+'select endValue from dbo.investmentHeader where id='&obj:id;
 \t023Bank Acct Code; \d024;
 \t025Bank Acct Name; \l0264701,1;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc026=checkDate=;
 
-@checkDate=d1select('select max(key3) from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
-  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>='''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,
-  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3<=''1'' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1+lcCheck1+0,
-  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3>='''&obj:key3&''' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1,
-  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3<=''1'' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1+lcCheck2+0,
-  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2>='''&obj:key2&''' and key3<='''&obj:key3&''' and '''&obj:key3&'''>''1''  and '''&obj:key2&'''>''1'''),lcCheck3=obj7:d1,
+@checkDate=d1select('select max(a18) from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>'''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3<''1'' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1+lcCheck1+0,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3>'''&obj:key3&''' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3<''1'' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1+lcCheck2+0,
+  d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2>='''&obj:key2&''' and key3<'''&obj:key3&''' and '''&obj:key3&'''>''1''  and '''&obj:key2&'''>''1'''),lcCheck3=obj7:d1,
   break(lcCheck1+0+lcCheck2+0+lcCheck3+0<1),
   if(lcCheck1+0>0,m('Invalid Purchase Date. This date is included in a previous term.')),
   if(lcCheck1+0>0,set(004,gclastDate+1)),
@@ -38,3 +47,36 @@
   if(lcCheck3+0>0,set(006,'')),
   if(lcCheck3+0>0,set(004,gclastDate+1)),
   update;
+
+\t110Record Interest;
+@acc110=update,
+ if(obj:a9<' 0',m('Please fill in Bank Account Code.')),
+ break(obj:a9<' 0'),
+ if(obj:b2<' 0',m('Please fill in Fund Drawn On.')),
+ break(obj:b2<' 0'), 
+ d1select('exec dbo.investmentInterestAccountVerification '''&obj:a9&''''),
+ lcReturn=obj7:d1,
+ lcCode=readstring(lcReturn,'@code='),
+ if(lcCode+0>0,m(readstring(lcReturn,'@message='))),
+ break(lcCode+0>0),
+ lcSourceCode=readstring(lcReturn,'@sourceCode='),
+ if(today()+0>obj:a18+0 or today()+0<obj:key2+0,lcDate=obj:a18,lcDate=today()),
+ d1select('exec dbo.receiptNew ''MISC'', @blob='''&'@maturity='&lcDate&';'&''''),
+ lcNewReceiptId=obj7:d1,
+ break(lcNewReceiptId+0<1),
+ iw('\t000Please enter the amount of interest for this receipt; \t001Amount; \w00250; \t002@n-19.2;'),
+ lcamount=obj7:key1,
+ if(lcamount+0=0,m('Please enter an amount.')),
+ break(lcamount+0=0), 
+ d1select('exec dbo.receiptDetailCRUD '&lcNewReceiptId+0&', @receiptTyp=4502, @description=''INTEREST'', @sourceCode='''&lcSourceCode&''', @fundCode='''&obj:b2&''', @amount='&lcamount+0),
+ change(lcNewReceiptId);
+
+\t112Renew Investment;
+@acc112=lcppurchase=obj:key2,
+ lcmaturity=obj:a18,
+ lcliquid=obj:key3,
+ copy(0),
+ set(004,lcliquid),
+ set(042,lcliquid+lcmaturity-lcppurchase),
+ set(006,''),
+ calcrecord();

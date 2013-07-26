@@ -1,6 +1,6 @@
 CREATE function dbo.outStandingVoucherReport(@endDate int) 
  returns
- @rt table(registerDate varchar(50),controlNumber varchar(50),registerNumber varchar(50),toWhom varchar(50),fundAccount varchar(50),paidAmount varchar(50),vType varchar(10),actionDate varchar(50),ord varchar(250))
+ @rt table(registerDate varchar(50),controlNumber varchar(50),registerNumber varchar(50),toWhom varchar(50),fundAccount varchar(50),fundAccountCode varchar(50),paidAmount varchar(50),vType varchar(10),actionDate varchar(50),ord varchar(250))
  as
  begin
 
@@ -11,6 +11,7 @@ insert @rt
   dbo.popro6(foreignNumber,6,1),
   payee,
   fundAccount,
+  '',
   balanceAsOf*-1,
   case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' else left(contraPaymentType,1) end,
   dbo.date1(contraPostDate),
@@ -18,21 +19,26 @@ insert @rt
  from dbo.paymentReports('Bank',@endDate,null) 
   where isnull(paymentType,'') like '%voucher%' 
 
+update @rt set fundAccountcode=key1 from object where typ=4701 and key2=fundAccount
+
 
 --group header
- insert @rt (toWhom,ord)
+ insert @rt (toWhom,ord,fundAccount,fundAccountCode)
  select 
   fundaccount,
-  fundaccount+'   a'
- from @rt where fundAccount>'  0' group by fundaccount
+  fundaccount+'   a',
+  fundaccount,
+  fundaccountCode
+ from @rt where fundAccount>'  0' group by fundaccount,fundaccountCode
 
 --group footer
-insert @rt (toWhom,paidAmount,ord)
+insert @rt (toWhom,paidAmount,ord,fundAccount,fundAccountCode)
  select 
   fundaccount+' Total',
   sum(cast(paidAmount as money)),
-  fundaccount+'c'
- from @rt group by fundaccount
+  fundaccount+'c',
+  fundAccount,fundAccountCode
+ from @rt where fundAccount>'  0' group by fundaccount,fundaccountCode
 
 --report footer
 insert @rt (toWhom,paidAmount,ord)

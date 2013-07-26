@@ -1,5 +1,6 @@
 create proc dbo.table2json(
  @tempTableName varchar(max),
+ @title varchar(max) = null,
  @includeColumnObject varchar(5) = 'TRUE',
  @includeAPIPrefix varchar(5) = 'FALSE',
  @json varchar(max) = null output
@@ -41,7 +42,29 @@ begin
 
  if @includeColumnObject = 'TRUE'
  begin
-  set @json = '"columns":[],' + @json
+
+  declare
+   @data2 stringBlob,
+   @fields2 blobFields
+
+  insert @data2 select name+'|true' from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp) order by column_id
+
+  insert @fields2 select 'columnName','string',0
+  insert @fields2 select 'visable','string',0
+
+  exec dbo.pipedStringToJson
+   @data2,
+   @fields2,
+   @includeSiteId = 'False',
+   @includeAPIPrefix = @includeAPIPrefix,
+   @payload = @payload output
+
+  set @json = '"columns":' + @payload + ',' + @json
+ end
+
+ if @title > '  0'
+ begin
+  set @json = '"title":"' + @title + '",' + @json
  end
 
  set @json = '{' + @json + '}'

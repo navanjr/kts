@@ -12,7 +12,8 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @printed varchar(50) = '',
  @queue varchar(50) = '',
  @tallyEcho int = null,
- @verbose varchar(5) = 'TRUE'
+ @verbose varchar(5) = 'TRUE',
+ @skipSQLTransactionOnGLPost varchar(50) = 'FALSE'
 ) as
 begin
 
@@ -153,7 +154,7 @@ begin
   
   -- post to the gl
   declare @test int = substring(@slink,2,14)
-  exec dbo.glPost @test, @styp, @smode, @verbose = @verbose
+  exec dbo.glPost @test, @styp, @smode, @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGLPost
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 

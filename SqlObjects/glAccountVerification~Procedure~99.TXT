@@ -14,7 +14,9 @@ create procedure dbo.glAccountVerification (
  @collectionDesc varchar(50) = '',
  @debugMode varchar(5) = 'FALSE',
  @accountId int = null OUTPUT,
- @accountDesc varchar(50) = null OUTPUT
+ @accountDesc varchar(50) = null OUTPUT,
+ @monthEndColumn varchar(50) = '',
+ @forceAccountDesc varchar(50) = ''
 ) as
 begin
  set nocount on
@@ -87,7 +89,10 @@ begin
 
    select @accountDesc = accountDesc from @accountTypes where accountType = @accountType
 
-   insert object (typ,key1,key2,a1,a2,a3,a4,a8,a9,a10,a11,a12,a13,a14,a16,k2,k3) 
+   if @forceAccountDesc > '0'
+    set @accountdesc=@forceAccountDesc
+
+   insert object (typ,key1,key2,a1,a2,a3,a4,a8,a9,a10,a11,a12,a13,a14,a16,b2,k2,k3) 
     select 
      4701,
      upper(@accountCode),
@@ -104,6 +109,7 @@ begin
      @rate,
      @populationType,
      'KTS',
+     @monthEndColumn,
      left(@accountDesc,30),
      left(@tableType,30)
 

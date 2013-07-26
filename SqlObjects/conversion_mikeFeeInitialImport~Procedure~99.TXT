@@ -1,0 +1,53 @@
+create proc dbo.conversion_mikeFeeInitialImport(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare
+  @mikeTableName varchar(50) = 'fee',
+  @mikePath varchar(max),
+  @sql nvarchar(max),
+  @fields nvarchar(max) = 'taxyear,itm_nbr,key_suf,type,amount,amt2,date,[desc]'
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select ' + @fields + ' from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted() and taxyear > "  0" and itm_nbr > "  0"'')'
+
+
+ if @method = 'GET'
+ begin  
+  declare @checkTally int
+  select @checkTally = count(*) from mike_fee
+
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when isnull(@checkTally,0) > 0 then 0 else 1 end,
+   @tally = case when isnull(@checkTally,0) > 0 then 0 else 1 end,  
+   @message = 'mike_fee not found in KTS'
+
+ end
+
+ if @method = 'SHOW'
+ begin   
+  return 
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert mike_fee (taxyear,itm_nbr,key_suf,type,amount,amt2,date,[desc]) exec(@sql)
+  return 
+ end
+
+end
