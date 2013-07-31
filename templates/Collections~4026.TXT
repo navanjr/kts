@@ -299,10 +299,27 @@
 
 \t116Process Fees;
 @acc116=
- d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1+0&',@dType='''&gcDType&''',@status=''StageAll'',@date='&obj:key1&',@days='&obj:a17),
- if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
- lcMessage=readstring(obj7:d1,'@message='),
- lcTally=readstring(obj7:d1,'@tally='),
+ m('Please Choose one of the following options...','Process Fees...','question.ico','&One|&Batch|&Cancel'),
+ if(gcretval=1,oneFee=),
+ if(gcretval=2,batchFee=);
+
+@oneFee=
+ lcid=kpbrwid(1)*-1,
+ if(lcid+0=0,m('Please select a tax item...')),
+ break(lcid+0=0),
+ lcProcess='one',
+ processFees?=;
+
+@batchFee=
+ lcid='',
+ lcProcess='',
+ processFees?=;
+
+@processFees?=
+ e1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1+0&',@dType='''&gcDType&''',@status=''StageAll'',@date='&obj:key1&',@days='&obj:a17&choose(lcProcess='one',',@taxrollDetailid='&lcid,'')),
+ if(readstring(obj7:e1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
+ lcMessage=readstring(obj7:e1,'@message='),
+ lcTally=readstring(obj7:e1,'@tally='),
  break(lcTally+0<1 or readstring(obj7:d1,'@code=')>0),
  m(lcMessage&'||Are you sure you wish to create '&lcTally&' Fee Invoices?','Create Fee Invoices...','question.ico','&Yes|&No|&Remove'),
  if(gcretval=1,processFeesYes=),
@@ -313,11 +330,10 @@
 
 @processFeesYes=
  kpmo('Creating Fee Invoices...','Please Wait...'),
- d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'',@date='&obj:key1&',@days='&obj:a17),
+ d1select('exec dbo.docFeeProcessingCRUD @documentId='&obj:link1&',@dType='''&gcDType&''',@status=''All'',@date='&obj:key1&',@days='&obj:a17&choose(lcProcess='one',',@taxrollDetailid='&lcid,'')),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Fee Processing...')),
  kpmc(),
  refreshbrw=;
-
 
 \t119Mana&ge Docs;
 @acc119=browse(1,4900);
