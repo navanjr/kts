@@ -1,4 +1,8 @@
-create function dbo.journalEntryBRW(@id int, @showGL int) returns @rt table(
+create function dbo.journalEntryBRW(
+ @id int,
+ @showGL int,
+ @csvBlob varchar(max) = null
+) returns @rt table(
  ord varchar(50),
  id int,
  accountid int,
@@ -28,7 +32,10 @@ begin
  update r set accounttype = a.accounttype from @rt r, glaccounts a where r.accountcode=a.accountcode
 
 -- import features
- select @importData = e2 from object where id = @id and typ = 4512
+ if isnull(@csvBlob,'') > '  0'
+  select @importData = @csvBlob
+ else
+  select @importData = e2 from object where id = @id and typ = 4512
  if (@importData > '  0')
   begin
 

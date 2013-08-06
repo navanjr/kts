@@ -175,7 +175,7 @@
  refreshBRW=;
 
 @fundCheck=
- lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&') where id = '&lcid),
+ lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&',null) where id = '&lcid),
  lcFundId=kp('select id from object where typ = 4704 and key2 = '''&lcFund&'''');
 
 @clerksFundMissing=
@@ -189,11 +189,11 @@
 
 @gcvarsVouchers=
  gcformat4770='40L(2)~Voucher #~#2#M|50R(2)~Date~@d2b@#3#M|195L(2)~Payable To~#4#M|50R(2)~Amount~@n-14.2b@#5#M|50L(2)~DebitAcct~#6#M|50L(2)~CreditAcct~#7#M|40L(2)~Register #~#8#M|',
- gcsql4770='select id-1,voucherNumber,voucherDate,payee,amount,debitAcct,creditAcct,registerNumber,postCheck from dbo.voucherImportBRW('&obj:id&') where amount > ''  0'' order by ord';
+ gcsql4770='select id-1,voucherNumber,voucherDate,payee,amount,debitAcct,creditAcct,registerNumber,postCheck from dbo.voucherImportBRW('&obj:id&',null,null) where amount > ''  0'' order by ord';
 
 @gcvarsWarrants=
  gcformat4770='50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|',
- gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&') order by ord';
+ gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&',null) order by ord';
 
 @refreshBRW=
  labels=,
@@ -268,7 +268,7 @@
 \t114&Import;
 @acc114=
  update,
- lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&')'),
+ lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&choose(obj:c1+0=1,',null,null',',null')&')'),
  lcCount=readstring(lcMsgBlob,'@count='),
  lcAmount=readstring(lcMsgBlob,'@amount='),
  lcRed=readstring(lcMsgBlob,'@red='),

@@ -6,7 +6,8 @@ create procedure dbo.glDetailStageAdd (
  @stageId int = 0,
  @contraId int = 0,
  @comment varchar(50) = '',
- @sourceCode varchar(60) = ''
+ @sourceCode varchar(60) = '',
+ @verbose varchar(5) = 'TRUE'
 ) as 
 begin
  declare
@@ -17,7 +18,9 @@ begin
  -- bail if amount is zero
  if @amount = 0.00
  begin
-  select '@code=1;@message=Can not stage a GL amount of Zero.;'
+  if @verbose = 'TRUE'
+   select '@code=1;@message=Can not stage a GL amount of Zero.;'
+  exec dbo.logit @@procid, '@code=1;@message=Can not stage a GL amount of Zero.;'
   return
  end
 
@@ -25,7 +28,9 @@ begin
  exec dbo.glPreStageCheck @id, @styp, @code output, @message output
  if @code = 1
  begin
-  select '@code='+cast(@code as varchar)+';@message='+@message+';'
+  if @verbose = 'TRUE'
+   select '@code='+cast(@code as varchar)+';@message='+@message+';'
+  exec dbo.logit @@procid, '@code', @code,'@message', @message
   return
  end
 
@@ -91,7 +96,7 @@ begin
   set @contraStageId = ISNULL(@contraStageId,0)
   if @contraAmount <> 0.00
    begin
-    exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId
+    exec dbo.glDetailStageAdd @id, @styp, @contraId, @contraAmount, @contraStageId, @verbose = @verbose
    end
   else
    begin
@@ -102,7 +107,9 @@ begin
    end
  end
 
- select '@code=0;@message=Staging of GL Successful;'
+ if @verbose = 'TRUE'
+  select '@code=0;@message=Staging of GL Successful;'
+ exec dbo.logit @@procid, '@code=0;@message=Staging of GL Successful;'
  return
 
 end

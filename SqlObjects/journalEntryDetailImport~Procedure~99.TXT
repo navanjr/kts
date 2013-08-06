@@ -1,4 +1,9 @@
-create procedure dbo.journalEntryDetailImport ( @jeId int, @adjustToFlag varchar(10) = 'FALSE') as
+create procedure dbo.journalEntryDetailImport (
+ @jeId int,
+ @adjustToFlag varchar(10) = 'FALSE',
+ @csvBlob varchar(max) = null,
+ @verbose varchar(5) = 'TRUE'
+) as
 begin
 
  exec dbo.logit @@procid, '@jeId', @jeId
@@ -10,7 +15,7 @@ begin
   comment varchar(50),
   processflag int
  )
- insert @wt select accountId, amount, comment, 0 from dbo.journalEntryBRW(@jeId, 0) where importFlag = 1
+ insert @wt select accountId, amount, comment, 0 from dbo.journalEntryBRW(@jeId, 0, @csvBlob) where importFlag = 1
  
  declare 
   @idToken int,
@@ -37,7 +42,7 @@ begin
    select @amountToken = @amountToken - isnull(@currentAccountBalance,0)   
   end
 
-  exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken
+  exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken, @verbose = @verbose
  
   update @wt set processFlag = 1 where id = @idToken
  end

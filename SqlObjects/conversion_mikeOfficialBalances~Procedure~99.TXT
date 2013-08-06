@@ -60,7 +60,35 @@ begin
 
  if @method = 'FIX'
  begin
-  
+  declare
+   @conversionDateClarionDate int = dbo.clarionDate(dbo.settingsF('conversion.conversionDate','')),
+   @resultCode int,
+   @resultMessage varchar(max),
+   @newId int,
+   @slink varchar(15),
+   @csvBlob varchar(max) = ''
+
+  select @csvBlob = @csvBlob + csv + char(13) + char(10) from @st
+
+-- create J/E with "adjust to" stage and post
+  exec dbo.journalEntryCRUD
+   @mode = 0,
+   @description = 'OFFICIAL BEGINNING BALANCES',
+   @jeType = 'MANUAL',
+   @postDate = @conversionDateClarionDate,
+   @resultCode = @resultCode output,
+   @resultMessage = @resultMessage output,
+   @newId = @newId output
+
+  select @slink = 'o' + cast(@newId as varchar)
+
+-- create stage 
+  exec dbo.journalEntryDetailImport @newId, 'TRUE', @csvBlob, @verbose = 'FALSE'
+
+-- post to the gl
+  exec dbo.glPost @newId, 'o'
+  exec dbo.journalEntryUpdate @newId
+
   return
 
  end

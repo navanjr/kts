@@ -1,4 +1,7 @@
-create function dbo.warrantImportBRW( @id int ) returns @rt table(
+create function dbo.warrantImportBRW(
+ @id int,
+ @csvBlob varchar(max) = null
+) returns @rt table(
  id int identity(1,1),
  fiscalYear varchar(50),
  clerksFund varchar(50),
@@ -49,11 +52,19 @@ begin
   @lastNumber int,
   @payee varchar(max) = ''
 
- select
-  @officalLink = link2,
-  @debitAcct = key2,
-  @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
- from object where typ = 4770 and id = @id
+-- get the csv from the importer or from the passed variable
+ if isnull(@id,0) > 0 
+  select
+   @officalLink = link2,
+   @debitAcct = key2,
+   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
+  from object where typ = 4770 and id = @id
+ else
+  select
+   @officalLink = null,
+   @debitAcct = null,
+   @csv = @csvBlob
+  
 
 -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
  select 
