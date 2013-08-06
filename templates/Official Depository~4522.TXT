@@ -16,12 +16,16 @@ lmode=2;
  brwstuff=,
  gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST'''),
  if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id)),
- prop(112,'color',65280);
+ prop(112,'color',65280),
+ lcTrustDep=kp('select count(id) from paid where officialDepositId='&obj:id);
+
 @displayNextNumber=update,
  sql('update object set olink1 = isnull((select fp.a18 from object fp where fp.typ=4700 and fp.key3 <= '''&obj:key2&''' and fp.a1>='''&obj:key2&'''),'''') where id = '&obj:id),
  d1select('exec dbo.receiptNumber '&obj:id&','''''),
  lcNextNumber=obj7:d1,
  create(550,10,130,3,lcNextNumber),prop(550,'7c13h',700),tsc;
+
+kp('select count(id) from paid where officialDepositId='&obj:id)
 
 @select=008;
 @bb4=Re-&Print;
@@ -59,7 +63,7 @@ lmode=2;
  \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
 
 \t005Deposit Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;
-\t007Received From;  \l0084601,2; \d008obj:a17='Posted'; @lf008=,3; \q008;
+\t007Received From;  \l0084601,2; \d008obj:a17='Posted' or lcTrustDep>0; @lf008=,3; \q008;
 @acc008=
  get(obj:link2),
  lcCode=kp('select key3 from object where typ = 4701 and key1 = '''&obj7:a3&''''),
@@ -74,8 +78,8 @@ lmode=2;
  m('NOTE: TRUST RECEIPTS ARE DEPOSITED FROM THE BOOKKEEPERS DASHBOARD.||DO NOT USE THIS OFFICIAL DEPOSIT TO DEPOSIT TRUST INTO THE TREASURERS OFFICIAL FUND.','Treasurers Official Fund...','question.ico','Cancel|Continue'),
  if(gcretval=1,close('cancel+'));
 
-\t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2; \q010;
- \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151;
+\t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2; \q010; \h009010lcTrustDep>0;r
+ \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151; \h047048lcTrustDep>0;r
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
 \t041Received by;  \f042=cur:fullname; 
