@@ -20,10 +20,25 @@ begin
   @importData varchar(max)
 
  if exists(select * from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t'))
+
   insert @rt
-  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountCode, accountDesc, amount, comment2, 0, case when accountType = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<1 then 1 else 0 end, accountType 
-  from glDetailStage where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
+  select
+   'a_' + cast(s.id as varchar),
+   s.id*-1 as id,
+   s.accountId,
+   s.accountCode,
+   s.accountDesc,
+   s.amount,
+   s.comment2,
+   0,
+   case when a.accountType = 'ACCRUED RECEIVABLE' and isnull(s.contraId,0)<1 then 1 else 0 end,
+   a.accountType 
+  from glDetailStage s
+  left join dbo.glaccounts a on a.accountCode = s.accountCode
+  where s.slink in (select js.slink from journalSlinks(@id) js where left(js.slink,1)<>'t') 
+
  else
+
   insert @rt
   select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountCode, accountDesc, amount, comment2, 0, 0, ''
   from glDetail where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
