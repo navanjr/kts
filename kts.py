@@ -10,7 +10,10 @@ else:
 menu = ktsMenu(database)
 
 if len(sysArgs) > 2 and sysArgs[1] in ('ftp', 'conv'):
-    menu.ftp_put(sysArgs[2])
+    if sysArgs[1] == 'ftp':
+        menu.ftp_put(sysArgs[2])
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'importTax':
+        menu.tpsXXXXadtax()
 else:
     menu.display()
     continueSwitch = True
