@@ -2,14 +2,14 @@ from functions import *
 
 sysArgs = sys.argv
 
-if len(sysArgs) > 1 and sysArgs[1] not in ('ftp',):
+if len(sysArgs) > 1 and sysArgs[1] not in ('ftp', 'conv'):
     database = sysArgs[1]
 else:
     database = None
 
 menu = ktsMenu(database)
 
-if len(sysArgs) > 2 and sysArgs[1] in ('ftp',):
+if len(sysArgs) > 2 and sysArgs[1] in ('ftp', 'conv'):
     menu.ftp_put(sysArgs[2])
 else:
     menu.display()
