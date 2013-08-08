@@ -613,9 +613,10 @@ class ktsMenu():
         print '     ==================================================='
         print
 
-    def tpsSelect(self, sqlString, dbName, verbose=False):
-        aamasterpath = self.settingsF('conversion.aamasterpath')
-        connDatabase = '%s\\%s.TPS' % (aamasterpath, dbName)
+    def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None):
+        if not connDatabase:
+            aamasterpath = self.settingsF('conversion.aamasterpath')
+            connDatabase = '%s\\%s.TPS' % (aamasterpath, dbName)
         connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
         package = {}
         package['connectionString'] = connectionString
@@ -647,7 +648,7 @@ class ktsMenu():
 
         print 'ok we will attempt to import the data from %s.tps' % tableName
         sql = 'select * from %s' % tableName
-        package = self.tpsSelect(sql, tableName, True)
+        package = self.tpsSelect(sql, tableName, True, importFileName)
         if 'error' in package:
             print '   oops pyodbc error... %s' % package['error']
         if len(package['rows']) > 0:
