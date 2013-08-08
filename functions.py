@@ -642,13 +642,14 @@ class ktsMenu():
         if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
             importFileNameOld = importFileName
             importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
             if os.path.isfile(importFileRaw):
-                shutil.copy2(importFileRaw, '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName))
+                shutil.copy2(importFileRaw, importPathAndFileName)
         tableName = importFileName.split('.')[0]
 
         print 'ok we will attempt to import the data from %s.tps' % tableName
         sql = 'select * from %s' % tableName
-        package = self.tpsSelect(sql, tableName, True, importFileName)
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
         if 'error' in package:
             print '   oops pyodbc error... %s' % package['error']
         if len(package['rows']) > 0:
