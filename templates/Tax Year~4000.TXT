@@ -15,7 +15,7 @@
  updateMikeMort=;
 
 @brwstuff=
- gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord,code',
+ gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1+0&''') order by ord,code',
  brw(150,1,gcbrwsql4000,65,95,240,100,'140L(2)~~#2#|M50R(4)~~#3#|M50R(4)~~#5#|M100L(2)~~#6#|M',7,1),
  prop(150,7CFAH,13499135);
 
@@ -42,7 +42,7 @@
  calcfld(048);
 
 @updateMikeMort=
- d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1&''''),
+ d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1+0&''''),
  lcMortImp=readstring(obj7:d1,'@tally='),
  set(44,lcMortImp);
 
@@ -119,7 +119,7 @@ acc049=
 @bb7=&Trio Report; 
 @bbproc7=acc115=;
 
-\t001Tax Year; \t002@p####p;
+\t001Tax Year; \t002@p####p; @acc002=calcrecord(),refreshbrw=,updateMikeMort=;
 
 \t003adtx_(TaxYear); \s004-'select count(*) from adtx_'&obj:key1&' where balanceDue !=0';
 \t005mike_taxroll; \s006-'select count(*) from mike_taxroll where realtaxyear = '&obj:key1;
@@ -220,16 +220,10 @@ acc049=
  calcfld(010),
  kpmc();
 
-\t108&Print;  \y108+9; \h108;
+\t108&Print Statements;  \y108+9; 
 
-@printIt=
- kpmo('Printing Invoices...'&lcCount),
- lcCnt=0,
- do(452,getSiteInfo=),
- sqlloop('select top '&lcCount&' id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by printOrder',printIt1=),
- calcfld(012),
- calcfld(050),
- kpmc();
+@acc108=
+ do(51,menuprocess=);
 
 @printIt1=
  lcCnt=lcCnt+1,

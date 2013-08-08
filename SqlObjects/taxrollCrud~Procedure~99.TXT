@@ -1,0 +1,75 @@
+create procedure dbo.taxrollCRUD (
+ @method varchar(50) = '',
+ @fileName varchar(max) = null,
+ @taxYear int = 0
+ )
+as
+begin
+ set nocount on
+ 
+ exec dbo.logit @@procid, 'taxrollCRUD...'
+  
+ declare
+  @cmd varchar(8000),
+  @cmdOutput varchar(8000),
+  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo')
+
+
+-- import taxroll to adtaxCheck...
+ if @method = 'importTax'
+ begin
+  set @cmd = @gitRepo + '\kts.bat conv importTax'
+  exec dbo.logit @@procid, 'taxrollCRUD... @cmd', @cmd,'@method',@method
+  exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+  exec dbo.logit @@procid, 'Done!... @cmdOutput', @cmdOutput
+
+  return
+ end
+
+-- clear adtaxCheck...
+ if @method = 'dropAdtaxCheck'
+  begin
+   exec dbo.logit @@procid, 'taxrollCRUD... @method',@method,'@taxYear',@taxYear
+  
+   if @taxYear>0
+    delete from adtaxCheck where realtaxyear=@taxYear
+   else
+    drop table dbo.adtaxCheck
+
+   return
+  end
+ 
+
+-- move records from adtaxCheck into adtax...
+ if @method = 'adTaxAdd'
+ begin
+    exec dbo.logit @@procid, 'taxrollCRUD... @method', @method
+    delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
+     in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtax)
+
+   if exists(select * from adtaxCheck)
+    insert into adtax
+     ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[origin])
+     select 
+      [RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice'
+      from adtaxcheck where 1=1 and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
+    drop table adTaxCheck
+  return
+ end
+
+
+
+
+end

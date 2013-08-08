@@ -93,6 +93,9 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[re
    CREATE INDEX [slink include amount] ON [dbo].[receiptDetail] ([slink]) INCLUDE ([amount])
 
 
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'fundCode include slink')
+   CREATE NONCLUSTERED INDEX [fundCode include slink] ON [dbo].[receiptDetail] ([fundCode]) INCLUDE ([slink])
+
 ------Invoices
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'item')
 
@@ -379,8 +382,15 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gl
 if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
    CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
      ([ID] ASC)
-    
- 
+
+if not exists(SELECT * FROM sys.indexes WHERE name='recordType include id,realtaxyear,balancedue' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [recordType include id,realtaxyear,balancedue] ON [dbo].[AdTax] ([RECORDTYPE]) INCLUDE ([ID],[REALTAXYEAR],[BALANCEDUE])
+
+if not exists(SELECT * FROM sys.indexes WHERE name='realTaxYear,itemNumber' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [recordType,Id] ON [dbo].[AdTax] ([RECORDTYPE],[ID]) 
+
+if not exists(SELECT * FROM sys.indexes WHERE name='realTaxYear,itemNumber' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [realTaxYear,itemNumber] ON [dbo].[AdTax] ([realTaxYear],[itemNumber]) 
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[AdTax]') AND name = N'Id,OwnerName')
 
