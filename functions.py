@@ -636,12 +636,15 @@ class ktsMenu():
         return package
 
     def tpsXXXXadtax(self):
-        taxYear = self.settingsF('conversion.taxyear')
-        badFileName = '%s\\%sadtx.tps' % (self.settingsF('conversion.aamasterpath'), taxYear)
-        newFileName = '%s\\adtx%s.tps' % (self.settingsF('conversion.aamasterpath'), taxYear)
-        if os.path.isfile(badFileName):
-            shutil.copy2(badFileName, newFileName)
-        tableName = 'adtx%s' % taxYear
+        importFileRaw = self.settingsF('taxroll.importFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName))
+        tableName = importFileName.split('.')[0]
+
         print 'ok we will attempt to import the data from %s.tps' % tableName
         sql = 'select * from %s' % tableName
         package = self.tpsSelect(sql, tableName, True)
