@@ -645,6 +645,8 @@ class ktsMenu():
             importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
             if os.path.isfile(importFileRaw):
                 shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
         tableName = importFileName.split('.')[0]
 
         print 'ok we will attempt to import the data from %s.tps' % tableName
