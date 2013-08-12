@@ -1,0 +1,79 @@
+create proc dbo.diagFix_missingTaxAccountsACR(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(
+  district varchar(50),
+  rate varchar(50),
+  year varchar(50),
+  acrId int,
+  sourceId int
+ )
+
+ insert @wt
+ select t.district, t.ratename, t.YEAR, null, null
+ from dbo.taxratedetail t
+ group by t.district, t.ratename, t.YEAR  
+
+ update a set a.acrId = accountId from @wt a, dbo.glAccounts b
+ where a.district = b.apdistrict and a.rate = b.aprate and a.year = b.apyear and b.aptabletype = 'M' and b.accountType = 'Accrued Receivable'
+
+ update a set a.sourceId = accountId from @wt a, dbo.glAccounts b
+ where a.district = b.apdistrict and a.rate = b.aprate and a.year = b.apyear and b.aptabletype = 'M' and b.accountType = 'Source'
+ 
+ if @method = 'GET'
+ begin 
+
+  select 
+   @class = 'tax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'ACR and(or) Source Accounts are needed'
+  from @wt
+  where acrId is null or sourceId is null
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @wt
+  where acrId is null or sourceId is null
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  declare 
+   @district varchar(50),
+   @rate varchar(50),
+   @year varchar(50)
+  
+  declare token cursor local for select district, rate, year from @wt where acrId is null or sourceId is null
+  open token
+  fetch next from token into @district, @rate, @year
+
+  while @@fetch_status = 0
+  begin
+
+   exec dbo.pilotFundReceivableVerification @year, @district, @rate, ''
+   fetch next from token into @district, @rate, @year
+
+  end
+
+  return
+
+ end
+
+end
