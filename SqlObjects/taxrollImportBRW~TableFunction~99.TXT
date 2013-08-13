@@ -1,4 +1,4 @@
-create function dbo.taxrollImportBRW() returns @rt table(
+ create function dbo.taxrollImportBRW() returns @rt table(
   brwid int,
   display varchar(max),
   blob varchar(max),
@@ -10,7 +10,8 @@ declare
  @path varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.importfile',''),'path'),
  @file varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.importfile',''),'file'),
  @adtaxCheck int = 0,
- @adtax int = 0
+ @adtax int = 0,
+ @missingTaxRates int =0
 
  insert @rt (display, ord) select '', 'b_'
  insert @rt (display, ord) select 'Taxroll Import Settings', 'b_0'
@@ -47,23 +48,41 @@ if @adtax>0
  begin
   insert @rt (display, ord) select '', 'd_0'
   insert @rt (display, ord) select dbo.padright('Ready to Invoice',' ',18), 'd_00'
-  insert @rt (display, ord) select dbo.padright('',' ',2)+dbo.padright('Tax Year',' ',10)+dbo.padLeft('Count',' ',7)+dbo.padLeft('Amount',' ',13), 'd_00'
+  insert @rt (display, ord) select dbo.padright('',' ',2)+dbo.padright('Tax Year',' ',10)+dbo.padLeft('Count',' ',7)+dbo.padLeft('Amount',' ',16), 'd_00'
 
   insert @rt (brwid, display, ord,Blob)
     select '5'+cast(realtaxYear as varchar),
      '  '+dbo.padright(cast(realTaxYear as varchar),' ',10) 
      +dbo.padleft(dbo.formatNum(count(id)),' ',7)
-     +dbo.padleft(dbo.formatCurr(sum(balanceDue)),' ',13),
+     +dbo.padleft(dbo.formatCurr(sum(balanceDue)),' ',16),
     'd_'+cast(realtaxYear as varchar),
      '@count=' + cast(count(id) as varchar) + ';@amount=' +  cast(sum(balanceDue) as varchar) + ';'
     from adtax where recordType>'  0' and id not in (select taxrollid from invoices)
     group by realtaxyear
- 
+
+
+ while exists(select * from @rt where charindex('@missingTaxRates=',blob)=0 and len(cast(brwId as varchar))=5)
+  begin
+   declare @taxYear varchar(5)
+    select @taxYear = substring(cast(brwId as varchar),2,4) from @rt where charindex('@missingTaxRates=',blob)=0
+    if @taxYear>0
+    begin
+     select @missingTaxRates=SUM(case when millTotal is null then 1 else 0 end) from dbo.taxyearTrioBRW(@taxYear)
+     update @rt set 
+      blob = blob+'@missingTaxRates=' + cast(@missingTaxRates as varchar) +';', 
+      display = display + ' *Missing Tax Rates'
+      where brwid='5'+@taxYear
+    end
+  end
+
+
+
+
   insert @rt (display, ord)
     select 
      dbo.padright('  Totals:',' ',12) 
      + dbo.padleft(dbo.formatNum(sum(cast(dbo.readstring('@count=',blob) as money))),' ',7)
-     + dbo.padleft(dbo.formatCurr(sum(cast(dbo.readstring('@amount=',blob) as money))),' ',13),
+     + dbo.padleft(dbo.formatCurr(sum(cast(dbo.readstring('@amount=',blob) as money))),' ',16),
     'd_zz'
     from @rt where left(ord,2)='d_'
 
