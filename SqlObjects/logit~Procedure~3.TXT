@@ -10,14 +10,15 @@ create procedure dbo.logit(
  @valued varchar(max) = '',
  @control varchar(100) = null,
  @level int = 1,
- @override varchar(5) = 'FALSE'
+ @override varchar(5) = 'FALSE',
+ @skipTextFile varchar(5) = 'FALSE',
+ @logitId int = null output
 ) as
 begin
 
  set nocount on
 
  declare
-  @logitId int,
   @txt varchar(max),
   @tailPath varchar(100),
   @procName varchar(50) = isnull(object_name(@procId),''),
@@ -82,8 +83,13 @@ begin
  if @labeld > '  0'
   set @txt = @txt + '; ' + @labeld + case when @valued > '  0' then ':' + @valued else '' end
 
- insert keyLog (procName, message, level) select @procName, @txt, @level
- set @logitId = @@identity
+ declare @newIdWt newIdWt
+
+ insert keyLog (procName, message, level)
+  output inserted.id into @newIdWt
+ select @procName, @txt, @level
+
+ select @logitId = max(id) from @newIdWt
 
 -- throw it out to a trace file if enabled
  select @tailPath = replace(data,'/','\') from @loggingStatusArray where id = 3
@@ -103,7 +109,8 @@ begin
    + ' ' + dbo.padRight(isnull(procName,''),' ',20)
    + ' ' + isnull(message,'') from keyLog where id = @logitId
   
-  exec spWriteStringToFile @txt, @tailPathWOFilename, @tailFileName
+  if @skipTextFile != 'TRUE'
+   exec spWriteStringToFile @txt, @tailPathWOFilename, @tailFileName
 
  end
 

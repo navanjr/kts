@@ -45,16 +45,16 @@ begin
     select 'ab','   Zero Balance Issue', @tally,'@mode=pass;@code=exec dbo.invoiceUpdate @taxyear=' + @taxyear + ';'
 
  -- no GL Detail Issue
- select @tally = count(*) from invoices where 't'+cast(id as varchar) not in (select slink from gldetail)
+ select @tally = count(*) from invoices where 't'+cast(id as varchar) not in (select slink from gldetail) and taxYear=@taxyear
  if @tally > 0
    insert @rt (ord,code,tally,blob)
    select 'ac','   Invoice(s) without glDetail', @tally,'@mode=pass;@code=exec dbo.invoiceCRUD @mode=3, @taxyear=' + @taxyear + ', @noGLDetailIssue=''TRUE'';'
 
 -- Exempt Invoices
    insert @rt (ord,code,tally)
-   select 'ac1','   Exempt Invoices',count(id) from invoices where status='Exempt'
+   select 'ac1','   Exempt Invoices',count(id) from invoices where status='Exempt' and taxYear=@taxyear
 
-
+/*
 -- print Ready
 
 -- Batches
@@ -112,6 +112,6 @@ begin
  select
   'ce', 'Print Batch Totals', count(*), sum(case when isnull(printed,'') in ('Failed','') then 0 else 1 end),sum(case when isnull(printed,'') in ('Failed','') then 1 else 0 end)
  from invoices where queue > '  0' and taxyear = @taxYear
-
+*/
  return
 end

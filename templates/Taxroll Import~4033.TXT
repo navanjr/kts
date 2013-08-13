@@ -1,0 +1,107 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@menuprocess=
+ lcid=kp('select min(id) from object where typ = 4033'),
+ if(lcid+0>0,change(lcid),new(4033));
+
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+
+@loadwindow=
+ sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ gcbrwsq4033='select brwid*-1,display from dbo.taxrollImportBRW() order by ord';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsq4033,2,2,320,262,'300L(5)~~#2#M'),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier'),
+ prop(150,7c11h,9),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0);
+
+@refreshBrw=
+ brwreload(1);
+
+@gfwindow=
+ refreshBrw=;
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+@brw1=lbrwclick150=;
+
+@lbrwclick150=
+ bustItUp=,
+ if(lcMode+0=4,4Options=),
+ if(lcMode+0=5,5Options=),
+ if(lcMode+0=6,6Options=),
+ if(lcMode+0=7,7Options=),
+ if(lcMode+0=8,8Options=),
+ if(lcMode+0=9,9Options=);
+
+@bustItUp=
+ if(kpbrwid(1)=0,bustItUpReset=),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+
+@bustItUpReset=
+ lcMode=0,
+ lcId=0;
+
+@4Options=
+ close('Ok'),
+ do(51,menuprocess=);
+
+
+@5Options=m(obj:key1&' Invoice options...','Invoice','question.ico','&Invoice|&Cancel'),
+ break(gcretval=2),
+ if(gcretval=1,openTaxYear=),
+ refreshbrw=;
+
+@openTaxYear=
+ lcTaxId=kp('select id from object where typ=4000 and key1='&lcId),
+ if(lcTaxId+0>0,change(lcTaxId),new(4000,,002=lcId));
+
+@6Options=
+ m('Choose one of the following options...','Taxroll Import...','question.ico','&Import All|&Clear Import|E&xit'),
+ if(gcretval=1,sql('exec dbo.taxrollCRUD @method = ''adTaxAdd''')),
+ if(gcretval=2,sql('exec dbo.taxrollCRUD @method = ''dropAdtaxCheck''')),
+ refreshBrw=;
+
+@7Options=
+ d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
+ lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
+ lcDescrip=readstring(obj7:d1,'@description='),
+ lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ gcDialog=choose(instring('file',lower(lcDescrip),1,1)>0,1,''),
+ if(lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,toggleIt=);
+
+@editVariable=
+ iw('@loadwindow=if(gcDialog=1,create(1,9)); @acc001=filedialog(''Locate file...'',),set(002,gcretval); \t001'&lcDescrip&';\f002'&lcValue&';'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.settingsCRUD '''&'taxroll.'&lcName&''','''&obj7:key1&''''),
+ refreshBrw=;
+ 
+@toggleIt=
+ m('Choose one of the following options...','Taxroll Import...','question.ico','&Toggle|E&xit'),
+ break(gcretval<>1),
+ sql('exec dbo.settingsCRUD @settingId='&lcid&', @method=''TOGGLE'''),
+ refreshBrw=;
+
+@8Options=
+ m('Choose one of the following options...','Taxroll Import...','question.ico','&Import|E&xit'),
+ if(gcretval=1,d1select('exec dbo.taxrollCRUD @method = ''importTax''')),
+ refreshBrw=;
+
+@9Options=
+ m('Choose one of the following options...','Taxroll Import...','question.ico','&Import|&Remove|E&xit'),
+ if(gcretval=1,d1select('exec dbo.taxrollCRUD @method = ''adTaxAdd'', @taxYear='&lcId)),
+ if(gcretval=2,d1select('exec dbo.taxrollCRUD @method = ''dropAdtaxCheck'', @taxYear='&lcId)),
+ refreshBrw=;
+
+

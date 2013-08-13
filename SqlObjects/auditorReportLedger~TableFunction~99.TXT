@@ -84,7 +84,7 @@ insert @rt
             dbo.padLeft(dbo.formatCurr(SUM(paid)),' ',16),
             dbo.padLeft(dbo.formatCurr(SUM(endbalance)),' ',16),
             'gFooter',
-            @ordSeed + 'zzzz' + 'd' 
+            @ordSeed + 'yyyyy' + 'd' 
 		from @wt 
 
 insert @rt 
@@ -96,14 +96,21 @@ insert @rt
 			replicate('=',16),
 			replicate('=',16),
 			'line',
-			@ordSeed + 'xxxx' + 'c' 
+			@ordSeed + 'xxxxx' + 'c' 
 			
+declare @asterisk varchar(50)
+select @asterisk = asterisk from dbo.reportCommentsBRW(17,@beginDate,@endDate) where display = 'Funds'
+if isnull(@asterisk,'') < '  0'
+ set @asterisk = ''
+else
+ set @asterisk = @asterisk + ' '
+
 ----headers
 insert @rt 
-	select '','','','','','','','lineFeed',@ordSeed + '0000a'
+	select '','','','','','','','lineFeed',@ordSeed + '00000a'
 
 insert @rt 
-	select '  Fund',
+	select '  '+@asterisk+'Fund',
 			dbo.padLeft('Beginning',' ',16),
 			dbo.padLeft('Apportion In',' ',16),
 			dbo.padLeft('Transfer In',' ',16),
@@ -111,7 +118,7 @@ insert @rt
 			dbo.padLeft('Disbursed',' ',16),
 			dbo.padLeft('Balance',' ',16),
 			'sHeader',
-			@ordSeed + '0000aa'	
+			@ordSeed + '00000aa'	
 
 insert @rt 
 	select 	' ' + replicate('=',79),
@@ -122,9 +129,23 @@ insert @rt
 			replicate('=',16),
 			replicate('=',16),
 			'line',
-			@ordSeed + '0000ab'
+			@ordSeed + '00000ab'
 
 
+----comments
+if exists(select * From dbo.reportCommentsBRW(17,@beginDate,@endDate))
+begin
+ insert @rt (rowType,ord)
+ select 'detail', @ordSeed + 'zzzzz'
+
+ insert @rt (rowstring,rowType,ord)
+ select
+  isnull(asterisk,'') + ' ' + case when origin = 1 then 'select dbo.rpCmt(17,'+@beginDate+','+@endDate+','+cast(id as varchar)+')' else display end,
+  case when origin = 1 then 'dip' else 'detail' end,
+  @ordSeed + 'zzzzz' + ord
+ from dbo.reportCommentsBRW(17,@beginDate,@endDate) order by ord
+
+end
 return
 end
 

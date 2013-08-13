@@ -20,6 +20,7 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[amount10] [money] NOT NULL default 0,
 	[amount11] [money] NOT NULL default 0,
 	[amount12] [money] NOT NULL default 0,
+	[amount13] [money] NOT NULL default 0,
 	[total] [money] NOT NULL default 0,
 	[heading1] varchar(50) NOT NULL default '',
 	[heading2] varchar(50) NOT NULL default '',
@@ -33,6 +34,7 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[heading10] varchar(50) NOT NULL default '',
 	[heading11] varchar(50) NOT NULL default '',
 	[heading12] varchar(50) NOT NULL default '',
+	[heading13] varchar(50) NOT NULL default '',
         [ord] [varchar](50) NOT NULL default ''
 )
 
@@ -315,9 +317,19 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @scho
      and b.journalDesc=c.heading
      and c.id=12
 
+update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @schoolHeadings c
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc=c.heading
+     and c.id=13
 
-insert @rt (reportOrder,accountType,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12)
-select '4500','SCHOOL TOTAL', comment2, sum(currentTax), sum(priorTax), sum(backTax), sum(amount1), sum(amount2), sum(amount3), sum(amount4), sum(amount5), sum(amount6), sum(amount7), sum(amount8), sum(amount9), sum(amount10), sum(amount11), sum(amount12) 
+
+
+
+insert @rt (reportOrder,accountType,comment2,currentTax,priorTax,backTax,amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12,amount13)
+select '4500','SCHOOL TOTAL', comment2, sum(currentTax), sum(priorTax), sum(backTax), sum(amount1), sum(amount2), sum(amount3), sum(amount4), sum(amount5), sum(amount6), sum(amount7), sum(amount8), sum(amount9), sum(amount10), sum(amount11), sum(amount12), sum(amount13) 
  from @rt where accountType like '%SCHOOL%' or accountType='VOTECH'
 group by comment2
 
@@ -334,7 +346,8 @@ update r set heading1 = isnull((select max(heading1) from @rt r where r.accountT
              heading9 = isnull((select max(heading9) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''),
              heading10 = isnull((select max(heading10) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''),
              heading11 = isnull((select max(heading11) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''),
-             heading12 = isnull((select max(heading12) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),'')
+             heading12 = isnull((select max(heading12) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),''),
+             heading13 = isnull((select max(heading13) from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'),'')
 from @rt r where r.accountType like '%SCHOOL%' or r.accountType='VOTECH'
 
 
@@ -456,6 +469,14 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @city
      and b.journalDesc=c.heading
      and c.id=12
 
+update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @cityHeadings c
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc=c.heading
+     and c.id=13
+
 update r set heading1 = isnull((select max(heading1) from @rt r where r.accountType='CITY'),''), 
              heading2 = isnull((select max(heading2) from @rt r where r.accountType='CITY'),''),
              heading3 = isnull((select max(heading3) from @rt r where r.accountType='CITY'),''),
@@ -467,7 +488,8 @@ update r set heading1 = isnull((select max(heading1) from @rt r where r.accountT
              heading9 = isnull((select max(heading9) from @rt r where r.accountType='CITY'),''),
              heading10 = isnull((select max(heading10) from @rt r where r.accountType='CITY'),''),
              heading11 = isnull((select max(heading11) from @rt r where r.accountType='CITY'),''),
-             heading12 = isnull((select max(heading12) from @rt r where r.accountType='CITY'),'')
+             heading12 = isnull((select max(heading12) from @rt r where r.accountType='CITY'),''),
+             heading13 = isnull((select max(heading13) from @rt r where r.accountType='CITY'),'')
 from @rt r where r.accountType='CITY'
 
 delete from @det2 where accountCode > ' 0'
@@ -588,6 +610,16 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @fund
      and b.journalDesc=c.heading
      and c.id=12
 
+update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @fundHeadings c
+   where r.accountType=b.accountType 
+     and r.accountCode=b.accountCode
+     and r.accountDesc=b.accountDesc
+     and r.comment2=b.comment2
+     and b.journalDesc=c.heading
+     and c.id=13
+
+
+
 update r set heading1 = isnull((select max(heading1) from @rt r where r.accountType='FUND'),''), 
              heading2 = isnull((select max(heading2) from @rt r where r.accountType='FUND'),''),
              heading3 = isnull((select max(heading3) from @rt r where r.accountType='FUND'),''),
@@ -599,7 +631,8 @@ update r set heading1 = isnull((select max(heading1) from @rt r where r.accountT
              heading9 = isnull((select max(heading9) from @rt r where r.accountType='FUND'),''),
              heading10 = isnull((select max(heading10) from @rt r where r.accountType='FUND'),''),
              heading11 = isnull((select max(heading11) from @rt r where r.accountType='FUND'),''),
-             heading12 = isnull((select max(heading12) from @rt r where r.accountType='FUND'),'')
+             heading12 = isnull((select max(heading12) from @rt r where r.accountType='FUND'),''),
+             heading13 = isnull((select max(heading13) from @rt r where r.accountType='FUND'),'')
 from @rt r where r.accountType='FUND'
 
 
@@ -617,7 +650,7 @@ update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'+
 
 
 
-update @rt set total=currentTax+priorTax+backTax+amount1+amount2+amount3+amount4+amount5+amount6+amount7+amount8+amount9+amount10+amount11+amount12
+update @rt set total=currentTax+priorTax+backTax+amount1+amount2+amount3+amount4+amount5+amount6+amount7+amount8+amount9+amount10+amount11+amount12+amount13
 
 return
 end

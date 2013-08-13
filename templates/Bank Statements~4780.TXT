@@ -31,11 +31,11 @@
 @filter='1=1','dbo.clariondate(getdate()) between a1 and a2','a1>=dbo.clariondate(getdate())-90';
 @filtername=All,Current,Recent;
 
-\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=checkDates=,if(gcallow='FALSE',set(002,'')),if(gcallow='FALSE',set(004,'')),update,refreshBRW=;
+\t001Account;  \l0024701,1;r002002004004;  @lf002='typ=4701 and a1 in (''BANK'',''INVESTMENT'',''CASH'') and b3!=1',2; @acc002=lcD=2,dateCheck=,,update,refreshBRW=;
 \t003Description;  \d004; \d002obj:a4+0>0;
 
 \t007Statement Date;  \w00850;  \t008@d2; @acc008=lcD=8,dateCheck=,refreshBRW=; \d008obj:a4+0>0;
-\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=; \y007010-13;r
+\t009through;  \w01050;  \t010@d2; \d010obj:a4+0>0; @acc010=lcD=10,dateCheck=,refreshBRW=; \y007010-13;r
 \t011Statement Balance; @acc012=sums=; \w011100; \w01260; \x01280; \d012; \p0127cfah,13499135; \p0127c13h,700; \p0127c0ch,1; \t012@n-14.2; \x011012+122;r \x011+15;
 \t013Count; \h013014;r
 \t015Clearing &Date; \t016@d1; \x015200; \x016250; \y01527; \y01615;
@@ -45,8 +45,10 @@
  lcDate=choose(lcD=8,obj:a1,obj:a2),
  lcExists=kp('select dbo.bankStatementDateCheck('''&obj:key1&''','&lcDate+0&','&obj:id&')'),
  if(lcExists='EXISTS',statementExists=);
+
 @statementExists=
- m('The date entered overlaps with an existing statement||Please choose another date...','Date overlap!'),
+ m('The date entered overlaps with an existing statement for this account||Please choose another date or another account...','Date overlap!'),
+ if(lcD=2,set(002,'')),if(lcD=2,set(004,'')),
  set(lcD,''),
  focus(lcD);
 

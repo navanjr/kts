@@ -4,6 +4,8 @@ import pyodbc
 import subprocess
 import ConfigParser
 import ftplib
+import shutil
+
 
 def isnull(what,convertTo=''):
     if what is None:
@@ -67,6 +69,7 @@ class ktsMenu():
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
+        self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
 
         self.command = []
 
@@ -610,6 +613,59 @@ class ktsMenu():
         print '     ==================================================='
         print
 
+    def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None):
+        if not connDatabase:
+            aamasterpath = self.settingsF('conversion.aamasterpath')
+            connDatabase = '%s\\%s.TPS' % (aamasterpath, dbName)
+        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
+        package = {}
+        package['connectionString'] = connectionString
+        package['database'] = connDatabase
+        package['sqlString'] = sqlString
+        if verbose:
+            for key, value in package.items():
+                print key, value
+        connection = pyodbc.connect(connectionString, autocommit=True)
+        cursor = connection.cursor()
+        try:
+            cursor.execute(sqlString)
+            rows = cursor.fetchall()
+            package['rows'] = rows
+        except (pyodbc.ProgrammingError, pyodbc.Error) as err:
+            package['error'] = err
+        connection.close()
+        return package
+
+    def tpsXXXXadtax(self):
+        importFileRaw = self.settingsF('taxroll.importFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select * from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
+            sqlInsert = "insert adtaxCheck "
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
     def tpsAamasterCheck(self):
         columns = []
         columns.append('autonumber varchar(50)')
@@ -641,18 +697,7 @@ class ktsMenu():
         if not aamasterpath:
             print 'missing path to aamaster... fail!'
             return
-        connDatabase = '%s\\aamaster.TPS' % aamasterpath
-        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
-        package = {}
-        package['connectionString'] = connectionString
-        package['database'] = connDatabase
-        package['sqlString'] = sqlString
-        connection = pyodbc.connect(connectionString, autocommit=True)
-        cursor = connection.cursor()
-        cursor.execute(sqlString)
-        rows = cursor.fetchall()
-        package['rows'] = rows
-        connection.close()
+        package = self.tpsSelect(sqlString,'aamaster')
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
             sqlCreateTable = 'create table aamasterCheck({uniqueColumns}, {columns}, kts{ktsColumns})'.format(uniqueColumns=', '.join(uniqueColumns),columns=', '.join(columns), ktsColumns=', kts'.join(columns))
@@ -660,7 +705,7 @@ class ktsMenu():
             print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
             sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
-            for id, row in enumerate(rows):
+            for id, row in enumerate(package['rows']):
                 formatedRow = [str(x).replace("'", "''") for x in row]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:

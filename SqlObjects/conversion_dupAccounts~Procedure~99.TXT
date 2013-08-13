@@ -1,0 +1,48 @@
+create proc dbo.conversion_dupAccounts(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ if @method = 'GET'
+ begin  
+  exec dbo.logit @@procid, 'who is your daddy'
+ 
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @message = 'Duplicate account codes'
+
+  if exists(select key1 from object where typ = 4701 and isnull(key1,'')>'  0' group by key1 having count(id)>1) 
+   select 
+    @tally = COUNT(*),  
+    @code = 1
+   from object where typ = 4701 and key1 in (select key1 from object where typ=4701 and isnull(key1,'')>'  0' group by key1 having count(id)>1)
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+   select key1,count(id) from object where typ = 4701 and isnull(key1,'')>'  0' group by key1 having count(id)>1
+
+ end
+
+ 
+end
+
+
+
+
+

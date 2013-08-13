@@ -19,17 +19,44 @@
  create(172,12,250,135,'Include Special Apportionment',70),
  create(173,12,250,147,'Show Detail',72),
  create(174,12,250,159,'Order By Voucher',74),
- create(175,12,250,171,'With Activity Only',76),;
+ create(175,12,250,171,'With Activity Only',76),
+ create(176,9,250,183,'Send School Reports'),
+ lcMh351=mh-412,
+ lcMh352=mh-210,
+ brwStuff2=;
+
+@brwStuff2=
+ setVars2=,
+ brw(351,2,gcBrwSql45062,201,200,220,lcMh351,'190L(2)~Comment~#2#',,1),
+ create(352,9,365,lcMh352,'Add Comment');
+
+@setVars2=
+ gcStartDate=obj:key1,
+ gcEndDate=obj:key2,
+ gcBrwSql45062='select id,display from dbo.reportCommentsBRW('''&gcreportId*-1&''','''&gcStartDate&''','''&gcEndDate&''') order by ord';
+@refreshBrw2=setvars=,setVars2=,brwreload(2,gcBrwSql45062);
+@acc352=neww(5064,,002=gcreportId*-1);
+@gfwindow=refreshBrw2=;
+
+@acc176=
+ setvars=,
+ lcCheck=kp('select dbo.settingsF(''site.onlineSchoolReports'',''FALSE'')'),
+ if(lcCheck<>'TRUE',m('This feature is NOT currently enabled...||Contact KellPro Support to enable this feature.','Featured Disabled...')),
+ break(lcCheck<>'TRUE'),
+ lcApiHost=kp('select apiUrl from dbo.site'),
+ m('Ready to send School Reports to '&lcApiHost&'?','Send School Reports...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.sendSchoolReports '&choose(gcBeginDate+0>0,gcBeginDate,'null')&', '&choose(gcEndDate+0>0,gcEndDate,'null')),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'School Reports...'));
 
 \h170171lcApportion='';r
-
 \h172lcIncSpecApportion='';
-
 \h173lcPrintDetail='';
-
 \h174lcorderByVoucher='';
-
 \h175lcactiveOnly='';
+\h176lcsendSchoolReports='';
+\h351lcComments='';
+\h352lcComments='';
 
 \t065Exclude Apportionment;
 \t067Apportionment Only;
@@ -65,9 +92,9 @@
 
 @afterloadwindow=
  newselbrw150=;
-
 @newselbrw150=
  lcreportId=kpbrwid(1),
+ gcreportId=lcreportId,
  lcInputOptions=kp('select inputOptions from dbo.reportList() where id = '&lcreportId),
  lcYear=readstring(lcInputOptions,'@year='),
  lcBegin=readstring(lcInputOptions,'@begin='),
@@ -86,18 +113,31 @@
  lcOfficialName=readstring(lcInputOptions,'@officialName='),
  lcFiscalYear=readstring(lcInputOptions,'@fiscalYear='),
  lcactiveOnly=readstring(lcInputOptions,'@activeOnly='),
- tsc;
+ lcsendSchoolReports=readstring(lcInputOptions,'@sendSchoolReports='),
+ lcComments=readstring(lcInputOptions,'@comments='),
+ tsc,
+ refreshBrw2=;
 
 @brw1=
  update,
  setvars=,
  break(lcreportId+0=0 or lcReportTemplate=0),
+ trreport(lcreportName,lcreportTemplate+0,lcreportTemplateCommand);
+
+@setvars=
+ lcreportId=kpbrwid(1),
+ break(lcreportId+0=0),
+ lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
+ lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
+ lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId),
+ gcReportName=kp('select substring(reportName,3,50) from dbo.reportList() where id='&lcreportId),
  gcRpYear=obj:a8,
  gcBeginDate=obj:key1,
  gcStartDate=obj:key1,
  gcEndDate=obj:key2,
  gcD1=obj:key1,
  gcD2=obj:key2,
+ gcDays=gcD2-gcD1,
  gcReceiptType=choose(lcReceiptType='','',obj:key3),
  gcDeputy=choose(lcDeputy='','',obj:a1),
  gcDepId=0,
@@ -113,16 +153,7 @@
  gcOrderByVoucher=obj:b14,
  gcOfficialName=obj:a7,
  gcFiscalYear=obj:a9,
- gcActiveOnly=obj:b15,
- trreport(lcreportName,lcreportTemplate+0,lcreportTemplateCommand);
-
-@setvars=
- lcreportId=kpbrwid(1),
- break(lcreportId+0=0),
- lcreportName=kp('select reportControlName from dbo.reportList() where id='&lcreportId),
- lcreportTemplate=kp('select reportTemplate from dbo.reportList() where id='&lcreportId),
- lcreportTemplateCommand=kp('select reportTemplateCommand from dbo.reportList() where id='&lcreportId),
- gcReportName=kp('select substring(reportName,3,50) from dbo.reportList() where id='&lcreportId);
+ gcActiveOnly=obj:b15;
 
 @lbrwclick150=
  break(instring('@group=developer;',cur:options,1,1)=0),
@@ -136,8 +167,8 @@
  if(gcretval=3,change(kp('select id from object where typ=451 and key1=''reportList''')));
 
 \x001024+200;r  \w00200875;r2 \w01202075;r2
-\t001Begin Date; \t002@d2; @accr0020122=update; \h001002lcBegin='';r
-\t003End Date; \t004@d2; \h003004lcEnd='';r
+\t001Begin Date; \t002@d2; @accr0020122=update; \h001002lcBegin='';r @acc002=refreshBrw2=;
+\t003End Date; \t004@d2; \h003004lcEnd='';r @acc004=refreshBrw2=;
 \t005Receipt Type; \l0064503; \h005006lcReceiptType='';r
 \t007Deputy; \h007008lcDeputy='';r
 t009Print Detail; u010; choose010:YNS; f010N; h009010lcPrintDetail='';r w01013;

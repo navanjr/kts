@@ -1,0 +1,53 @@
+create proc dbo.diagFix_missingTaxAccountsAdvalorem(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(
+  accountCode varchar(50),
+  accountType varchar(50),
+  accountId int,
+  targetAccount varchar(50),
+  collectionDescription varchar(50)
+ )
+
+ insert @wt exec dbo.createAdtaxCollectionReceivables @method = 'taxrate', @debugMode = 'TRUE'
+ 
+ if @method = 'GET'
+ begin 
+
+  select 
+   @class = 'tax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'AdValorem accounts are missing'
+  from @wt
+  
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from @wt
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  exec dbo.createAdtaxCollectionReceivables @method = 'taxrate'
+
+  return
+
+ end
+
+end

@@ -13,24 +13,35 @@
 80L(2)~Bank Name~#5#|M
 100L(2)~Bank Acct Desc~#22#|M;
 
+@afterloadwindow=calcAmounts=;
+
 \t001Invest No;
 \t003Purchase Date; \w00400650;r \t004@d2;\@acc004=checkDate=; \q004;
-\t041Maturity; \w04250; \x041-70; \x042-100; \q042; \t042@d2; @acc042=checkDate=;
+\t041Maturity; \w04250; \x041-70; \x042-100; \q042; \t042@d2; @acc042=checkDate=,calcAmounts=;
 \o042004; \o006042;
-\t005Liquidation; \t006@d2; 
+\t005Liquidation; \t006@d2; @acc006=calcAmounts=;
 \t007Bank Name;\l0084701,1;r008058024002026004; @lf008='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc008=checkDate=;
-\t009Purchase Check; \r010; \s010-'select isnull((select top 1 controlNumber from dbo.investmentDetail where investmentLink='&obj:id&' and activity=''Purchase Check''),''Renewal'')';
+\t009Purchase Check; \d010; 
 \t011Fund Drawn On; \l0124701;r012004050002;@lf012='typ=4701 and (a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') or id in (select id from dbo.latestReceivables())) and b3!=1',2,2;
 @acc012=if(obj:a3<' 0',set(50,'')),update;
 \t049Fund Code; \d050; \x050-65; \h049;
 \t013Type of Inv;
 \t015Int Rate; \w01450;
 \d018022;r
-\t017Principle; \t018@n$19.2;\s018+'select principle from dbo.investmentHeader where id='&obj:id;
-\t019Interest; \t020@n$19.2;\s020+'select interest from dbo.investmentHeader where id='&obj:id;
-\t021Ending Value; \t022@n$19.2;\s022+'select endValue from dbo.investmentHeader where id='&obj:id;
+\t017Principle; \t018@n$19.2;
+\t019Interest; \t020@n$19.2;
+\t021Ending Value; \t022@n$19.2;
 \t023Bank Acct Code; \d024;
 \t025Bank Acct Name; \l0264701,1;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc026=checkDate=;
+
+@calcAmounts=d1select('select ''@principle=''+cast(isnull(principle,0) as varchar)+'';''+''@interest=''+cast(isnull(interest,0) as varchar)+'';''+''@endValue=''+cast(isnull(endValue,0) as varchar)+'';'' from dbo.investmentHeader where id='&obj:id),
+lcblob=obj7:d1,
+set(018,readstring(lcblob,'@principle=')),
+set(020,readstring(lcblob,'@interest=')),
+set(022,readstring(lcblob,'@endValue=')),
+d1select('select isnull((select controlNumber from dbo.investmentDetail where investmentLink='&obj:id&' and activity=''Purchase Check''),''Renewal'')'),
+set(010,obj7:d1)
+;
 
 @checkDate=d1select('select max(a18) from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
   d1select('select id from object where typ=4706 and a9='''&obj:a9&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>'''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,

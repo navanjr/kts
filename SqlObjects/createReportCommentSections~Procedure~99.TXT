@@ -1,0 +1,32 @@
+create proc dbo.createReportCommentSections
+as
+begin
+ set nocount on
+
+ declare @sections table(
+  code varchar(50),
+  reportId int,
+  objId int
+ )
+
+ insert @sections (code, reportId)
+   select 'General', 17
+   union select 'Collections', 17
+   union select 'General Ledger', 17
+   union select 'Bank Reconcilement', 17
+   union select 'Official Depository', 17
+   union select 'Banks', 17
+   union select 'Funds', 17
+
+ update a set a.objId = b.id
+ from @sections a, object b
+ where b.typ = 6065 and a.code = b.key1 and a.reportId = b.key2
+
+-- insert missing
+ insert object (typ, key1, key2) select 5065, code, reportId 
+ from @sections
+ where isnull(objId,0) = 0
+
+ exec dbo.logit @@procid, 'Just inserted ReportCommentSections into Object... @@rowCount', @@rowCount
+
+end

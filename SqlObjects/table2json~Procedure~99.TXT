@@ -3,6 +3,7 @@ create proc dbo.table2json(
  @title varchar(max) = null,
  @includeColumnObject varchar(5) = 'TRUE',
  @includeAPIPrefix varchar(5) = 'FALSE',
+ @urlEncode varchar(5) = 'FALSE',
  @json varchar(max) = null output
 ) as 
 begin
@@ -50,7 +51,7 @@ begin
   insert @data2 select name+'|true' from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp) order by column_id
 
   insert @fields2 select 'columnName','string',0
-  insert @fields2 select 'visable','string',0
+  insert @fields2 select 'visible','string',0
 
   exec dbo.pipedStringToJson
    @data2,
@@ -68,5 +69,8 @@ begin
  end
 
  set @json = '{' + @json + '}'
+
+ if @urlEncode = 'TRUE'
+ set @json = dbo.URLEncode(@json)
 
 end

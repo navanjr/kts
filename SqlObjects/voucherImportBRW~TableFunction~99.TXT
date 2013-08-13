@@ -1,4 +1,8 @@
-create function dbo.voucherImportBRW( @id int ) returns @rt table(
+create function dbo.voucherImportBRW(
+ @id int, 
+ @officialBlob varchar(max) = null,
+ @csvBlob varchar(max) = null
+) returns @rt table(
  id int identity(1,1),
  voucherNumber varchar(50),
  voucherDate varchar(50),
@@ -16,6 +20,7 @@ begin
 
  declare
   @idToken int,
+  @logitId int,
   @dataToken nvarchar(max),
   @csv nvarchar(max),
   @debitAcct varchar(50),
@@ -24,11 +29,25 @@ begin
   @lastNumber int,
   @fiscalYear varchar(20)
 
- select
-  @officalLink = link2,
-  @debitAcct = key2,
-  @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
- from object where typ = 4770 and id = @id
+ if isnull(@id,0) > 0
+ begin
+  select
+   @officalLink = link2,
+   @debitAcct = key2,
+   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max)),
+   @logitId = cast(olink5 as int)
+  from object where typ = 4770 and id = @id
+ 
+  if left(@csv,14) = 'File too large'
+   select @csv = message from keyLog where id = @logitId
+ end
+ else
+ begin
+  select
+   @officalLink = dbo.readString('@officialLink=',@officialBlob),
+   @debitAcct = dbo.readString('@officialDepositCode=',@officialBlob),
+   @csv = @csvBlob
+ end
 
 --removed to use the payment register date instead
  --select @fiscalYear = fiscalYear from dbo.fiscalCalendar where dbo.clariondate(getdate()) between startDate and endDate
