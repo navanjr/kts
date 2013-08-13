@@ -44,27 +44,39 @@ begin
 
  declare
   @idToken int,
+  @logitId int,
   @dataToken nvarchar(max),
   @csv nvarchar(max),
   @debitAcct varchar(50),
   @creditAcct varchar(50),
   @officalLink int,
   @lastNumber int,
-  @payee varchar(max) = ''
+  @payee varchar(max) = '',
+  @binFileName varchar(max)
 
 -- get the csv from the importer or from the passed variable
  if isnull(@id,0) > 0 
+ begin
   select
    @officalLink = link2,
    @debitAcct = key2,
-   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max))
+   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max)),
+   @logitId = cast(olink5 as int)
   from object where typ = 4770 and id = @id
+  if left(@csv,14) = 'File too large'
+  begin
+--   select @binFileName = dbo.readstring('@fileName=',@csv)
+--   select @csv = dbo.getBinTxtSF(@id, @binFileName)
+   select @csv = message from keyLog where id = @logitId
+  end
+ end
  else
+ begin
   select
    @officalLink = null,
    @debitAcct = null,
    @csv = @csvBlob
-  
+ end
 
 -- TODO: until im sure this is right... im gonna get the debit account from the officals exepense field :)
  select 

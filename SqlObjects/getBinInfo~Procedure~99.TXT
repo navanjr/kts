@@ -1,0 +1,60 @@
+create procedure dbo.getBinInfo(
+ @objId int,
+ @pathAndFileName varchar(max),
+ @method varchar(50) = 'dump',
+ @verbose varchar(5) = 'TRUE',
+ @code varchar(max) = null output,
+ @txt varchar(max) = null output,
+ @logitId int = null output
+) as 
+begin
+
+ declare
+  @sql nvarchar(max),
+  @bin varbinary(max),
+  @dbName varchar(50),
+  @imgIdRef int,
+  @fileName varchar(max) = (select top 1 data from dbo.split(@pathAndFileName,'\') order by id desc),
+  @size int,
+  @maxSize int = 34000 -- **** HERE is the max size we will use in the E1 memo field for csv editing ****
+
+ declare @wt table(bin varbinary(max))
+
+ select top 1
+  @dbName = dbName,
+  @imgIdRef = imgidref
+ from binlinks where objidref = @objId and fileName = @fileName order by binLinkId desc
+
+ exec dbo.logit @@procid, '@method', @method, '@objId', @objId, '@fileName', @fileName, '@imgIdRef', @imgIdRef
+
+ select @sql = 'select img From ' + @dbname + '..imgs where imgid = ' + CAST(@imgIdRef as varchar)
+ insert @wt exec(@sql)
+ select @bin = bin From @wt
+
+ select @txt = cast(cast(@bin as varbinary(max)) as varchar(max))
+ select @txt = dbo.stripChars(@txt,'34,39')
+ set @size = len(@txt)
+
+ if @method = 'move'
+ begin
+  exec dbo.logit @@procid, @txt, @logitId = @logitId output, @override = 'TRUE', @skipTextFile = 'TRUE'
+
+  select
+   @code = '@code=0;@size=' + cast(@size as varchar) + ';'
+    + '@logitId=' + cast(@logitId as varchar) + ';'
+    + '@fileName=' + @fileName + ';'
+    + '@tooBig=' + case when @size > @maxSize then 'TRUE' else 'FALSE' end + ';'
+  exec dbo.logit @@procid, '@code', @code
+  if @verbose = 'TRUE'
+   select @code
+  return
+ end
+
+ if @method = 'dump'
+ begin
+  if @verbose = 'TRUE'
+   select @txt
+  return
+ end
+
+end

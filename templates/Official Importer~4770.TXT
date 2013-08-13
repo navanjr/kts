@@ -246,11 +246,21 @@
 @acc120=
  if(len(clip(obj:e1))>0,overwritememo=),
  break(gcretval<>2 and gcretval<>''),
- filedialog('Locate file...',),
- readdos(gcretval),
- if(workmemo>'  0' ,set(102,left(workmemo,34000))),
- if(workmemo>'  0' and len(workmemo)>3400,set(104,sub(workmemo,34001,34000))),
- acc102=;
+ filedialog('Locate file...'),
+ lcFileName=gcretval,
+ break(lcFileName<'  0'),
+ binin(obj:id,lcFileName),
+ d1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''move'''),
+ set(-72,readstring(obj7:d1,'@logitId=')),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1,'Bin File Info...')),
+ lcTooBig=readstring(obj7:d1,'@tooBig='),
+ if(lcTooBig='FALSE',loadE1=,link2img=),
+ update,
+ refreshBRW=;
+@link2img=set(102,'File too large to edit here... @fileName='&readstring(obj7:d1,'@fileName=')&';');
+@loadE1=
+ e1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''dump'''),
+ set(102,obj7:e1);
 
 @overwritememo=
  m('The workfield will be overwritten...||Do you want to proceed?','Warning',,6),
