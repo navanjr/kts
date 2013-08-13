@@ -1,0 +1,23 @@
+@dk1;
+@key2=right(99999999-OBJ:Key2,8);
+@ordername=Bank,Date;
+@defaultbrowsekey=2;
+
+\t001Bank Name;\l0024509,1; @lf002=,2;
+\t003Begin Date; \w00400650;r \t004@d2; \q004;
+\t005End Date; \t006@d2; 
+\t007Type Collateral;
+\t009Market Value; \t010@n-21.2;
+\t023Bank Acct Code; \d024;
+\t025Bank Acct Name; \l0264701,2;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
+
+@checkDate=d1select('select max(a18) from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
+  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>'''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,
+  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3<''1'' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1+lcCheck1+0,
+  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3>'''&obj:key3&''' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1,
+  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3<''1'' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1+lcCheck2+0,
+  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2>='''&obj:key2&''' and key3<'''&obj:key3&''' and '''&obj:key3&'''>''1''  and '''&obj:key2&'''>''1'''),lcCheck3=obj7:d1,
+  break(lcCheck1+0+lcCheck2+0+lcCheck3+0<1),
+  if(lcCheck1+lcCheck2+lcCheck3+0>0,m('There is already a collateral item for this time period for this bank.')),
+  update;
+
