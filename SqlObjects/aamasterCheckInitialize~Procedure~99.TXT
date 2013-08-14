@@ -9,6 +9,16 @@ begin
 
   set @taxYear = coalesce(@taxyear,(select dbo.splitF(dbo.date1(dbo.clarionToday()),'/',3)-1))
 
+---create indexes
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 1')
+ CREATE NONCLUSTERED INDEX [balanceDue Includes 1]  ON [dbo].[aamasterCheck] ([balanceDue]) INCLUDE ([brwid],[selectedFlag],[reason],[ownername],[businessname],[ktsautonumber],[ktsownername],[ktsbusinessname])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 2')
+ CREATE NONCLUSTERED INDEX [balanceDue includes 2] ON [dbo].[aamasterCheck] ([balanceDue])INCLUDE ([brwid],[selectedFlag],[reason],[address1],[address2],[address3],[city],[state],[zip1],[zip2],[zip3],[country],[ktsautonumber])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 3')
+ CREATE NONCLUSTERED INDEX [balanceDue includes 3] ON [dbo].[aamasterCheck] ([balanceDue])INCLUDE ([brwid],[selectedFlag],[reason],[country],[ktsautonumber],[ktsaddress1],[ktsaddress2],[ktsaddress3],[ktscity],[ktsstate],[ktszip1],[ktszip2],[ktszip3])
+
+
+
   update a set
     a.invoiceId = b.id,
     a.balanceDue = isnull(b.invoiceDue,0) + isnull(b.subInvoiceDue,0) + isnull(b.taxRuleDue,0),
