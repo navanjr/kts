@@ -740,6 +740,7 @@ class ktsMenu():
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
             print 'ok i inserted %s records' % tally
+            print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
 
     def aamasterCheckVariables(self):
         columns = []
@@ -793,10 +794,8 @@ class ktsMenu():
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
-                # if id == 2:
-                #     break
             print 'ok i inserted %s records' % tally
-        print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
+            print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
 
     def settingsF(self, name, default='unknown'):
         value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
