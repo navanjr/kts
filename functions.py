@@ -700,7 +700,12 @@ class ktsMenu():
             add2 = row[180:219]
             city = row[220:249]
             state = row[250:252]
-            zip = row[252:261]
+            rawZip = row[252:262]
+            zip1 = rawZip.strip().split('-')[0]
+            if len(rawZip.strip().split('-')) > 1:
+                zip2 = rawZip.strip().split('-')[1]
+            else:
+                zip2 = ''
             return [
                 itemNumber.strip(),
                 name1.strip(),
@@ -710,7 +715,8 @@ class ktsMenu():
                 add2.strip(),
                 city.strip(),
                 state.strip(),
-                zip.strip(),
+                zip1,
+                zip2,
             ]
 
         gsipath = self.settingsF('conversion.gsipath')
@@ -725,7 +731,7 @@ class ktsMenu():
         if len(rows) > 0:
             print 'how many? ', len(rows)
             self.aamasterCheckDropAndCreate()
-            columnNames = ['autonumber','ownername','businessname','address1','address2','address3','city','state','zip1']
+            columnNames = ['autonumber','ownername','businessname','address1','address2','address3','city','state','zip1','zip2']
             sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(rows):
