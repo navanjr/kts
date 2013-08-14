@@ -1,0 +1,88 @@
+create function dbo.collateralAmount(@effectiveDate int)
+returns @rt table(id int identity(1,1),
+                  bankAccountCode varchar(60),
+                  bankAccountDesc varchar(50),
+                  bankName varchar(50),
+                  glBalance money,
+                  collateralAmount money,
+                  FDICAmount money,
+                  notCoveredAmount money,
+                  bankPercent numeric(19,12),
+                  processcode int)
+as
+begin
+declare @collateral table(bankName varchar(50),
+                          totalCollateral money)
+
+declare @FDIC table(bankName varchar(50),
+                          totalFDIC money)
+
+declare @bankNameToken varchar(50),
+        @bankGlBalance money,
+        @bankCollateral money,
+        @collateralDifference money,
+        @bankFDIC money,
+        @FDICDifference money,
+        @idToken int
+        
+
+insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, processcode, notCoveredAmount)
+ select accountCode,
+        accountDesc,
+        bankName, 
+        isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode),0),
+        0,0.00
+ from glaccounts a
+  where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
+ group by a.accountcode,a.accountdesc,a.bankName
+
+insert @collateral                          
+ select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end)
+ from object where typ=4707 and a1<>'FDIC' and key2<=@effectiveDate and (key3 >= @effectiveDate or key3 <'1')
+  group by key1
+  
+insert @collateral 
+ select distinct bankName,0 from @rt where bankName not in (select bankName from @collateral)
+
+insert @FDIC
+ select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end) 
+ from object where typ=4707 and a1='FDIC' and key2<=@effectiveDate and (key3 >= @effectiveDate or key3 <'1')
+  group by key1
+  
+insert @FDIC
+ select distinct bankName,0 from @rt where bankName not in (select bankName from @FDIC)
+                          
+
+while exists(select * from @rt where processcode=0)
+begin
+ select top 1 @bankNameToken=bankName, @idToken=id from @rt where processcode=0
+ 
+ select @bankGlBalance = sum(glBalance) from @rt where bankName=@bankNameToken
+
+ select top 1 @bankCollateral = isnull(totalCollateral,0.00) from @collateral where bankName=@bankNameToken
+ select top 1 @bankFDIC = isnull(totalFDIC,0.00) from @FDIC where bankName=@bankNameToken
+ 
+ update r set processcode=1, bankPercent = r.glBalance/@bankGlBalance,
+  collateralAmount = round(@bankCollateral*r.glBalance/@bankGlBalance,2),
+  FDICAmount = round(@bankFDIC*r.glBalance/@bankGlBalance,2)
+ from @rt r
+   where r.bankName=@bankNameToken
+ 
+ if isnull((select sum(collateralAmount) from @rt where bankName=@bankNameToken),0.00)<> @bankCollateral 
+  begin
+   select @collateralDifference = @bankCollateral-sum(collateralAmount) from @rt where bankName=@bankNameToken
+   
+   update @rt set collateralAmount=collateralAmount+@collateralDifference where id=@idToken
+  end
+
+ if isnull((select sum(FDICAmount) from @rt where bankName=@bankNameToken),0.00)<> @bankFDIC 
+  begin
+   select @FDICDifference = @bankFDIC-sum(FDICAmount) from @rt where bankName=@bankNameToken
+   
+   update @rt set FDICAmount=FDICAmount+@FDICDifference where id=@idToken
+  end
+
+end
+update @rt set notCoveredAmount=isnull(glbalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)) where isnull(glbalance,0.00) > isnull(collateralAmount,0)+isnull(FDICAmount,0)
+return
+end

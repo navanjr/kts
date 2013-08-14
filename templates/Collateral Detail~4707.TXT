@@ -4,20 +4,22 @@
 @defaultbrowsekey=2;
 
 \t001Bank Name;\l0024509,1; @lf002=,2;
-\t003Begin Date; \w00400650;r \t004@d2; \q004;
-\t005End Date; \t006@d2; 
+\t003Begin Date; \w00400650;r \t004@d2; \q004; \w00450;
+\t005End Date; \t006@d2; \w00650;
 \t007Type Collateral;
-\t009Market Value; \t010@n-21.2;
-\t023Bank Acct Code; \d024;
-\t025Bank Acct Name; \l0264701,2;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;
+\t009Market Value; \t010@n-21.2; \w01050;
+\t011Pledge Number;
+\t013CUSIP or ID Num;
+\t015Description;
+\t017Original Amt; \t018@n-19.2; \w01850;
+\t019Pledge Date; \t020@d2; \w02050;
+\t021Maturity Date; \t022@d2; \w02250;
 
-@checkDate=d1select('select max(a18) from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0),gclastDate=obj7:d1,
-  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3>'''&obj:key2&''' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1,
-  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key2&''' and key3<''1'' and '''&obj:key2&'''>''1'''),lcCheck1=obj7:d1+lcCheck1+0,
-  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3>'''&obj:key3&''' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1,
-  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2<='''&obj:key3&''' and key3<''1'' and '''&obj:key3&'''>''1'''),lcCheck2=obj7:d1+lcCheck2+0,
-  d1select('select id from object where typ=4707 and key1='''&obj:key1&''' and id<>'&obj:id+0&' and key2>='''&obj:key2&''' and key3<'''&obj:key3&''' and '''&obj:key3&'''>''1''  and '''&obj:key2&'''>''1'''),lcCheck3=obj7:d1,
-  break(lcCheck1+0+lcCheck2+0+lcCheck3+0<1),
-  if(lcCheck1+lcCheck2+lcCheck3+0>0,m('There is already a collateral item for this time period for this bank.')),
-  update;
 
+\t105Copy;
+@acc105=iw('\t001Begin Date; \w00250; \t002@d2; \f002'''&today()&''''),
+ gcstartdate=obj7:key1,
+ set(006,gcstartdate-1),
+ copy(0),
+ set(006,''),
+ set(004,gcstartdate);

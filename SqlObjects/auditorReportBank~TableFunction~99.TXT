@@ -36,6 +36,9 @@ declare @dailyledgerdetail table(
 					accountType varchar(50),
 					reportOrder varchar(50))
 
+declare @useCollateralLedger varchar(5)
+select @useCollateralLedger=settingvalue from settings where settingname='site.useCollateralLedger'
+
 insert @dailyledgerdetail (accountCode,	accountDesc, beginbalance, paid, appout, appin,	tranout, tranin, deposits, endbalance, accountType, reportOrder)
 	select accountCode, accountDesc, beginbalance, paid, appout+specappout, appin+specappin, tranout+fundtranout, tranin+fundtranin, deposits+elecdeposits, endbalance, accountType, reportOrder from dailyledgerdata(@beginDate,@endDate) 
 
@@ -53,6 +56,10 @@ insert @wt
 		where d.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 			and d.accountCode=a.accountCode
 		order by d.accountType,d.reportOrder
+
+
+if @useCollateralLedger = 'TRUE'
+   update w set Collateral=ca.collateralAmount, FDIC=ca.FDICAmount from @wt w, dbo.collateralAmount(@enddate) ca where w.accountCode=ca.bankAccountCode
 
 ----insert detail
 insert @rt
