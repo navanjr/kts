@@ -81,9 +81,12 @@ class ktsMenu():
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
 
-        self.createCommand('schtasks',['tasks', 'task'],'diaplay all kts tasks',self.cp)
+        self.createCommand('api',['api', ],'run api job',self.command_api)
+
+        self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
         self.createCommand('delete',['delete','del','d'],'delete a scheduled task',self.tasks.delete,'schtasks')
+        self.createCommand('run',['run','r'],'run a scheduled task now',self.tasks.runTask,'schtasks')
 
         self.createCommand('settings',['set','settings'],'show all ftp settings',self.ftp_settings,'ftp')
         self.createCommand('put',['put'],'put a file to support',self.ftp_put,'ftp')
@@ -103,6 +106,10 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
+
+    def command_api(self):
+        if len(self.command) == 2:
+            print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
 
     def gitModified(self, repoDir=os.path.dirname(os.path.realpath(__file__))):
         p = subprocess.check_output('git status --porcelain', shell=True).split('\n')
@@ -887,6 +894,7 @@ class ktsMenu():
         except subprocess.CalledProcessError as error:
             return 'Process FAILED!', error.message
 
+
 class tasks(ktsMenu):
     def __init__(self, database):
         self.tasks = {}
@@ -932,9 +940,9 @@ class tasks(ktsMenu):
         # for key, detail in self.defaultTasks.items():
         #     print 'schtasks /create /ru "system" /sc %s /tn "kp.%s.%s" /tr "%s" /st %s /f' % (detail[0], self.currentDatabase, key, cmd, detail[1])
 
-    def run(self, args=None):
+    def runTask(self, args=None):
         if not args:
             return
         for arg in args:
-            taskName = self.tasks[int(arg)]['name'].split('.')[-1]
-        runDos('')
+            taskName = self.tasks[int(arg)]['name']
+            runDos('schtasks /run /tn "%s"' % taskName)
