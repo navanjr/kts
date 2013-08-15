@@ -1,10 +1,11 @@
-create proc dbo.depositCRUD( 
+create proc [dbo].[depositCRUD]( 
  @mode int,
  @depositId int = null,
  @depositDate int = null,
  @dailyDataBRWId int = null,
  @verbose varchar(5) = 'TRUE',
- @newObjectId int = null output
+ @newObjectId int = null output,
+ @receiptId int = null
 ) as
 begin
  
@@ -16,7 +17,8 @@ begin
   @bankAccountCode varchar(50),
   @bankAccountDesc varchar(50),
   @bankAccountNumber varchar(50),
-  @receiptTypeCanidate varchar(50)
+  @receiptTypeCanidate varchar(50),
+  @newIdWt newIdWt
 
  select
   @fpStatus = fpStatus from glStatus(@slink)
@@ -85,7 +87,6 @@ begin
    begin
 
 -- create object record
-    declare @newIdWt newIdWt
     insert object (typ,key2,key3,a1,a2,link1)
     output inserted.id into @newIdWt
     select 4513, isnull(@depositDate,''), @receiptTypeCanidate, @bankAccountDesc, @bankAccountNumber, @bankAccountId
@@ -107,6 +108,29 @@ begin
   return
  end
 
+ if @mode = 0 and isnull(@receiptId,0) > 0
+ begin
+
+  set
+   @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate()))
+
+
+-- create object record
+    insert object (typ,key2)
+    output inserted.id into @newIdWt
+    select 4513, isnull(@depositDate,'')
+
+    select @newObjectId = max(id) from @newIdWt
+    exec dbo.logit @@procid, '@newObjectId', @newObjectId, '@receiptTypeCanidate', @receiptTypeCanidate
+
+-- return the id for futher KTS processing
+  if @verbose = 'TRUE'
+   select '@code=0;@newObjectId=' + cast(@newObjectId as varchar) + ';'
+
+  update paid set depositId = @newObjectId where isnull(depositId,0)=0 and slink='o'+cast(@receiptId as varchar)
+
+  return
+ end
 
 -- delete a deposit
  if @mode = 3
@@ -115,14 +139,6 @@ begin
 -- period Check status
   if @fpStatus = 'locked'
    return
--- bail if linked to a bank statement
-  if exists (select * from gldetail where slink=@slink and isnull(bsid,0)>0)
-   begin
-    exec dbo.logit @@procid, 'Linked to bankstatement... Bailing.'
-
-   return
-   end
-
 
   begin transaction
 
