@@ -12,6 +12,27 @@ def isnull(what,convertTo=''):
         return convertTo
     return str(what)
 
+def getTextFromFile(commandArray):
+    raw = subprocess.Popen(commandArray, stdout=subprocess.PIPE, shell=True)
+    (out, err) = raw.communicate()
+    return out, err
+
+def runDos(command):
+    run = subprocess.Popen(r'%s' % command, shell=True)
+    run.wait()
+
+def areYouSure(question='are you sure?', force=False):
+    try:
+        entered = raw_input("     %s ===> " % question)
+    except KeyboardInterrupt:
+        pass
+    if entered in ('yes', 'y'):
+        return True
+    else:
+        return False
+
+
+
 class ktsMenu():
     def __init__(self, database=None):
         self.settings = {}
@@ -26,6 +47,7 @@ class ktsMenu():
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
 
+        self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
 
         self.conversionSettings = [
@@ -52,13 +74,16 @@ class ktsMenu():
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
         self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
         self.createCommand('backupNow',['backupNow',],'back up sql data without an "are you sure" prompt',self.command_backupNow)
-        self.createCommand('schtasks',['tasks', 'task'],'diaplay all kts tasks',self.scheduledTasks)
         self.createCommand('users',['user','users'],'display or define default users',self.command_users)
-        self.createCommand('gitstatus',['status','s'],'preform a git status',[self.command_git,['git','status']])
+        self.createCommand('gitstatus',['gitstatus','status','s'],'preform a git status',[self.command_git,['git','status']])
         self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
-        self.createCommand('gitstatusporcelain',['gsp'],'preform a git status',self.command_importSpecial)
+        self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
+
+        self.createCommand('schtasks',['tasks', 'task'],'diaplay all kts tasks',self.cp)
+        self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
+        self.createCommand('delete',['delete','del','d'],'delete a scheduled task',self.tasks.delete,'schtasks')
 
         self.createCommand('settings',['set','settings'],'show all ftp settings',self.ftp_settings,'ftp')
         self.createCommand('put',['put'],'put a file to support',self.ftp_put,'ftp')
@@ -130,6 +155,7 @@ class ktsMenu():
     def dbSettings(self, dbName=None):
         if dbName:
             self.settings['database'] = dbName
+            # self.tasks.update(dbName)
         self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
@@ -147,6 +173,7 @@ class ktsMenu():
             self.git['ktsVersion'] = 'Unknown'
 
     def menuShow(self,subMenu):
+        print
         for x in subMenu.items():
             print x[0].rjust(20), '-', x[1]['description']
 
@@ -246,16 +273,16 @@ class ktsMenu():
         elif fileName:
             thePut(fileName)
 
-    def scheduledTasks(self):
-        taskPrefix = 'kp.%s' % self.settings['database']
-        tasks = []
-        raw = subprocess.Popen(["schTasks", "/query", "/fo", "csv"], stdout=subprocess.PIPE, shell=True)
-        (out, err) = raw.communicate()
-        for line in out.split('\n'):
-            if taskPrefix in line:
-                tasks.append(line.translate(None, '"\\\r').split(','))
-        for task in tasks:
-            print '     %s - %s   next:%s' % (task[2], task[0], task[1])
+    def cp(self):
+        cmd = self.command
+        menuName = self.getMenuName(cmd[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        if len(cmd) == 2:
+            subMenu[cmd[1]]['function']()
+        elif len(cmd) > 2:
+            subMenu[cmd[1]]['function'](cmd[2:])
+        self.tasks.show(self.settings['database'])
+        self.menuShow(subMenu)
 
     def ftpFiles(self):
         files = {}
@@ -859,3 +886,55 @@ class ktsMenu():
             return subprocess.check_output(sqlcmd, shell=True)
         except subprocess.CalledProcessError as error:
             return 'Process FAILED!', error.message
+
+class tasks(ktsMenu):
+    def __init__(self, database):
+        self.tasks = {}
+        self.currentDatabase = ''
+        self.update(database)
+        self.defaultTasks = {}
+        self.defaultTasks['backup'] = ['daily', '23:00']
+        # self.defaultTasks['apiInvoices'] = ['daily', '23:00']
+
+    def show(self, database, update=True):
+        if update:
+            self.update(database)
+        for id, task in self.tasks.items():
+            print '     %s - %s   next:%s  %s' % (id, task['name'], task['nextTime'], task['status'])
+
+    def update(self, database=None):
+        self.tasks.clear()
+        if database:
+            self.currentDatabase = database
+        taskPrefix = 'kp.%s' % self.currentDatabase
+        out, err = getTextFromFile(["schTasks", "/query", "/fo", "csv"])
+        tally = 0
+        for id, line in enumerate(out.split('\n')):
+            if taskPrefix in line:
+                tally = tally + 1
+                task = {}
+                taskArray = line.translate(None, '"\\\r').split(',')
+                task['name'], task['nextTime'], task['status'] = taskArray[0], taskArray[1], taskArray[2]
+                self.tasks[tally] = task
+
+    def delete(self, args=None, askAreYouSure=True):
+        if not args:
+            return
+        if areYouSure(force=askAreYouSure):
+            for arg in args:
+                taskName = self.tasks[int(arg)]['name'].split('.')[-1]
+                myMenu = ktsMenu()
+                print 'dbo.scheduledTasksControl delete %s...' % taskName, myMenu.sqlQuery("exec dbo.scheduledTasksControl @method='delete', @name='%s'" % taskName, True)['code']
+
+    def auto(self, args=None):
+        myMenu = ktsMenu()
+        print myMenu.sqlQuery('select db_name()')
+        # for key, detail in self.defaultTasks.items():
+        #     print 'schtasks /create /ru "system" /sc %s /tn "kp.%s.%s" /tr "%s" /st %s /f' % (detail[0], self.currentDatabase, key, cmd, detail[1])
+
+    def run(self, args=None):
+        if not args:
+            return
+        for arg in args:
+            taskName = self.tasks[int(arg)]['name'].split('.')[-1]
+        runDos('')

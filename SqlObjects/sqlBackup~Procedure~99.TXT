@@ -3,6 +3,7 @@ create proc dbo.sqlBackup (
  @brwid int = null,
  @backupTime int = null,
  @areYouSure varchar(5) = 'NO',
+ @returnRows varchar(5) = 'False',
  @useSqlCompression varchar(5) = null,
  @fileName varchar(max) = null,
  @filesBlob varchar(max) = null output
@@ -14,12 +15,12 @@ begin
   @backupFile varchar(max),
   @sql varchar(max),
   @database varchar(50) = db_name(),
-  @backupJobName varchar(100) = db_name() + '_backupJob',
+  @backupJobName varchar(100) = 'backup',
   @jobId BINARY(16),
   @jobSQL nvarchar(1000) = 'exec dbo.sqlBackup @method = ''backup''',
   @jobStatus int,
-  @backupTimeString varchar(50) = right('00' + cast(datepart(hour,dbo.time2(@backupTime)) as varchar),2)
-   + right('00' + cast(datepart(minute,dbo.time2(@backupTime)) as varchar),2) + '00',
+  @backupTimeString varchar(50) = dbo.time24(@backupTime), -- right('00' + cast(datepart(hour,dbo.time2(@backupTime)) as varchar),2)
+--   + right('00' + cast(datepart(minute,dbo.time2(@backupTime)) as varchar),2) + '00',
   @pathAndFileName varchar(max),
   @cmd varchar(8000),
   @cmdOutput varchar(8000),
@@ -62,12 +63,9 @@ begin
   insert @backups
    select substring(cast(brwId as varchar),2,30),pathAndFileName,modifiedDate From dbo.sqlBackupBRW() where LEFT(cast(brwid as varchar),1)='9'
 
-
- select @retainBackup = (MAX(id)-@retainBackup) from @backups 
-
+ select @retainBackup = (MAX(id) - @retainBackup) from @backups 
  
- delete from @backups where id>@retainBackup
-
+ delete from @backups where id > @retainBackup
 
  declare @tokenId int
   while exists (select * from @backups)
@@ -82,6 +80,8 @@ begin
     end
    end
 
+  if @returnRows = 'TRUE'
+   select @sql as result
 
   return
  end
@@ -116,102 +116,24 @@ begin
 
  if @method = 'executeJob'
  begin
-  exec msdb.dbo.sp_start_job @Job_Name = @backupJobName
+  exec dbo.sqlBackup
   return
  end
 
  if @method = 'deleteJob'
  begin
-
-  select
-   @jobStatus = case when enabled = 0 then 1 else 0 end,
-   @jobId = job_id
-  from msdb..sysJobs where name = @backupJobName
-
--- if job already exists delete it
-  if @jobId is not null
-  begin
-   exec dbo.logit @@procid, 'deleteing job @jobId', @jobId
-   exec msdb.dbo.sp_delete_job @jobId
-  end
+  exec dbo.scheduledTasksControl @method = 'delete', @name = @backupJobName
  end
 
  if @method = 'createJob'
  begin
-  exec dbo.logit @@procid, 'Creating backup job... @backupTime', @backupTime, '@backupTimeString', @backupTimeString
-
-  select
-   @jobStatus = case when enabled = 0 then 1 else 0 end,
-   @jobId = job_id
-  from msdb..sysJobs where name = @backupJobName
-
--- if job already exists then bail
-  if @jobId is not null
-  begin
-   exec dbo.logit @@procid, 'job already exists'
-   return
-  end
-
---Add job
-  exec msdb.dbo.sp_add_job
-   @job_name = @backupJobName, 
-   @job_id = @jobId OUTPUT
-
---Add schedule to job
-  exec msdb.dbo.sp_add_jobschedule
-   @job_id = @jobId,
-   @name = N'Once every day', 
-   @freq_type=4, 
-   @freq_interval=1, 
-   @freq_subday_type = 0x1, -- at specific time 
-   @freq_subday_interval=0, 
-   --@freq_relative_interval=0, 
-   --@freq_recurrence_factor=1, 
-   @active_start_date=20100302, 
-   @active_end_date=99991231,  
-   @active_start_time=@backupTimeString,
-   @active_end_time=235959
-
---Add step to job
-  exec msdb.dbo.sp_add_jobstep
-   @job_id = @jobId,
-   @step_name = N'Do SQL Stuff', 
-   @step_id = 1, 
-   @subsystem = N'TSQL', 
-   @command = N'exec dbo.sqlBackup', 
-   @database_name = @database, 
-   @flags=0
-
---Add job server
-  exec msdb.dbo.sp_add_jobserver
-   @job_id = @jobId,
-   @server_name = @@servername
-
+  declare @backupCommandString varchar(max) = 'kts backupNow'
+  exec dbo.scheduledTasksControl
+   @method = 'create',
+   @name = @backupJobName,
+   @frequency = 'daily',
+   @time = @backupTimeString,
+   @command = @backupCommandString
  end
-
-/*
-  exec msdb..sp_update_job @job_id = @jobId, @enabled = @jobStatus
-  exec dbo.logit @@procid, '@resource', @resource, '@method', @method, '@jobStatus', @jobStatus
-
--- create the backup job
- if @method = 'create' 
- begin
- 
- --Add step to job
-  exec msdb.dbo.sp_add_jobstep
-   @job_id = @jobId,
-   @step_name = N'Do SQL Stuff', 
-   @step_id = 1, 
-   @subsystem = N'TSQL', 
-   @command = @jobSQL, 
-   @database_name = @dbName, 
-   @flags=0
- 
- 
-  exec msdb.dbo.sp_add_jobserver
-   @job_id = @jobId, 
-   @server_name = @serverName
- end
-*/
 
 end
