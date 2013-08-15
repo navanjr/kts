@@ -37,7 +37,6 @@
 
 @lbrwclick150=
  bustItUp=,
- if(lcMode+0=4,4Options=),
  if(lcMode+0=5,5Options=),
  if(lcMode+0=6,6Options=),
  if(lcMode+0=7,7Options=),
@@ -53,16 +52,12 @@
  lcMode=0,
  lcId=0;
 
-@4Options=
- close('Ok'),
- do(51,menuprocess=);
-
-
 @5Options=
- m(obj:key1&' Invoice options...','Invoice','question.ico','&Invoice|&View Tax Rate Summary|&Cancel'),
- break(gcretval=3),
- if(gcretval=1,openTaxYear=),
- if(gcretval=2,adTaxSum=),
+ m(obj:key1&' Invoice options...','Invoice','question.ico','&View Tax Rate Summary|&Invoice|&Print Statements|&Cancel'),
+ break(gcretval>3),
+ if(gcretval=1,adTaxSum=),
+ if(gcretval=2,openTaxYear=),
+ if(gcretval=3,statementPrint=),
  refreshbrw=;
 
 @adTaxSum=
@@ -72,6 +67,11 @@
 @openTaxYear=
  lcTaxId=kp('select id from object where typ=4000 and key1='&lcId),
  if(lcTaxId+0>0,change(lcTaxId),new(4000,,002=lcId));
+
+@statementPrint=
+ gcTaxYear=lcId,
+ lcReceiableId=kp('select min(id) from object where typ = 51'),
+ if(lcReceiableId+0>0,change(lcReceiableId,-2),new(51,-2));
 
 @6Options=
  m('Choose one of the following options...','Taxroll Import...','question.ico','&Import All|&Clear Import|E&xit'),
@@ -84,7 +84,7 @@
  lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
  lcDescrip=readstring(obj7:d1,'@description='),
  lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
- gcDialog=choose(instring('file',lower(lcDescrip),1,1)>0,1,''),
+ gcDialog=choose(instring('file',lower(lcDescrip),1,1)>0,'',''),
  if(lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,toggleIt=);
 
 @editVariable=

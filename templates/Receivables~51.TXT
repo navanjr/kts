@@ -16,6 +16,7 @@
  if(lcid+0>0,change(lcid),new(51));
 @wbgcolor=kp('select dbo.keyColor(185,122,87)');
 @loadwindow=
+ if(tier=-2,printStatements=),
  create(171,10,3,2,'Step 1 - Gather Tax Items...'),
  prop(171,'FontSize',10),
  prop(171,'FontStyle',700),
@@ -33,6 +34,30 @@
  create(39,9),
  gcvars=,
  brwstuff=;
+
+@printStatements=
+ set(004,'RSO'),
+ set(006,gcTaxYear),
+ set(008,0),
+ set(010,0),
+ set(012,0),
+ set(014,0),
+ set(016,0),
+ lcE1=kp('select replace('''&obj:e1&''',''1:0'',''1:1'')'),
+ set(102,lcE1),
+ set(042,today()),
+ set(080,30),
+ set(040,'Tax Statement'),
+ lcDocId=kp('select id from object where typ=4900 and key1=''Tax Statement'''),
+ if(lcDocId+0=0,missingDoc=,set(-03,lcDocId));
+
+@missingDoc=
+ insert(-02=4900,002='Tax Statement',006='taxStatement'),
+ set(-03,obj1:id,1),
+ lcReportId=kp('select id from object where typ=452 and key1=''taxStatement'''),
+ if(lcReportId+0=0,insert(-02=452,002='taxStatement',004='5001',006='taxStatement='));
+ 
+
 
 @acc043=
  iw(',.t000Create Batch..., ,.t001Process Count.,,.t002@n4.0.,,.w00230.,'),
