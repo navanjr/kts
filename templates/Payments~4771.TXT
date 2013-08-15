@@ -3,7 +3,7 @@
 @dk1;
 @format=60L(2)~Payment Type~#30#|M50L(2)~Reg Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 \00020500;
-@filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous;
+@filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous,Transfer Checks;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'') and a17 = ''Posted'' and isnull((select count(*) from gldetail where gldetail.slink = ''o''+cast(a.id as varchar) and isnull(gldetail.bsId,0)>0),0) < 1 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -13,7 +13,8 @@
   'typ=4771 and a17=''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a17<>''Posted'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
   'typ=4771 and a18 in (''Cancel Voucher'',''Void Voucher'')'&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
-  'typ=4771 and a18 like ''%Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
+  'typ=4771 and a18 like ''%Miscellaneous'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
+  'typ=4771 and a18 like ''%Transfer'''&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ';
 
 @browse4='select a18 from object where typ=4771 and id='&obj:link1&' and a18<>''Treasurers Check''';
 @browse8=choose(obj:a18='Treasurers Check',obj:c5,obj:a2);
