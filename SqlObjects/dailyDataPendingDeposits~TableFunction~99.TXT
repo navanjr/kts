@@ -164,18 +164,18 @@ begin
 --Insert missing Bank accounts
  insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob)
    select 
-    cast('-5' + cast(o.id as varchar) as int),
-    @seedString+'D'+o.key1+ '  a',
-    ' ' + dbo.padRight(o.Key2,' ',40),
+    cast('-5' + cast(o.accountId as varchar) as int),
+    @seedString+'D'+o.accountCode+ '  a',
+    ' ' + dbo.padRight(o.accountDesc,' ',40),
     --+ dbo.padLeft('0.00',' ',20)
     --+ dbo.padLeft('0.00',' ',20)
     --+ dbo.padLeft('0.00',' ',20),
-    o.Key1,
-    o.Key2, 
+    o.accountCode,
+    o.accountDesc, 
     4,
-    '@bankStatementAccountCode=' + rtrim(o.Key1) + ';@bankAccountCode=' + rtrim(o.Key1) + ';'
-    from object o where o.Typ = 4701 and o.a1 = 'bank' and o.c1='1' and o.Key1 not in (select isnull(depositAccountCode,'') from @rt)
-
+    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';'
+    from dbo.glAccounts o where o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+     and o.showOnBKD='1' and o.accountCode not in (select isnull(depositAccountCode,'') from @rt)
   
  return
 end
