@@ -6,7 +6,8 @@ begin
          @invoiceDue money, 
          @taxrollId int,
          @queue varchar(50),
-         @printOrder varchar(50)
+         @printOrder varchar(50),
+         @addressblobtoken varchar(max)
 
   select
    @queue = processCode,
@@ -39,8 +40,21 @@ if @invoiceType='S'
 
   select @parentItem = item, @taxrollId = taxrollId 
     from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S'
+  
+  if not exists (select * from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S')
+   begin
+    select @taxrollId = taxrollId 
+     from invoices where id = @InvId
+    select @addressblobtoken = dbo.taxRollSAAddressBlob(@taxrollId)
+    select top 1 @retval = @retval + @addressblobtoken
+   end
+  else
+   begin
+    select @addressblobtoken = dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),@parentItem)
+   end  
 
-  select top 1 @retval = @retval + dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),@parentItem) + '@LEGALDESCRIPTION=' + rtrim(replace(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxrollId,'102') as varchar(4000)),'''','`')) + ';' from adtax where id = @taxrollId
+  if exists (select * from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S')
+  select top 1 @retval = @retval + @addressblobtoken + '@LEGALDESCRIPTION=' + rtrim(replace(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxrollId,'102') as varchar(4000)),'''','`')) + ';' from adtax where id = @taxrollId
 
  end
   else
