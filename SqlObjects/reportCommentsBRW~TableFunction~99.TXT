@@ -1,5 +1,5 @@
 create function dbo.reportCommentsBRW(
- @reportId int,
+ @reportIds varchar(max),
  @startDate int,
  @endDate int
 ) returns @rt table(
@@ -7,10 +7,18 @@ create function dbo.reportCommentsBRW(
  display varchar(max),
  section varchar(50),
  asterisk varchar(50),
+ reportId int,
  origin int,
  ord varchar(50)
 ) as
 begin
+
+ declare @ids ids
+
+ if @reportIds = '*' 
+  insert @ids select reportId from dbo.reportList()
+ else
+  insert @ids select data from dbo.split(@reportIds, ',') 
 
  insert @rt
  select
@@ -18,11 +26,12 @@ begin
   '   ' + dbo.date1(key2) + ' - ' + cast(e1 as varchar(max)),
   key3,
   null,
+  key1,
   1,
   key3 + key2
  from object
  where typ = 5064
-  and key1 = @reportId
+  and key1 in (select id from @ids)
   and key2 between @startDate and @endDate
 
 
@@ -37,7 +46,7 @@ begin
  update @wt set asterisk = replicate('*',id)
 
  insert @rt
- select 0, section, section, asterisk, 2, section from @wt
+ select 0, section, section, asterisk, null, 2, section from @wt
 
  return
 end
