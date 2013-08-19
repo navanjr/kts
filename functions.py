@@ -399,7 +399,6 @@ class ktsMenu():
                 result = self.sqlQuery(sql, True, 'Master', True)
                 print 'result', result['code']
 
-
     def ask(self, question='what do you need?'):
         try:
             commandEntered = raw_input("     %s ===> " % question)
@@ -874,7 +873,7 @@ class ktsMenu():
         value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
         return value
 
-    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, isBackup=False):
+    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, testConnection=False):
         connDatabase = alternateDatabase or self.settings['database']
         connectionString = 'DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (self.settings['server'],connDatabase,self.settings['uid'],self.settings['password'])
         package = {}
@@ -900,7 +899,7 @@ class ktsMenu():
             connection.close()
             return package
 
-        if isBackup:
+        if testConnection:
             while cursor.nextset():
                 pass
 
