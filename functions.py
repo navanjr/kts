@@ -72,6 +72,7 @@ class ktsMenu():
         self.createCommand('importSQLObject',['importsqlobject','importsql'],'import a named sql object from the repo',self.command_importSqlObject)
         self.createCommand('diagnostics',['d','diag','diagnostic','diagnostics'],'access all diagnostic options',self.command_diagnostics)
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
+        self.createCommand('restore',['restore'],'restore sql data to existing db',self.command_restore)
         self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
         self.createCommand('backupNow',['backupNow',],'back up sql data without an "are you sure" prompt',self.command_backupNow)
         self.createCommand('users',['user','users'],'display or define default users',self.command_users)
@@ -360,6 +361,44 @@ class ktsMenu():
             print "do you wish to backup the DB to..."
             if self.ask("%s?" % backupFileName) in ('yes', 'y'):
                 doit()
+    def command_restore(self):
+        files = self.ftpFiles()
+        menuName = self.getMenuName(self.command[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        print
+        for file in files.items():
+            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
+        if len(self.command) == 1:
+            print "\n     restore X ..."
+            self.menuShow(subMenu)
+        elif len(self.command) > 1:
+            bakRow = files[int(self.command[1])]
+            print '   ok restoring ', bakRow
+            if areYouSure():
+                db = self.settings['database']
+                file = '%s\%s' % (self.ftpSettings['path'], bakRow['name'])
+                print "kill connections...", self.sqlQuery("alter database %s set single_user with rollback immediate" % db, True, 'Master')['code']
+                print "drop database %s" % db, self.sqlQuery("drop database %s" % db, True, 'Master')['code']
+                # print "restore database %s from disk='%s'" % (db, file), self.sqlQuery("restore database %s from disk='%s' with move, replace" % (db, file), True, 'Master')['code']
+                sql = "declare @defaultLocation varchar(max),@dataName varchar(max),@dataFileName varchar(max)," \
+                      "@logName varchar(max),@logFileName varchar(max);" \
+                      "select @defaultLocation = " \
+                      " substring(physical_name, 1, charindex(N'master.mdf', LOWER(physical_name)) - 1)" \
+                      " from master.sys.master_files where database_id = 1 AND file_id = 1;" \
+                      "declare @fileListTable table(" \
+                      "LogicalName nvarchar(128),PhysicalName nvarchar(260),[Type] char(1),FileGroupName nvarchar(128)," \
+                      "Size numeric(20,0),MaxSize numeric(20,0),FileID bigint,CreateLSN numeric(25,0),DropLSN numeric(25,0)," \
+                      "UniqueID uniqueidentifier,ReadOnlyLSN numeric(25,0),ReadWriteLSN numeric(25,0),BackupSizeInBytes bigint," \
+                      "SourceBlockSize int,FileGroupID int,LogGroupGUID uniqueidentifier,DifferentialBaseLSN numeric(25,0)," \
+                      "DifferentialBaseGUID uniqueidentifier,IsReadOnl bit,IsPresent bit,TDEThumbprint varbinary(32));" \
+                      "insert into @fileListTable exec ('restore filelistonly from disk=''%s''');" \
+                      "select @dataName=LogicalName,@dataFileName = @defaultLocation + LogicalName + '.mdf' from @fileListTable where [TYPE] = 'D';" \
+                      "select @logName=LogicalName,@logFileName = @defaultLocation + LogicalName + '.ldf' from @fileListTable where [TYPE] = 'L';" \
+                      "restore database %s from disk='%s' with move @dataName to @dataFileName, move @logName to @logFileName," \
+                      "recovery,replace;" % (file, db, file)
+                result = self.sqlQuery(sql, True, 'Master', True)
+                print 'result', result['code']
+
 
     def ask(self, question='what do you need?'):
         try:
