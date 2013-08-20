@@ -51,5 +51,22 @@ if @switch = 2
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
 
+if @switch = 3
+begin
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a,receiptlink b 
+			where	
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
+					and b.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+
+	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
+	
+	delete from @wt where AccType<>'Receivable'
+
+	select @retVal = isnull(SUM(taxAmount),0) from @wt
+end
+
 return @retVal
 end
