@@ -248,6 +248,7 @@ select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)
 update @wt2 set beginbalance=beginbalance*-1, deposits=deposits*-1, elecdeposits=elecdeposits*-1, endbalance=endbalance*-1 where accountType in (select accountType from dbo.glBankFundTypes('FUND'))
 update @wt2 set paid=paid*-1 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
+-- Grouping begins
 declare @currentTaxYear varchar(4),
         @priorTaxYear varchar(4),
         @detailBackTax varchar(5)
@@ -255,25 +256,43 @@ declare @currentTaxYear varchar(4),
 select @detailBackTax = settingValue from settings where settingname='site.dailyLedgerDetailBackTax'
 
 if @detailBackTax <> 'TRUE'
+-- rename all the back tax lines the same 
 begin
- update @wt2 set accountType='BACK TAX' 
-  where right(accountCode,9)='ADVALOREM' and left(accountCode,4) in (select year from dbo.taxyears(@endDate) where yearCode='Back')
+ update @wt2 set accountType = 'BACK TAX' 
+  where right(accountCode,9) = 'ADVALOREM' and left(accountCode,4) in (select year from dbo.taxyears(@endDate) where yearCode = 'Back')
 end
 
+-- why are we inserting into @rt twice?
 insert @rt
  select *,'','' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
 
 insert @rt
-select accountType+' '+rtrim(ledgerGroup), accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin), sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits), sum(endbalance), accountType, ledgerGroup,'','' from @wt2
+select 
+ ledgerGroup,
+ accountType+case when accountType <> 'BACK TAX' then 'S' else '' end+' '+rtrim(ledgerGroup), sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin), sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits), sum(endbalance), accountType, ledgerGroup,'','' from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX') and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
  group by accountType, ledgerGroup
 
 update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
 update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND') union select 'BACK TAX')
-update r set reportOrder = a.reportOrder from @rt r, glaccounts a where r.accountCode=a.accountCode
-update r set reportOrder = a.reportOrder from @rt r, (select max(reportOrder) as reportOrder,accountType as accountCode, ledgerGroup from glaccounts group by    accountType, ledgerGroup) a where r.accountCode=a.accountCode and (r.ledgerGroup < ' 0') and r.accountType='FUND'
-update r set reportOrder = a.reportOrder from @rt r, glaccounts a where r.ledgerGroup=a.ledgerGroup and r.ledgerGroup>' 0'
+
+-- here is where we set the report order
+ update @rt set reportOrder = accountDesc
+
+ update r set
+  r.reportOrder = 
+  (select case when max(a.reportOrder) > '  0' then max(a.reportOrder) else max(a.ledgerGroup) end from dbo.glAccounts a where a.ledgerGroup = r.ledgerGroup)
+ from @rt r
+ where r.ledgerGroup > '  0'
+
+ update r set reportOrder = a.reportOrder
+  from @rt r, glaccounts a
+  where r.accountCode = a.accountCode
+   and a.reportOrder > '  0'
+   and a.ledgerGroup < '  0'
+
+-- that was were we set the report order
 
 update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 
  from @rt r, glaccounts a where r.accountcode=a.accountcode
