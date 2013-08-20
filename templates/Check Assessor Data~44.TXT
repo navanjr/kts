@@ -13,7 +13,9 @@
  brwstuff=;
 
 @gcvars=
- gcbrwsq44='select brwId*-1,display,selectedFlag from dbo.aamasterCheckBRW('&choose(obj:c1>'  0',obj:c1,'0')&') order by ord';
+ lcVariable=obj:c1&':'&obj:c2,
+ gcbrwsq44='select brwId*-1,display,aaid,selectedFlag from dbo.aamasterCheckBRW('''&lcVariable&''')  order by ord',
+ gcbrwsq44Rp='select display from dbo.aamasterCheckBRW('''&lcVariable&''')';
 
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
@@ -23,11 +25,15 @@
  prop(150,7c10h,'Courier New'),
  prop(150,'SelectedFillColor',65535),
  prop(150,'SelectedColor',0),
- create(550,12,540,40,'&Show All',78);
+ create(550,12,540,40,'&Show All',78),
+ create(551,12,540,53,'Show &Updated',80);
+
 
 @acc550=refreshbrw=;
+@acc551=refreshbrw=;
 
 \t077ShowAllFlag; \h077078;r
+\t079ShowUpdated; \h079080;r
 
 @refreshbrw=
  gcvars=,
@@ -74,3 +80,33 @@ lbrwclick150=
  d1select('exec dbo.aamasterCheckClicked @method=''createAllAddresses'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
  refreshbrw=;
+
+
+\t114&Print List;
+@acc114=
+  do(452,getSiteInfo=),
+  lcLm=400,
+  lcTm=250,
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcBoxColor=14539482,
+ tr(
+ prn(,lcLm),
+  box(lcLm-100,lcTm+200,4200,950,,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',lcLm+900,lcTm+250,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,lcLm+900,lcTm+450),
+  prn(printed,lcLm),
+  prn(page),
+  prn(,,lcTm+825,lcHeaderFontSize,bold,lcFont),
+  bnd(,'CHECK ASSESSOR DATA',8500C),
+  prn(,lcLm+500,,lcHeaderFontSize-4,bold,lcFont),
+  nl,
+  box(pagex-50,pagey+100,pagex+6200,pagey+250,,lcBoxColor),
+  if(curpag<>1),do(nl,nl),
+  det(gcbrwsq44),
+  lcDisplay=kp(gcbrwsq44Rp&'where aaId = '&obj5:a3),
+  bnd('D',lcDisplay,6000),
+  edt)
+ ;
+
+\y108114+13;r2
