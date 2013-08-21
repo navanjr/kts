@@ -127,7 +127,7 @@ begin
      '@bankStatementAccountCode=' + rtrim(depositAccountCode) + ';'
     else
      ''
-    end,
+    end + ';@bankName='+isnull((select bankName from glaccounts where accountcode=depositAccountCode),'')+';',
    stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,''),
    3
   from @rt a
@@ -173,7 +173,7 @@ begin
     o.accountCode,
     o.accountDesc, 
     4,
-    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';'
+    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';@bankName='+rtrim(o.BankName)+';'
     from dbo.glAccounts o where o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
      and o.showOnBKD='1' and o.accountCode not in (select isnull(depositAccountCode,'') from @rt)
   
