@@ -4,9 +4,45 @@ create proc dbo.paymentCancel(
  @verbose varchar(5) = 'TRUE',
  @areYouSure varchar(5) = 'NO',
  @comments varchar(max) = '',
- @reasonToCancel varchar(50) = null ) as 
+ @reasonToCancel varchar(50) = null, 
+ @cancelExpiredVouchers varchar(5) = null 
+) as 
 begin
  set nocount on
+
+-- adding support for many ids
+ if @id is null and @cancelExpiredVouchers = 'TRUE'
+ begin
+
+  declare
+   @ids ids,
+   @idToken int,
+   @idBlob varchar(max)
+  
+  select @idBlob = ids from dbo.vouchersExpiredTF()
+
+  exec dbo.logit @@procid, '@cancelExpiredVouchers', @cancelExpiredVouchers, '@method', @method, 'many ids passed... @idBlob', @idBlob
+
+  insert @ids select data from dbo.split(@idBlob,',')
+
+  while exists(select * from @ids)
+  begin
+   select @idToken = min(id) from @ids
+   
+   exec dbo.logit @@procid, 'looping... @idToken', @idToken, '@method', @method
+
+   exec dbo.paymentCancel
+    @id = @idToken,
+    @method = @method,
+    @areYouSure = 'YES',
+    @comments = @comments,
+    @reasonToCancel = @reasonToCancel
+
+   delete @ids where id = @idToken
+  end
+
+  return
+ end
 
  declare 
   @slink varchar(15) = 'o' + cast(@id as varchar),

@@ -1,10 +1,21 @@
-CREATE function dbo.outStandingVoucherReport(@endDate int) 
- returns
- @rt table(registerDate varchar(50),controlNumber varchar(50),registerNumber varchar(50),toWhom varchar(50),fundAccount varchar(50),fundAccountCode varchar(50),paidAmount varchar(50),vType varchar(10),actionDate varchar(50),ord varchar(250))
- as
- begin
+CREATE function dbo.outStandingVoucherReport(
+ @endDate int
+) returns @rt table(
+ registerDate varchar(50),
+ controlNumber varchar(50),
+ registerNumber varchar(50),
+ toWhom varchar(50),
+ fundAccount varchar(50),
+ fundAccountCode varchar(50),
+ paidAmount varchar(50),
+ vType varchar(10),
+ actionDate varchar(50),
+ ord varchar(250),
+ paymentId int
+) as
+begin
 
-insert @rt
+ insert @rt
  select 
   postDate,
   controlNumber,
@@ -15,12 +26,12 @@ insert @rt
   balanceAsOf*-1,
   case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' else left(contraPaymentType,1) end,
   dbo.date1(contraPostDate),
-  fundaccount+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b'
+  fundaccount+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b',
+  dbo.slinkId(slink)
  from dbo.paymentReports('Bank',@endDate,null) 
   where isnull(paymentType,'') like '%voucher%' 
 
 update @rt set fundAccountcode=key1 from object where typ=4701 and key2=fundAccount
-
 
 --group header
  insert @rt (toWhom,ord,fundAccount,fundAccountCode)
@@ -32,7 +43,7 @@ update @rt set fundAccountcode=key1 from object where typ=4701 and key2=fundAcco
  from @rt where fundAccount>'  0' group by fundaccount,fundaccountCode
 
 --group footer
-insert @rt (toWhom,paidAmount,ord,fundAccount,fundAccountCode)
+ insert @rt (toWhom,paidAmount,ord,fundAccount,fundAccountCode)
  select 
   fundaccount+' Total',
   sum(cast(paidAmount as money)),
@@ -41,17 +52,14 @@ insert @rt (toWhom,paidAmount,ord,fundAccount,fundAccountCode)
  from @rt where fundAccount>'  0' group by fundaccount,fundaccountCode
 
 --report footer
-insert @rt (toWhom,paidAmount,ord)
+ insert @rt (toWhom,paidAmount,ord)
  select 
   'GRAND TOTAL',
   sum(cast(paidAmount as money)),
   +'zzzz'
  from @rt where right(ord,1)='b'   
 
-update @rt set
- paidAmount = dbo.formatcurr(paidAmount)
+ update @rt set paidAmount = dbo.formatcurr(paidAmount)
 
-
-
-  return
- end
+ return
+end
