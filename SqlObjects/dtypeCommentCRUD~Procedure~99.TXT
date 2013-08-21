@@ -27,6 +27,17 @@ begin
     delete taxrollDetail where id = @taxrollDetailId
  end
 
+ if @mode = 'RESET'
+ begin
+    exec dbo.logit @@procid, 'RESETTING @dtype', @dType
+     update taxrollDetail set 
+      actionDate = dbo.clariondate(getdate()),
+      comments = @ini + ' ' + dbo.date1(dbo.clarionDate(getdate())) + ': Removed '+ dtype +' Flag ' + char(13) + char(10) + '***' + cast(comments as varchar(max)) 
+       where dtype=@dtype and actionDate = 0
+ end
+
+
+
  if @mode = 'CREATEBYINVOICE'
  begin
 
@@ -65,6 +76,13 @@ begin
     return
    exec dbo.logit @@procid,'@keyFieldName', @keyFieldName, '@docReceivablesBRWBlob', @docReceivablesBRWBlob
  
+   if exists (select * from taxrolldetail where dtype =  @dtype and isnull(actionDate,0) = 0) and dbo.readstring('@append=',@blob) != '1'
+     begin
+       select '@code=1;@message=There are existing tax items in the '+@dtype+' collection list.||Do you want to:;' 
+      return
+     end
+  
+
    if @dtype = 'RESALE'
     insert taxRollDetail (parcelNumber, dtype, comments)
     select code, @dtype, @ini + ' initiated: ' + @dtype

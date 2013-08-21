@@ -4,10 +4,15 @@
  if(obj:a3+0=1,lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),lcPaidRatio='null'),
  lcFCBlob=lcInvType&'^'&lcTaxYear&'^'&lcPaidRatio&'^'&lcSwitches&'^'&lcBlob,
  gcDType=choose(gcretval=2,'TAXWARRANT','RESALE'),
- if(gcretval=1,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''RESALE'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
- if(gcretval=2,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype=''TAXWARRANT'', @docReceivablesBRWBlob='''&lcFCBlob&'''')),
+ break(gcretval<>1 and gcretval<>2),
+ d1select('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype='''&gcDType&''', @docReceivablesBRWBlob='''&lcFCBlob&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Flag for Collection....',,'&Reset|&Append|&Cancel')),
+ if(readstring(obj7:d1,'@code=')>0 and gcretval=2,sql('exec dbo.dtypeCommentCRUD @mode=''CREATE'', @dtype='''&gcDType&''', @docReceivablesBRWBlob='''&lcFCBlob&''',@blob=''@append=1;''')),
+ if(readstring(obj7:d1,'@code=')>0 and gcretval=1,sql('exec dbo.dtypeCommentCRUD @mode=''RESET'', @dtype='''&gcDType&'''')),
+ break(readstring(obj7:d1,'@code=')>0 and gcretval<>2),
  m('Open Collections?','options...',,6,2),
  if(gcretval=2,do(4026,menuprocess=));
+
 
 @dup;@lmode=2;@nolock;
 @loadbrowse=menuprocess=;
