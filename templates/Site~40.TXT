@@ -37,10 +37,21 @@
  lcName=readstring(obj7:d1,'@name='),
  lcDescription=readstring(obj7:d1,'@description='),
  lcValue=readstring(obj7:d1,'@value='),
- m(lcDescription&'||Current Setting: '&lcValue,lcName,'Question.ico','&Toggle|&Cancel'),
- if(gcretval=1,toggleSetting=);
+ lcType=readstring(obj7:d1,'@type='),
+ if(lcType='boolean',toggleSetting=),
+ if(lcType='int',intSetting=);
+
 @toggleSetting=
+ m(lcDescription&'||Current Setting: '&lcValue,lcName,'Question.ico','&Toggle|&Cancel'),
+ break(gcretval<>1),
  sql('exec dbo.settingsCRUD @settingId='&lcid&', @method=''TOGGLE'''),
+ brwreload(1);
+
+@intSetting=
+ iw(',.t000'&str_replace(lcName,'site.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.w00230., ,.t002@n10.0., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004.,'),
+ break(gcretval<>'OK'),
+ lcNewValue=obj7:key1,
+ sql('exec dbo.settingsCRUD '''&lcName&''','''&lcNewValue&''''),
  brwreload(1);
 
 @acc106=
