@@ -59,7 +59,7 @@ begin
 -- get the raw data
  insert @rt (id,recordCnt,sourceAmt,depositAccountCode,depositAccountDesc,receiptType,amount,beforeAmount,afterAmount,brwBGColor,actionId,existingDepositId,minId,origin)
   select
-   cast('-6' + cast(min(a.id) as varchar) as int),
+   cast('-5' + cast(min(a.id) as varchar) as int),
    count(a.id),
    sum(a.amount),
    depositAccountCode,
@@ -99,7 +99,7 @@ begin
 -- add grouping  
   insert @rt (id,ord,rowstring,recordCnt,sourceAmt,amount,depositAccountCode,depositAccountDesc,brwBGColor,blob,receiptType,origin)
   select 
-   cast('-5' + cast(min(a.minId) as varchar) as int),
+   cast('-6' + cast(min(a.minId) as varchar) as int),
    @seedString + case when depositAccountCode = 'AAATRUST' then 'A' else 'C' end + depositAccountCode + '  a',
    case when depositAccountCode = 'AAATRUST' then
     ' ' + dbo.padRight(depositAccountDesc,' ',59)
@@ -123,11 +123,8 @@ begin
     + isnull(stuff((select distinct '|' + cast(existingDepositId as varchar) from @rt b where b.depositAccountCode = a.depositAccountCode and existingDepositId is not null FOR XML PATH('')),1,1,''),'') + ';'
     + '@depositCount=' + isnull(cast(COUNT(distinct existingDepositId) as varchar),'') + ';'
     + '@bankAccountCode=' + rtrim(depositAccountCode) + ';'
-    + case when left(depositAccountCode,3) != 'AAA' then
-     '@bankStatementAccountCode=' + rtrim(depositAccountCode) + ';'
-    else
-     ''
-    end + ';@bankName='+isnull((select bankName from glaccounts where accountcode=depositAccountCode),'')+';',
+    + case when left(depositAccountCode,3) != 'AAA' then '@bankStatementAccountCode=' + rtrim(depositAccountCode) + ';' else '' end 
+    + isnull((select '@bankName='+ bankName +';@accountType='+rtrim(accountType) from glaccounts where accountcode=depositAccountCode),'')+';',
    stuff((select distinct '|', rtrim(receiptType) from @rt c where c.depositAccountCode = a.depositAccountCode for XML path('')),1,1,''),
    3
   from @rt a
@@ -164,7 +161,7 @@ begin
 --Insert missing Bank accounts
  insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob)
    select 
-    cast('-5' + cast(o.accountId as varchar) as int),
+    cast('-6' + cast(o.accountId as varchar) as int),
     @seedString+'D'+o.accountCode+ '  a',
     ' ' + dbo.padRight(o.accountDesc,' ',40),
     --+ dbo.padLeft('0.00',' ',20)
@@ -173,7 +170,7 @@ begin
     o.accountCode,
     o.accountDesc, 
     4,
-    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';@bankName='+rtrim(o.BankName)+';'
+    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';@bankName='+rtrim(o.BankName)+';@accountType='+rtrim(o.accountType)+';'
     from dbo.glAccounts o where o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
      and o.showOnBKD='1' and o.accountCode not in (select isnull(depositAccountCode,'') from @rt)
   
