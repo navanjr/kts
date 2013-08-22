@@ -205,20 +205,64 @@
 @menu4=
  m('Official Deposit||Choose one of the following options...','Right Click Menu...','question.ico','New Deposit|&Cancel');
 
-@manageCollateral=browse(2,4707,'key1='''&lcBankName&'''');
-@manageInvestment=browse(2,4706,'a9='''&lcBankAccountCode&'''');
+@manageCollateral=gcManageCollateralBankName=lcBankName,
+ browse(2,4707,'key1='''&lcBankName&'''');
+
+@manageInvestment=d1select('select top 1 id from object where typ=4701 and key1='''&lcBankAccountCode&''''),lcBankId=obj7:d1,
+ browse(2,4706,'link1='&lcBankId+0,1,lcBankId);
+
+@recordInterest=d1select('select top 1 id from object where typ=4701 and key1='''&lcBankAccountCode&''''),lcBankId=obj7:d1,
+ d1select('select top 1 id from object where typ=4706 and link1='&lcBankId&' order by key2 desc'),lcInvestmentId=obj7:d1,
+ if(lcInvestmentId+0=0,m('No current Investment record was found, Please use Manage Investment to add one.')),
+ break(lcInvestmentId+0=0),
+ d1select('exec dbo.investmentInterestAccountVerification '''&lcBankAccountCode&''''),
+ lcReturn=obj7:d1,
+ lcCode=readstring(lcReturn,'@code='),
+ if(lcCode+0>0,m(readstring(lcReturn,'@message='))),
+ break(lcCode+0>0),
+ lcSourceCode=readstring(lcReturn,'@sourceCode='),
+ get(lcInvestmentId),
+ lcFundCode=obj7:b2,
+ if(today()+0>obj7:a18+0 or today()+0<obj7:key2+0,lcDate=obj7:a18,lcDate=today()),
+ d1select('exec dbo.receiptNew ''MISC'', @blob='''&'@maturity='&lcDate&';'&''''),
+ lcNewReceiptId=obj7:d1,
+ break(lcNewReceiptId+0<1),
+ iw('\t000Please enter the amount of interest for this receipt; \t001Amount; \w00250; \t002@n-19.2;'),
+ lcamount=obj7:key1,
+ if(lcamount+0=0,m('Please enter an amount.')),
+ break(lcamount+0=0), 
+ d1select('exec dbo.receiptDetailCRUD '&lcNewReceiptId+0&', @receiptTyp=4502, @description=''INTEREST'', @sourceCode='''&lcSourceCode&''', @fundCode='''&lcFundCode&''', @amount='&lcamount+0),
+ change(lcNewReceiptId);
+
+@renewInvestment=d1select('select top 1 id from object where typ=4701 and key1='''&lcBankAccountCode&''''),lcBankId=obj7:d1,
+ d1select('select top 1 id from object where typ=4706 and link1='&lcBankId&' order by key2 desc'),lcInvestmentId=obj7:d1,
+ if(lcInvestmentId+0=0,m('No current Investment record was found, Please use Manage Investment to add one.')),
+ break(lcInvestmentId+0=0),
+ get(lcInvestmentId),
+ lcppurchase=obj7:key2,
+ lcmaturity=obj7:a18,
+ lcliquid=today(),
+ sql('update object set key3='''&lcliquid&''' where typ=4706 and id='&lcInvestmentId+0),
+ sql('insert object (typ,link1,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a18)
+ select typ,link1,key1,'''&lcliquid&''','''',a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,'''&lcliquid+lcmaturity-lcppurchase&''' from object where typ=4706 and id='&lcInvestmentId+0),
+ lcnewInvestmentId=kp('select top 1 id from object where typ=4706 and a9='''&lcBankAccountCode&''' and key2='''&lcliquid&''' order by id desc'),
+ calcrecord(lcnewInvestmentId),
+ change(lcnewInvestmentId)
+ ;
 
 @menu6=
  getBlob=,
  lcDepButtText=choose(lcBankAccountCode='AAATRUST','&New Official Deposit','&New Bank Deposit'),
- lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&choose(lcBankAccountCode>'  0',lcDepButtText&'|','')&choose(lcBankStatementCode>'  0','Current Bank Statement|','')&choose(lcBankName>'  0','Manage Collateral|','')&choose(lcAccountType='INVESTMENT','Manage Investment|','')&'E&xit',
+ lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&choose(lcBankAccountCode>'  0',lcDepButtText&'|','')&choose(lcBankStatementCode>'  0','Current Bank Statement|','')&choose(lcBankName>'  0','Manage Collateral|','')&choose(lcAccountType='INVESTMENT','Manage Investment|Renew Investment|Record Interest|','')&'E&xit',
  m('Please Choose one of the following options...'&choose(lcAAATrust+0>0,'||**********Warning**********|Un-Deposited Trust Receipt!',''),'Right Click Menu...','question.ico',lcMessageOptions),
  lcChoice=gcretval+0+choose(lcDepCount+0=1,10,0)+choose(lcBankAccountCode>'  0',1000,0)+choose(lcBankStatementCode>'  0',100,0)+choose(lcAccountType='INVESTMENT',10000,0)+choose(lcBankName>'  0',100000,0),
  if(lcChoice=11 or lcChoice=111 or lcChoice=1011 or lcChoice=1111 or lcChoice=101111,change(lcDepChangeId)),
  if(lcChoice=1001 or lcChoice=1012 or lcChoice=1101 or lcChoice=1112 or lcChoice=101101 or lcChoice=11101  or lcChoice=101112  or lcChoice=111101,newDeposit=),
  if(lcChoice=101 or lcChoice=1102 or lcChoice=1113 or lcChoice=101102 or lcChoice=11102  or lcChoice=101113  or lcChoice=111102,bankStatementMenu=),
  if(lcChoice=101103  or lcChoice=101114  or lcChoice=111103,manageCollateral=),
- if(lcChoice=11103  or lcChoice=111104,manageInvestment=);
+ if(lcChoice=11103  or lcChoice=111104,manageInvestment=),
+ if(lcChoice=11104  or lcChoice=111105,renewInvestment=),
+ if(lcChoice=11105  or lcChoice=111106,recordInterest=);
 
 @bankStatementMenu=
  lcBankStatementId=kp('select id from object where typ=4780 and '&obj:key1&' between a1 and a2 and key1 = '''&lcBankStatementCode&''''),
