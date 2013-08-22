@@ -49,8 +49,11 @@
 
 @menu3=
  lcEVBlob=kp('select blob from dbo.dailyData('&gcStartDate&','&gcDays&','''&gcFilterString&''') where id = -3'&lcid),
- m('There are ['&readstring(lcEVBlob,'@tally=')&'] Expired Outstanding Vouchers?','Expired Vouchers...','question.ico','&Cancel Expired Vouchers|E&xit'),
- break(gcretval<>1),
+ m('There are ['&readstring(lcEVBlob,'@tally=')&'] Expired Outstanding Vouchers?','Expired Vouchers...','question.ico','&Cancel Expired Vouchers|&Show Expired Vouchers|E&xit'),
+ if(gcretval=1,cancelExpiredVouchers=),
+ if(gcretval=2,showExpiredVouchers=);
+
+@cancelExpiredVouchers=
  iw(',.t003Reason., ,.l0044773., ,.t097Comment., ,.y097=001., ,.y098=002., ,.x097=001., ,.x098=002., ,.w098200., ,.o004098., ,[select=098.,'),
  break(gcretval<>'OK'),
  lcComment=obj7:d1,
@@ -58,6 +61,10 @@
  d1select('exec dbo.paymentCancel @id=null, @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''', @reasonToCancel='''&lcResonToCancel&''', @cancelExpiredVouchers=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
 
+@showExpiredVouchers=
+ lcIds=readstring(lcEVBlob,'@ids='),
+ writecurdata(@BrowFil4771=,'1'),
+ browse(,4771,'id in (select data from dbo.split('''&lcIds&''','',''))');
 
 @menu9=
  m('Accounts|    Please choose one of the following options...','Right Click Menu...','question.ico','Open &Account|&Stage Apportionment|Stage All Apportionment|sho&w|&Cancel'),
