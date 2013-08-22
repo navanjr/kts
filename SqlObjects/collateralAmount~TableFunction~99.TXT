@@ -62,11 +62,24 @@ begin
  select top 1 @bankCollateral = isnull(totalCollateral,0.00) from @collateral where bankName=@bankNameToken
  select top 1 @bankFDIC = isnull(totalFDIC,0.00) from @FDIC where bankName=@bankNameToken
  
- update r set processcode=1, bankPercent = r.glBalance/@bankGlBalance,
+ if @bankGlBalance > 0.00
+ begin
+ update r set processcode=1, 
+  bankPercent = r.glBalance/@bankGlBalance,
   collateralAmount = round(@bankCollateral*r.glBalance/@bankGlBalance,2),
   FDICAmount = round(@bankFDIC*r.glBalance/@bankGlBalance,2)
  from @rt r
    where r.bankName=@bankNameToken
+ end
+ else
+ begin
+ update r set processcode=1, 
+  bankPercent = 0.00,
+  collateralAmount = 0.00,
+  FDICAmount = 0.00
+ from @rt r
+   where r.bankName=@bankNameToken
+ end
  
  if isnull((select sum(collateralAmount) from @rt where bankName=@bankNameToken),0.00)<> @bankCollateral 
   begin
