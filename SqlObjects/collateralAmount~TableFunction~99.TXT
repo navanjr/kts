@@ -36,6 +36,8 @@ insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, processcode, 
   where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
  group by a.accountcode,a.accountdesc,a.bankName
 
+delete from @rt where glBalance =0.00
+
 insert @collateral                          
  select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end)
  from object where typ=4707 and a1<>'FDIC' and key2<=@effectiveDate and (key3 >= @effectiveDate or key3 <'1')
