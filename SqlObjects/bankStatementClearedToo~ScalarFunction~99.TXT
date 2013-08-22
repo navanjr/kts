@@ -1,0 +1,21 @@
+create function dbo.bankStatementClearedToo(@id int) returns int
+ as 
+ begin
+ declare 
+  @slink varchar(50) = 'o' + cast(@id as varchar),
+  @x int = 0,
+  @link1 int,
+  @typ int
+  
+  select @typ = typ, @link1 = link1 from object where ID = @id
+  
+  select top 1 @x = bsId from gldetail where slink = @slink and  bsId>0
+  
+  if @link1 > 0 and @typ = 4771 and @x = 0
+   begin
+    set @slink='o'+CAST(@link1 as varchar)
+    select top 1 @x = bsId from gldetail where slink = @slink and   bsId>0
+   end
+ 
+  return @x
+ end
