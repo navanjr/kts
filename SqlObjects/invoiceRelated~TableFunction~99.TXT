@@ -19,6 +19,8 @@ begin
   @receiptIds ids,
   @invoiceIds ids
 
+ declare @items table(item varchar(50))
+
 -- start with the invoice you are looking at
  select
   @item = ITEM,
@@ -44,11 +46,15 @@ begin
   insert @invoiceIds
   select distinct invoiceId from receiptlink where receiptId in (select id from @receiptIds)
 
+-- get all the item numbers from these invoices
+  insert @items select item from invoices where id in (select id from @invoiceIds)
+
   insert @rt
   select distinct id, 'Receipts'
   from invoices
   where id != @inquireInvoiceId
-   and ID in (select ID from @invoiceIds)
+   and item in (select item from @items)
+--   and ID in (select ID from @invoiceIds)
    and invoiceId = 0
    and id not in (select invoiceId from @rt)
 
