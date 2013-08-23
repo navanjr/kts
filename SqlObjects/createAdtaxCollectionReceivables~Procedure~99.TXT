@@ -1,50 +1,95 @@
-create procedure dbo.createAdtaxCollectionReceivables
+create procedure dbo.createAdtaxCollectionReceivables(
+ @method varchar(50) = 'adtax',
+ @debugMode varchar(5) = 'FALSE',
+ @taxYear varchar(10) = null
+) 
 as 
 begin
- exec dbo.logit @@procid, 'Started...'
+
+/*
+  this routine is used in the beginning of the invoicing routine and in diagnostics
+  during invoicing it will get the taxyears from the adtax table
+  during diagnostics it will get the taxyears from the taxRateDetail table
+  it will create advalorem accounts (fund, _acr, _protest_ar, _exp) for each tax year found
+*/
+
+ exec dbo.logit @@procid, 'Started... @method', @method, '@debugMode', @debugMode
+
  declare
-  @year varchar(4),
-  @accountCode varchar(50)
+  @accountCode varchar(50),
+  @accountType varchar(50),
+  @targetAccount varchar(50),
+  @collectionDescription varchar(50),
+  @fundCollectionDescription varchar(50) = isnull((select key1 from object where typ=4703 and key1 like '%valorem%'),'')
 
- declare @pt table(realtaxyear varchar(4), accountCode varchar(50))
+ declare @pt table(
+  accountCode varchar(50),
+  accountType varchar(50),
+  accountId int,
+  targetAccount varchar(50),
+  collectionDescription varchar(50)
+ )
 
- insert @pt 
- select distinct cast([realtaxyear] as varchar(4)),'' from adtax 
- where [realtaxyear]>0
- 
- update @pt set accountCode = realtaxyear+'_ADVALOREM_AR' where realtaxyear>'0'
+ if @method = 'special' and @taxYear>0
+  begin
+  insert @pt select distinct cast(@taxYear as varchar) + '_ADVALOREM',    'FUND',       null, '', @fundCollectionDescription 
+       union select distinct cast(@taxYear as varchar) + '_ADVALOREM_AR', 'RECEIVABLE', null, '', '' 
+       union select distinct cast(@taxYear as varchar) + '_PROTEST_AR',   'RECEIVABLE', null, '', '' 
+       union select distinct cast(@taxYear as varchar) + '_ADVALOREM_EXP','EXPENSE',    null, cast(@taxYear as varchar) + '_ADVALOREM', ''
+        
+  end
 
- delete from @pt where accountCode in (select accountcode from glAccounts where accountType = 'RECEIVABLE')   
 
-
- while exists(select * from @pt)
+ if @method = 'adtax'
  begin
-  select top 1 @year=[realtaxyear], @accountCode=accountCode from @pt
-  where [realtaxyear]>'0' and 
-   accountCode not in (select accountcode from glAccounts where accountType = 'RECEIVABLE')
- 
-  exec dbo.glAccountVerification @accountCode, 'RECEIVABLE', 'CREATE'
- 
-  delete from @pt where [realtaxyear] = @year
+  insert @pt select distinct cast(realtaxyear as varchar) + '_ADVALOREM',    'FUND',       null, '', @fundCollectionDescription from adtax where [realtaxyear]>0
+       union select distinct cast(realtaxyear as varchar) + '_ADVALOREM_AR', 'RECEIVABLE', null, '', '' from adtax where [realtaxyear]>0
+       union select distinct cast(realtaxyear as varchar) + '_PROTEST_AR',   'RECEIVABLE', null, '', '' from adtax where [realtaxyear]>0
+       union select distinct cast(realtaxyear as varchar) + '_ADVALOREM_EXP','EXPENSE',    null, cast(realtaxyear as varchar) + '_ADVALOREM', ''
+        from adtax where [realtaxyear]>0
  end
 
- insert @pt 
- select distinct cast([realtaxyear] as varchar(4)),'' from adtax 
- where [realtaxyear]>0
- 
- update @pt set accountCode = realtaxyear+'_PROTEST_AR' where realtaxyear>'0'
-
- delete from @pt where accountCode in (select accountcode from glAccounts where accountType = 'RECEIVABLE')   
-
-
- while exists(select * from @pt)
+ if @method = 'taxrate'
  begin
-  select top 1 @year=[realtaxyear], @accountCode=accountCode from @pt
-  where [realtaxyear]>'0' and 
-   accountCode not in (select accountcode from glAccounts where accountType = 'RECEIVABLE')
- 
-  exec dbo.glAccountVerification @accountCode, 'RECEIVABLE', 'CREATE'
- 
-  delete from @pt where [realtaxyear] = @year
+  insert @pt select distinct YEAR + '_ADVALOREM',     'FUND',       null, '', @fundCollectionDescription from taxratedetail
+       union select distinct YEAR + '_ADVALOREM_AR',  'RECEIVABLE', null, '', '' from taxratedetail
+       union select distinct YEAR + '_PROTEST_AR',    'RECEIVABLE', null, '', '' from taxratedetail
+       union select distinct YEAR + '_ADVALOREM_EXP', 'EXPENSE',    null, YEAR + '_ADVALOREM', '' from taxratedetail
  end
+
+ exec dbo.logit @@procid, 'found... @@rowCount', @@rowCount
+
+ update a set a.accountId = b.accountId
+ from @pt a, dbo.glAccounts b 
+ where a.accountCode = b.accountCode and a.accountType = b.accountType
+
+ exec dbo.logit @@procid, 'Updated... @@rowCount', @@rowCount
+
+ delete @pt where accountId is not null
+
+ exec dbo.logit @@procid, 'Deleted... @@rowCount', @@rowCount
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @pt order by accountCode
+  return
+ end
+
+ declare token cursor local for 
+ select 
+  accountCode,
+  accountType,
+  targetAccount,
+  collectionDescription
+ from @pt
+
+ open token
+ fetch next from token into @accountCode, @accountType, @targetAccount, @collectionDescription
+
+ while @@fetch_status = 0
+ begin
+  exec dbo.glAccountVerification @accountCode, @accountType, 'CREATE', @targetAccountCode = @targetAccount, @collectionDesc = @collectionDescription
+  fetch next from token into @accountCode, @accountType, @targetAccount, @collectionDescription
+ end
+
 end

@@ -1,0 +1,76 @@
+create proc dbo.table2json(
+ @tempTableName varchar(max),
+ @title varchar(max) = null,
+ @includeColumnObject varchar(5) = 'TRUE',
+ @includeAPIPrefix varchar(5) = 'FALSE',
+ @urlEncode varchar(5) = 'FALSE',
+ @json varchar(max) = null output
+) as 
+begin
+
+ declare
+  @temp varchar(max) = '#' + replace(@tempTableName,'#',''),
+  @data stringBlob,
+  @fields blobFields,
+  @fieldToken varchar(max),
+  @fieldList varchar(max) = '',
+  @sql varchar(max) = '',
+  @payload varchar(max)
+ 
+ declare @wt table(
+  data varchar(max),
+  fields varchar(max)
+ ) 
+
+ select @fieldList = @fieldList + ' + ''|'' + ltrim(rtrim(cast(' + name + ' as varchar)))'
+ from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp)
+ 
+ select @sql = 'select ' + stuff(@fieldList,1,9,'') + ' from ' + @temp
+ 
+ insert @data exec(@sql)
+ 
+ insert @fields select name, 'string', 0 
+ from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp) order by column_id
+
+ exec dbo.pipedStringToJson
+  @data,
+  @fields,
+  @includeSiteId = 'False',
+  @includeAPIPrefix = @includeAPIPrefix,
+  @payload = @payload output
+ 
+ set @json = '"rows":' + @payload
+
+ if @includeColumnObject = 'TRUE'
+ begin
+
+  declare
+   @data2 stringBlob,
+   @fields2 blobFields
+
+  insert @data2 select name+'|true' from tempdb.sys.columns where object_id=OBJECT_ID('tempdb.dbo.' + @temp) order by column_id
+
+  insert @fields2 select 'columnName','string',0
+  insert @fields2 select 'visible','string',0
+
+  exec dbo.pipedStringToJson
+   @data2,
+   @fields2,
+   @includeSiteId = 'False',
+   @includeAPIPrefix = @includeAPIPrefix,
+   @payload = @payload output
+
+  set @json = '"columns":' + @payload + ',' + @json
+ end
+
+ if @title > '  0'
+ begin
+  set @json = '"title":"' + @title + '",' + @json
+ end
+
+ set @json = '{' + @json + '}'
+
+ if @urlEncode = 'TRUE'
+ set @json = dbo.URLEncode(@json)
+
+end

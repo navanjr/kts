@@ -1,3 +1,7 @@
+@loadbrowse=
+  prop(017,'color',65280),
+  prop(015,'color',65280);
+
 @key2=obj:key1&obj:key2;
 @defaultbrowsekey=2;
 
@@ -21,14 +25,19 @@
  lcfyr=obj7:key1,
  sql('exec millsCopy 4013,'''&obj:key1&''','''&lcfyr&'''');
 
-@bb5=Pull Schools,,,;
+@bb5=Pull Schools,,,gcadmin=1;
 @bbproc5=iw('\t001Year; \t002@n4; \w00230;'),
  lcyear=obj7:key1,
- if(lcyear+0<1,lcyear=year(today())),
  sql('exec dbo.adaSchoolImport '''&lcyear&''''),
  sql('exec dbo.populationFundReceivableVerification '''&lcyear&''',''''');
 
 @bb4=Sync Descrip; @bbproc4=d1select('exec dbo.syncAdaDescrip');
+
+@bb3=Import ADA,,,gcadmin=1;
+@bbproc3=
+ m('Are you sure you wish to import from mike APPSCH03?','Import Mike...','question.ico',6,4),
+ break(gcretval<>2),
+ sql('exec dbo.conversion_mikeAdaInfo @method=''fix''');
 
 @afterloadwindow=
  if(obj:key1+0<1900,set(2,kp('select year(getdate())'))),

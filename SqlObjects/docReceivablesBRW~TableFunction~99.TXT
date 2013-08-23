@@ -44,7 +44,10 @@ begin
   set @taxYear = ''
 
  declare 
-  @floorToken varchar(50)
+  @floorToken varchar(50),
+  @noMortCode varchar(50) = 'FALSE'
+
+ select @noMortCode='TRUE' from dbo.docDTypes(@dTypesBlob) where id = 4 and switch = 0
 
  declare @years table(
   taxYear varchar(5)
@@ -80,9 +83,9 @@ begin
 
 -- Deal with Mortgagecodes, delete everything that is not the selected mortcodes
  declare @selectedMortgageCodes table(code varchar(50))
- insert @selectedMortgageCodes select code from dbo.docDTypes(@dtypesBlob) where id > 3 and switch = 1
+ insert @selectedMortgageCodes select code from dbo.docDTypes(@dtypesBlob) where id > 4 and switch = 1
 
- if not exists(select * from @selectedMortgageCodes)
+if not exists(select * from @selectedMortgageCodes)
  insert @wt
  select
   i.id,
@@ -111,6 +114,8 @@ begin
   and invoiceId = 0
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
+  and isnull(coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)),'') not in (select code from dbo.docDTypes(@dtypesBlob) where id > 4 and switch = 0) 
+  and case when @noMortCode='TRUE' then isnull(coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)),'0') else '0' end = '0'
  else
  insert @wt
  select
@@ -140,7 +145,7 @@ begin
   and invoiceId = 0
   and taxyear in (select taxyear from @years)
   and typ in (select typ from @invoiceTypes)
-  and coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)) in (select code from @selectedMortgageCodes) 
+  and isnull(coalesce(nullif(cast(adtax.treamort as varchar),''),cast(adtax.mortgageCode as varchar)),'') in (select code from @selectedMortgageCodes) 
 
  if @taxRulesFlag = 1
  begin

@@ -1,12 +1,13 @@
 create proc dbo.conversion_mikeWarrantsOutstanding(
  @mode varchar(50) = 'conversion',
- @method varchar(5) = 'GET',
+ @method varchar(10) = 'GET',
  @class varchar(50) = null output,
  @code int = 0 output,
  @message varchar(100) = null output,
  @tally int = 0 output,
  @fixProc varchar(100) = null output,
- @guide varchar(100) = null output
+ @guide varchar(100) = null output,
+ @csvBlob varchar(max) = '' output
 ) as 
 begin
  set nocount on
@@ -14,26 +15,7 @@ begin
  if @mode != 'conversion'
   return
 
-
-/*
-
-  select wfy,fundid,warno,dteissue,dtepaid,amnt,intpaid,paymntno,;
-         paywhom  ;
-         from warrant  ;
-         where dtepaid = '  ' and amnt != 0.00
-
-
- as
-begin
-
- insert @rt
- select * from 
-    openrowset('VFPOLEDB','c:\client\dosdata\ctpro\online\warrant.dbf';'';
-    '','SELECT * FROM warrant where !deleted() and dtePaid < ''  0'' and amnt > 0 order by dtePaid')
-
- return
-
-*/
+ exec dbo.logit @@procid, 'started... @method', @method
 
  declare @st table(
   wfy varchar(2),
@@ -58,37 +40,86 @@ begin
   dtecancl varchar(8),
   pfy varchar(2),
   f8 char(1),
+  convertedDate varchar(50),
+  tresFundCode varchar(50),
+  paymentId int,
   csv varchar(max)
  )
 
  declare
   @mikeTableName varchar(50) = 'warrant',
   @mikePath varchar(max),
-  @sql nvarchar(max)
+  @sql nvarchar(max),
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate','')
 
- select
-  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select *,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where dtePaid < "  0" and amnt != 0.00 and !deleted()'')'
+ if @conversionDate > '  0'
+ begin
+  select
+   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+   @sql = 'select *,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
 
- insert @st exec(@sql)
+-- removed to get all warrants entered, even the ones entered after @conversionDate
+-- and dteRegis <= "'+@conversionDate+'"
 
- update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + dteIssue + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+  insert @st exec(@sql)
 
- if @method = 'GET'
+  update @st set convertedDate = @conversionDate where dteregis <= @conversionDate
+  update @st set convertedDate = dteregis where dteregis > @conversionDate
+  update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + convertedDate + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+
+  update s set s.tresFundCode = (select top 1 a.accountCode from glAccounts a where a.targetAccountCode = l.accountCode and right(a.accountCode,3) = '_WR')
+  from @st s
+  join clerksFundList l on s.fundid = l.clerksFundCode
+  
+  update s set s.paymentId = p.id
+  from @st s, payments p
+  where s.tresFundCode = p.debitAccountCode and cast(s.warno as int) = p.clerksNumber 
+
+  set @csvBlob = ''
+  select @csvBlob = @csvBlob + csv + char(10) + char(13) from @st
+
+ end
+
+ if @method = 'GET' 
  begin  
-  select 
-   @class = 'conversion',
-   @guide = 'GET|SHOW|FIX',
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'Outstanding Warrants not found in KTS'
-  from @st
+  if @conversionDate > '  0'
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = COUNT(*),  
+    @message = 'Outstanding Warrants not found in KTS'
+   from @st where isnull(paymentId,0) = 0
+  else
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = 1,
+    @tally = 1,  
+    @message = 'missing converionDate variable'
  end
 
  if @method = 'SHOW'
  begin  
 
-  select * 
+  declare
+   @csvTally int,
+   @importTally int
+  select @csvTally = COUNT(*) from @st
+  select @importTally = COUNT(*) from dbo.warrantImportBRW(null,@csvBlob) where postCheck = 0
+  exec dbo.logit @@procid, '@csvTally', @csvTally, '@importTally', @importTally
+
+  select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
+ end
+
+ if @method = 'cache'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mikeWarrantsOutstanding]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   drop table mikeWarrantsOutstanding
+
+  select *
+  into mikeWarrantsOutstanding 
   from @st
   order by fundId, Warno
 
@@ -96,8 +127,31 @@ begin
 
  if @method = 'FIX'
  begin
+  declare 
+   @initials varchar(50) = dbo.settingsF('conversion.initials','')
 
---  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
+  exec dbo.paymentsImportBatch
+   @paymentType = 'warrant',
+   @batchId = null,
+   @ini = @initials,
+   @csvBlob = @csvBlob,
+   @debugMode = 'FALSE',
+   @comments = 'Imported from KPS' 
+
+-- now lets update the postdate for each warrant just imported
+  declare @ids ids
+  insert @ids 
+  select id From payments
+  where paymentType = 'Warrant'
+   and cast(comment as varchar) = 'Imported from KPS'
+   and dateRegistered != clerksDate
+  declare @tokenId int
+  while exists(select * From @ids)
+  begin
+   select @tokenId = min(id) from @ids
+   update object set key2 = a1 where typ = 4771 and id = @tokenId
+   delete @ids where id = @tokenId
+  end
   
   return
 

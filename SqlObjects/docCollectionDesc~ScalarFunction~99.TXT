@@ -3,16 +3,33 @@ returns varchar(max)
 
 as
 begin
-declare @Ret varchar(max) = '',
-		@legal varchar(max),
-		@parcel varchar(50),
-		@name varchar(50)
+ declare 
+  @Ret varchar(max) = '',
+  @legal varchar(max),
+  @parcel varchar(50),
+  @item varchar(30),
+  @name varchar(50),
+  @newestName varchar(50) = null,
+  @settingNewestname varchar(10) = dbo.settingsF('site.delinquentTaxPublicationNameNewest','FALSE'),
+  @adtaxId int,
+  @taxyear int
 
-select 
-	@name = name,
-	@parcel = parcel,
-	@legal = dbo.getLegaldescription(id)
+
+ select 
+  @adTaxId = taxrollId,
+  @taxyear = taxyear,
+  @name = name,
+  @item = item,
+  @parcel = parcel,
+  @legal = dbo.getLegaldescription(id)
  from invoices where ID = @invoiceId
+
+if @settingNewestname = 'TRUE'
+  begin
+   select top 1 @newestName = nullif(name,'') from taxrollDetail where adtaxId > 0  and dtype='aa' and taxYear = @taxYear and itemNumber = @item and charindex('import',stamp)>0 order by id desc
+  select @name = coalesce(nullif(@newestName,''),@name)
+  end
+  
 
 --LeftColumn
 declare  @leftSplit table 

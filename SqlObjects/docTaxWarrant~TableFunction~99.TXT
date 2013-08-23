@@ -47,54 +47,54 @@ if @addressOnly!=1
 --insert invoices
 declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAmount money,penalty money,fees money) 
  
-insert @wt 
-select	id,
-		item,
-		taxYear,
-		invoiceDue,
-		0,
-		0
-		from invoices where ID = @invoiceId or ITEM = @item 
+ insert @wt 
+ select	id,
+	item,
+	taxYear,
+	invoiceDue,
+	0,
+	0
+	from invoices where ID = @invoiceId or ITEM = @item 
 
-update a set			
+  update a set			
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f'),0),
 	 a.penalty = round((cast(a.taxAmount as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
-    from @wt a	where invoiceId != @invoiceId	
+         from @wt a	where invoiceId != @invoiceId	
 		
-update a set			
+  update a set			
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f' and printed != @documentName),0),
 	 a.penalty = round((cast(a.taxAmount as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
-    from @wt a where invoiceId = @invoiceId
-
+         from @wt a where invoiceId = @invoiceId
+ 
 --get document fees
-select	@publication = sum(case when Key2 = 'Publication Fee' then A2 else 0 end), 
-		@lien = sum(case when Key2 = 'Lien Docket Fee' then A2 else 0 end), 
-		@stat = sum(case when Key2 = 'Statutory fee' then A2 else 0 end), 
-		@sheriff = sum(case when Key2 = 'Sheriffs fee' then A2 else 0 end) 
-		from Object where TYP = 4902 and Link1 = @documentId
+ select	@publication = sum(case when Key2 = 'Publication Fee' then cast(A2 as money) else 0 end), 
+	@lien = sum(case when Key2 = 'Lien Docket Fee' then cast(A2 as money) else 0 end), 
+	@stat = sum(case when Key2 = 'Statutory fee' then cast(A2 as money) else 0 end), 
+	@sheriff = sum(case when Key2 = 'Sheriffs fee' then cast(A2 as money) else 0 end) 
+	from Object where TYP = 4902 and Link1 = @documentId
+
 end
 insert @rt 
-select	@invoiceId,
-		@item,
-		case when min(taxYear)!= MAX(taxYear) then MIN(taxYear)+'-'+MAX(taxYear) else min(taxyear) end,
-		sum(taxAmount),
-		sum(penalty),
-		@publication,
-		@lien,
-		SUM(fees),
-		0,
-		@stat,
-		@sheriff,
-		0,
-		@documentDate,
-		@addressee
-		from @wt
+ select	@invoiceId,
+	@item,
+	case when min(taxYear)!= MAX(taxYear) then MIN(taxYear)+'-'+MAX(taxYear) else min(taxyear) end,
+	sum(taxAmount),
+	sum(penalty),
+	@publication,
+	@lien,
+	SUM(fees),
+	0,
+	@stat,
+	@sheriff,
+	0,
+	@documentDate,
+	@addressee
+	from @wt
 
 update
  @rt  set
-	warrantTotal = taxAmount + penalty + publication + lien,
-	totalDue = taxAmount + penalty + publication + lien + statFee + sheriffFee
- 
---select * from @rt		
+	warrantTotal = taxAmount + penalty + publication + lien + cost,
+	totalDue = taxAmount + penalty + publication + lien + statFee + sheriffFee  + cost
+		
 return 
 end

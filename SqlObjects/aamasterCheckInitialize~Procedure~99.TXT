@@ -4,8 +4,20 @@ create proc dbo.aamasterCheckInitialize(
 begin
 
   set nocount on
+ declare
+  @c varchar(10) = ' | '
 
   set @taxYear = coalesce(@taxyear,(select dbo.splitF(dbo.date1(dbo.clarionToday()),'/',3)-1))
+
+---create indexes
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 1')
+ CREATE NONCLUSTERED INDEX [balanceDue Includes 1]  ON [dbo].[aamasterCheck] ([balanceDue]) INCLUDE ([brwid],[selectedFlag],[reason],[ownername],[businessname],[ktsautonumber],[ktsownername],[ktsbusinessname])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 2')
+ CREATE NONCLUSTERED INDEX [balanceDue includes 2] ON [dbo].[aamasterCheck] ([balanceDue])INCLUDE ([brwid],[selectedFlag],[reason],[address1],[address2],[address3],[city],[state],[zip1],[zip2],[zip3],[country],[ktsautonumber])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 3')
+ CREATE NONCLUSTERED INDEX [balanceDue includes 3] ON [dbo].[aamasterCheck] ([balanceDue])INCLUDE ([brwid],[selectedFlag],[reason],[country],[ktsautonumber],[ktsaddress1],[ktsaddress2],[ktsaddress3],[ktscity],[ktsstate],[ktszip1],[ktszip2],[ktszip3])
+
+
 
   update a set
     a.invoiceId = b.id,
@@ -26,7 +38,7 @@ begin
     a.fullpidnumber = c.fullpidnumber,
     a.taxYear = @taxYear
   from aamasterCheck a
-  join invoices b on b.taxyear = @taxyear and b.item = a.autonumber
+  join invoices b on b.taxyear = @taxyear and b.item = a.autonumber and a.autonumber>'  0'
   join AdTax c on c.realtaxyear = @taxyear and b.TAXROLLID = c.ID
   exec dbo.logit @@procid, 'updated data from KTS... @@rowCount', @@ROWCOUNT
 
@@ -36,13 +48,13 @@ begin
   exec dbo.logit @@procid, 'Found mismatching ownerName... @@rowCount', @@ROWCOUNT
 
   -- businessname
-  -- ownername
   update aamasterCheck set reason = 'business name'
   where ltrim(rtrim(businessname)) != ltrim(rtrim(ktsbusinessname))
    and isnull(reason,'') < '  0'
   exec dbo.logit @@procid, 'Found mismatching BusinessName... @@rowCount', @@ROWCOUNT
 
   -- address
+/*
   update aamasterCheck set reason = 'address'
   where (
     ltrim(rtrim(address1)) != ltrim(rtrim(ktsaddress1))
@@ -56,6 +68,18 @@ begin
 --    or ltrim(rtrim(country)) != ltrim(rtrim(ktscountry))
    )
    and isnull(reason,'') < '  0'
+*/
+  update aamasterCheck set reason = 'address'
+  where (
+stuff(dbo.joinStr(@c,address1) + dbo.joinStr(@c,address2) + dbo.joinStr(@c,address3)
+     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,cast(cast(zip2 as int) as varchar)) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country)
+     ,1,len(@c),'') !=
+stuff(dbo.joinStr(@c,ktsaddress1) + dbo.joinStr(@c,ktsaddress2) + dbo.joinStr(@c,ktsaddress3)
+     + dbo.joinStr(@c,ktscity) + dbo.joinStr(@c,ktsstate) + dbo.joinStr(@c,ktszip1) + dbo.joinStr(@c,cast(cast(ktszip2 as int) as varchar)) + dbo.joinStr(@c,ktszip3) + dbo.joinStr(@c,country)
+     ,1,len(@c),'')
+ )
+   and isnull(reason,'') < '  0'
+
   exec dbo.logit @@procid, 'Found mismatching address... @@rowCount', @@ROWCOUNT
 
 -- add default address blob for the items that are mis-matched

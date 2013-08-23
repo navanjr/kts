@@ -1,21 +1,41 @@
-create function dbo.rpWarrantImportReport(@ImportId int)
-
-returns @rt table(fundCode varchar(60),
-                  fundDesc varchar(50),
-                  debitAcct varchar(60),
-                  glbalance money,
-                  OSWarrants money,
-                  importBalance money,
-                  Available money)
+create function dbo.rpWarrantImportReport(
+ @ImportId int
+) returns @rt table(
+ fundCode varchar(60),
+ fundDesc varchar(50),
+ debitAcct varchar(60),
+ glbalance money,
+ OSWarrants money,
+ importBalance money,
+ Available money
+)
 as
 begin
 
- insert @rt (fundCode,fundDesc,debitAcct,importBalance)
- select fundCode,fundDesc,debitAcct,sum(cast(amount as money)) from warrantimportbrw(@importId) where postcheck=0 group by fundCode,fundDesc,debitAcct
+ insert @rt(
+  fundCode,
+  fundDesc,
+  debitAcct,
+  importBalance
+ )
+ select
+  fundCode,
+  fundDesc,
+  debitAcct,
+  sum(cast(amount as money))
+ from warrantimportbrw(@importId,null)
+ where postcheck=0
+ group by fundCode,fundDesc,debitAcct
 
- update r set glbalance=(select sum(amount*-1) from gldetailreports where accountCode=r.fundcode) from @rt r
- update r set OSWarrants=(select sum(amount) from gldetailreports where accountCode=r.debitAcct) from @rt r
+ update r set
+  glbalance = (select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode)
+ from @rt r
 
- update @rt set available = glbalance-OSWarrants-importBalance
+ update r set
+  OSWarrants = (select sum(amount) from gldetailreports where accountCode=r.debitAcct)
+ from @rt r
+
+ update @rt set available = glbalance - OSWarrants - importBalance
  return
+
 end

@@ -1,5 +1,6 @@
 @select=078;
 @nolock;
+@noconfirmdelete;
 
 @menuprocess=
  lcHostName=kp('select host_name()'),
@@ -101,7 +102,7 @@
 @dk1;
 @createbrw=
   kpmo('Selecting Taxroll Data...'),
-  lcbrw1Filter=obj:c1,
+  lcbrw1Filter=str_replace(obj:c1,'''','~{'),
   gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort,queue,printed,topay,colorFlag from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') order by ord',
   brw(160,1,gcsql,3,15,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~#7#|M45R(2)~Unpaid~#8#|M35R(2)~Fees~@n-14.2b@#10#|M35R(2)~Penalty~@n-14.2b@#11#|M18C(2)~Sel~#9#|M35R(2)~Tot Pay~@n-14.2b@#15#|M45R(2)~Queue~#13#|M35C(2)~Printed~#14#|M',7,1),
   gcsql2='select invoiceId,display,taxyear,parcel,item,taxType,amount,due,selectedFlag,colorFlag from dbo.taxrollSearchBRW('&obj:id&',0) order by ord',
@@ -166,6 +167,10 @@
  if(gcretval=6,ownerReport=),
  if(gcretval=7,moreOptions=);
  
+@lbrwclick161=
+ d1select('exec dbo.taxrollSearchClicked '&kpbrwid(2)*-1),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Taxroll Search Options...')),
+ refreshBRW=;
 
 @moreOptions=
  if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
@@ -379,6 +384,7 @@
  lcSel78='',
  lcbrw1Filter=str_replace(obj:c1,'''','~{'),
  if(readstring(gcSiteBlob,'@barcodeScanner=')=1,barcodeit=),
+ lcSearchId=0,
  refreshBRW=,
  if(lcFocus=078,focusit78=,focus(160));
 

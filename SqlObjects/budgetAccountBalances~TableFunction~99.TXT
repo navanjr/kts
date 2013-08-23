@@ -1,6 +1,6 @@
 create function dbo.budgetAccountBalances(@accountNumber varchar(50))
 
-returns @rt table(id int identity(1,1),
+returns @rt table(id int,
                   fiscalYear varchar(50),
                   budget money,
                   warrants money,
@@ -9,7 +9,8 @@ as
 begin
 declare @compareAccountNumber varchar(60) = @accountNumber+'_A'
 insert @rt        
-select dbo.validateFiscalYear(right(dbo.splitf(a.accountcode,'_',2),5)) as fiscalYear,
+select a.accountId,
+       dbo.validateFiscalYear(right(dbo.splitf(a.accountcode,'_',2),5)) as fiscalYear,
        sum(case when d.sourcetype='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
        sum(case when d.sourcetype='4512' and sourcea18<>'Budget Payment' then 0 else amount end) as warrants,
        sum(amount*-1) as Unexpended
@@ -17,7 +18,7 @@ select dbo.validateFiscalYear(right(dbo.splitf(a.accountcode,'_',2),5)) as fisca
  where a.accounttype='BUDGET' 
   and a.accountcode=d.accountcode
   and left(a.accountcode,len(@compareAccountNumber))=@compareAccountNumber
- group by a.accountcode
+ group by a.accountcode,a.accountId
  
 return
 end

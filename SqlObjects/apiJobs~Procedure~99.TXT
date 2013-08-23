@@ -10,57 +10,40 @@ begin
   @jobSQL nvarchar(1000) = 'exec dbo.api' + @resource + ' @method = ''job''',
   @dbName nvarchar(1000) = db_name(),
   @serverName nvarchar(1000) = @@servername,
-  @jobStatus int
+  @jobStatus int,
+  @taskName varchar(max) = 'api' + @resource,
+  @command varchar(max) = 'kts api api' + @resource
 
  if @method = 'toggle'
  begin
 
- If not exists(select * from msdb..sysJobs where name = 'apiJob_' + @resource)
-   exec dbo.apiJobs @resource
+-- if not found run again with a @method = create else call with a @method = delete
+  If not exists(select * from scheduledTasks where name like '%' + @taskName)
+   exec dbo.apiJobs @resource, 'create'
+  else
+   exec dbo.apiJobs @resource, 'delete'
 
-  select
-   @jobStatus = case when enabled = 0 then 1 else 0 end,
-   @jobId = job_id
-  from msdb..sysJobs where name = 'apiJob_' + @resource
-  exec msdb..sp_update_job @job_id = @jobId, @enabled = @jobStatus
-  exec dbo.logit @@procid, '@resource', @resource, '@method', @method, '@jobStatus', @jobStatus
  end
 
  if @method = 'create' 
  begin
- --Add job
-  exec msdb.dbo.sp_add_job
-   @job_name = @jobName, 
-   @job_id = @jobId OUTPUT
- 
- --Add step to job
-  exec msdb.dbo.sp_add_jobstep
-   @job_id = @jobId,
-   @step_name = N'Do SQL Stuff', 
-   @step_id = 1, 
-   @subsystem = N'TSQL', 
-   @command = @jobSQL, 
-   @database_name = @dbName, 
-   @flags=0
- 
- --Add schedule to job
-  exec msdb.dbo.sp_add_jobschedule
-   @job_id = @jobId,
-   @name = N'Every few minutes', 
-   @freq_type=4, 
-   @freq_interval=1, 
-   @freq_subday_type = 0x4, 
-   @freq_subday_interval=2, 
- --  @freq_relative_interval=0, 
- --  @freq_recurrence_factor=1, 
-   @active_start_date=20100302, 
-   @active_end_date=99991231 
---   @active_start_time=60000, 
---   @active_end_time=190000
- 
-  exec msdb.dbo.sp_add_jobserver
-   @job_id = @jobId, 
-   @server_name = @serverName
+
+  exec dbo.scheduledTasksControl
+   @method = @method,
+   @name = @taskName,
+   @frequency = 'minute',
+   @time = 5,
+   @command = @command
+
+ end
+
+ if @method = 'delete' 
+ begin
+
+  exec dbo.scheduledTasksControl
+   @method = @method,
+   @name = @taskName
+
  end
  
 end

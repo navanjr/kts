@@ -15,8 +15,8 @@
  updateMikeMort=;
 
 @brwstuff=
- gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1&''') order by ord,code',
- brw(150,1,gcbrwsql4000,65,95,240,175,'140L(2)~~#2#|M40R(4)~~#3#|M48R(4)~~#5#|M100L(2)~~#6#|M',7,1),
+ gcbrwsql4000='select brwid,code,tally,tallyPrinted,amount,blob from dbo.taxYearPrintBRW('''&obj:key1+0&''') order by ord,code',
+ brw(150,1,gcbrwsql4000,65,95,240,100,'140L(2)~~#2#|M50R(4)~~#3#|M50R(4)~~#5#|M100L(2)~~#6#|M',7,1),
  prop(150,7CFAH,13499135);
 
 @lbrw1forecolor=obj7:c10<0,255;
@@ -42,7 +42,7 @@
  calcfld(048);
 
 @updateMikeMort=
- d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1&''''),
+ d1select('exec dbo.mike_mortImport @mode=''getcount'', @taxyear='''&obj:key1+0&''''),
  lcMortImp=readstring(obj7:d1,'@tally='),
  set(44,lcMortImp);
 
@@ -119,7 +119,7 @@ acc049=
 @bb7=&Trio Report; 
 @bbproc7=acc115=;
 
-\t001Tax Year; \t002@p####p;
+\t001Tax Year; \t002@p####p; @acc002=calcrecord(),refreshbrw=,updateMikeMort=;
 
 \t003adtx_(TaxYear); \s004-'select count(*) from adtx_'&obj:key1&' where balanceDue !=0';
 \t005mike_taxroll; \s006-'select count(*) from mike_taxroll where realtaxyear = '&obj:key1;
@@ -172,7 +172,7 @@ acc049=
 
 \e002010;r2
 
-\t037Lo&gging; \y037298; \y038298; \d038; \w038242; \s038-'select dbo.settingsF(''Logging'')';
+\t037Lo&gging; \y037200; \y038200; \d038; \w038242; \s038-'select dbo.settingsF(''Logging'')';
  @acc037=
  m('Choose one of the logging options...','Logging Options...','question.ico','&Disable|&Enable|&Cancel'),
  break(gcretval=3),
@@ -220,16 +220,10 @@ acc049=
  calcfld(010),
  kpmc();
 
-\t108&Print;  \y108+9; \h108;
+\t108&Print Statements;  \y108+9; 
 
-@printIt=
- kpmo('Printing Invoices...'&lcCount),
- lcCnt=0,
- do(452,getSiteInfo=),
- sqlloop('select top '&lcCount&' id from invoices where printed = '''' and taxyear = '''&gcTaxYear&''' and queue = '''&gcBatchName&''' order by printOrder',printIt1=),
- calcfld(012),
- calcfld(050),
- kpmc();
+@acc108=
+ do(51,menuprocess=);
 
 @printIt1=
  lcCnt=lcCnt+1,
@@ -264,25 +258,33 @@ acc049=
 
 @ratetrioreport=
  do(452,getSiteInfo=),
- lcA1=0,lcA6=0,lcA8=0,
+  lcLm=400,
+  lcTm=250,
+  lcFont='',
+  lcHeaderFontSize=12,
+  lcBoxColor=14539482,
  tr(
   landscape,
-  prn(printed),
+  prn(,lcLm),
+  box(lcLm-100,lcTm+200,4000,950,,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',lcLm+900,lcTm+250,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,lcLm+900,lcTm+450),
+  prn(printed,lcLm),
   prn(page),
-  prn('Adtax District/RateName Summary',t1),
-  prn(gcCounty&' County',t2),
-  prn(gcCity&', '&gcState,t3),
-  prn('realtaxyear: '&gcTaxYear4000,t4),
-  bnd('HU','Count',500,'District',1500,'RateName',1500,'Mill Total (count)',800R,'adtx Due',800R,'Invoiced',800R),
-  det('select * from dbo.taxyearTrioBRW('''&gcTaxYear4000&''') order by district, rateName'),
-   bnd('D',format(obj5:a1,@n12.0),500R,obj5:a2,1500,obj5:a3,1500,format(obj5:a5,@n-14.4b)&choose(obj5:a4>0,' ('&obj5:a4&')',''),800R,format(obj5:a6,@n14.2),800R,format(obj5:a8,@n14.2),800R,format(obj5:a8-obj5:a6,@n14.2b),800R),
-   lcA1=lcA1+0+obj5:a1,
-   lcA6=lcA6+obj5:a6,
-   lcA8=lcA8+obj5:a8,
-  edt,
+  prn(,,lcTm+825,lcHeaderFontSize,bold,lcFont),
+  bnd(,'Adtax District/RateName Summary',10500C),
+  prn(,,,lcHeaderFontSize-2,bold,lcFont),
+  bnd(,'realtaxyear: '&gcTaxYear4000,10500C),
   nl,
-  bnd('H',format(lcA1,@n12.0),500,,1500,,1500,,800R,format(lcA6,@n$14.2),800R,format(lcA8,@n$14.2),800R,format(lcA8-lcA6,@n$14.2),800R)
+  prn(,lcLm,pagey),
+  box(pagex-50,pagey-25,pagex+9500,pagey+130,,lcBoxColor),
+  bnd('H','District',1500,'RateName',1500,'Count',600,'Mill Total (count)',1200R,'adtx Due',1200R,'Invoiced',1200R,'Un-Invoiced',1200R),
+  det('select count,district,rateName,millcount,millTotal,adtaxBalanceDue,invoiceBalanceDue,invoiceAmount,ord from dbo.taxyearTrioBRW('''&gcTaxYear4000&''') order by ord'),
+   if(right(obj5:a9,1)='b'),bnd('D',obj5:a2,1500,obj5:a3,1500,format(obj5:a1,@n12.0),600R,format(obj5:a5,@n-14.4b)&choose(obj5:a4>0,' ('&obj5:a4&')',''),1200R,format(obj5:a6,@n14.2),1200R,format(obj5:a8,@n14.2),1200R,format(obj5:a8-obj5:a6,@n14.2b),1200R),
+   if(right(obj5:a9,1)='z'),do(prn(,,50),lin(pagex-50,pagey-25,pagex+9500,pagey-25),bnd('H',obj5:a2,1500,,1500,format(obj5:A1,@n12.0),600,,1200R,format(obj5:A6,@n$14.2),1200R,format(obj5:A8,@n$14.2),1200R,format(obj5:A8-obj5:A6,@n$14.2),1200R)),
+  edt,
  );
+
 
 @mortgageCodeReport=
  do(452,getSiteInfo=),

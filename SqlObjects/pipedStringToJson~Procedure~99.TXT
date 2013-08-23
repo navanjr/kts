@@ -4,11 +4,13 @@ create procedure dbo.pipedStringToJson(
  @includeSiteId varchar(5) = 'TRUE',
  @includeBlanks varchar(5) = 'FALSE', 
  @urlEncode varchar(5) = 'FALSE',
+ @includeAPIPrefix varchar(5) = 'TRUE',
  @payload nvarchar(max) = null output
 ) as
 begin
 
  declare
+  @objectRows int,
   @jsonPrep jsonPrep,
   @apiwt JSONHierarchy,
   @tokenId int,
@@ -20,11 +22,17 @@ begin
   @arrayId int
 
  select @siteCode = apiSiteCode from dbo.site
+ select @objectRows = count(*) from @object
 
  declare ids cursor for select id from @object
 
  open ids
  fetch next from ids into @tokenId
+ exec dbo.logit @@procid, 'Started... @siteCode', @siteCode, '@objectRows', @objectRows, '@@fetch_status', @@FETCH_STATUS
+
+ if not @@FETCH_STATUS = 0
+  return
+
  while @@FETCH_STATUS = 0
  begin
   set @tally = @tally + 1
@@ -63,7 +71,7 @@ begin
 -- add the object row contanier
   insert @jsonPrep (parentId,objectId,name,value,type, origin) 
    select -1, @tally, null, @tally, 'object', 4
-  
+
   fetch next from ids into @tokenId
  end
  close ids
@@ -81,12 +89,16 @@ begin
  select @arrayId, '-', 'array'
 
  insert @apiwt select id, parentId, objectId, name, value, type from @jsonPrep
--- select @jsonString = dbo.toJSON(@apiwt)
+
+ if @includeAPIPrefix = 'TRUE'
+  select @jsonString = 'site_id=' + @siteCode + '&rows='
+ else 
+  select @jsonString = ''
 
  if @urlEncode = 'TRUE'
-  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.URLEncode(dbo.toJSON(@apiwt))
+  select @jsonString = @jsonString + dbo.URLEncode(dbo.toJSON(@apiwt))
  else
-  select @jsonString = 'site_id=' + @siteCode + '&rows=' + dbo.toJSON(@apiwt)
+  select @jsonString = @jsonString + dbo.toJSON(@apiwt)
 
  set @payload = @jsonString
 

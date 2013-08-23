@@ -14,7 +14,8 @@ begin
   @debitAccountCode varchar(50),
   @creditAccountCode varchar(50),
   @amount money,
-  @payee varchar(50)
+  @payee varchar(50),
+  @paymentType varchar(50)
 
  select
   @postDate = cast(key2 as int),
@@ -22,7 +23,8 @@ begin
   @debitAccountCode = a4,
   @creditAccountCode = a5,
   @amount = cast(a3 as money),
-  @payee = a2
+  @payee = a2,
+  @paymentType =  a18
  from object where typ = 4771 and id = @id
 
  select @log = 
@@ -32,6 +34,8 @@ begin
   + '@creditAccountCode=' + isnull(@creditAccountCode,'') + ';'
   + '@amount=' + isnull(cast(@amount as varchar),'') + ';'
   + '@payee=' + isnull(@payee,'') + ';'
+  + '@paymentType=' + isnull(@paymentType,'') + ';'
+
 
 
  select @log = '@code=0;@message=Passed PaymentCheck;' + @log
@@ -46,6 +50,8 @@ begin
   select @log = '@code=1;@message=Missing Payment Amount;' + @log
  if @payee < '  0'
   select @log = '@code=1;@message=Missing Payment Payee;' + @log
+ if @paymentType = 'Treasurers check'
+  select @log = '@code=1;@message=You cannot post a Treasurers check from here. Abandon it and pay it from the bank statement;' + @log
 
  exec dbo.logit @@procId, @log
  if @silentMode != 'TRUE'

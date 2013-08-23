@@ -1,6 +1,6 @@
 @bb1=&Print;
 @bbproc1=
- exportPersonalForPub=;
+ delinquentForPub=;
 
 
 @resaleLegal=
@@ -190,12 +190,11 @@
  if(lcDetblob='' or len(lcE1)>0,if(len(lcE1)>0,send(lcfile,clip(obj5:c1),1),send(lcfile,clip(obj5:a1),1)),exportBlob=);
 
 @exportBlob=
- lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''',1)')),
+ lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&choose(lcDetBlob=3,3,1)&')')),
  send(lcfile,clip(lcLegal),1);
  
 
 @printUnpaidSum=
- printTaxLienDocket=;
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
  break(gcretval='esc'),
  lcInterestTo=format(obj7:key1,@d2),
@@ -262,3 +261,98 @@ tr(
  nl,
  edt);
 
+@printTaxLienDocketLandscape=
+ iw('\t001Interest To; \t002@d2; \w00250; \f002=c; \t003Year From; \t004@n4b; \t005Year To; \t006@n4b; \w00400620;r2'),
+ break(gcretval='esc'),
+ do(452,getSiteInfo=),
+ lcInterestTo=format(obj7:key1,@d2),
+ lcYearFrom=obj7:key2,
+ lcYearTo=obj7:key3,
+ lcOrder=gcColOrder,
+ lc5040sql='select invoiceId from dbo.docTaxLienDocketTF('&lcYearFrom+0&','&lcYearTo+0&') order by Name,taxYear',
+ lcTm=300,
+ lcLm=300,
+ lcFont='',
+ lcHeaderFontSize=12,
+ lcBoxColor=14539482,
+ tr(
+ landscape,
+ prn(,lcLm),
+  box(lcLm-50,lcTm,4000,lcTm+550,,lcBoxColor),
+  prn(gcCounty&' COUNTY TREASURER',lcLm+900,lcTm+50,lcHeaderFontSize-2,,lcFont),
+  prn(gcOfficial,lcLm+900,lcTm+250),
+  prn(printed,lcLm,lcTm+50),
+  prn(page,,LcTm+50),
+  prn(,lcLm,lcTm+625,lcHeaderFontSize,bold,lcFont),
+  bnd(,'DELINQUENT PERSONAL TAX LIEN DOCKET',10000C),
+  prn(,lcLm,,lcHeaderFontSize-2,bold,lcFont),
+  prn(,,,10),
+  bnd(,'Interest To: '&lcInterestTo,10000C),
+  bnd(,'Tax Years: '&lcYearFrom&' - '&lcYearTo,10000C),
+  bnd(,'Ordered by: '&lcOrder,10000C),
+ nl,
+ box(lcLm-50,pagey-25,lcLM+10400,pagey+150,,lcBoxColor),
+ lin(lcLm-50,pagey-25,lcLm-50,8200),
+ lin(lcLm+2100,pagey-25,lcLm+2100,8200),
+ lin(lcLm+4475,pagey-25,lcLm+4475,8200),
+ lin(lcLm+5225,pagey-25,lcLm+5225,8200),
+ lin(lcLm+5900,pagey-25,lcLm+5900,8200),
+ lin(lcLm+6700,pagey-25,lcLm+6700,8200),
+ lin(lcLm+7500,pagey-25,lcLm+7500,8200),
+ lin(lcLm+8250,pagey-25,lcLm+8250,8200),
+ lin(lcLm+8950,pagey-25,lcLm+8950,8200),
+ lin(lcLm+9700,pagey-25,lcLm+9700,8200),
+ lin(lcLm+10400,pagey-25,lcLm+10400,8200),
+ lin(lcLm-50,8200,lcLm+10400,8200),
+ bnd('H','Name',2050,'Address',2275,'Filed',700,'Tax Year',500,'Tax',-700,'Total',-700,'Receipt No',650C,'Pen/Fee',600C,'Total Paid',-650,'Date',600C),
+ prn(,lcLm,pagey+50,8,regular,'courier new'),
+ det(lc5040sql,,,,8200),
+ lcData=kp('select dbo.docTaxLienDocket('&obj5:a1&','''&lcInterestTo&''','&lcYearFrom+0&','&lcYearTo+0&')'),
+ txt(lcData,,,6600,,1),
+ nl,
+ edt);
+
+@delinquentForPub=
+ gcDocumentId=kp('select id from object where typ=4900 and key1 = ''Notice of Delinquent Real Estate'''),
+ gcDocumentId2=kp('select id from object where typ=4900 and key1 = ''Notice Of Resale Footer'''),
+ gcAbstracter='',
+ m('Please Choose one of the following options...','Please choose','question.ico','&Print|&Export|&Cancel'),
+ if(gcretval=1,trreport(printDelinquentForPub=,5040,printDelinquentForPub=)),
+ if(gcretval=2,do(5040,exportDelinquentForPub=));
+
+@delinquentForPubVars=
+ do(4506,getSiteInfo=),
+ iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
+ break(gcretval='esc'),
+ lcInterestTo=format(obj7:key1,@d2),
+ lcfile='c:\client\delinquentForPub.txt',
+ lcDetblob=3,
+ lc5040sql='select invoiceId from dbo.docBatchBRW('&gcBatchId&',null,null,'''') where due>0 order by parcel';
+
+@exportDelinquentForPub=
+ delinquentForPubVars=,
+ exporting=;
+
+@printDelinquentForPub=
+ delinquentForPubVars=,
+ lcy=0,
+ lcTm=500,
+ lcLm=1000,
+ lcE2='exec dbo.docFormLetter '&gcDocumentId2&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE2),
+ gcFoot=obj7:e1,
+ lcE1='exec dbo.docFormLetter '&gcDocumentId&',@interestTo='''&lcInterestTo&'''',
+ e1select(lcE1),
+ tr(
+ prn(,,lcTm,9,,'courier new'),
+ rhd(txt(obj7:e1,lcLm,,5000,1000,1)),
+ nl,nl,
+ det(lc5040sql),
+ lcLegal=kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''',3)'),
+ txt(lcLegal,lcLm,,5000,100,1),
+ nl,
+ edt,
+ nl,nl,
+ prn(,lcLm,),
+ if(len(gcFoot)>0),txt(gcFoot,lcLm,,5000,1000,1),
+ if(len(gcFoot)=0),do(bnd(,gcOfficial,3000),bnd(,gcCounty&' COUNTY TREASURER',3000)));

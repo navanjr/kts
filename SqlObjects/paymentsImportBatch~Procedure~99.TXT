@@ -2,6 +2,9 @@ create procedure dbo.paymentsImportBatch(
  @paymentType varchar(50),
  @batchId int,
  @ini varchar(50),
+ @officialBlob varchar(max) = null,
+ @csvBlob varchar(max) = null,
+ @comments varchar(250) = '',
  @debugMode varchar(10) = 'false' 
 ) as 
 begin
@@ -14,7 +17,7 @@ begin
    @voucherNumber varchar(50),
    @payee varchar(50),
    @amount varchar(50) = 0,
-   @comments varchar(250),
+--   @comments varchar(250),
    @debitAcct varchar(50) = '',
    @creditAcct varchar(50) = '',
    @officialsFundCode varchar(50) = '',
@@ -49,15 +52,33 @@ begin
 
 -- before we really get started lets check to see if we have the officials depository and bank accounts and fiscal cal and such...
   declare @code int, @message varchar(500)
-  exec dbo.paymentsImportCheck
-   @paymentType,
-   @batchId,
-   @officialName = @officialName output,
-   @officialDepositCode = @officialDepositCode output,
-   @officialBankCode = @officialBankCode output,
-   @code = @code output,
-   @message = @message output 
 
+  if isnull(@batchId,0) > 0
+  begin
+   exec dbo.paymentsImportCheck
+    @paymentType,
+    @batchId,
+    @officialName = @officialName output,
+    @officialDepositCode = @officialDepositCode output,
+    @officialBankCode = @officialBankCode output,
+    @code = @code output,
+    @message = @message output 
+  end
+  else
+  begin
+   exec dbo.logit @@procid, '@officialBlob', @officialBlob
+   select 
+    @officialName = dbo.readString('@officialName=',@officialBlob),
+    @officialDepositCode = dbo.readString('@officialDepositCode=',@officialBlob),
+    @officialBankCode = dbo.readString('@officialBankCode=',@officialBlob)
+   if isnull(@officialName,'') < '  0' or isnull(@officialDepositCode,'') < '  0' or isnull(@officialBankCode,'') < '  0'
+    select @code = 1, @message = 'oops missing official info, couldnt find what i needed in the officialBlob'
+   else
+    select @code = 0, @message = 'nice, got what i need from the officialBlob'
+  end
+
+ if @paymentType = 'Official Voucher'
+  exec dbo.logit @@procid, '@officialName', @officialName, '@officialDepositCode', @officialDepositCode,'@officialBankCode', @officialBankCode
  exec dbo.logit @@procid, 'paymentImportCheck - result @code', @code, '@message', @message
 
  if @code != 0 and @paymentType <> 'warrant'
@@ -66,7 +87,7 @@ begin
    select '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
    return
  end
- 
+
 -- insert Official Vouchers
  if @paymentType = 'official voucher'
   insert @wt select 
@@ -82,7 +103,7 @@ begin
    null,
    null,
    null
-  from dbo.voucherImportBRW(@batchId)
+  from dbo.voucherImportBRW(@batchId,@officialBlob,@csvBlob)
   where rowType = 0 and postCheck = 0
 
 -- insert Warrants
@@ -101,7 +122,7 @@ begin
    null,
    fiscalYear,
    accountNumberBLOB
-  from dbo.warrantImportBRW(@batchId)
+  from dbo.warrantImportBRW(@batchId, @csvBlob)
   where rowType = 0 and postCheck = 0
  end
 

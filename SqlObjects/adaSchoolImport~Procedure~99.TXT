@@ -2,18 +2,44 @@ create procedure dbo.adaSchoolImport(@year varchar(4))
 as 
 begin
 
+ if @year = '0'
+  set @year = null
+
+ declare @years table(fy varchar(4))
+
+ if isnull(@year,'') > '  0'
+  insert @years select @year
+ else
+  insert @years 
+  select LEFT(fiscalYear,4)
+  from dbo.fiscalCalendar
+  group by LEFT(fiscalYear,4)
+
+ declare @codes table(fy varchar(4),accountCode varchar(50),accountDesc varchar(50), existingId int)
+ insert @codes
+ select b.fy, a.accountCode, a.accountDesc, null
+  from glaccounts a, @years b
+  where a.accountType='SCHOOL' 
+   
+ update a set a.existingId = b.id
+ from @codes a, object b
+ where 
+  b.typ = 4013
+  and a.fy = b.Key1
+  and a.accountCode = b.Key2
+
+ delete @codes where existingId is not null
+
 -- turn off the trigger on object
   alter table object disable trigger keySqlObjectWriteToRepoTR
 
 
-insert object (typ,key1,key2) 
- select 4013,
-        @year,
-        a.accountcode 
- from glaccounts a 
- where 
-  a.accountType='SCHOOL' 
-  and accountCode not in (select key2 from object where typ=4013 and key1=@year)
+  insert object (typ,key1,key2,a18) 
+  select 4013,
+         a.fy,
+         a.accountCode, 
+         a.accountDesc 
+  from @codes a 
 
 -- turn the trigger back on
   alter table object enable trigger keySqlObjectWriteToRepoTR

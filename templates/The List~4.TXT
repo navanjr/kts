@@ -8,13 +8,10 @@
  lcRow=today()&'.'&clock()&','&cur:ini&',released to users',
  addDetail=;
 
-\t109E&xclude; @acc109=bbproc2=;
-
 @bb2=E&xclude; 
 @bbproc2=
  lcRow=today()&'.'&clock()&','&cur:ini&',Exclude',
  addDetail=;
-
 
 @bb3=&Grab; 
 @bbproc3=
@@ -26,21 +23,22 @@
  lcRow=today()&'.'&clock()&',,Working',
  addDetail=;
 
+@browsecolor=
+ instring('released to users',obj:e2,1,1)>0,32768,instring('code review',obj:e2,1,1)>0,65535;
+
+@bb6=Code Review; 
+@bbproc6=
+ lcRow=today()&'.'&clock()&','&cur:ini&',code review',
+ if(instring('code review',obj:e2,1,1)>0,removeDetail=,addDetail=);
+
+@removeDetail=
+ fastmodify(obj:id,104=str_replace(obj1:e2,'code review','Reviewed Code')),
+ d1select('exec dbo.apiObject @objectId='&obj:id&', @method=''POST''');
+
+
 @addDetail=
  fastmodify(obj:id,104=lcRow&chr(13)&chr(10)&obj1:e2),
  d1select('exec dbo.apiObject @objectId='&obj:id&', @method=''POST''');
-
-@browsecolor=instring('released to users',obj:e2,1,1)>0,32768;
-
-
-@bb8=Release Candidate; 
-@bbproc8=
- lcCompleteFilterDate=kp('select MAX(a18) from object where TYP = 4 and E2 like ''%released to users%'''),
- lcSQL4a='select key1,a1,case when a17>''  0'' then a17 else ''Un-prioritized'' end,id,case when key3>''  0'' then key3 else ''Un-categorized'' end from object where typ=4',
- lcSQL4b=' and a18 > '&lcCompleteFilterDate&' and e2 not like ''%Exclude%''',
- lcSQL4c=' order by case when key3>''  0'' then key3 else ''Un-categorized'' end,a1',
- lcSQL4=lcSQL4a&lcSQL4b&lcSQL4c,
- mainReport=;
 
 @bb7=&Print; 
 @bbproc7=
@@ -72,6 +70,15 @@
   edt,
  );
 
+@bb8=Release Candidate; 
+@bbproc8=
+ lcCompleteFilterDate=kp('select MAX(a18) from object where TYP = 4 and E2 like ''%released to users%'''),
+ lcSQL4a='select key1,a1,case when a17>''  0'' then a17 else ''Un-prioritized'' end,id,case when key3>''  0'' then key3 else ''Un-categorized'' end from object where typ=4',
+ lcSQL4b=' and a18 > '&lcCompleteFilterDate&' and e2 not like ''%Exclude%''',
+ lcSQL4c=' order by case when key3>''  0'' then key3 else ''Un-categorized'' end,a1',
+ lcSQL4=lcSQL4a&lcSQL4b&lcSQL4c,
+ mainReport=;
+
 @dk1;
 @apiHost=api.kellpro.com;
 @apiKey=097dfe0fe5b027a2e0c79db84ad26a1c;
@@ -95,8 +102,8 @@
 @key4=999999-obj:a18&obj:key3&obj:key1;
 
 @ordername=Item #,Priority,Numeric,Completed Date;
-@filtername=All,Open,Closed,Query Open,Query All;
-@filter='1=1','a18 in ('''',''0'')','a18>''  0''','dbo.searchPipe('''&filterfield1&''',e1)=1 and a18=''''','dbo.searchPipe('''&filterfield1&''',e1)=1';
+@filtername=All,Open,Closed,Query Open,Query All,Code Review;
+@filter='1=1','a18 in ('''',''0'')','a18>''  0''','dbo.searchPipe('''&filterfield1&''',e1)=1 and a18=''''','dbo.searchPipe('''&filterfield1&''',e1)=1','charindex(''code review'',cast(e2 as varchar(max)))>0';
 
 @bb4=&Get Index;
 @bbproc4=
@@ -138,6 +145,10 @@
 \t101Description; \x1014;\y10154; \x10263;\y10254; \w102273;
 
 \t103History; \h103104;r
+
+\t109E&xclude; 
+@acc109=
+ bbproc2=;
 
 \t110&Notes;
 @acc110=

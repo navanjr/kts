@@ -69,7 +69,7 @@ select isnull(accountType,''),
  apportionContraCode
  from rpMonthEndDetail(@beginDate,@endDate, @includeUnapportioned)
 -- where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts) and 
- where accountcode<>apportionContraCode
+ where accountcode<>isnull(apportionContraCode,'NULL')
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,5) = 'APPOR'
 
@@ -177,7 +177,7 @@ insert @headings
 select distinct [column],reportOrder,0 from @det2 order by reportOrder
 
 insert @rt (sort,SECA,SECADesc,sourceTotal)
- select 'aaa'+SECA+'bbb', SECA, sourceDesc, sum(amount) as amount from @det2 group by SECA, sourceDesc
+ select 'aaa'+SECA+'1bbb', SECA, sourceDesc, sum(amount) as amount from @det2 group by SECA, sourceDesc
 
 update r set amount1=b.amount, heading1 = c.heading from @rt r, @COLUMNTOTALS b, @headings c
    where r.SECA=b.SECA
@@ -235,7 +235,7 @@ update r set otheramount=b.amount, otherheading = c.heading from @rt r, @COLUMNT
      and c.id=11
 
 insert @rt (sort,SECA,otheramount,otherheading)
- select 'aaa'+SECA+'bbb',case when SECA='SPECIAL' then 'SPECIAL' else '' end, amount, c.heading
+ select 'aaa'+SECA+'2bbb',case when SECA='SPECIAL' then 'SPECIAL' else '' end, amount, c.heading
   from @COLUMNTOTALS b, @headings c
   where  b.[column]=c.heading
    and c.id > 11

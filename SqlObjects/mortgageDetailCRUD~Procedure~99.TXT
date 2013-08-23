@@ -1,13 +1,16 @@
 create procedure dbo.mortgageDetailCRUD(
- @mode int,
- @receiptId int,
- @receiptTyp int
+ @mode varchar(20) = 'verBose',
+ @receiptId int = 0,
+ @receiptTyp int = '',
+ @MortgageNameId int = 0,
+ @Blob varchar(max) = ''
 
 ) as
 begin
  exec dbo.logit @@procid, '@mode',@mode
 
- if @mode = 3
+
+ if @mode = '3'
  begin
   -- bail if we are posted
   if (select status from receiptCheck(@receiptId,null)) = 'Posted'
@@ -15,16 +18,20 @@ begin
    exec dbo.logit @@procid, '@code=1;@message=Sorry, receipt is already posted. can not delete this item.  @object_id', @receiptTyp
    return
   end
-  
-  update object set typ = -4507 where typ = 4507 and id = @receiptTyp -- hijacked this variable for deleting mortgage detail record
-  delete from mortgageInfo where receiptId = @receiptId
-
+  if @MortgageNameId = 0
+   begin
+    update object set typ = -4507 where typ = 4507 and id = @receiptTyp -- hijacked this variable for deleting mortgage detail record
+    delete from mortgageInfo where receiptId = @receiptId
+   end
+   else 
+   begin
+    delete from mortgageInfo where id = @MortgageNameId
+   end
  end
 
- if @mode = 0 or @mode = 1
+ if @mode = '0' or @mode = '1'
  begin
   declare 
-   @MortgageNameId int,
    @mortgagor varchar(100),
    @mortgagee varchar(100),
    @description varchar(100),
@@ -71,5 +78,36 @@ begin
     where id = @MortgageNameId
    end
  end
+
+ if @mode = 'Verbose'
+  begin
+   select 
+   '@MortgageNameId='+ cast(id as varchar) + ';'
+   + '@mortgagor=' + mortgagor +';'
+   + '@mortgagee=' + mortgagee +';'
+   + '@description=' + description +';'
+   + '@section=' + section +';'
+   + '@township=' + township +';'
+   + '@range=' + range +';'
+   + '@lender=' + lender +';'
+   from mortgageinfo where id = @MortgageNameId
+   return
+  end
+ 
+ if @mode = 'update' 
+  begin
+   begin 
+   update mortgageInfo set 
+     mortgagor = dbo.readstring('@mortgagor=',@Blob),
+     mortgagee =  dbo.readstring('@mortgagee=',@Blob),
+     description =  dbo.readstring('@description=',@Blob),
+     section =  dbo.readstring('@section=',@Blob),
+     township =  dbo.readstring('@township=',@Blob),
+     range =  dbo.readstring('@range=',@Blob),
+     lender =  dbo.readstring('@lender=',@Blob)
+    where id =  dbo.readstring('@MortgageNameId=',@Blob)
+   end
+  end
+
 
 end

@@ -1,4 +1,5 @@
 create function dbo.taxyearTrioBRW(@taxyear varchar(50)) returns @rt table(
+ id int identity(1,1),
  count int,
  district varchar(50),
  rateName varchar(50),
@@ -6,7 +7,9 @@ create function dbo.taxyearTrioBRW(@taxyear varchar(50)) returns @rt table(
  millTotal decimal(19,10),
  adtaxBalanceDue money,
  invoiceBalanceDue money,
- invoiceAmount money
+ invoiceAmount money,
+ blob varchar(max),
+ ord varchar(max)
 ) as 
 begin
  insert @rt 
@@ -17,9 +20,11 @@ begin
   null,null,
   sum(balancedue),
   null,
-  null
+  null,
+  '@district=' + schoolDistrictMain + ';@taxRate=' + schooldistrictTaxRate + ';',
+   SCHOOLDISTRICTMAIN+SCHOOLDISTRICTTAXRATE+'b'
  from adtax 
- where realtaxyear = @taxyear and origin = ''
+ where realtaxyear = @taxyear and origin = 'Original Invoice'
  group by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE 
  order by SCHOOLDISTRICTMAIN, SCHOOLDISTRICTTAXRATE
  
@@ -60,5 +65,20 @@ begin
     and b.SCHOOLDISTRICTMAIN = district
     and b.SCHOOLDISTRICTTAXRATE = rateName
   )
+
+ insert @rt 
+ select
+  sum(count),
+  'Total',
+  '',
+  sum(isnull(millcount,0)),
+  sum(isnull(millTotal,0)),
+  sum(adtaxBalanceDue),
+  sum(invoiceBalanceDue),
+  sum(invoiceAmount),
+  '',
+  'z'
+ from @rt
+
  return
 end

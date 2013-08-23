@@ -1,0 +1,49 @@
+create proc dbo.diagFix_ACRMissingContraId(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'glDetail',
+   @guide = 'GET|SHOW',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'ACR Corrections are missing a ContraId'
+  from dbo.glDetailReports
+  where
+   (sourceType = '4512' and accountType = 'Accrued Receivable')
+   and sourcea18 not like 'Apport%'
+   and contraId is null   
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from dbo.glDetailReports
+  where
+   (sourceType = '4512' and accountType = 'Accrued Receivable')
+   and sourcea18 not like 'Apport%'
+   and contraId is null   
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  return
+
+ end
+
+end

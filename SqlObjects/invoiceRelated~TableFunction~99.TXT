@@ -1,0 +1,64 @@
+create function dbo.invoiceRelated(
+ @inquireInvoiceId int
+) returns @rt table(
+ invoiceId int,
+ origin varchar(50)
+) as
+begin
+ 
+/*
+ so the goal is to return
+ invoices that are related by name, parcel and...
+ the same items paid together last year
+*/
+
+ declare
+  @item numeric(7,1),
+  @name varchar(50),
+  @parcel varchar(50),
+  @receiptIds ids,
+  @invoiceIds ids
+
+ declare @items table(item varchar(50))
+
+-- start with the invoice you are looking at
+ select
+  @item = ITEM,
+  @name = NAME,
+  @parcel = PARCEL
+ from invoices where ID = @inquireInvoiceId
+
+
+ if @name > '  0'
+  insert @rt select id, 'Name' from dbo.invoices where name = @name and id != @inquireInvoiceId
+ if @parcel > '  0'
+  insert @rt select id, 'Parcel' from dbo.invoices where parcel = @parcel and id != @inquireInvoiceId and id not in (select invoiceId from @rt)
+
+
+ if dbo.settingsF('site.invoiceRelatedIncludeReceiptHistory','TRUE') = 'TRUE'
+ begin
+
+-- get ALL the receipts where this item has been paid
+  insert @receiptIds
+  select distinct receiptId from receiptlink where invoiceId in (select ID from invoices where ITEM = @item)
+
+-- get all the invoices from these receipts
+  insert @invoiceIds
+  select distinct invoiceId from receiptlink where receiptId in (select id from @receiptIds)
+
+-- get all the item numbers from these invoices
+  insert @items select item from invoices where id in (select id from @invoiceIds)
+
+  insert @rt
+  select distinct id, 'Receipts'
+  from invoices
+  where id != @inquireInvoiceId
+   and item in (select item from @items)
+--   and ID in (select ID from @invoiceIds)
+   and invoiceId = 0
+   and id not in (select invoiceId from @rt)
+
+ end
+
+ return
+end

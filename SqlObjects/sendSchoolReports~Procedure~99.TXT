@@ -1,0 +1,152 @@
+create proc dbo.sendSchoolReports(
+ @startDate int,
+ @endDate int,
+ @verbose varchar(5) = 'TRUE'
+) as 
+begin
+
+ set nocount on
+ exec dbo.logit @@procid, 'Started... @startDate', @startDate, '@endDate', @endDate
+
+ set nocount on
+
+ declare 
+  @tokenCode varchar(50),
+  @loopint int = 1,
+  @sql nvarchar(max) = '',
+  @existingColumnToken varchar(100),
+  @columnToken varchar(100),
+  @jsonBlobFile varchar(max),
+  @jsonBlobPathAndFile varchar(max) = (select path from dbo.paths() where name = 'tempFile'),
+  @tokenId int,
+  @scratchFile varchar(max),
+  @dump varchar(max),
+  @json varchar(max),
+  @tokenTitle varchar(max),
+  @apiSiteId int,
+  @code int,
+  @message varchar(max)
+
+ select @apiSiteId = apiSiteCode from dbo.site
+ select
+  @scratchFile = replace(@jsonBlobPathAndFile,'.tmp','.out.tmp'),
+  @jsonBlobFile = reverse(dbo.splitf(REVERSE(@jsonBlobPathAndFile),'\',1)) 
+
+ if OBJECT_ID('tempdb..#schoolReports') is not null
+  drop table #schoolReports
+
+ select * into #schoolReports from dbo.apportionmentSchoolPagesDetailByFund(@startDate,@endDate,'FALSE') order by ord
+ exec dbo.logit @@procid, 'grabbed initial data... @@rowCount', @@rowCount
+
+ declare @codes table(
+  code varchar(50),
+  processFlag int,
+  result varchar(max),
+  resultCheck int 
+ )
+
+ insert @codes
+  select accountCode, 0, null, null
+  from #schoolReports
+  where accountCode in (select accountCode from glAccounts where accountType = 'School')
+  group by accountCode
+ exec dbo.logit @@procid, '   accountCodes... @@rowCount', @@rowCount
+
+ declare @headings table(
+  id int identity(1,1),
+  headingName varchar(50),
+  processFlag int 
+ )
+
+ while (@loopint <= 12)
+ begin
+  set @sql = 'select
+   replace(replace(ltrim(rtrim(coalesce(nullif(max(heading' + cast(@loopint as varchar) + '),''''),''unknown'
+   + cast(@loopint as varchar) + '''))),''.'',''''),'' '',''_'') from #schoolReports'
+  insert @headings (headingName) exec(@sql)
+  set @loopint = @loopint + 1
+ end
+
+ while exists(select * from @codes where processFlag = 0)
+ begin
+  select @tokenCode = min(code) from @codes where processFlag = 0
+
+  select
+   comment2 as Fund,currentTax,priorTax,backTax,
+   amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12
+  into #reportPackage 
+  from #schoolReports 
+  where accountCode = @tokenCode 
+  exec dbo.logit @@procid, '   reportPackage... @tokenCode', @tokenCode, '@@rowCount', @@rowCount
+
+  update @headings set processFlag = 0
+  set @loopint = 1
+  while exists(select * from @headings where processFlag = 0)
+  begin
+   select top 1
+    @existingColumnToken = 'tempdb..#reportPackage.[amount' + CAST(@loopint as varchar) + ']',
+    @columnToken = headingName
+   from @headings
+   where processFlag = 0
+   order by id
+
+   exec tempdb..sp_rename @existingColumnToken, @columnToken
+ 
+   update @headings set processFlag = 1 where headingName = @columnToken
+   set @loopint = @loopint + 1
+  end
+
+  exec dbo.table2json '#reportPackage',
+   @title = 'this is a test title',
+   --@includeAPIPrefix = 'true',
+   @urlEncode = 'TRUE',
+   @includeColumnObject = 'TRUE', 
+   @json = @json output
+
+  set @json = 'site_id=' + cast(isnull(@apiSiteId,'') as varchar)
+   + '&type=School+Apportionment'
+   + '&name=' + replace(@tokenCode,' ','+')
+   + '&range=' + dbo.date112(@startDate) + '-' + dbo.date112(@endDate) 
+   + '&blob=' + @json
+
+  exec dbo.logit @@procid, '    -- @json', @json
+
+  exec spOverwriteTextFile @jsonBlobPathAndFile, @json
+ 
+  exec dbo.api
+   @method = 'POST',
+   @resource = '/v2/treasurer/reports',
+   @postFile = @jsonBlobFile,
+--   @debugMode = 'TRUE',
+   @scratchfile = @scratchFile,
+   @cmdOutput = @tokenId output,
+   @dump = @dump output
+
+  exec dbo.logit @@procid, '    -- @dump', @dump
+
+-- reset things for the next pass
+  set @loopint = 1
+
+  update @codes set processFlag = 1, result = @dump where code = @tokenCode
+
+  if OBJECT_ID('tempdb..#reportPackage') is not null
+   drop table #reportPackage
+
+ end
+
+ if OBJECT_ID('tempdb..#schoolReports') is not null
+  drop table #schoolReports
+
+ update @codes set resultCheck = (select isnumeric(StringValue) from dbo.parseJSON(result) where NAME = 'id')
+
+ if exists(select * from @codes where isnull(resultCheck,0) != 1)
+  select @code = 1, @message = 'There was a problem during the upload, Contact Support...'
+ else
+  select @code = 0, @message = 'upload complete...'
+
+ exec dbo.logit @@procid, '@code', @code, '@message', @message
+
+ if @verbose = 'TRUE'
+  select @code, @message
+ 
+end

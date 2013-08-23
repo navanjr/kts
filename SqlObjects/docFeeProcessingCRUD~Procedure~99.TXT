@@ -9,7 +9,8 @@ create proc dbo.docFeeProcessingCRUD(
  @documentId int = 0,
  @verbose varchar(5) = 'FALSE',
  @date int = null,
- @days int = null
+ @days int = null,
+ @taxRollDetailId int = 0
  
 ) as
 begin
@@ -67,15 +68,21 @@ begin
     select '@code=1;@message=Missing document!||Please select a document and then process fees.;'
     return 
    end
-    
+
    select 
     @documentDate = dbo.clariondate(getdate()),
     @documentName = key1,
     @processCode = key1+'.'+dbo.date1(coalesce(@invoiceDate, @documentDate))
    from object where id = @documentId
+
+  if @taxrollDetailId>0
+   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,@taxrollDetailId)
+    where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
+   else
    insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,0)
     where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
-   end
+
+  end
 
   select @tally = count(id) from @invoicesToProcess
 

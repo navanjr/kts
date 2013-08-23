@@ -33,10 +33,17 @@ INCLUDE ([id],[parcelNumber],[name],[itemNumber],[taxYear],[Stamp],[businessName
 
 ------Paid
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'id')
-CREATE INDEX [id] ON [dbo].[paid] ([id])
+ CREATE INDEX [id] ON [dbo].[paid] ([id])
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'id, depositid')
-CREATE INDEX [id, depositid] ON [dbo].[paid] ([id], [depositId])
+ CREATE INDEX [id, depositid] ON [dbo].[paid] ([id], [depositId])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'slink')
+ CREATE NONCLUSTERED INDEX [slink] ON [dbo].[paid] ([slink])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'officialDepositId,slink include 7')
+   CREATE NONCLUSTERED INDEX [officialDepositId,slink include 7] ON [dbo].[paid] ([officialDepositId],[slink])
+    INCLUDE ([id],[paycode],[amount],[checkno],[depositId],[drawnon],[location])
 
 ------keyLog
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[keyLog]') AND name = N'id')
@@ -68,7 +75,7 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Ob
    CREATE NONCLUSTERED INDEX [typ include key1,key2] ON [dbo].[Object] 
        ([Typ] ASC)
    INCLUDE ( [Key1],
-             [Key2]) 
+             [Key2])
 
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'link1')
@@ -80,6 +87,12 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Ob
        ([Typ] ASC,
 	[OLink1] ASC)
     INCLUDE ( [ID])
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'typ,Key3')
+   CREATE NONCLUSTERED INDEX [typ,Key3] ON [dbo].[Object] ([Typ],[Key3])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'typ,a4 include id,key1')
+   CREATE NONCLUSTERED INDEX [typ,a4 include id,key1] ON [dbo].[Object] ([Typ],[A4]) INCLUDE ([ID],[Key1])
+
 
 ------receiptDetail
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'Desc_SrcCode_amt')
@@ -92,6 +105,9 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[re
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'slink include amount')
    CREATE INDEX [slink include amount] ON [dbo].[receiptDetail] ([slink]) INCLUDE ([amount])
 
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptDetail]') AND name = N'fundCode include slink')
+   CREATE NONCLUSTERED INDEX [fundCode include slink] ON [dbo].[receiptDetail] ([fundCode]) INCLUDE ([slink])
 
 ------Invoices
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'item')
@@ -379,8 +395,15 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gl
 if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
    CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
      ([ID] ASC)
-    
- 
+
+if not exists(SELECT * FROM sys.indexes WHERE name='recordType include id,realtaxyear,balancedue' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [recordType include id,realtaxyear,balancedue] ON [dbo].[AdTax] ([RECORDTYPE]) INCLUDE ([ID],[REALTAXYEAR],[BALANCEDUE])
+
+if not exists(SELECT * FROM sys.indexes WHERE name='realTaxYear,itemNumber' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [recordType,Id] ON [dbo].[AdTax] ([RECORDTYPE],[ID]) 
+
+if not exists(SELECT * FROM sys.indexes WHERE name='realTaxYear,itemNumber' AND object_id = OBJECT_ID('AdTax'))    
+ CREATE NONCLUSTERED INDEX [realTaxYear,itemNumber] ON [dbo].[AdTax] ([realTaxYear],[itemNumber]) 
 
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[AdTax]') AND name = N'Id,OwnerName')
 

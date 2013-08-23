@@ -28,6 +28,7 @@ key7=apiUpdate
 
 @menuprocess=
      insertSelections=;
+.
 
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
@@ -229,7 +230,7 @@ close('ok');
 \t065&Receipt Date Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d066obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0 and gcCheckDeposited='TRUE';
  \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \w06570;
 \t005Receipt Date Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;  \w00570;
-\t007Received From;  \l0084601,2;r008004; @nopop008; \d008obj:a17='Posted' and gcCheckDeposited='TRUE'; \w008200;
+\t007Received From;  \l0084601,2;r008004; @lf008='a17!=1'; @nopop008; \d008obj:a17='Posted' and gcCheckDeposited='TRUE'; \w008200;
 
 \t009detailId;\d009010;r \h009010;r
 \t011new detail; \l0124504,3;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
@@ -301,7 +302,7 @@ close('ok');
 \h109obj:a17='Posted' or obj:key3<>'MTG';
 \t109&New Detail; @acc109=mortDetail=;
 
- and obj:c7<'  0'
+ 
 @mortDetail=
  lcMtgAdd='',
  break(obj:c1<'  0' and obj:c2<'  0' and obj:c3<'  0' and obj:c4<'  0' and obj:c5<'  0' and obj:c6<'  0'),
@@ -314,20 +315,35 @@ close('ok');
 @blankEmMort=
  set(-05,0,1),set(-06,0,1),set(078,'',1),set(080,'',1),set(082,'',1),set(084,'',1),set(086,'',1),set(088,'',1),set(090,'',1);
 
+@lbrwclick151=
+ brw2=;
+
 @brw2=
  break(obj:a17='Posted'),
- lcidMort=kpbrwid(2),
- break(lcidMort+0<1),
- get(lcidMort),
- set(-06,lcidMort),
- set(078,obj7:key1),
- set(080,obj7:key2),
- set(082,obj7:d1),
- set(084,obj7:key3),
- set(086,obj7:a1),
- set(088,obj7:a2),
- set(090,obj7:a3),
+ lcId=kpbrwid(2)*-1,
+ break(lcId+0<1),
+ m('Please Choose one of the following options...','Right Click Menu...','question.ico','&Edit|&Remove|&Cancel'),
+ if(gcretval=1,editMort=),
+ if(gcretval=2,removeMort=);
+
+@editMort=
+ e1select('exec mortgageDetailCRUD @mode=''Verbose'',@mortgageNameId='&lcId),
+ lcMortBlob=obj7:e1,
+ set(-06,lcId),
+ set(078,readstring(lcMortBlob,'@mortgagor=')),
+ set(080,readstring(lcMortBlob,'@mortgagee=')),
+ set(082,readstring(lcMortBlob,'@description=')),
+ set(084,readstring(lcMortBlob,'@section=')),
+ set(086,readstring(lcMortBlob,'@township=')),
+ set(088,readstring(lcMortBlob,'@range=')),
+ set(090,readstring(lcMortBlob,'@lender=')),
  focus(078);
+
+@removeMort=
+ m('Are you sure you want to remove?','Remove Info?.....',,6,4),
+ break(gcretval<>2),
+ sql('exec mortgageDetailCRUD @mode=''3'',@mortgageNameId='&lcId),
+ refreshDetail=;
 
 @mortManualCalc=
  lctaxamount=obj:b1,
@@ -350,8 +366,6 @@ close('ok');
 
 @brwstuffMort=
  break(obj:key3<>'MTG'),
- gcbrw2sql='select id,key1,key2,d1,key3,a1,a2,a3 from object where typ=4507 and link1='&obj:id&' order by id',
- lcbrw2format='80L(2)~Mortgagor~#2#M80L(2)~Mortgagee~#3#M80L(2)~Property Description~#4#M30L(2)~Sec/Lot~#5#M35L(2)~Township~#6#M40R(2)~Range/Blk~#7#M80L(2)~Lender~#8#M',
  gcbrw2sql='select id,displayString,color from dbo.mortgageDetailBRW('&obj:id&') order by ord',
  lcbrw2format='400L(2)~~#2#M',
  brw(151,2,gcbrw2sql,390,93,273,188,lcbrw2format,7,1),
@@ -483,6 +497,18 @@ close('ok');
  refreshDetail=,
  update;
 
+\t110Deposit Now; @acc110=gccontinue='',gcmessage='deposit',
+  if(obj:a17<>'Posted',dounposted=),
+  break(gccontinue='No'),
+  m('Are you sure you want to Deposit this receipt now rather than with the rest of the receipts at the end of the day?','Deposit?',,6,4),
+  break(gcretval<>2),
+  depositNow=;
+
+@depositNow=
+ d1select('exec dbo.depositCRUD 0, @receiptId='&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'New Deposit...')),
+ if(readstring(obj7:d1,'@newObjectId=')>0,change(readstring(obj7:d1,'@newObjectId=')));
+
 \t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114obj:a17<>'Posted' or gcAlreadyCancelled='TRUE'; or obj:key3<>'TAX';
 @refundReceipt=
  if(gcMode+0=1,m('Canceling a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
@@ -495,7 +521,7 @@ close('ok');
 
 \t115Mod ME Apportion; @acc115=gcMode=5,refundReceipt=; \h115obj:a17<>'Posted' or gcAlreadyCancelled='TRUE' or obj:key3='TAX';
 
-\t117Print Spec Apport; @acc117=
+\t117Preview Apportnmnt; @acc117=
  gcAccountId=obj:id,
  gcRecId=obj:id,
  update,
@@ -518,23 +544,24 @@ close('ok');
 @acc118=dodecal2=;
 
 \t119Special Apportion;
-@acc119=gccontinue='',
+@acc119=gccontinue='',gcmessage='apportion',
   if(obj:a17<>'Posted',dounposted=),
   break(gccontinue='No'),
   m('Are you sure you want to Special Apportion this receipt?','Apportion?',,6,4),
   break(gcretval<>2),
   gc4794id=obj:id,
   gcApportionToDate=obj:key2,
+  if(gcApportionToDate+0<today(),gcApportionToDate=today()),
   lcApportionStage=kp('select max(id) from object where typ = 4794'),
   if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
 
 @dounposted=gccontinue='No',
-  m('The Receipt must be posted before you can apportion it.  Would you like to post it now?','Post?',,6,4),
+  m('The Receipt must be posted before you can '&gcmessage&' it.  Would you like to post it now?','Post?',,6,4),
   break(gcretval<>2),
   postAndPrint=, 
   gccontinue='',
   update,
-  if(obj:a17='Posted',gccontinue='');
+  if(obj:a17='Posted',gccontinue='',gccontinue='No');
 
 
 \t120&Undo G/L Posting; \h120gcadmin=0;
@@ -571,17 +598,31 @@ close('ok');
  brwreload(2);
 
 @lbrwclick150= if(obj:a17='Posted',doposted=),
- break(obj:a17='Posted'),
  lcrdId=kpbrwid(1)*-1,
  lcTyp=left(lcrdId,1),
  lcrdId=sub(lcrdId,2,25),
  break(lcrdId+0<1),
+ if(lcTyp+0=3 and obj:a17='Posted' and cur:securitylevel>75,donewtaxreceiptno=),
+ break(obj:a17='Posted'),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
  lcid=kp('select substring(slink,2,25) from receiptdetail where id='&lcrdId+0),
  if(lcTyp+0=5,donewinvoice=),
- if(lcTyp+0=6,donewpenalty=)
+ if(lcTyp+0=6,donewpenalty=),
+ if(lcTyp+0=3,donewtaxreceiptno=)
 ;
+
+@donewtaxreceiptno=
+ lcReceiptLinkId=lcrdId, 
+ break(lcReceiptLinkId+0<1),
+ m('Would you like to specify the receipt number for this line?','Change Number?',,6),
+ break(gcretval<>2),
+ iw('\t000Enter Number;\t001Number; \w00250; \t002@n05;'),
+ break(gcretval='esc'),
+ lcnewnum=obj7:key1,
+ sql('update receiptlink set receiptnumber='''&format(lcnewnum,@n05)&''' where id='&lcReceiptLinkId),
+ refreshDetail=;
+
 @donewpenalty=
  lcmaininvoiceId=lcrdId,
  break(lcmaininvoiceId+0=0),
@@ -747,7 +788,8 @@ gcPrintOneTaxReceiptId=0,
  if(gcRecType='TAX',trreport('TAXReceipt',5002,'printTaxRecGr=')),
  if(gcRecType='MISC',trreport('MISCReceipt',5003,'printMiscRec=')),
  if(gcRecType='TRUST',trreport('TRUSTReceipt',5005,'printTrustRec=')),
- if(gcRecType='INDIV',trreport('INDIVReceipt',5062,'printIndivRec=')),;
+ if(gcRecType='INDIV',trreport('INDIVReceipt',5062,'printIndivRec=')),
+ if(gcRecType='SUMMARY',trreport('SUMReceipt',5063,'printSumRec='));
 
 @mortSetVar=
  lcBranch=1,

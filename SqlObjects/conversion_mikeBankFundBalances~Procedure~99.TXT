@@ -1,0 +1,98 @@
+create proc dbo.conversion_mikeBankFundBalances(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare
+  @officialbankcode varchar(50) = dbo.settingsF('conversion.officialbankcode',''),
+  @mikeTableName varchar(50) = 'gledger',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+ 
+ declare @st table(
+  typ varchar(10),
+  name varchar(50),
+  fundCode varchar(50),
+  bbal money,
+  csv varchar(max)
+ )
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select typ,name,glCode,bbal,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where fundcode <> "'+upper(@officialbankcode)+'"'') where typ in (''B'',''F'')'
+
+ insert @st exec(@sql)
+
+ update @st set fundCode = ltrim(rtrim(fundCode))
+
+ delete @st where fundCode in ('OFFNEW','0FFNEW','OFFICIAL','OFFDEP')
+
+ update @st set csv = rtrim(fundCode) + ',' + CAST(bbal as varchar) + ',' where typ = 'B'
+ update @st set bbal = bbal * -1, csv = rtrim(fundCode) + ',-' + CAST(bbal as varchar) + ',' where typ = 'F'
+
+
+ if @method = 'GET' 
+ begin  
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = COUNT(*),  
+    @message = 'Outstanding Warrants not found in KTS'
+   from @st
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from @st order by typ,fundCode
+
+ end
+
+ if @method = 'FIX'
+ begin
+  declare
+   @conversionDateClarionDate int = dbo.clarionDate(dbo.settingsF('conversion.conversionDate','')),
+   @resultCode int,
+   @resultMessage varchar(max),
+   @newId int,
+   @slink varchar(15),
+   @csvBlob varchar(max) = ''
+
+  select @csvBlob = @csvBlob + csv + char(13) + char(10) from @st
+
+-- create J/E with "adjust to" stage and post
+  exec dbo.journalEntryCRUD
+   @mode = 0,
+   @description = 'G/L BEGINNING BALANCES',
+   @jeType = 'MANUAL',
+   @postDate = @conversionDateClarionDate,
+   @resultCode = @resultCode output,
+   @resultMessage = @resultMessage output,
+   @newId = @newId output
+
+  select @slink = 'o' + cast(@newId as varchar)
+
+-- create stage 
+  exec dbo.journalEntryDetailImport @newId, 'TRUE', @csvBlob, @verbose = 'FALSE'
+
+-- post to the gl
+  exec dbo.glPost @newId, 'o'
+  exec dbo.journalEntryUpdate @newId
+
+  return
+
+ end
+
+end

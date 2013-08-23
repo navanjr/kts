@@ -2,6 +2,7 @@ create function dbo.aamasterCheckBRW(
  @filters varchar(50)
 )
 returns @rt table(
+ aaId int Identity(1,1),
  brwId int,
  display varchar(max),
  reason varchar(50),
@@ -10,6 +11,9 @@ returns @rt table(
 ) as
 begin
 
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[aamastercheck]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  return
+
  declare
   @c varchar(10) = ' | ',
   @total int,
@@ -17,8 +21,11 @@ begin
   @updated int
 
  declare @flags table(flag int)
- insert @flags select 0 union select 1
- if @filters = 1
+
+ if dbo.splitf(@filters,':',2) = 0
+  insert @flags select 0 union select 1
+
+ if dbo.splitf(@filters,':',1) = 1
   insert @flags select 2
 
  

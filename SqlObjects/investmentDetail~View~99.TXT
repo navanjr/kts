@@ -1,0 +1,9 @@
+create view dbo.investmentDetail as 
+select i.id as investmentLink,
+ g.date,
+ g.sourceKey1 as controlNumber,
+ case when sourcetype='4771' and amount > 0 then 'Purchase Check' when sourcetype='4771' and amount < 0 then 'Liquidation Check' when sourcetype='4513' then 'Interest Deposit' else 'Journal' end as activity,
+ amount
+  from dbo.object i, gldetailreports g where i.typ=4706 and g.accountcode=i.a9 and 
+ ((g.amount > 0.00 and g.date >= i.key2 and (g.date < i.key3 or i.key3 < 1 )) 
+ or (g.amount < 0.00 and g.date > i.key2 and (g.date <= i.key3 or i.key3 < 1 )))

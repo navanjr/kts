@@ -14,14 +14,6 @@ begin
  if @mode != 'conversion'
   return
 
-
-/*
-set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as varchar)+'',''comment FROM openrowset(''VFPOLEDB'',''' + @mikePath
- + ''';'''';'''',''select * from ovoureg where !deleted() and pcdate = " " and vchamt != 0.00'')  order by dptno,vchno'
-
---vchno,vchdate,paywhom,vchamt,dptno + '' - '' + comment
-*/
-
  declare @st table(
   dptno varchar(50),
   officialAccountCode varchar(50),
@@ -30,48 +22,78 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   paywhom varchar(50),
   vchamt money,
   comment varchar(1000),
+  pcdate varchar(50),
   ktsPaymentId int,
   ktsAmount money,
   csv varchar(max),
-  ord varchar(50)
+  ord varchar(50),
+  origin int
  )
 
  declare
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate',''),
   @mikeTableName varchar(50) = 'ovoureg',
   @mikePath varchar(max),
   @sql nvarchar(max)
 
- select
-  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select dptno,null,vchno,vchdate,paywhom,vchamt,comment,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where pcdate = " " and vchamt != 0.00 and !deleted()'') order by dptno, vchno'
+ if @conversionDate > '  0'
+ begin
+  select
+   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+   @sql = 'select dptno,null,vchno,vchdate,replace(paywhom,'','',''''),vchamt,comment,pcdate,null,null,null,null,1 from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where vchamt != 0.00 and !deleted() and (pcdate = "" or pcdate > "'+@conversionDate+'")'') order by dptno, vchno'
 
- insert @st exec(@sql)
+-- removed this to get all outstanding vouchers, as if nothing paid since @conversionDate
+-- and vchdate <= "'+@conversionDate+'" 
 
- update a set a.officialAccountCode = b.officialDepositAccountcode
- from @st a, dbo.officers b
- where a.dptno = b.departmentNumber
+  insert @st exec(@sql)
+
+  update a set a.officialAccountCode = b.officialDepositAccountcode
+  from @st a, dbo.officers b
+  where a.dptno = b.departmentNumber
  
- update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
- from @st a, dbo.payments b
- where a.officialAccountCode = b.debitAccountCode 
-  and cast(a.vchno as int) = cast(b.clerksNumber as int)
+  update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
+  from @st a, dbo.payments b
+  where a.officialAccountCode = b.debitAccountCode 
+   and cast(a.vchno as int) = cast(b.clerksNumber as int)
 
- update @st set
-  ord = officialAccountCode + 'b',
-  csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
- insert @st (ord,csv) select officialAccountCode + 'a','officialAccountCode: '+officialAccountCode from @st group by officialAccountCode
- insert @st (ord,csv) select officialAccountCode,'' from @st where officialAccountCode is not null group by officialAccountCode
+  update @st set
+   ord = officialAccountCode + 'b',
+   csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
 
+  insert @st (ord,csv,origin,officialAccountCode)
+  select
+   s.officialAccountCode + 'a',
+   '@officialDepositCode=' + s.officialAccountCode + ';' + 
+   '@officialBankCode=' + o.bankAccountCode + ';' + 
+   '@officialName=' + rtrim(o.officialName) + ';' +
+   '@officialLink=' + rtrim(o.id) + ';',
+   2,officialAccountCode
+  from @st s, officers o
+  where s.officialAccountCode = o.officialDepositAccountCode
+  group by s.officialAccountCode, o.bankAccountCode, o.officialName, o.id
+
+  insert @st (ord,csv,origin) select officialAccountCode,'',3 from @st where origin = 1 group by officialAccountCode
+
+ end
+ 
  if @method = 'GET'
  begin  
-  select 
-   @class = 'conversion',
-   @guide = 'GET|SHOW|FIX',
-   @code = case when count(*) > 0 then 1 else 0 end,
-   @tally = COUNT(*),  
-   @message = 'Outstanding Vouchers not found in KTS'
-  from @st
-  where ktsPaymentId is null
+  if @conversionDate > '  0'
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = case when count(*) > 0 then 1 else 0 end,
+    @tally = COUNT(*),  
+    @message = 'Outstanding Vouchers not found in KTS'
+   from @st
+   where ktsPaymentId is null and origin = 1
+  else
+   select 
+    @class = 'conversion',
+    @guide = 'GET|SHOW|FIX',
+    @code = 1,
+    @tally = 1,  
+    @message = 'missing converionDate variable'
  end
 
  if @method = 'SHOW'
@@ -83,18 +105,85 @@ set @sql = 'select dptno,vchno+'',''+vchdate+'',''+paywhom+'',''+cast(vchamt as 
   order by ord
 
  end
+ if @method = 'cache'
+ begin  
+
+  if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mikeVouchersOutstanding]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+   drop table mikeVouchersOutstanding
+
+  select *
+  into mikeVouchersOutstanding 
+  from @st
+  order by ord
+
+ end
 
  if @method = 'FIX'
  begin
--- let's paste the csv in the importer for them...
-  declare @objId int
-  select top 1 @objId = id from object where typ=4770 and lasteditini = dbo.settingsF('conversion.initials','')
+  declare @importer table(
+   code varchar(50),
+   officialBlob varchar(max),
+   csvBlob varchar(max),
+   processFlag int
+  )
+  declare
+   @tokenCode varchar(50),
+   @csvBlob varchar(max) = '',
+   @officialBlob varchar(max) = ''
 
-  if @objId is null
-   exec dbo.logit @@procid, 'No Importer record exists for initials:'
---  select vchno, vchdate, paywhom, vchamt, comment
---  exec dbo.logit @@procid, 'just inserted clerks funds into object typ 4704 @@rowCount', @@rowCount
-  
+  insert @importer 
+  select officialAccountCode, csv, null, 0 from @st where origin = 2
+  while exists(select * from @importer where processFlag = 0)
+  begin
+   select @tokenCode = min(code), @csvBlob = '' from @importer where processFlag = 0
+   select @csvBlob = @csvBlob + csv + char(13) + char(10) from @st where officialAccountCode = @tokenCode and origin = 1 order by vchno
+   update @importer set csvBlob = @csvBlob, processFlag = 1 where code = @tokenCode
+  end
+
+  while exists(select * from @importer where processFlag = 1)
+  begin
+   select top 1
+    @tokenCode = code,
+    @csvBlob = csvBlob,
+    @officialBlob = officialBlob 
+   from @importer where processFlag = 1
+   order by code
+
+   exec dbo.paymentsImportBatch
+    @paymentType = 'Official Voucher',
+    @batchId = null,
+    @ini = 'ANA',
+    @csvBlob = @csvBlob,
+    @officialBlob = @officialBlob,
+    @comments = 'Imported from KPS', 
+    @debugMode = 'FALSE'
+
+   update @importer set processFlag = 2 where code = @tokenCode
+  end
+
+-- now lets update the postdate for each voucher just imported
+  declare @ids ids
+  insert @ids 
+  select id From payments
+  where paymentType = 'Official Voucher'
+   and dateRegistered != clerksDate
+
+  declare
+   @tokenId int,
+   @conversionDateClarion int
+
+  select @conversionDateClarion = dbo.clariondate(
+   substring(@conversionDate,5,2)
+   + '/' + substring(@conversionDate,7,2)
+   + '/' + left(@conversionDate,4))
+
+  while exists(select * From @ids)
+  begin
+   select @tokenId = min(id) from @ids
+   update object set key2 = case when a1 <= @conversionDateClarion then @conversionDateClarion else a1 end  where typ = 4771 and id = @tokenId
+   delete @ids where id = @tokenId
+  end
+
   return
 
  end

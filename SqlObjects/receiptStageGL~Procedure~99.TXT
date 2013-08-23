@@ -50,10 +50,20 @@ begin
   @log varchar(max),
   @suspenseMethod varchar(50),
   @exempt varchar(10),
-  @blob varchar(max)
+  @blob varchar(max),
+  @message varchar(max)
 
  select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
+ -- Pre Stage check 
+ if exists(select * from glDetail where slink = 'o' + cast(@receiptId as varchar))
+ begin
+  select @blob = '@code=1;@message=This record already has records in gldetail;'
+  exec dbo.logit @@procId,@blob
+  return
+ end
+
+
  select 
   @code = code,
   @contraId = contraId ,
@@ -61,6 +71,7 @@ begin
   @receiptType = receiptType,
   @exempt = exempt
  from dbo.receiptCheck(@receiptId,null)
+
 
 -- fork for trust or tax
  if @receiptType = 'TAX'
@@ -169,9 +180,9 @@ else
   begin
 
    insert @ap
-    select b.accountId,  case when @receiptType='TRUST' then @receiptId else @contraId end, sum(a.amount)*-1, 0, 0,a.description,a.sourceCode
+    select b.accountId,  case when @receiptType='TRUST' then @receiptId else case when a.altContraId > 0 then altContraId else @contraId end end, sum(a.amount)*-1, 0, 0,a.description,a.sourceCode
     from receiptDetail a, dbo.glAccounts b
-    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description, a.sourceCode
+    where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description, a.sourceCode,       a.altContraId
 
    insert @ap
     select b.accountId, case when a.altContraId > 0 then altContraId else @contraId end, sum(a.amount)*-1, 0, 0, a.description, a.sourcecode

@@ -9,7 +9,8 @@ create procedure dbo.receiptCRUD(
  @newJeId int = 0 output,
  @invoiceId int = 0,
  @refundAmount money = 0,
- @voidFees int = 0
+ @voidFees int = 0,
+ @blob varchar(8000)=''
 ) as
 /*
  remember
@@ -46,7 +47,7 @@ begin
 --  declare 
 --    @retval nvarchar(max)  
 --  exec dbo.nextObjectAutoNumber 4502, @series, @newNumber = @retval output
-  insert object (typ,key1,key3,olink1) select 4502,'00000',upper(@series),'newReceipt'  
+  insert object (typ,key1,key3,olink1,e2) select 4502,'00000',upper(@series),'newReceipt',@blob  
   set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)  
   update object set olink1 = '' where typ=4502 and id = @newReceiptId
   return
@@ -102,7 +103,8 @@ begin
              end
          -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
-                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
+                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink
+                  from glDetail g ,receiptlink r,journalLink j
                          where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
 
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
@@ -177,13 +179,13 @@ begin
 
 
          -- create gldetailstaged linked to object record
-                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
-                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptSLink from gldetail where slink = @receiptSLink
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2,contraId)
+                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptSLink,contraId from gldetail where slink = @receiptSLink
                         and accountCode not in (select accountCode from glaccounts where accountType='SUSPENSE')
 
          -- create gldetailstage linked to penalty invoice
-                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
-                  select accountId,accountCode,accountDesc,amount*-1,slink from gldetail where slink in 
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId)
+                  select accountId,accountCode,accountDesc,amount*-1,slink,contraId from gldetail where slink in 
                     (select 't'+cast(r.invoiceId as varchar) from receiptLink r,invoices i  where r.receiptId = @receiptId and r.invoiceId = i.ID and i.TYP = 'p')
 
          -- create gldetailstage linked to journallink

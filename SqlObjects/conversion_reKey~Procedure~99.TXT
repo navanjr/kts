@@ -1,0 +1,83 @@
+create proc dbo.conversion_reKey(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ if @method = 'GET'
+ begin  
+  exec dbo.logit @@procid, 'who is your daddy'
+ 
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @message = 'Object records need rekeying'
+
+declare @rt table (id int)
+    --accounts   
+   insert @rt
+    select id from object where typ=4701 and (LEFT(key2,30)<>K2 or LEFT(a9,30)<>K3)
+    --officers
+   insert @rt
+    select id from object where typ=4601 and (k2 <> left(a1,30) or k3 <> left(key2,30))
+    --Tax Rates
+   insert @rt
+    select id from object where typ=4012 and k2 <> left(cast(key3 as varchar)+cast(key1 as varchar)+cast(key2 as varchar),30)
+    --Population Info
+   insert @rt
+    select id from object where typ=4014 and k2 <> left(cast(key1 as varchar)+cast(a2 as varchar)+cast(key2 as varchar),30) 
+    --ADA Info
+   insert @rt
+    select id from object where typ=4013 and k2 <> left(cast(key1 as varchar)+cast(key2 as varchar),30)
+    --clerks Fund List
+   insert @rt
+    select id from object where typ=4704 and k2 <> left(key2,30)
+
+  
+
+  if exists(select id from @rt) 
+   select 
+    @tally = COUNT(*),  
+    @code = 1
+   from @rt
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+   select key1,count(id) from object where typ = 4701 and isnull(key1,'')>'  0' group by key1 having count(id)>1
+
+ end
+
+ if @method = 'FIX'
+ begin 
+  --accounts
+    update object set k2 = left(key2,30), k3 = left(a9,30) from object where typ=4701
+  --officers
+    update object set k2 = left(a1,30), k3 = left(key2,30) from object where typ=4601
+  --Tax Rates
+    update object set k2 = left(cast(key3 as varchar)+cast(key1 as varchar)+cast(key2 as varchar),30) from object where typ=4012 
+  --Population Info
+    update object set k2 = left(cast(key1 as varchar)+cast(a2 as varchar)+cast(key2 as varchar),30) from object where typ=4014
+  --ADA Info
+    update object set k2 = left(cast(key1 as varchar)+cast(key2 as varchar),30) from object where typ=4013
+  --clerks Fund List
+    update object set k2 = left(key2,30) from object where typ=4704
+ end
+ 
+end
+
+
+

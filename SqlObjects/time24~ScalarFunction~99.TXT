@@ -1,0 +1,41 @@
+create   function [dbo].[time24] (@x char(10)) returns varchar(10) as 
+begin
+ declare
+  @hour int,
+  @ampm varchar(10),
+  @retvar varchar(10),
+  @hoursub int,
+  @hours varchar(10),
+  @minutes varchar(10),
+  @h int,
+  @m money
+
+ set @h = 0
+ set @m = 0
+
+ set @hour = 0
+ set @ampm = 'AM'
+ set @retvar=''
+ if isnull(@x,'')>'  0'
+ begin
+ 
+  set @h = cast(@x as int)/360000
+  set @m = (cast(@x as money)/360000)-@h
+  set @minutes = right('00'+cast(cast(@m * 60 as int) as varchar),2)
+
+  set @hoursub = cast(@x as int)/360000
+
+-- added this to fix issue with a bogus 12:60pm return
+  if @minutes = '60'
+  begin
+   set @minutes = '00'
+   set @hoursub = @hoursub + 1
+  end
+
+  set @hour = @hoursub
+
+  set @retvar = cast(@hour as varchar) + ':' + isnull(nullif(@minutes,''),'00') -- + rtrim(@ampm)
+
+ end
+ return @retvar
+end

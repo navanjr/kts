@@ -9,12 +9,17 @@ begin
   @invoiceId int,
   @code int,
   @message varchar(150),
-  @currentDate int 
+  @currentDate int,
+  @year int 
 
-  select @currentDate = dbo.clariondate(getdate())
+  select @currentDate = dbo.clariondate(getdate()), @year = a18 from object where id = @assessmentId
+
+--create any missing collection receivable accounts
+  exec dbo.createAdtaxCollectionReceivables  @method = 'special',@taxYear = @year 
 
 -- we need to preform the check first
  exec dbo.taxrollCheckProc @assessmentId, 'S', 0, @code = @code output, @message = @message output
+
  if @code = 1
  begin
   select '@code=1;@message='+@message+';'

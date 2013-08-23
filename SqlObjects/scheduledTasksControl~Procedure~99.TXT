@@ -1,0 +1,111 @@
+create proc dbo.scheduledTasksControl(
+ @method varchar(50) = 'update',
+ @name varchar(50) = null,
+ @command varchar(max) = null,
+ @frequency varchar(50) = null,
+ @time varchar(50) = null,
+ @prefixGitRepoPath varchar(5) = 'TRUE'
+) as
+begin
+
+ if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[scheduledTasks]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  create table scheduledTasks(
+   id int identity(1,1),
+   name varchar(max),
+   nextTime datetime,
+   status varchar(50),
+   updated datetime
+  )
+
+ declare
+  @cmd varchar(8000),
+  @result int,
+  @code int,
+  @message varchar(max),
+  @pathPrefix varchar(max) = '',
+  @namePrefix varchar(50) = 'kp.' + db_name() + '.'
+
+ declare @wt table(
+  row varchar(max)
+ )
+
+ select @name = @namePrefix + @name 
+ 
+-- Delete
+ if @method = 'delete'
+ begin
+  set @cmd = 'schtasks /delete /tn "' + @name + '" /f'
+  exec @result = master..xp_cmdshell @cmd
+  goto updateAndBail
+ end
+
+
+
+-- Create
+ if @method = 'create'
+ begin
+  if @prefixGitRepoPath = 'TRUE'
+  begin
+   select @pathPrefix = path + '\' from dbo.paths() where name = 'gitRepo'
+   set @command = @pathPrefix + @command
+  end
+
+  if isnull(@command,'') < '  0'
+  begin
+   select @code = 1, @message = 'Missing @command, Sorry Bailing... @command:'+isnull(@command,'null') + ';'
+   goto updateAndBail
+  end 
+  if isnull(@time,'') < '  0'
+  begin
+   select @code = 1, @message = 'Missing @time, Sorry Bailing... @time:'+isnull(@time,'null') + ';'
+   goto updateAndBail
+  end 
+  if isnull(@frequency,'') < '  0' or isnull(@frequency,'') not in ('daily','minute')
+  begin
+   select @code = 1, @message = 'Missing or invalid @frequency, Sorry Bailing... @frequency:'+isnull(@frequency,'null') + ';'
+   goto updateAndBail
+  end 
+
+  if @frequency = 'daily'
+   set @cmd = 'schtasks /create /ru "system" /sc ' + @frequency + ' /tn "' + @name + '" /tr "' + @command + '" /st ' + @time + ' /f'
+  
+  if @frequency = 'minute'
+   set @cmd = 'schtasks /create /ru "system" /sc ' + @frequency + ' /mo ' + @time + ' /tn "' + @name + '" /tr "' + @command + '" /f'  
+
+  exec @result = master..xp_cmdshell @cmd
+  goto updateAndBail
+
+ end
+
+
+
+-- Update
+ if @method = 'update'
+ begin
+  goto updateAndBail
+ end
+
+
+ updateAndBail:
+  if @code = 1
+   exec dbo.logit @@procid, '@code', @code, '@message', @message
+
+  set @cmd = 'schtasks /query /fo csv'
+  insert @wt exec @result = master..xp_cmdshell @cmd
+
+  delete @wt where isnull(row,'') not like '%kp.' + DB_NAME() + '%'
+
+  delete scheduledTasks
+
+  insert scheduledTasks
+  select
+   dbo.splitF(dbo.stripChars(row,'34,92'),',',1),
+   dbo.splitF(dbo.stripChars(row,'34,92'),',',2),
+   dbo.splitF(dbo.stripChars(row,'34,92'),',',3),
+   getdate()
+  from @wt
+
+  exec dbo.logit @@procid, 'updated Scheduled Tasks... @@rowCount', @@rowCount
+  return
+
+end

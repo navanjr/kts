@@ -8,7 +8,8 @@
 @wbgcolor=kp('select dbo.keyColor(185,122,87)');
 
 @loadwindow=
- reate(550,12,340,36,'Heavy Mode',10),
+ sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
+ sql('exec dbo.scheduledTasksControl'),
  gcvars=,
  brwstuff=;
 
@@ -34,7 +35,7 @@
 
 @lbrwclick150=
  bustItUp=,
- if(lcMode+0=7,toggleCompression=),
+ if(lcMode+0=7,backupOptions=),
  if(lcMode+0=8,jobOptions=),
  if(lcMode+0=9,backupFileOptions=);
 @bustItUp=
@@ -45,17 +46,29 @@
  lcMode=0,
  lcId=0;
 
-@toggleCompression=
+@backupOptions=
+ d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
+ lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
+ lcDescrip=readstring(obj7:d1,'@description='),
+ lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ if(lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,toggleIt=);
+
+@editVariable=
+ iw('\t001'&lcDescrip&';\f002'&lcValue&';'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.settingsCRUD '''&'backup.'&lcName&''','''&obj7:key1&''''),
+ refreshbrw=;
+
+@toggleIt=
  m('Choose one of the following options...','sqlBackups...','question.ico','&Toggle|E&xit'),
  break(gcretval<>1),
- sql('exec dbo.settingsCRUD ''site.sqlCompression'', @method=''TOGGLE'''),
+ sql('exec dbo.settingsCRUD @settingId='&lcid&', @method=''TOGGLE'''),
  refreshbrw=;
 
 @jobOptions=
- m('Choose one of the following options...','sqlBackups...','question.ico','&Execute Job|&Delete Job|&Create Job|E&xit'),
- if(gcretval=1,sql('exec dbo.sqlBackup ''executeJob''')),
- if(gcretval=2,sql('exec dbo.sqlBackup ''deleteJob''')),
- if(gcretval=3,jobCreate=),
+ m('Choose one of the following options...','sqlBackups...','question.ico','&Delete Job|&Create Job|E&xit'),
+ if(gcretval=1,sql('exec dbo.sqlBackup ''deleteJob''')),
+ if(gcretval=2,jobCreate=),
  refreshbrw=;
 @jobCreate=
  iw(',.t000Create Backup Job..., ,.t001Time to preform backup?., ,.w001200., ,.t002@t1., ,.w00250., ,.x002+50.,'),

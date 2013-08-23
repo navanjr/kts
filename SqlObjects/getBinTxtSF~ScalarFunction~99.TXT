@@ -1,0 +1,25 @@
+create function dbo.getBinTxtSF(
+ @objId int,
+ @fileName varchar(max)
+) returns varchar(max) as 
+begin
+
+ declare
+  @txt nvarchar(max),
+  @bin varbinary(max),
+  @dbName varchar(50) = 'CD000001',
+  @imgIdRef int,
+  @size int,
+  @maxSize int = 34000 -- **** HERE is the max size we will use in the E1 memo field for csv editing ****
+
+ select top 1
+  @imgIdRef = imgidref
+ from binlinks where objidref = @objId and fileName = @fileName order by binLinkId desc
+
+ select @bin = img From CD000001..imgs where imgid = @imgIdRef
+
+ select @txt = cast(cast(@bin as varbinary(max)) as varchar(max))
+   
+ return @txt
+
+end

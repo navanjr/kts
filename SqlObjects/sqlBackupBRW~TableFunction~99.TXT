@@ -13,14 +13,10 @@ begin
  declare
   @backupFolder varchar(max),
   @database varchar(50) = (select county from dbo.site),
-  @agentStatus varchar(100),
   @backupJobName varchar(100) = (select county from dbo.site) + '_backupJob',
   @jobId binary(16),
-  @jobStatus int,
   @nextDateTime datetime
 
- select @agentStatus = status from master..sysprocesses where left(program_name, 8) = 'SQLAgent'
- select @jobId = job_id, @jobStatus = enabled from msdb.dbo.sysjobs where name = @backupJobName
  select @backupFolder = path From dbo.paths() where name = 'backupPath'
 
  if @jobId is not null
@@ -45,20 +41,16 @@ begin
  insert @rt (display, ord) select 'Backup Files', 'c_10'
 
  insert @rt (display, ord) select '', 'a_0'
- insert @rt (display, ord) select 'SQL Agent... ' + isnull(@agentStatus,'Missing'), 'a_10'
 
- insert @rt (display, ord) select '', 'b_0'
- insert @rt (brwid, display, ord) select 71, 'SQL Compression... ' + dbo.settingsF('site.sqlCompression','Unknown'), 'b_1' 
+ insert @rt (display, ord) select '', 'b_'
+ insert @rt (display, ord) select 'Backup Settings', 'b_0'
+ insert @rt (brwid, display, ord)
+   select '7'+cast(id*-1 as varchar),' -'+description+':'+dbo.splitF(display,':',2),'b_'+description from dbo.settingsBRW('backup')
 
- if @jobStatus is null
- begin
-  insert @rt (brwid, display, ord) select 81, '  ' + @backupJobName + '... Missing', 'a_11'
- end
- else
- begin
-  insert @rt (brwid, display, ord) select 81, '  ' + @backupJobName + '... ' + case when @jobStatus = 1 then 'Enabled' else 'Disabled' end, 'a_11'
-  insert @rt (brwid, display, ord) select 81, '    Next Run: ' + cast(@nextDateTime as varchar), 'a_12'
- end
+
+ insert @rt (brwid, display, ord) select 81, 'Scheduled Backup', 'a_11'
+ insert @rt (brwid, display,modifiedDate, ord) select 81, '    status: ' + status, nextTime, 'a_11' + name
+  from scheduledTasks where name like '%.backup'
 
  return
 end

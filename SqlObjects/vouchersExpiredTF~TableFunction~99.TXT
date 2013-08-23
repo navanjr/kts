@@ -1,0 +1,42 @@
+create function dbo.vouchersExpiredTF() returns @rt table(
+ minPaymentId int,
+ tally int,
+ amount money,
+ message varchar(max),
+ ids varchar(max)
+) as 
+begin
+
+ declare
+  @minPaymentId int,
+  @days int = dbo.settingsF('site.voucherExpireDays','0'),
+  @date int = dbo.clarionToday(),
+  @tally int,
+  @amount money,
+  @ids varchar(max)
+
+ if not @days = 0
+ begin
+
+  select
+   @minPaymentId = min(paymentId),
+   @tally = COUNT(*),
+   @amount = sum(cast(paidAmount as money))
+  from dbo.outStandingVoucherReport(@date) where registerDate <= @date - @days
+
+  select @ids = stuff((select ',' + cast(paymentId as varchar) from dbo.outStandingVoucherReport(@date) where registerDate <= @date - @days for xml path('')),1,1,'')
+
+  if isnull(@tally,0) > 0
+   insert @rt
+   select
+    @minPaymentId,
+    @tally,
+    @amount,
+    'There are [' + CAST(@tally as varchar) + '] expired Vouchers',
+    @ids
+
+ end
+
+ return
+
+end

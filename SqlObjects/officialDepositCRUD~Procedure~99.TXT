@@ -91,12 +91,20 @@ begin
    return
   end
 
--- TODO: bail if payments are deposited
+-- bail if linked to a bank statement
+ if exists(select * from paid where (slink = @slink or officialDepositId = @depositId) and isnull(depositId,0)>0)
+   begin
+    exec dbo.logit @@procid, 'Linked to bankstatement... Bailing. @depositId',@depositId
+
+   return
+   end
+
 
   declare
    @tokenSlink varchar(15),
    @token int,
    @tokenInt int
+
 
   exec dbo.logit @@procid, 'Begin Transaction...'
   begin transaction

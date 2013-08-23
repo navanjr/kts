@@ -51,5 +51,45 @@ if @switch = 2
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
 
+if @switch = 3 -- Penalty Sub invoices
+begin
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a, receiptlink b, invoices i
+			where	
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
+					and b.invoiceId = i.Id  
+					and i.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+                                        and i.typ='P'
+                                        and isnull(i.invoiceId,0) > 0
+
+	update w set AccType = accountType from @wt w,glAccounts a where w.AccCode=a.accountcode
+	
+	delete from @wt where AccType<>'RECEIVABLE'
+
+	select @retVal = isnull(SUM(taxAmount*-1),0) from @wt
+end
+
+if @switch = 4 -- Fee Sub invoices
+begin
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a, receiptlink b, invoices i
+			where	
+                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
+					and b.invoiceId = i.Id  
+					and i.invoiceId = @invoiceId  
+					and b.receiptId = @recId
+                                        and i.typ not in ('P','A')
+                                        and isnull(i.invoiceId,0) > 0
+
+	update w set AccType = accountType from @wt w,glAccounts a where w.AccCode=a.accountcode
+	
+	delete from @wt where AccType<>'RECEIVABLE'
+
+	select @retVal = isnull(SUM(taxAmount*-1),0) from @wt
+end
+
 return @retVal
 end

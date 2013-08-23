@@ -4,11 +4,34 @@ import pyodbc
 import subprocess
 import ConfigParser
 import ftplib
+import shutil
+
 
 def isnull(what,convertTo=''):
     if what is None:
         return convertTo
     return str(what)
+
+def getTextFromFile(commandArray):
+    raw = subprocess.Popen(commandArray, stdout=subprocess.PIPE, shell=True)
+    (out, err) = raw.communicate()
+    return out, err
+
+def runDos(command):
+    run = subprocess.Popen(r'%s' % command, shell=True)
+    run.wait()
+
+def areYouSure(question='are you sure?', force=False):
+    try:
+        entered = raw_input("     %s ===> " % question)
+    except KeyboardInterrupt:
+        pass
+    if entered in ('yes', 'y'):
+        return True
+    else:
+        return False
+
+
 
 class ktsMenu():
     def __init__(self, database=None):
@@ -24,7 +47,16 @@ class ktsMenu():
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
 
+        self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
+
+        self.conversionSettings = [
+            'conversion.mikepath',
+            'conversion.mikepathtax',
+            'conversion.officialbankcode',
+            'conversion.initials',
+            'conversion.conversiondate',
+        ]
 
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
@@ -40,13 +72,22 @@ class ktsMenu():
         self.createCommand('importSQLObject',['importsqlobject','importsql'],'import a named sql object from the repo',self.command_importSqlObject)
         self.createCommand('diagnostics',['d','diag','diagnostic','diagnostics'],'access all diagnostic options',self.command_diagnostics)
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
+        self.createCommand('restore',['restore'],'restore sql data to existing db',self.command_restore)
         self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
+        self.createCommand('backupNow',['backupNow',],'back up sql data without an "are you sure" prompt',self.command_backupNow)
         self.createCommand('users',['user','users'],'display or define default users',self.command_users)
-        self.createCommand('gitstatus',['status','s'],'preform a git status',[self.command_git,['git','status']])
+        self.createCommand('gitstatus',['gitstatus','status','s'],'preform a git status',[self.command_git,['git','status']])
         self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
-        self.createCommand('gitstatusporcelain',['gsp'],'preform a git status',self.command_importSpecial)
+        self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
+
+        self.createCommand('api',['api', ],'run api job',self.command_api)
+
+        self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
+        self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
+        self.createCommand('delete',['delete','del','d'],'delete a scheduled task',self.tasks.delete,'schtasks')
+        self.createCommand('run',['run','r'],'run a scheduled task now',self.tasks.runTask,'schtasks')
 
         self.createCommand('settings',['set','settings'],'show all ftp settings',self.ftp_settings,'ftp')
         self.createCommand('put',['put'],'put a file to support',self.ftp_put,'ftp')
@@ -55,14 +96,21 @@ class ktsMenu():
         self.createCommand('fix',['f','fix'],'runs diagnostic fix routine, requires the specific diagnostic number',self.diagnostic_fix,'diagnostics')
 
         self.createCommand('battery',['b','bat','batt','battery'],'runs conversion diagnostic battery',[self.diagnostic_run,'conversion'],'conversion')
+        self.createCommand('settings',['settings'],'displays all conversion settings',self.diagnostic_conversionSettings,'conversion')
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
+        self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
+        self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
 
         self.command = []
 
         self.git = {}
         self.gitVars()
+
+    def command_api(self):
+        if len(self.command) == 2:
+            print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
 
     def gitModified(self, repoDir=os.path.dirname(os.path.realpath(__file__))):
         p = subprocess.check_output('git status --porcelain', shell=True).split('\n')
@@ -115,6 +163,7 @@ class ktsMenu():
     def dbSettings(self, dbName=None):
         if dbName:
             self.settings['database'] = dbName
+            # self.tasks.update(dbName)
         self.settings['defaultUsers'] = self.configStuff(self.settings['database'], 'defaultUsers')
 
     def gitVars(self):
@@ -132,6 +181,7 @@ class ktsMenu():
             self.git['ktsVersion'] = 'Unknown'
 
     def menuShow(self,subMenu):
+        print
         for x in subMenu.items():
             print x[0].rjust(20), '-', x[1]['description']
 
@@ -149,14 +199,18 @@ class ktsMenu():
             elif hasattr(function[0],'__call__'):
                 function[0](function[1])
 
+    def diagnostic_conversionSettings(self):
+        settings = self.command_testConnection(False)['dict']
+        requiredSettings = self.conversionSettings
+        for x in requiredSettings:
+            try:
+                print '     %s = %s' % (x.rjust(30), settings[x])
+            except KeyError:
+                print '     %s = %s' % (x.rjust(30), '*** MISSING ***')
+
     def diagnostic_auto(self):
         settings = self.command_testConnection(False)
-        requiredSettings = [
-            'conversion.mikepath',
-            'conversion.mikepathtax',
-            'conversion.officialbankcode',
-	    'conversion.initials',
-        ]
+        requiredSettings = self.conversionSettings
         for x in requiredSettings:
             if x not in settings['dict']:
                 print x, 'setting was not found'
@@ -227,6 +281,17 @@ class ktsMenu():
         elif fileName:
             thePut(fileName)
 
+    def cp(self):
+        cmd = self.command
+        menuName = self.getMenuName(cmd[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        if len(cmd) == 2:
+            subMenu[cmd[1]]['function']()
+        elif len(cmd) > 2:
+            subMenu[cmd[1]]['function'](cmd[2:])
+        self.tasks.show(self.settings['database'])
+        self.menuShow(subMenu)
+
     def ftpFiles(self):
         files = {}
         for id, file in enumerate(os.listdir(self.ftpSettings['path'])):
@@ -279,14 +344,61 @@ class ktsMenu():
         elif self.command[1] == 'set':
             usernames = self.ask('enter the default user names (first last, first last, etc...)')
             self.configStuff(self.settings['database'], 'defaultUsers', 'PUT', usernames)
+        elif self.command[1] == 'import' and self.settings['defaultUsers'] > '':
+            print 'running dbo.createGroups with defaultUsers', self.sqlQuery("exec dbo.createGroups '%s'" % self.settings['defaultUsers'],True)['code']
 
-    def command_backup(self):
-        backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
-        print "do you wish to backup the DB to..."
-        if self.ask("%s?" % backupFileName) in ('yes', 'y'):
-            print "THIS IS NOT WORKING YET!!! back up SQL data...", self.sqlQuery("backup database %s to disk='%s' with retaindays=0, INIT, compression" % (self.settings['database'],backupFileName),True)['code']
-#            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup",True)
-            
+    def command_backupNow(self):
+        self.command_backup(True)
+
+    def command_backup(self, bypassConfirmation=False):
+        def doit():
+            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup @returnRows='FALSE'", isProc=True, isBackup=True)['code']
+
+        if bypassConfirmation:
+            doit()
+        else:
+            backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
+            print "do you wish to backup the DB to..."
+            if self.ask("%s?" % backupFileName) in ('yes', 'y'):
+                doit()
+    def command_restore(self):
+        files = self.ftpFiles()
+        menuName = self.getMenuName(self.command[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        print
+        for file in files.items():
+            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
+        if len(self.command) == 1:
+            print "\n     restore X ..."
+            self.menuShow(subMenu)
+        elif len(self.command) > 1:
+            bakRow = files[int(self.command[1])]
+            print '   ok restoring ', bakRow
+            if areYouSure():
+                db = self.settings['database']
+                file = '%s\%s' % (self.ftpSettings['path'], bakRow['name'])
+                print "kill connections...", self.sqlQuery("alter database %s set single_user with rollback immediate" % db, True, 'Master')['code']
+                print "drop database %s" % db, self.sqlQuery("drop database %s" % db, True, 'Master')['code']
+                # print "restore database %s from disk='%s'" % (db, file), self.sqlQuery("restore database %s from disk='%s' with move, replace" % (db, file), True, 'Master')['code']
+                sql = "declare @defaultLocation varchar(max),@dataName varchar(max),@dataFileName varchar(max)," \
+                      "@logName varchar(max),@logFileName varchar(max);" \
+                      "select @defaultLocation = " \
+                      " substring(physical_name, 1, charindex(N'master.mdf', LOWER(physical_name)) - 1)" \
+                      " from master.sys.master_files where database_id = 1 AND file_id = 1;" \
+                      "declare @fileListTable table(" \
+                      "LogicalName nvarchar(128),PhysicalName nvarchar(260),[Type] char(1),FileGroupName nvarchar(128)," \
+                      "Size numeric(20,0),MaxSize numeric(20,0),FileID bigint,CreateLSN numeric(25,0),DropLSN numeric(25,0)," \
+                      "UniqueID uniqueidentifier,ReadOnlyLSN numeric(25,0),ReadWriteLSN numeric(25,0),BackupSizeInBytes bigint," \
+                      "SourceBlockSize int,FileGroupID int,LogGroupGUID uniqueidentifier,DifferentialBaseLSN numeric(25,0)," \
+                      "DifferentialBaseGUID uniqueidentifier,IsReadOnl bit,IsPresent bit,TDEThumbprint varbinary(32));" \
+                      "insert into @fileListTable exec ('restore filelistonly from disk=''%s''');" \
+                      "select @dataName=LogicalName,@dataFileName = @defaultLocation + LogicalName + '.mdf' from @fileListTable where [TYPE] = 'D';" \
+                      "select @logName=LogicalName,@logFileName = @defaultLocation + LogicalName + '.ldf' from @fileListTable where [TYPE] = 'L';" \
+                      "restore database %s from disk='%s' with move @dataName to @dataFileName, move @logName to @logFileName," \
+                      "recovery,replace;" % (file, db, file)
+                result = self.sqlQuery(sql, True, 'Master', True)
+                print 'result', result['code']
+
     def ask(self, question='what do you need?'):
         try:
             commandEntered = raw_input("     %s ===> " % question)
@@ -344,6 +456,7 @@ class ktsMenu():
             print 'createAccountTypes...', self.sqlAlterProc('createAccountTypes','Procedure','99')
             print 'createReceiptTypes...', self.sqlAlterProc('createReceiptTypes','Procedure','99')
             print 'createReasonsToCancel...', self.sqlAlterProc('createReasonsToCancel','Procedure','99')
+            print 'createGLCollectionDescriptions...', self.sqlAlterProc('createGLCollectionDescriptions','Procedure','99')
             print 'paymentTypes...', self.sqlAlterProc('paymentTypes','TableFunction','99')
             print 'journalTypes...', self.sqlAlterProc('journalTypes','TableFunction','99')
             print 'glCreateTables...', self.sqlAlterProc('glCreateTables')
@@ -545,7 +658,7 @@ class ktsMenu():
             self.command_setSetting('git')
         elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd in ('taxyear','officialbankcode','initials'):
+        elif cmd in ('taxyear','officialbankcode','initials','conversiondate'):
             self.command_setSetting('conversion')
         elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
             if cmd == 'ftppath':
@@ -554,7 +667,7 @@ class ktsMenu():
                 newValue = self.command_setSetting('ftp')
             self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
             self.ftpSettingsInit()
-        elif cmd == 'aamasterpath':
+        elif cmd in ('aamasterpath', 'gsipath'):
             self.command_setSetting('conversion')
 
     def command_logging(self):
@@ -594,7 +707,114 @@ class ktsMenu():
         print '     ==================================================='
         print
 
-    def tpsAamasterCheck(self):
+    def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None):
+        if not connDatabase:
+            aamasterpath = self.settingsF('conversion.aamasterpath')
+            connDatabase = '%s\\%s.TPS' % (aamasterpath, dbName)
+        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
+        package = {}
+        package['connectionString'] = connectionString
+        package['database'] = connDatabase
+        package['sqlString'] = sqlString
+        if verbose:
+            for key, value in package.items():
+                print key, value
+        connection = pyodbc.connect(connectionString, autocommit=True)
+        cursor = connection.cursor()
+        try:
+            cursor.execute(sqlString)
+            rows = cursor.fetchall()
+            package['rows'] = rows
+        except (pyodbc.ProgrammingError, pyodbc.Error) as err:
+            package['error'] = err
+        connection.close()
+        return package
+
+    def tpsXXXXadtax(self):
+        importFileRaw = self.settingsF('taxroll.importFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select * from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
+            sqlInsert = "insert adtaxCheck "
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+    def gsiAamasterCheck(self):
+        def map(row):
+            county = row[0:2]
+            itemNumber = row[2:9]
+            nameId = row[10:19]
+            name1 = row[20:59]
+            name2 = row[60:99]
+            mailingInfo = row[100:139]
+            add1 = row[140:179]
+            add2 = row[180:219]
+            city = row[220:249]
+            state = row[250:252]
+            rawZip = row[252:262]
+            zip1 = rawZip.strip().split('-')[0]
+            if len(rawZip.strip().split('-')) > 1:
+                zip2 = rawZip.strip().split('-')[1]
+            else:
+                zip2 = ''
+            return [
+                itemNumber.strip(),
+                name1.strip(),
+                name2.strip(),
+                mailingInfo.strip(),
+                add1.strip(),
+                add2.strip(),
+                city.strip(),
+                state.strip(),
+                zip1,
+                zip2,
+            ]
+
+        gsipath = self.settingsF('conversion.gsipath')
+        if not gsipath:
+            print 'missing path to gsi file... fail!'
+            return
+        rows = []
+        with open(gsipath, 'r') as content_file:
+            rawData = content_file.read()
+        for row in rawData.split('\n'):
+            rows.append(map(row))
+        if len(rows) > 0:
+            print 'how many? ', len(rows)
+            self.aamasterCheckDropAndCreate()
+            columnNames = ['autonumber','ownername','businessname','address1','address2','address3','city','state','zip1','zip2']
+            sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(rows):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+            print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
+
+    def aamasterCheckVariables(self):
         columns = []
         columns.append('autonumber varchar(50)')
         columns.append('ownername varchar(50)')
@@ -620,45 +840,40 @@ class ktsMenu():
         uniqueColumns.append('balanceDue money')
         uniqueColumns.append('reason varchar(50)')
         uniqueColumns.append('taxrollDetailId int')
-        sqlString = "select {fields} from aamaster ".format(fields=', '.join(columnNames))
+        return columns, columnNames, uniqueColumns
+
+    def aamasterCheckDropAndCreate(self):
+        columns, columnNames, uniqueColumns = self.aamasterCheckVariables()
+        sqlCreateTable = 'create table aamasterCheck({uniqueColumns}, {columns}, kts{ktsColumns})'.format(uniqueColumns=', '.join(uniqueColumns),columns=', '.join(columns), ktsColumns=', kts'.join(columns))
+        print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
+        print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
+
+    def tpsAamasterCheck(self):
+        columns, columnNames, uniqueColumns = self.aamasterCheckVariables()
+        sqlString = "select {fields} from aamaster".format(fields=', '.join(columnNames))
         aamasterpath = self.settingsF('conversion.aamasterpath')
         if not aamasterpath:
             print 'missing path to aamaster... fail!'
             return
-        connDatabase = '%s\\aamaster.TPS' % aamasterpath
-        connectionString = 'Driver={SoftVelocity Topspeed driver Read-Only (*.tps)};Dbq=%s\!;Datefield=MyDateField|MyOtherDateField;TimeField=MyTimeField|MyOtherTimeField;' % connDatabase
-        package = {}
-        package['connectionString'] = connectionString
-        package['database'] = connDatabase
-        package['sqlString'] = sqlString
-        connection = pyodbc.connect(connectionString, autocommit=True)
-        cursor = connection.cursor()
-        cursor.execute(sqlString)
-        rows = cursor.fetchall()
-        package['rows'] = rows
-        connection.close()
+        package = self.tpsSelect(sqlString, 'aamaster')
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
-            sqlCreateTable = 'create table aamasterCheck({uniqueColumns}, {columns}, kts{ktsColumns})'.format(uniqueColumns=', '.join(uniqueColumns),columns=', '.join(columns), ktsColumns=', kts'.join(columns))
-            print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
-            print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
+            self.aamasterCheckDropAndCreate()
             sqlInsert = "insert aamasterCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
-            for id, row in enumerate(rows):
+            for id, row in enumerate(package['rows']):
                 formatedRow = [str(x).replace("'", "''") for x in row]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
-                # if id == 2:
-                #     break
             print 'ok i inserted %s records' % tally
-        print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
+            print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
 
     def settingsF(self, name, default='unknown'):
         value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
         return value
 
-    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None):
+    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, testConnection=False):
         connDatabase = alternateDatabase or self.settings['database']
         connectionString = 'DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (self.settings['server'],connDatabase,self.settings['uid'],self.settings['password'])
         package = {}
@@ -673,28 +888,33 @@ class ktsMenu():
         try:
             cursor = connection.cursor()
         except UnboundLocalError:
-            package['code'] = [1,'Failed to connect to %s' % connDatabase]
+            package['code'] = [1, 'Failed to connect to %s' % connDatabase]
             return package
 
         try:
             cursor.execute(sqlString)
-        except pyodbc.ProgrammingError:
-            package['code'] = [1,'execution failed']
-            package['rows'] = [('','')]
+        except pyodbc.ProgrammingError, err:
+            package['code'] = [1, 'Error on Execute %s' % err]
+            package['rows'] = [('', '')]
             connection.close()
             return package
 
+        if testConnection:
+            while cursor.nextset():
+                pass
+
         if isProc:
-            package['code'] = [0,'ok']
-            package['rows'] = [('','')]
+            package['code'] = [0, 'ok']
+            package['rows'] = [('', '')]
         else:
             try:
                 rows = cursor.fetchall()
-                package['code'] = [0,'ok']
+                package['code'] = [0, 'ok']
                 package['rows'] = rows
-            except pyodbc.ProgrammingError:
-                package['code'] = [1,'execution failed']
-                package['rows'] = [('','')]
+            except pyodbc.ProgrammingError, err:
+                package['code'] = [1, 'Error on Fetch: %s' % err]
+                package['rows'] = [('', '')]
+        cursor.commit()
         connection.close()
         return package
 
@@ -711,3 +931,56 @@ class ktsMenu():
             return subprocess.check_output(sqlcmd, shell=True)
         except subprocess.CalledProcessError as error:
             return 'Process FAILED!', error.message
+
+
+class tasks(ktsMenu):
+    def __init__(self, database):
+        self.tasks = {}
+        self.currentDatabase = ''
+        self.update(database)
+        self.defaultTasks = {}
+        self.defaultTasks['backup'] = ['daily', '23:00']
+        # self.defaultTasks['apiInvoices'] = ['daily', '23:00']
+
+    def show(self, database, update=True):
+        if update:
+            self.update(database)
+        for id, task in self.tasks.items():
+            print '     %s - %s   next:%s  %s' % (id, task['name'], task['nextTime'], task['status'])
+
+    def update(self, database=None):
+        self.tasks.clear()
+        if database:
+            self.currentDatabase = database
+        taskPrefix = 'kp.%s' % self.currentDatabase
+        out, err = getTextFromFile(["schTasks", "/query", "/fo", "csv"])
+        tally = 0
+        for id, line in enumerate(out.split('\n')):
+            if taskPrefix in line:
+                tally = tally + 1
+                task = {}
+                taskArray = line.translate(None, '"\\\r').split(',')
+                task['name'], task['nextTime'], task['status'] = taskArray[0], taskArray[1], taskArray[2]
+                self.tasks[tally] = task
+
+    def delete(self, args=None, askAreYouSure=True):
+        if not args:
+            return
+        if areYouSure(force=askAreYouSure):
+            for arg in args:
+                taskName = self.tasks[int(arg)]['name'].split('.')[-1]
+                myMenu = ktsMenu()
+                print 'dbo.scheduledTasksControl delete %s...' % taskName, myMenu.sqlQuery("exec dbo.scheduledTasksControl @method='delete', @name='%s'" % taskName, True)['code']
+
+    def auto(self, args=None):
+        myMenu = ktsMenu()
+        print myMenu.sqlQuery('select db_name()')
+        # for key, detail in self.defaultTasks.items():
+        #     print 'schtasks /create /ru "system" /sc %s /tn "kp.%s.%s" /tr "%s" /st %s /f' % (detail[0], self.currentDatabase, key, cmd, detail[1])
+
+    def runTask(self, args=None):
+        if not args:
+            return
+        for arg in args:
+            taskName = self.tasks[int(arg)]['name']
+            runDos('schtasks /run /tn "%s"' % taskName)
