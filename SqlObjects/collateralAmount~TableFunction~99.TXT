@@ -7,6 +7,7 @@ returns @rt table(id int identity(1,1),
                   collateralAmount money,
                   FDICAmount money,
                   notCoveredAmount money,
+                  unusedCollateral money,
                   bankPercent numeric(19,12),
                   processcode int)
 as
@@ -26,12 +27,12 @@ declare @bankNameToken varchar(50),
         @idToken int
         
 
-insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, processcode, notCoveredAmount)
+insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, processcode, notCoveredAmount, unusedCollateral)
  select accountCode,
         accountDesc,
         bankName, 
         isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode),0),
-        0,0.00
+        0,0.00,0.00
  from glaccounts a
   where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
  group by a.accountcode,a.accountdesc,a.bankName
@@ -99,5 +100,8 @@ begin
 
 end
 update @rt set notCoveredAmount=isnull(glbalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)) where isnull(glbalance,0.00) > isnull(collateralAmount,0)+isnull(FDICAmount,0)
+
+update @rt set unusedCollateral=(isnull(glbalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)))*-1 where isnull(glbalance,0.00) < isnull(collateralAmount,0)+isnull(FDICAmount,0)
+
 return
 end
