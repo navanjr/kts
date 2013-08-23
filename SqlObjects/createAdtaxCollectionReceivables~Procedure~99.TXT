@@ -1,6 +1,7 @@
 create procedure dbo.createAdtaxCollectionReceivables(
  @method varchar(50) = 'adtax',
- @debugMode varchar(5) = 'FALSE'
+ @debugMode varchar(5) = 'FALSE',
+ @taxYear varchar(10) = null
 ) 
 as 
 begin
@@ -28,6 +29,16 @@ begin
   targetAccount varchar(50),
   collectionDescription varchar(50)
  )
+
+ if @method = 'special' and @taxYear>0
+  begin
+  insert @pt select distinct cast(@taxYear as varchar) + '_ADVALOREM',    'FUND',       null, '', @fundCollectionDescription 
+       union select distinct cast(@taxYear as varchar) + '_ADVALOREM_AR', 'RECEIVABLE', null, '', '' 
+       union select distinct cast(@taxYear as varchar) + '_PROTEST_AR',   'RECEIVABLE', null, '', '' 
+       union select distinct cast(@taxYear as varchar) + '_ADVALOREM_EXP','EXPENSE',    null, cast(@taxYear as varchar) + '_ADVALOREM', ''
+        
+  end
+
 
  if @method = 'adtax'
  begin
