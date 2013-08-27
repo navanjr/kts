@@ -102,6 +102,10 @@ select isnull(accountType,''),
   and journalType = 'APPORTIONMENT SPECIAL'
 end
 
+declare @feesGetOwnColumn varchar(5)
+
+select @feesGetOwnColumn = isnull(settingValue,'FALSE') from settings where settingname='site.feesGetOwnColumn'
+
 delete from @det where accountid in (select distinct contraId from gldetail where bsId in (select dbo.slinkId(journalSLink) from dbo.rpMonthEndSLinks(@beginDate, @endDate) ))
 
 update d set journalDesc = a.accountDesc from @det d, glaccounts a where d.apportionContraCode=a.accountcode and isnull(d.apportionContraCode,'')>' 0'
@@ -128,7 +132,15 @@ and accountCode in (select key2 from object where typ=4010 and b11='1')
 
 update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL'
 
-update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%'
+if @feesGetOwnColumn = 'TRUE'
+ begin
+  update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%' and sourceCode+'_ACR' 
+   in (select accountcode from glaccounts where aptabletype='M')
+ end
+else
+ begin
+  update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%'
+ end
 
 
 declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50))
@@ -150,17 +162,17 @@ declare @det2 table(id int identity(1,1),
 
 insert @det2
 select a.accountCode,a.accountDesc,a.accountType,a.comment2,b.yearCode, sum(amount)*-1, max(a.ord) from @det a, @years b 
- where a.journalDesc=b.journalDesc and a.accountType<>'FUND'
+ where a.journalDesc=b.journalDesc and a.accountType<>'FUND' and sourcecode='ADVALOREM'
 group by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,a.comment2,b.yearCode
 
 insert @det2
 select a.accountCode,a.accountDesc,a.accountType,'',b.yearCode, sum(amount)*-1, max(a.ord) from @det a, @years b 
- where a.journalDesc=b.journalDesc and a.accountType='FUND'
+ where a.journalDesc=b.journalDesc and a.accountType='FUND' and sourcecode='ADVALOREM'
 group by a.accountType,a.accountCode,a.accountDesc,b.yearCode
 order by a.accountType,a.accountCode,a.accountDesc,b.yearCode
 
-delete from @det where journalDesc in (select journalDesc from @years)
+delete from @det where journalDesc in (select journalDesc from @years) and sourcecode='ADVALOREM'
 
 update d set comment2 = case when monthEndCategory = 'MILLAGE' or d.comment2 in ('GENERAL','4 MILL','BUILDING','BULDING','SINKING') then d.comment2 when monthEndCategory > ' 0' then monthEndCategory else 'GENERAL' end from @det d, glaccounts a where d.sourceCode=a.accountCode 
 
