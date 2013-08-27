@@ -4,6 +4,8 @@ returns @rt table(id int identity(1,1),
                   bankAccountDesc varchar(50),
                   bankName varchar(50),
                   glBalance money,
+                  outstandingPayments money,
+                  statementBalance money,
                   collateralAmount money,
                   FDICAmount money,
                   notCoveredAmount money,
@@ -27,17 +29,19 @@ declare @bankNameToken varchar(50),
         @idToken int
         
 
-insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, processcode, notCoveredAmount, unusedCollateral)
+insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPayments, statementBalance, processcode, notCoveredAmount, unusedCollateral)
  select accountCode,
         accountDesc,
         bankName, 
         isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode),0),
+        isnull((select sum(g.amount*-1) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and amount < 0.00 and isnull(bsId,0)=0),0),
+        isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and (amount > 0.00 or isnull(bsId,0)>0)),0),
         0,0.00,0.00
  from glaccounts a
   where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
  group by a.accountcode,a.accountdesc,a.bankName
 
-delete from @rt where glBalance =0.00
+delete from @rt where statementBalance = 0.00
 
 insert @collateral                          
  select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end)
@@ -60,7 +64,7 @@ while exists(select * from @rt where processcode=0)
 begin
  select top 1 @bankNameToken=bankName, @idToken=id from @rt where processcode=0
  
- select @bankGlBalance = sum(glBalance) from @rt where bankName=@bankNameToken
+ select @bankGlBalance = sum(statementBalance) from @rt where bankName=@bankNameToken
 
  select top 1 @bankCollateral = isnull(totalCollateral,0.00) from @collateral where bankName=@bankNameToken
  select top 1 @bankFDIC = isnull(totalFDIC,0.00) from @FDIC where bankName=@bankNameToken
@@ -68,9 +72,9 @@ begin
  if @bankGlBalance > 0.00
  begin
  update r set processcode=1, 
-  bankPercent = r.glBalance/@bankGlBalance,
-  collateralAmount = round(@bankCollateral*r.glBalance/@bankGlBalance,2),
-  FDICAmount = round(@bankFDIC*r.glBalance/@bankGlBalance,2)
+  bankPercent = r.statementBalance/@bankGlBalance,
+  collateralAmount = round(@bankCollateral*r.statementBalance/@bankGlBalance,2),
+  FDICAmount = round(@bankFDIC*r.statementBalance/@bankGlBalance,2)
  from @rt r
    where r.bankName=@bankNameToken
  end
@@ -99,9 +103,9 @@ begin
   end
 
 end
-update @rt set notCoveredAmount=isnull(glbalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)) where isnull(glbalance,0.00) > isnull(collateralAmount,0)+isnull(FDICAmount,0)
+update @rt set notCoveredAmount=isnull(statementBalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)) where isnull(statementBalance,0.00) > isnull(collateralAmount,0)+isnull(FDICAmount,0)
 
-update @rt set unusedCollateral=(isnull(glbalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)))*-1 where isnull(glbalance,0.00) < isnull(collateralAmount,0)+isnull(FDICAmount,0)
+update @rt set unusedCollateral=(isnull(statementBalance,0)-(isnull(collateralAmount,0)+isnull(FDICAmount,0)))*-1 where isnull(statementBalance,0.00) < isnull(collateralAmount,0)+isnull(FDICAmount,0)
 
 return
 end
