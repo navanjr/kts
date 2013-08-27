@@ -250,10 +250,18 @@
  change(lcnewInvestmentId)
  ;
 
+@transferCheck=
+ gcBank=lcBankAccountCode,
+ d1select('exec dbo.paymentCRUD @mode=0,@paymentType=''Transfer'',@debitAcct=''  '',@creditAcct='''&gcBank&''',@postOverride=''TRUE'''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Transfer Check...')), 
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')))
+;
+
+
 @menu6=
  getBlob=,
  lcDepButtText=choose(lcBankAccountCode='AAATRUST','&New Official Deposit','&New Bank Deposit'),
- lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&choose(lcBankAccountCode>'  0',lcDepButtText&'|','')&choose(lcBankStatementCode>'  0','Current Bank Statement|','')&choose(lcBankName>'  0','Manage Collateral|','')&choose(lcAccountType='INVESTMENT','Manage Investment|Renew Investment|Record Interest|','')&'E&xit',
+ lcMessageOptions=choose(lcDepCount+0=1,'&Edit Existing|','')&choose(lcBankAccountCode>'  0',lcDepButtText&'|','')&choose(lcBankStatementCode>'  0','Current Bank Statement|','')&choose(lcBankName>'  0','Manage Collateral|','')&choose(lcAccountType='INVESTMENT','Manage Investment|Renew Investment|Record Interest|Transfer Check|','')&'E&xit',
  m('Please Choose one of the following options...'&choose(lcAAATrust+0>0,'||**********Warning**********|Un-Deposited Trust Receipt!',''),'Right Click Menu...','question.ico',lcMessageOptions),
  lcChoice=gcretval+0+choose(lcDepCount+0=1,10,0)+choose(lcBankAccountCode>'  0',1000,0)+choose(lcBankStatementCode>'  0',100,0)+choose(lcAccountType='INVESTMENT',10000,0)+choose(lcBankName>'  0',100000,0),
  if(lcChoice=11 or lcChoice=111 or lcChoice=1011 or lcChoice=1111 or lcChoice=101111,change(lcDepChangeId)),
@@ -262,7 +270,9 @@
  if(lcChoice=101103  or lcChoice=101114  or lcChoice=111103,manageCollateral=),
  if(lcChoice=11103  or lcChoice=111104,manageInvestment=),
  if(lcChoice=11104  or lcChoice=111105,renewInvestment=),
- if(lcChoice=11105  or lcChoice=111106,recordInterest=);
+ if(lcChoice=11105  or lcChoice=111106,recordInterest=),
+ if(lcChoice=11106  or lcChoice=111107,transferCheck=),
+;
 
 @bankStatementMenu=
  lcBankStatementId=kp('select id from object where typ=4780 and '&obj:key1&' between a1 and a2 and key1 = '''&lcBankStatementCode&''''),
