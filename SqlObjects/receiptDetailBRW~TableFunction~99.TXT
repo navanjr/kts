@@ -81,20 +81,33 @@ begin
  end
 
 
-
  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
  begin
+
+  declare @invoices table(id int, due money)
+  declare @receiptPostDate int
+   select @receiptPostDate = case when isnumeric(key2)=1 then cast(key2 as int) else dbo.clariondate(getdate()) end from object where typ=4502 and id=@receiptId
+
+  insert @invoices
+   select distinct r.invoiceId, 
+     isnull((select sum(amount) from gldetail where slink in (select slink from dbo.invoiceSLinks(r.invoiceId)) and [date]<=@receiptPostDate and accountcode in (select accountcode from glaccounts where accounttype='RECEIVABLE') and slink <> 'l'+cast(r.id as varchar)) ,0.00)
+    from dbo.receiptLink r 
+    where r.receiptId = @receiptId
+
+
+
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
    max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
    max(c.parcel),
-   sum(b.amount), 1
-  from receiptLink a, receiptDetail b, invoices c
+   i.due, 1
+  from receiptLink a, receiptDetail b, invoices c, @invoices i
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
+   and c.id=i.id
    and c.invoiceId < 1
-  group by c.invoiceId, c.id, a.protestAmount
+  group by c.invoiceId, c.id, a.protestAmount, i.due
 
   insert @rettable (ord,id,description,subdescription,origin)
   select 'aa'+cast(c.id as varchar)+'aa',cast('3'+cast(max(a.id) as varchar) as int)*-1,
@@ -111,13 +124,14 @@ begin
   select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(max(c.id) as varchar) as int)*-1,
    max('   '+b.description),
    max('   '+lower(b.subDescription)),
-   sum(b.amount),3
-   from receiptLink a, receiptDetail b, invoices c
+   i.due,3
+   from receiptLink a, receiptDetail b, invoices c, @invoices i
    where 't'+CAST(a.invoiceId as varchar) = b.slink
     and a.invoiceId = c.ID
     and receiptId = @receiptId
-   and c.invoiceId > 0
-  group by c.invoiceId, c.typ
+    and c.id=i.id
+    and c.invoiceId > 0
+  group by c.invoiceId, c.typ, i.due
 
  update @rettable 
       set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=ltrim(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)) and  RIGHT(ord,2)='az' 
