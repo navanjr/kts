@@ -103,13 +103,16 @@ begin
              end
          -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
-                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink
-                  from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount>0.00
+                  select a.accountId,a.accountCode,a.accountDesc,case when @refundAmount > 0.00 then @refundAmount*-1 else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink
+                  from glDetail g ,receiptlink r,journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode and 
+                          j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and a.accounttype='ACCRUED RECEIVABLE'
 
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
-                  select accountId,accountCode,accountDesc,case when @refundAmount > 0.00 then @refundAmount else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar) and g.amount<0.00
+                  select a.accountId,a.accountCode,a.accountDesc,case when @refundAmount > 0.00 then @refundAmount else amount*-1 end,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
+                  from glDetail g ,receiptlink r,journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode and 
+                          j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId and g.slink = 'l'+CAST(r.id as varchar)  and a.accounttype='RECEIVABLE'
 
          -- create gldetailstaged linked to collection account
                 insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
@@ -118,34 +121,38 @@ begin
                    isnull((select accountDesc from glaccounts where accountId=contraId),''),
                    case when @refundAmount > 0.00 then @refundAmount else amount end,
                    'o'+cast(@newId as varchar),@receiptSLink 
-                   from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId
+                   from glDetail g ,receiptlink r,journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode and j.jeId = @newId and j.invoiceId = r.invoiceId and r.receiptId = @receiptId
                             and left(g.slink,1)='l' and dbo.slinkid(g.slink)=r.id
-                            and g.amount>0.00
+                            and a.accounttype='ACCRUED RECEIVABLE'
           if isnull(@voidFees,0) = 1
           begin
            -- create journalLinks
                 insert into journalLink
-                  select distinct @newId,invoiceId,methodRate,receiptId from receiptlink where invoiceId in (select id from invoices where invoiceid=@invoiceId)
+                  select distinct @newId,invoiceId,methodRate,receiptId from receiptlink where receiptId = @receiptId and invoiceId in (select id from invoices where invoiceid=@invoiceId)
 
            -- create gldetailstage linked to journallink
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
-                  select accountId,accountCode,accountDesc, amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
-                    from glDetail g, receiptlink r, journalLink j
-                         where j.jeId = @newId 
+                  select a.accountId,a.accountCode,a.accountDesc, amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
+                    from glDetail g, receiptlink r, journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode 
+                           and j.jeId = @newId 
                            and j.invoiceId = r.invoiceId 
                            and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
                            and g.slink = 'l'+CAST(r.id as varchar) 
-                           and g.amount>0.00
+                           and a.accounttype='ACCRUED RECEIVABLE'
+                           and r.receiptId = @receiptId
 
                   insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,slink2)
-                  select accountId,accountCode,accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
-                    from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId 
+                  select a.accountId,a.accountCode,a.accountDesc,amount*-1,'j'+cast(j.id as varchar),contraId,sourcecode,@receiptSLink 
+                    from glDetail g ,receiptlink r,journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode 
+                           and j.jeId = @newId 
                            and j.invoiceId = r.invoiceId 
                            and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
                            and g.slink = 'l'+CAST(r.id as varchar) 
-                           and g.amount<0.00
+                           and a.accounttype='RECEIVABLE'
+                           and r.receiptId = @receiptId
 
            -- create gldetailstaged linked to collection account
                 insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2)
@@ -154,13 +161,15 @@ begin
                    isnull((select accountDesc from glaccounts where accountId=contraId),''),
                    amount,
                    'o'+cast(@newId as varchar),@receiptSLink 
-                   from glDetail g ,receiptlink r,journalLink j
-                         where j.jeId = @newId 
+                   from glDetail g ,receiptlink r,journalLink j, glaccounts a 
+                         where g.accountcode=a.accountcode 
+                           and j.jeId = @newId 
                            and j.invoiceId = r.invoiceId 
                            and r.invoiceId in (select id from invoices where invoiceid=@invoiceId) 
                            and left(g.slink,1)='l' 
                            and dbo.slinkid(g.slink)=r.id
-                           and g.amount>0.00
+                           and a.accounttype='ACCRUED RECEIVABLE'
+                           and r.receiptId = @receiptId
           end
 
          end
