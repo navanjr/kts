@@ -1,5 +1,4 @@
-\t109&Flag for Collection;
-@acc109=
+@acc601=
  m('This process will flag the filtered receviables for collections.||Choose one of the following options...','Collections...','question.ico','&Resale|&Tax Warrant|&Cancel'),
  if(obj:a3+0=1,lcPaidRatio=choose(obj:a1>'  0',obj:a1,'0'),lcPaidRatio='null'),
  lcFCBlob=lcInvType&'^'&lcTaxYear&'^'&lcPaidRatio&'^'&lcSwitches&'^'&lcBlob,
@@ -26,19 +25,39 @@
  prop(171,'FontSize',10),
  prop(171,'FontStyle',700),
  prop(171,'Font','Arial'),
- create(172,10,334,2,'Step 2 - Create Print Batches...'),
+ create(172,10,409,2,'Create Print Batches...'),
  prop(172,'FontSize',10),
  prop(172,'FontStyle',700),
  prop(172,'Font','Arial'),
- reate(550,12,125,16,'Apply Tax Statement Rules',10),
  create(551,12,100,29,'Include Previous',16),
  create(552,12,3,42,'Paid Ratio Equals',12),
  create(553,12,74,42,'or Greater than',14),
  prop(553,7cfbh,5733049),
  create(43,9),
  create(39,9),
+ create(77,9),
+ create(550,12,500,29,'Combine Years',18),
+ create(600,9,326,55,'&Manage Batches'),
+ create(601,9,326,69,'&Flag for Collection'),
+ create(602,9,326,83,'Receivables &List'),
+ create(603,9,326,97,'Receivables &Detail'),
  gcvars=,
- brwstuff=;
+ brwstuff=,
+ tsc;
+
+@acc600=
+ lcCreateBatchHide=kp('select dbo.toggle('''&lcCreateBatchHide+0&''')'),
+ if(lcCreateBatchHide+0=0,prop(600,text,'&Manage Batches'),prop(600,text,'&Hide Batches')),
+ tsc;
+
+\w60060380;r
+
+\h172lcCreateBatchHide<>1;
+\h550lcCreateBatchHide<>1 or lcCombinedYears+0=0;
+\h039044lcCreateBatchHide<>1;r
+\h077lcCreateBatchHide<>1;
+\h079080lcCreateBatchHide<>1;r
+\h151lcCreateBatchHide<>1;r
 
 @printStatements=
  set(004,'RSO'),
@@ -62,8 +81,6 @@
  lcReportId=kp('select id from object where typ=452 and key1=''taxStatement'''),
  if(lcReportId+0=0,insert(-02=452,002='taxStatement',004='5001',006='taxStatement='));
  
-
-
 @acc043=
  iw(',.t000Create Batch..., ,.t001Process Count.,,.t002@n4.0.,,.w00230.,'),
  break(gcretval<>'OK'),
@@ -73,8 +90,7 @@
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Document Processing...')),
  refreshbrw=;
 
-\t113&Manage Docs;
-@acc113=browse(1,4900);
+
 \t101Blob; \h101102;r
 \t103Blob; \h103104;r
 
@@ -151,6 +167,7 @@
  refreshbrw2=;
 
 @gcvars=
+ lcCombinedYears=instring('R',obj:key2)+instring('O',obj:key2)+instring('S',obj:key2),
  lcInvDate=0,
  lcDoc=obj:a17,
  lcInvType=obj:key2,
@@ -161,7 +178,8 @@
  lcTaxRules=choose(obj:a2>'  0',obj:a2,'0'),
  lcPRGTFlag=choose(obj:a4>'  0',obj:a4,'0'),
  lcIncludePrior=choose(obj:a5>'  0',obj:a5,'0'),
- lcSwitches=lcTaxRules&lcPRGTFlag&lcIncludePrior,
+ lcCombineYears=choose(obj:a6>'  0',obj:a6,'0'),
+ lcSwitches=lcTaxRules&lcPRGTFlag&lcIncludePrior&lcCombineYears,
  lcBlob=choose(obj:e1>'  0',obj:e1,''),
  gcbrwsql50b='select id, name, parcel, item, invoiceDue, feesDue, paidRatio, typ, taxyear from dbo.docReceivablesBRW(''DETAIL'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by name, item',
  gcbrwsql50='select id*-1,display,count,invoiceAmount,invoiceDue,feesDue,blob,rowType from dbo.docReceivablesBRW(''SUMMARY'','''&lcInvType&''','''&lcTaxYear&''','&lcPaidRatio&','''&lcSwitches&''','''&lcBlob&''') order by ord',
@@ -172,8 +190,8 @@
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
  brw(150,1,gcbrwsql50,3,54,320,262,'115L(5)~~#2#|M50R(5)~Count~@n12.0b@#3#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
- brw(151,2,gcbrwsql51,335,54,220,262,'100L(5)~~#2#|M60R(5)~~#3#|M60R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
- brw(152,3,gcbrwsql52,230,17,93,35,'15C(2)~~#3#M100L(2)~~#2#M',,1),
+ brw(151,2,gcbrwsql51,410,54,240,262,'140L(5)~~#2#|M50R(5)~~#3#|M50R(5)~~#4#|M80R(5)~Due~@n14.2b@#5#|M60R(5)~Fees~@n14.2b@#6#|M200L(20)~~#8#|M'),
+ brw(152,3,gcbrwsql52,230,15,93,38,'15C(2)~~#3#M100L(2)~~#2#M',,1),
  kpmc(),
  prop(150,'Color',16777215),
  prop(151,'Color',16777215),
@@ -205,31 +223,40 @@
  brwreload(3,gcbrwsql52);
 
 @gfwindow=
+ if(gcSetDoc=1,setDoc=),
  refreshbrw2=;
+
+@setDoc=
+ set(-03,gcDocumentId),
+ set(040,gcDocName),
+ gcSetDoc='';
 
 lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 @lbrw2color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
 
 \t001Step 1 - Filter Receivables; \w001150; \h001002;r
-\t003Invoice Type; \f004='ALL'; \w00450; \u004; @acc004=if(obj:key2<'  0',set(4,'ALL')),refreshbrw=;
+\t003Invoice Type; \f004='ALL'; \w00450; \u004; @acc004=if(obj:key2<'  0',set(4,'ALL')),refreshbrw=,tsc;
 \t005Tax Year; \f006='ALL'; \w00625; @acc006=if(obj:key3<'  0',set(6,'ALL')),refreshbrw=;
 \t007Paid Ratio; \h007; \w00830; \x008138;\t008@n4.2; @acc008=refreshbrw=; \p0087c0ch,1;
-\t009TaxStatementRulesFlag; \h009010;r @acc550=refreshbrw=;
+\t009TaxStatementRulesFlag; \h009010;r 
 \t011paidRatioFlag; \h011012;r @acc551=refreshbrw=;
 \t013orGreaterThanFlag; \h013014;r @acc552=refreshbrw=;
 \t015includePrevious; \h015016;r @acc553=refreshbrw=;
+\t017CombineYears;  \h017018;r @acc550=refreshbrw2=;
 
-\t037Include The Following:; \w037100; \h038;\x037230;\y0375;
+\t037Include The Following:; \w03775; \h038;\x037230;\y0373;
 
-\t039Document; \l0404900,1; @acc040=set(2,obj:a17),refreshbrw2=; @acc039=if(obj:link1+0>0,change(obj:link1));
-\t041Batch Date; \w04250; \t042@d2; @acc042=refreshbrw2=; \f042=c;
-\t043Create Print &Batch; \h044; \w04375;
-\x039044+150;r \y039044+13;r
-\t079(+) Days; \w08030; \t080@n3.0; \x079305;  \x080335; @acc080=refreshbrw2=; \f080=0;
-\x079080+150;r \y079080+13;r
-\t110Receivables &List; \x110175; \y110317;
-@acc110=
+\t039&Select Doc; \l0404900,1; @acc039=browse(1,4900,,,,3); @acc040=set(2,obj:a17),refreshbrw2=; 
+\t041Batch Date; \w04250; \t042@d2; @acc042=refreshbrw2=; \f042=c; \y041042+13;r
+\t043Create Print &Batch; \h044; \w04375; \y043044-13;r
+\x039044+225;r \y039044+13;r
+\t077&Edit Doc; \h078; \w07745; \y077+13; \x077593; @acc077=if(obj:link1+0>0,change(obj:link1));
+\t079(+) Days; \w08030; \t080@n3.0; \x079305;  \x080335; @acc080=refreshbrw2=; \f080=0; \y079080+13;r
+\x079080+225;r \y079080+13;r
+
+
+@acc602=
  gcvars=,
  lctally=0,lct1=0,lct2=0,
   lcLm=400,
@@ -261,8 +288,8 @@ lbrw1forecolor=obj7:c10=1,255,obj7:c10<0,255; 1959605, 32768
   bnd('HO',,2500,,400,,200C,'Count of Items: '&lctally,1500,,-500,format(lct1,@n14.2b),-600,format(lct2,@n14.2b),-600),
  );
 
-\t111Receivables &Detail; \x111255; \y111317;
-@acc111=
+
+@acc603=
  iw('\t001Interest Date; \t002@d2; \w00245; \t105Print by &Parcel; @acc105=gcOrderBy='Parcel',close('ok'); \t108Print by &Name; @acc108=gcOrderBy='Name',close('ok');'),
  lcInterestDate=obj7:key1,
  lcOrderBy=gcOrderBy,

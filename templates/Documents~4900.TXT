@@ -14,7 +14,14 @@
  end'),
  iw('@loadwindow=brw(150,1,'SELECT  id,Result  from DBO.docAvailableVariables()',3,3,220,58,'200L(2)~~#2#M',,1); '),
 
-@format=100L(2)~Document Title~#1#|M100L(2)~Report Control~#3#|M;
+
+@tier3=
+ gcDocumentId=obj:id,
+ gcDocName=obj:key1,
+ gcSetDoc=1,
+ closewindow(curThread);
+
+@format=200L(2)~Document Title~#1#|M200L(2)~Report Control~#3#|M;
 @commentboxe1;
 @save;
 @dk1;
@@ -149,7 +156,7 @@
  sql('update object set typ=-4902 where typ=4902 and id='&lcId+0),
  brwreload(1);
 
-@bb1=Print; 
+@bb1=Print,,,tier<>3; 
 
 @bbproc1=formLetter=;
 
@@ -163,10 +170,11 @@
 
 @bb5=Import; 
 @bbproc5=
- iw('@loadwindow=brw(150,1,'select id,name from dbo.docImportBRW(0)',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok');'),
+ iw('@loadwindow=brw(150,1,'select id,name from dbo.docImportBRW(0)',3,3,220,58,'200L(2)~~#2#M',,1); @brw1=gcDocImportId=kpbrwid(1),close('ok'); @acc106=gcDocImportId=kpbrwid(1);'),
  break(gcretval='esc' or gcDocImportId+0=0),
  d1select('exec  dbo.docImport '&gcDocImportId&', @mode=''IMPORT'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Import Options',,6,4)),
+ if(readstring(obj7:d1,'@code=')=0 or gcretval<>2,m(obj7:d1)),
  break(readstring(obj7:d1,'@code=')=0 or gcretval<>2),
  d1select('exec  dbo.docImport '&gcDocImportId&',@mode=''FORCE''');
 

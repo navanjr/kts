@@ -32,6 +32,7 @@ begin
   @taxRulesFlag int = dbo.splitF(@switches,null,1),
   @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
   @includePriorYears int = dbo.splitF(@switches,null,3),
+  @combineYears int = dbo.splitF(@switches,null,4),
   @dTypeCode varchar(50)
 
  declare @invoiceTypes table(typ varchar(1))
@@ -283,13 +284,28 @@ if not exists(select * from @selectedMortgageCodes)
 
  end
  else
- begin
-  insert @rt (
+--@mode=detail 
+ if @combineYears=1 and charindex('R',@invTypeString)>0 or charindex('O',@invTypeString)>0  or charindex('S',@invTypeString)>0
+  begin
+     insert @rt (id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType, ownerNumber)
+      select 0, '', parcel, 0, sum(amount), sum(due), sum(fees), max(taxyear), '', 0, 1, 0
+       from @wt group by parcel
+      
+     update r set 
+      r.id=w.id,
+      r.name=w.name,
+      r.item=w.item,
+      r.typ=w.typ,
+      r.ownerNumber=w.ownerNumber 
+      from @rt r, @wt w where w.parcel=r.parcel and r.taxyear=w.taxyear
+  end
+ else
+   insert @rt (
    id, name, parcel, item, invoiceAmount, invoiceDue, feesDue, taxyear, typ, paidRatio, rowType, ownerNumber
   )
   select
    id, name, parcel, item, amount, due, fees, taxyear, typ, paidRatio, 1, ownerNumber
  from @wt
- end
+ 
  return 
 end
