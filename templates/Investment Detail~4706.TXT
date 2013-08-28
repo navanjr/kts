@@ -13,6 +13,8 @@
 80L(2)~Bank Name~#5#|M
 100L(2)~Bank Acct Desc~#22#|M;
 
+@loadwindow=create(170,12,190,3,'Manual Interest',68),;
+@acc170=tsc;
 @afterloadwindow=calcAmounts=;
 
 \t001Invest No;
@@ -27,17 +29,19 @@
 \t049Fund Code; \d050; \x050-65; \h049;
 \t013Type of Inv;
 \t015Int Rate; \w01450;
-\d018022;r
+\d018; \d020obj:b11+0<1; \d022;
 \t017Principal; \t018@n$19.2;
 \t019Interest; \t020@n$19.2;
 \t021Ending Value; \t022@n$19.2;
 \t023Bank Acct Code; \d024;
 \t025Bank Acct Name; \l0264701,1;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc026=checkDate=;
 
+\t067Manual Interest; \h067068;r
+
 @calcAmounts=d1select('select ''@principal=''+cast(isnull(principal,0) as varchar)+'';''+''@interest=''+cast(isnull(interest,0) as varchar)+'';''+''@endValue=''+cast(isnull(endValue,0) as varchar)+'';'' from dbo.investmentHeader where id='&obj:id),
 lcblob=obj7:d1,
 set(018,readstring(lcblob,'@principal=')),
-set(020,readstring(lcblob,'@interest=')),
+if(obj:b11+0<>1,set(020,readstring(lcblob,'@interest='))),
 set(022,readstring(lcblob,'@endValue=')),
 d1select('select isnull((select controlNumber from dbo.investmentDetail where investmentLink='&obj:id&' and activity=''Purchase Check''),''Renewal'')'),
 set(010,obj7:d1)
@@ -59,7 +63,7 @@ set(010,obj7:d1)
   if(lcCheck3+0>0,set(004,gclastDate+1)),
   update;
 
-\t110Record Interest;
+\t110Create Intr Receipt;
 @acc110=update,
  if(obj:a9<' 0',m('Please fill in Bank Account Code.')),
  break(obj:a9<' 0'),
