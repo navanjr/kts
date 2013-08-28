@@ -83,11 +83,18 @@ set(010,obj7:d1)
  change(lcNewReceiptId);
 
 \t112Renew Investment;
-@acc112=lcppurchase=obj:key2,
- lcmaturity=obj:a18,
- lcliquid=obj:key3,
- copy(0),
- set(004,lcliquid),
- set(042,lcliquid+lcmaturity-lcppurchase),
- set(006,''),
- calcrecord();
+@acc112=lcliquid=obj:key3,
+ if(lcliquid+0<1,iw('\t001Liquidation Date; \t002@d2; \w00250;')),
+ if(lcliquid+0<1,lcliquid=obj7:key1),
+ lcinvestmentDetailId=obj:id,
+ lcbankAccountCode=obj:a9,
+ close('ok'),
+ d1select('exec dbo.investmentDetailCRUD '&lcbankAccountCode&', @investmentDetailId='&lcinvestmentDetailId+0&', @liquidationDate='&lcliquid+0),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message'))),
+ if(readstring(obj7:d1,'@code=')=0,lcNewInvestmentId=readstring(obj7:d1,'@newInvestmentDetailId=')),
+ break(lcNewInvestmentId+0<1),
+ calcrecord(lcNewInvestmentId),
+ change(lcNewInvestmentId)
+ ;
+
+

@@ -234,21 +234,16 @@
  d1select('exec dbo.receiptDetailCRUD '&lcNewReceiptId+0&', @receiptTyp=4502, @description=''INTEREST'', @sourceCode='''&lcSourceCode&''', @fundCode='''&lcFundCode&''', @amount='&lcamount+0),
  change(lcNewReceiptId);
 
-@renewInvestment=d1select('select top 1 id from object where typ=4701 and key1='''&lcBankAccountCode&''''),lcBankId=obj7:d1,
- d1select('select top 1 id from object where typ=4706 and link1='&lcBankId&' order by key2 desc'),lcInvestmentId=obj7:d1,
- if(lcInvestmentId+0=0,m('No current Investment record was found, Please use Manage Investment to add one.')),
- break(lcInvestmentId+0=0),
- get(lcInvestmentId),
- lcppurchase=obj7:key2,
- lcmaturity=obj7:a18,
- lcliquid=today(),
- sql('update object set key3='''&lcliquid&''' where typ=4706 and id='&lcInvestmentId+0),
- sql('insert object (typ,link1,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a18,b2)
- select typ,link1,key1,'''&lcliquid&''','''',a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,'''&lcliquid+lcmaturity-lcppurchase&''',b2 from object where typ=4706 and id='&lcInvestmentId+0),
- lcnewInvestmentId=kp('select top 1 id from object where typ=4706 and a9='''&lcBankAccountCode&''' and key2='''&lcliquid&''' order by id desc'),
- calcrecord(lcnewInvestmentId),
- change(lcnewInvestmentId)
+@renewInvestment=iw('\t001Liquidation Date; \t002@d2; \w00250;'),
+ lcliquid=obj7:key1,
+ d1select('exec dbo.investmentDetailCRUD '&lcBankAccountCode&', @liquidationDate='&lcliquid+0),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message'))),
+ if(readstring(obj7:d1,'@code=')=0,lcNewInvestmentId=readstring(obj7:d1,'@newInvestmentDetailId=')),
+ break(lcNewInvestmentId+0<1),
+ calcrecord(lcNewInvestmentId),
+ change(lcNewInvestmentId)
  ;
+
 
 @transferCheck=
  gcBank=lcBankAccountCode,

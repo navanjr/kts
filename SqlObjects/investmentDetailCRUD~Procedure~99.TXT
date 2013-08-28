@@ -1,0 +1,45 @@
+create procedure dbo.investmentDetailCRUD(@bankAccountCode varchar(50),
+        @investmentDetailId int = 0,
+        @purchaseDate int = null,
+        @maturityDate int = null,
+        @liquidationDate int = 0,
+        @newInvestmentDetailId int = null)
+as 
+begin
+      
+if isnull(@investmentDetailId,0) = 0
+ select top 1 @investmentDetailId = id from object where typ=4706 and a9=@bankAccountCode order by id desc
+
+if isnull(@investmentDetailId,0) = 0
+ begin
+  select '@code=1;@message=No current Investment record was found, Please use Manage Investment to add one.;'
+  return
+ end
+
+if isnull(@liquidationDate,0)>0
+ update object set key3 = cast(@liquidationDate as varchar) where typ=4706 and id=@investmentDetailId
+
+
+select  @purchaseDate = case when isnumeric(key2)=1 then cast(key2 as int) else 0 end,
+        @maturityDate = case when isnumeric(a18)=1 then cast(a18 as int) else 0 end,
+        @liquidationDate = case when isnumeric(key3)=1 then cast(key3 as int) else dbo.clariondate(getdate()) end
+ from object where typ=4706 and id=@investmentDetailId
+
+if isnull(@liquidationDate,0)<1
+ select @liquidationDate = dbo.clariondate(getdate())
+
+update object set key3 = cast(@liquidationDate as varchar) where typ=4706 and id=@investmentDetailId
+ 
+  declare @newIdWt newIdWt
+  insert object (typ,link1,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a18,b2)
+  output inserted.id into @newIdWt
+  select typ,link1,key1,cast(@liquidationDate as varchar),'',a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,cast(@liquidationDate+@maturityDate-@purchaseDate as varchar),b2 
+   from object where typ=4706 and id=@investmentDetailId
+
+select @newInvestmentDetailId = max(id) from @newIdWt
+
+if isnull(@newInvestmentDetailId,0)>0
+  select '@code=0;@newInvestmentDetailId='+cast(@newInvestmentDetailId as varchar)+';'
+
+ return 
+end
