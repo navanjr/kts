@@ -3,6 +3,7 @@ Create function dbo.taxReceiptTaxPaid(@recId int,@invoiceId int,@switch int = 0)
 begin
 declare @retVal money
 declare @wt table (taxAmount money,AccCode varchar(50),AccType varchar(50))
+declare @slinks table(slink varchar(15))
 
 if @switch = 0 
 
@@ -27,66 +28,86 @@ if @switch = 1
 
 if @switch = 2
 
-	insert into @wt  
-		select a.amount,a.accountCode,''
-			from gldetail a, receiptlink b
-			where
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-					and b.invoiceId = @invoiceId  
+        insert into @slinks 
+                select 'l'+cast(b.id as varchar) 
+                        from receiptlink b
+                        where
+				b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
-                union all
-		select a.amount,a.accountCode,''
-			from gldetail a, receiptlink b, invoices i, receiptlink rl
-			where
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-                                        and rl.invoiceId = i.id
+
+        insert into @slinks 
+                select 'l'+cast(b.id as varchar) 
+                        from receiptlink b, invoices i, receiptlink rl
+                        where
+                                rl.invoiceId = i.id
                                         and i.invoiceId = b.invoiceId
                                         and i.typ='A'
 					and b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
 
+
+	insert into @wt  
+		select a.amount,a.accountCode,''
+			from gldetail a, @slinks b
+			where	
+                                a.slink=b.slink
+
+
 	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
 	
 	delete from @wt where AccType<>'Receivable' or taxAmount > 0
+        delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
 
 if @switch = 3 -- Penalty Sub invoices
 begin
-	insert into @wt  
-		select amount,accountCode,''
-			from gldetail a, receiptlink b, invoices i
-			where	
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-					and b.invoiceId = i.Id  
+
+        insert into @slinks 
+                select 'l'+cast(b.id as varchar) 
+                        from receiptlink b, invoices i
+                        where   b.invoiceId = i.Id  
 					and i.invoiceId = @invoiceId  
 					and b.receiptId = @recId
                                         and i.typ='P'
                                         and isnull(i.invoiceId,0) > 0
 
+
+
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a, @slinks b
+			where	
+                                a.slink=b.slink
+
 	update w set AccType = accountType from @wt w,glAccounts a where w.AccCode=a.accountcode
 	
 	delete from @wt where AccType<>'RECEIVABLE'
+        delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(taxAmount*-1),0) from @wt
 end
 
 if @switch = 4 -- Fee Sub invoices
 begin
-	insert into @wt  
-		select amount,accountCode,''
-			from gldetail a, receiptlink b, invoices i
-			where	
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-					and b.invoiceId = i.Id  
+        insert into @slinks 
+                select 'l'+cast(b.id as varchar) 
+                        from receiptlink b, invoices i
+                        where   b.invoiceId = i.Id  
 					and i.invoiceId = @invoiceId  
 					and b.receiptId = @recId
                                         and i.typ not in ('P','A')
                                         and isnull(i.invoiceId,0) > 0
+	insert into @wt  
+		select amount,accountCode,''
+			from gldetail a, @slinks b
+			where	
+                                a.slink=b.slink
 
 	update w set AccType = accountType from @wt w,glAccounts a where w.AccCode=a.accountcode
 	
 	delete from @wt where AccType<>'RECEIVABLE'
+        delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(taxAmount*-1),0) from @wt
 end
