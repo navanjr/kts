@@ -18,7 +18,8 @@ begin
   @bankAccountDesc varchar(50),
   @bankAccountNumber varchar(50),
   @receiptTypeCanidate varchar(50),
-  @newIdWt newIdWt
+  @newIdWt newIdWt,
+  @blob varchar(max)
 
  select
   @fpStatus = fpStatus from glStatus(@slink)
@@ -110,15 +111,38 @@ begin
 
  if @mode = 0 and isnull(@receiptId,0) > 0
  begin
+  
+  select @blob = e2 from object where typ=4502 and id=@receiptId
+  
+  if dbo.readstring('@autoDeposit=',@blob)='TRUE'
+  begin
+   declare @investmentId int
+   select @investmentId = dbo.readstring('@investmentId=',@blob)
+
+   select 
+     @bankAccountDesc=a.accountdesc, 
+     @bankAccountNumber=a.accountcode, 
+     @bankAccountId=a.accountid
+   from object i, glaccounts a 
+   where i.typ=4706 and i.id=@investmentId
+     and a.accountcode=i.a9
+  end
+  else
+  begin
+   select 
+     @bankAccountDesc='', 
+     @bankAccountNumber='', 
+     @bankAccountId=0
+  end
 
   set
    @depositDate = coalesce(@depositDate,dbo.clarionDate(getdate()))
 
 
 -- create object record
-    insert object (typ,key2)
+    insert object (typ,key2,a1,a2,link1)
     output inserted.id into @newIdWt
-    select 4513, isnull(@depositDate,'')
+    select 4513, isnull(@depositDate,''), @bankAccountDesc, @bankAccountNumber, @bankAccountId
 
     select @newObjectId = max(id) from @newIdWt
     exec dbo.logit @@procid, '@newObjectId', @newObjectId, '@receiptTypeCanidate', @receiptTypeCanidate

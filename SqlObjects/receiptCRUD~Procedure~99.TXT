@@ -25,7 +25,10 @@ begin
 
  declare 
   @slink varchar(15) = 'o' + cast(@receiptId as varchar),
-  @receiptType varchar(50) 
+  @receiptType varchar(50),
+  @comments varchar(250)  = ''
+
+ select @comments = dbo.readstring('@comments=',@blob)
 
          declare @jeType varchar(50),
                  @accountDesc varchar(50) = '',
@@ -47,7 +50,7 @@ begin
 --  declare 
 --    @retval nvarchar(max)  
 --  exec dbo.nextObjectAutoNumber 4502, @series, @newNumber = @retval output
-  insert object (typ,key1,key3,olink1,e2) select 4502,'00000',upper(@series),'newReceipt',@blob  
+  insert object (typ,key1,key3,olink1,e2,d1) select 4502,'00000',upper(@series),'newReceipt',@blob,@comments  
   set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)  
   update object set olink1 = '' where typ=4502 and id = @newReceiptId
   return

@@ -13,7 +13,8 @@
 80L(2)~Bank Name~#5#|M
 100L(2)~Bank Acct Desc~#22#|M;
 
-@loadwindow=create(170,12,190,3,'Manual Interest',68),;
+@loadwindow=create(170,12,190,3,'Manual Interest',68),
+create(171,12,190,29,'Automatically Deposit Interest',70),;
 @acc170=tsc;
 @afterloadwindow=calcAmounts=;
 
@@ -37,6 +38,7 @@
 \t025Bank Acct Name; \l0264701,1;r008058024002026004; @lf026='a1 in (''BANK'',''INVESTMENT'') and b3!=1',2;@acc026=checkDate=;
 
 \t067Manual Interest; \h067068;r
+\t069Automatically Deposit Interest; \h069070;r
 
 @calcAmounts=d1select('select ''@principal=''+cast(isnull(principal,0) as varchar)+'';''+''@interest=''+cast(isnull(interest,0) as varchar)+'';''+''@endValue=''+cast(isnull(endValue,0) as varchar)+'';'' from dbo.investmentHeader where id='&obj:id),
 lcblob=obj7:d1,
@@ -76,7 +78,8 @@ set(010,obj7:d1)
  break(lcCode+0>0),
  lcSourceCode=readstring(lcReturn,'@sourceCode='),
  if(today()+0>obj:a18+0 or today()+0<obj:key2+0,lcDate=obj:a18,lcDate=today()),
- d1select('exec dbo.receiptNew ''MISC'', @blob='''&'@maturity='&lcDate&';'&''''),
+ if(obj:b12+0=1,lcAutoDeposit='TRUE',lcAutoDeposit='FALSE'),
+ d1select('exec dbo.receiptNew ''MISC'', @blob='''&'@maturity='&lcDate&';@investmentId='&obj:id&';@autoDeposit='&lcAutoDeposit&';@comments='&obj7:a4&': '&obj7:key1&';'&''''),
  lcNewReceiptId=obj7:d1,
  break(lcNewReceiptId+0<1),
  iw('\t000Please enter the amount of interest for this receipt; \t001Amount; \w00250; \t002@n-19.2;'),
