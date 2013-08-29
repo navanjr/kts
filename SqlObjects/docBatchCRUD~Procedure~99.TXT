@@ -11,8 +11,9 @@ create proc dbo.docBatchCRUD(
  @brwId int = null,
  @processCode varchar(50) = null,
  @switches varchar(10) = null,
- @dTypesBlob varchar(max) = null
-) as 
+ @dTypesBlob varchar(max) = null,
+ @InvoiceId int = null
+ ) as 
 begin
 
  declare
@@ -30,7 +31,7 @@ begin
    @processCode = coalesce(@processCode, processCode)
   from dbo.docBRWDecoder(@brwId)
 
-  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@documentName', @documentName, '@processCode', @processCode
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@processCode', @processCode
 
   if isnull(@processCode,'') < '  0' or isnull(@documentName,'') < '  0'
    return
@@ -88,5 +89,32 @@ begin
 
   return
  end 
+ 
+  if @method = 'addOne'
+   begin
+    select 
+     @documentName = coalesce(@documentName, documentName),
+     @processCode = coalesce(@processCode, processCode),
+     @documentDate = coalesce(@documentDate,documentDate)
+     from dbo.docBRWDecoder(@brwId)
 
+   if exists (select * from documentProcessing where documentName = @documentName and invoiceid = @invoiceId)
+    begin
+     exec dbo.logit @@procId, '@code=1;@message=Tax Item is already in this batch!;'
+     select '@code=1;@message=Tax Item is already in this batch!;'
+     return
+    end
+
+  declare @iBlob varchar(max) = dbo.getTaxInvoiceBlob(@invoiceId)    
+
+  exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@processCode', @processCode, '@iBlob', @iBlob
+
+   insert dbo.documentProcessing 
+     select @invoiceId, @documentName, @documentDate, @processCode, dbo.readstring('@name=',@iBlob) + cast(dbo.readstring('@item=',@iBlob) as varchar), isnull(dbo.readstring('@ownerNumber=',@iBlob),0.0), dbo.readstring('@name=',@iBlob)
+         
+
+    
+   end
+
+ 
 end
