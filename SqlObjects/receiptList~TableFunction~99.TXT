@@ -32,7 +32,8 @@ returns @wt table(id int identity(1,1),
                   ownerName varchar(60),
                   SAtyp varchar(50),
                   station varchar(60),
-                  recStatus varchar(50))
+                  recStatus varchar(50),
+                  parentInvoiceSlink varchar(15))
                   
 as 
 begin                  
@@ -46,18 +47,18 @@ begin
   and recType<>'TAX'
 
 -- dont know for sure but i think this gets all object records that are typ 4502 and receipt Type is tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station,taxyear,recStatus)
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station,taxyear,recStatus,parentInvoiceSlink)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station, taxyear, recStatus
+   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station, taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end
   from taxReceipt where 
    postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
    and parentInvoiceId<1
    order by recNum
 
 -- another dip into object for tax receipts i think
- insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy,taxyear,recStatus)
+ insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy,taxyear,recStatus,parentInvoiceSlink)
  select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId, Deputy,taxyear, recStatus
+  'l'+cast(linkId as varchar(15)),recId, Deputy,taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end
   from taxReceipt where recId in (select recId from @wt)
    and parentInvoiceId>0
    order by recNum
@@ -81,7 +82,7 @@ begin
  from @wt w, receiptdetail a, glaccounts b 
  where a.fundCode=b.accountCode 
    and b.accountType='ACCRUED RECEIVABLE' 
-   and left(a.slink,1)='t' and dbo.slinkId(a.slink)=w.parentInvoiceId
+   and a.slink=w.parentInvoiceSlink
    and left(w.recType,3) = 'TAX'
    and parentInvoiceId>0
 
