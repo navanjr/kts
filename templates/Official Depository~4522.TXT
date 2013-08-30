@@ -28,6 +28,28 @@ lmode=2;
 
 kp('select count(id) from paid where officialDepositId='&obj:id)
 
+	
+@noc=
+ kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
+
+@nocancel=
+ break(tier<>2),
+ cancelRoutine=;
+
+@cancelRoutine=
+ m('This offical deposit Has not Been Posted, Do you want to:',,,'Abandon It|Save It|Cancel'),
+ case(gcretval+0=1,abandonDep=,gcretval+0=2,saveDep=);
+
+@saveDep=
+ close('ok');
+
+@abandonDep=
+ sql('exec dbo.officialDepositCRUD 3, '&obj:id+0),
+ set(040,kp('select a17 from object where id='&obj:id)),
+ update,
+ close('ok');
+
+
 @select=008;
 @bb4=Re-&Print;
 @bbproc4=printRec=;
