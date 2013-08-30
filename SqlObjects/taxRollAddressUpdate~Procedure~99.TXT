@@ -20,7 +20,7 @@ declare @logitblob varchar(max) = '@addBlob:'+@addBlob+'@mode='+@mode+';'
    @existAddBlob varchar(max) = '',
    @compareAddBlob varchar(max)
 
-
+-----New
 
 if @addBlob > '  0' and @mode = 'NEW'
  begin
@@ -34,11 +34,37 @@ if @addBlob > '  0' and @mode = 'NEW'
 
  end
 
+----Name Correction
 
+if @addBlob > '  0' and @mode = 'nameCorrect'
+ begin
+
+  select 
+   @addBlob = 
+   --'@PARCEL='+parcelNumber   +
+   '@NAME='+ dbo.readstring('@name=',@addBlob) 
+   +';@ITEM='+cast(itemNumber as varchar)
+   +';@TAXYEAR='+cast(taxYear as varchar)
+   +';@address1='+address1
+   +';@address2='+address2
+   +';@address3='+address3
+   +';@city='+city
+   +';@state='+state
+   +';@zip1='+zip1
+   +';@zip2='+zip2
+   +';@typ='+dtype+';'
+  from taxrollDetail where id = (select substring(cast(abs(id) as varchar(50)),2,20) from dbo.taxrollAddressBRW(@invoiceId) where ord='1z')
+
+  exec dbo.taxRollAddressUpdate @mode = 'insert',@addBlob = @addBlob, @typ = @typ, @invoiceId = @invoiceid
+
+ end
+
+-----copy
 if @taxrollDetailId > 0 and @mode = 'COPY'
  begin 
  ---set variables
   select 
+   @NAME = dbo.readstring('@NAME=',@addBlob),
    @parcel = dbo.readstring('@PARCEL=',@addBlob),
    @item = dbo.readstring('@ITEM=',@addBlob),
    @taxyear =  dbo.readstring('@TAXYEAR=',@addBlob)
@@ -49,7 +75,7 @@ if @taxrollDetailId > 0 and @mode = 'COPY'
  select 
   @addBlob = 
   '@PARCEL='+@parcel
-  +';@NAME='+name
+  +';@NAME='+ case when @typ='A' then @name else name end
   +';@ITEM='+cast(@item as varchar)
   +';@TAXYEAR='+cast(@taxyear as varchar)
   +';@address1='+address1
@@ -69,11 +95,12 @@ if @taxrollDetailId > 0 and @mode = 'COPY'
 
  end
 
-
+----bulk
 if @taxrollDetailId > 0 and @mode = 'BULK'
  begin
  ---set variables
   select 
+   @name = name,
    @parcel = parcel,
    @item = item,
    @taxyear = taxyear
@@ -84,7 +111,7 @@ if @taxrollDetailId > 0 and @mode = 'BULK'
  select 
   @addBlob = 
   '@PARCEL='+@parcel
-  +';@NAME='+name
+  +';@NAME='+case when @typ='A' then @name else name end
   +';@ITEM='+cast(@item as varchar)
   +';@TAXYEAR='+cast(@taxyear as varchar)
   +';@address1='+address1
@@ -104,6 +131,7 @@ if @taxrollDetailId > 0 and @mode = 'BULK'
 
  end
 
+----insert
 if @mode = 'insert'
  begin
 --check to see if the address exists
@@ -180,6 +208,7 @@ if charindex(@compareAddBlob,@existAddBlob)=0
   end
  end
 
+----ownerNumber
 If @mode = 'OwnerNumber'
  begin
   declare 
@@ -190,7 +219,10 @@ If @mode = 'OwnerNumber'
    from invoices i 
    inner join adtax a on i.taxrollId = a.id 
    where i.id = @id
- 
+
+ if @ownerNumber < .1
+   return
+
   declare @wt table(invoiceId int,taxrollid int,ownerNumber numeric(14,2))
   
    insert into @wt 
