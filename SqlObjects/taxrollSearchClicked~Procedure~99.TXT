@@ -1,0 +1,73 @@
+create proc dbo.taxrollSearchClicked(
+ @taxInvoiceId int,
+ @relatedItemId int,
+ @mode int = 0,
+ @gcretval int = 0
+) as
+begin
+
+ declare 
+  @code int = 0,
+  @message varchar(max) = '',
+  @buttons varchar(max) = '',
+  @procKeys varchar(max) = '',
+  @log varchar(max),
+  @origin varchar(50)
+
+-- determine relationship - name, parcel or receipt
+ select @origin = origin from dbo.invoiceRelated(@taxInvoiceId) where invoiceId = abs(@relatedItemId) 
+ if @origin != 'receipts'
+  return
+
+ return -- just roughed in bail for now
+
+ if @mode = 0
+ begin
+
+  select
+   @code = 1,
+   @message = 'Please Choose one of the following options...',
+   @buttons = 'Remove Link{}E&xit',
+   @prockeys = '1'
+
+  select @log = dbo.blobit('code|message|buttons|prockeys',cast(@code as varchar) + '|' + @message + '|' + @buttons + '|' + @procKeys)
+  select replace(@log, '{}', '|')
+
+  return
+
+ end
+
+ if @mode = 1
+ begin
+-- this does not work yet not sure if we will ever need it...
+  return
+ 
+  select
+   @code = 1,
+   @message = 'Dude, you chose...' + cast(@gcretval as varchar)
+
+-- remove link 
+
+  if @gcretval = 1
+  begin
+
+   select
+    @code = 1,
+    @message = 'ok, you chose to unlink...' + cast(@relatedItemId as varchar)
+
+   declare
+    @item numeric(7,1)
+  
+   select @item = item from invoices where id = @relatedItemId
+
+
+  end
+
+  select @log = dbo.blobit('code|message',cast(@code as varchar) + '|' + @message)
+  select @log
+  return  
+
+ end
+
+ return
+end
