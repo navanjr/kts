@@ -7,35 +7,120 @@ create function dbo.rpWarrantImportReport(
  glbalance money,
  OSWarrants money,
  importBalance money,
- Available money
+ Available money,
+ c1 varchar(max),
+ c2 varchar(max),
+ c3 varchar(max),
+ c4 varchar(max),
+ c5 varchar(max),
+ ord varchar(max),
+ origin int
 )
 as
 begin
 
+-- Warrant Detail
+ insert @rt (
+  fundCode,
+  fundDesc,
+  debitAcct,
+  importBalance,
+  c1,c2,c3,c4,ord,origin)
+ select 
+  ltrim(rtrim(fundCode)),
+  ltrim(rtrim(fundDesc)),
+  debitAcct,
+  cast(amount as money),
+  dbo.date1(warrantDate) as warrantDate1,
+  warrantNumber,
+  dbo.formatCurr(amount),
+  vendorCode,
+  'BB' + ltrim(rtrim(fundCode))  + 'D' + FundDesc,
+  1 
+ from warrantimportbrw(@importId,null)
+ where postCheck = 0
+
+ insert @rt (c1,c2,c3,c4,ord,origin)
+ select 'Date', 'Warrant #', 'Amount', 'Vendor',  'BB' + fundCode + 'C', 11
+ from @rt
+ where origin = 1
+ group by fundCode, fundDesc
+
+ insert @rt (c1,ord,origin)
+ select fundDesc + ' Warrants To Import', 'BB' + fundCode + 'B', 111
+ from @rt
+ where origin = 1
+ group by fundCode, fundDesc
+
+ insert @rt (c1,c3,ord,origin)
+ select fundDesc + ' Total:', dbo.formatCurr(sum(importBalance)), 'BB' + fundCode + 'Z', 1111
+ from @rt
+ where origin = 1
+ group by fundCode, fundDesc
+
+ insert @rt (c1,c3,ord,origin)
+ select 'Warrants to Import Total:', dbo.formatCurr(sum(importBalance)), 'BB' + 'Z', 1111
+ from @rt
+ where origin = 1
+
+ insert @rt (ord,origin)
+ select 'BB' + 'Y', 0
+
+ insert @rt (ord,origin)
+ select 'BB' + fundCode + 'A', 0
+ from @rt
+ where origin = 1
+ group by fundCode, fundDesc
+
+ insert @rt (ord,origin)
+ select 'BB' + fundCode + 'Y', 0
+ from @rt
+ where origin = 1
+ group by fundCode, fundDesc
+
+
+-- Fund Summary
  insert @rt(
   fundCode,
   fundDesc,
   debitAcct,
-  importBalance
+  importBalance,
+  ord,
+  origin
  )
  select
   fundCode,
   fundDesc,
   debitAcct,
-  sum(cast(amount as money))
- from warrantimportbrw(@importId,null)
- where postcheck=0
+  sum(importBalance),
+  'CD' + fundDesc,
+  2
+ from @rt
+ where origin = 1
  group by fundCode,fundDesc,debitAcct
 
  update r set
-  glbalance = (select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode)
- from @rt r
-
- update r set
+  glbalance = (select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode),
   OSWarrants = (select sum(amount) from gldetailreports where accountCode=r.debitAcct)
  from @rt r
+ where origin = 2
+ update @rt set available = glbalance - OSWarrants - importBalance where origin = 2
 
- update @rt set available = glbalance - OSWarrants - importBalance
+ update @rt set
+  c1 = fundDesc,
+  c2 = dbo.formatCurr(glBalance),
+  c3 = dbo.formatCurr(osWarrants),
+  c4 = dbo.formatCurr(importBalance),
+  c5 = dbo.formatCurr(available)
+ where origin = 2 
+ insert @rt (c1,c2,c3,c4,c5,ord,origin) 
+ select 'Account Name', 'GL Balance', 'OS Warrants', 'Import Today', 'Total After Import', 'CC', 22
+ insert @rt (ord,origin) select 'CA', 0
+ insert @rt (ord,origin) select 'CA', 0
+ insert @rt (c1,ord,origin) select 'FUND SUMMARY', 'CB', 0
+ insert @rt (ord,origin) select 'CBB', 0
+
+
  return
 
 end
