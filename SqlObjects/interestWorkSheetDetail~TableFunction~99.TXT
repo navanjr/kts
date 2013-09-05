@@ -20,6 +20,29 @@ select @lastDayPriorMonth = dbo.clariondate(dateadd(month, datediff(month, 0, @d
 
 declare @wt table(accountCode varchar(60), accountDesc varchar(50),comment2 varchar(50),amount money)
 
+declare @investments table(bankaccountcode varchar(60),fundaccountcode varchar(60),interestTo varchar(60),amount money)
+declare @investmentTotal table(interestTo varchar(60),amount money)
+
+insert @investments
+ select distinct bankAccountCode,fundDrawnOnCode,'',0 from dbo.investmentheader where (isnull(liquidationdate,0)=0 or liquidationdate>@lastDayPriorMonth) and purchaseDate<=@lastDayPriorMonth
+
+delete from @investments where fundAccountCode not in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL'))
+
+ update i set i.amount=g.amount from @investments i,
+(select sum(amount) as amount,accountcode 
+ from gldetail 
+ where [date]<=cast(@lastDayPriorMonth as int)
+  and accountcode in (select bankaccountcode from @investments)
+ group by accountcode
+) g
+where i.bankAccountCode=g.accountcode
+ 
+ update i set interestTo = a.b7 from @investments i, glaccounts a where i.fundaccountcode = a.accountcode
+
+insert @investmentTotal
+  select interestTo, sum(amount)
+ from @investments
+ group by interestTo
 
 insert @wt 
 select a.interesttoaccountcode as interestTo,'' as accountDesc, case when comment2 <> w.accountDesc and @schoolfund='SPLIT' then comment2 else '' end as comment2,total
@@ -52,7 +75,9 @@ select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yy
 )
 
 insert @rt
- select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.accountcode, a.accountDesc, '', sum(g.amount)*-1, '', ''
+ select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.accountcode, a.accountDesc, '', 
+  sum(g.amount)*-1 - isnull((select amount from @investmentTotal where interestTo=a.accountcode),0),
+   '', ''
    from gldetailreports g, glaccounts a
     where g.[sourcedate]<= @lastDayPriorMonth
      and g.accountcode=a.accountcode
@@ -63,9 +88,10 @@ insert @rt
 
 insert @rt
  select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), ita.accountcode, ita.accountDesc, '', 
- sum(g.amount)*-1
+ (sum(g.amount)*-1
  -
- isnull((select sum(amount) from @rt where tableType='GENERAL BALANCE'),0)
+ isnull((select sum(amount) from @rt where tableType='GENERAL BALANCE'),0))
+ - isnull((select i.amount from @investmentTotal i where (i.interestTo=ita.accountcode or isnull(i.interestTo,'')<'     0')),0)
  , '', ''
    from gldetailreports g, glaccounts ita, 
    (select max(interesttoaccountcode) as accountcode from glaccounts 
