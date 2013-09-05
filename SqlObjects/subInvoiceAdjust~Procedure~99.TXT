@@ -1,4 +1,4 @@
-create procedure subInvoiceAdjust(@subInvoiceId int, @newAmount money, @receiptId int, @mode varchar(10) = 'DEFAULT') as 
+create procedure subInvoiceAdjust(@subInvoiceId int, @newAmount money, @receiptId int, @mode varchar(10) = 'DEFAULT',@blob varchar(max) = '') as 
 begin
  declare  @mainInvoiceId int,
   @invoiceDate varchar(10),
@@ -29,10 +29,10 @@ if @mode = 'single'
   set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
 
 
+ set @blob = @blob + ': ' +dbo.formatcurr(@amount)
 
 
-
- exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount
+ exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount,@blob=@blob
  
  
 

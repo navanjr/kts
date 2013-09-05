@@ -135,6 +135,8 @@ begin
     @tokenAmount = amount
    from @wt order by id
 
+  select @parcel = parcel, @item = item,@blob = 'Add Fee:' + @tokenFeeDescription + ': '+dbo.formatCurr(@tokenAmount) from invoices where id = @tokenInvoiceId
+
    exec dbo.subInvoiceCRUD
     @mainInvoiceId = @tokenInvoiceId,
     @invoiceDate = @tokenInvoiceDate,
@@ -145,13 +147,13 @@ begin
     @printed = @documentName,
     @queue = @processCode,
     @tallyEcho = @tally,
-    @verbose = @verbose
+    @verbose = @verbose,
+    @blob = @blob
  
    exec dbo.invoiceUpdate @tokenInvoiceId
  
   if @dtype>'  0' and @documentId>0
     begin
-     select @parcel = parcel, @item = item,@blob = 'Add Fee:' + @tokenFeeDescription + ': '+dbo.formatCurr(@tokenAmount) from invoices where id = @tokenInvoiceId
      exec dbo.logit @@procId, '@mode:ADDFEE',@documentName , '@parcel', @parcel, '@item', @item, '@blob', @blob
      exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @tokenInvoiceId ,@docReceivablesBRWBlob = @documentName , @blob = @blob
     end   

@@ -13,7 +13,8 @@ CREATE procedure [dbo].[subInvoiceCRUD](
  @queue varchar(50) = '',
  @tallyEcho int = null,
  @verbose varchar(5) = 'TRUE',
- @skipSQLTransactionOnGLPost varchar(50) = 'FALSE'
+ @skipSQLTransactionOnGLPost varchar(50) = 'FALSE',
+ @blob varchar(max) = ''
 ) as
 begin
 
@@ -29,7 +30,9 @@ begin
   @targetcode varchar(50) = '',
   @accrualcode varchar(50) = '',
   @accountBlob varchar(1000),
-  @targetAmount money
+  @targetAmount money,
+  @parcel varchar(50),
+  @item varchar(50)
 
 
  declare @rd table(description varchar(60),
@@ -101,7 +104,7 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId, printed, queue)
+   insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId, printed, queue,blob)
     select 
      @subInvoiceType,
      @invoiceDate,
@@ -116,12 +119,20 @@ begin
      @origin,
      @originId,
      @printed,
-     @queue
+     @queue,
+     dbo.readstring('@ini=',dbo.whoAmI()) + ' - ' + @blob+char(13)+char(10)+dbo.splitF(dbo.whoAmI(),';',1) +';'
      from invoices where id=@mainInvoiceId
       
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
    set @slink='t'+cast(@invoiceId as varchar)
 
+/*if dbo.readstring('@addComment=',@blob) = 'TRUE'
+  begin
+   select @parcel = parcel, @item = item, @blob = replace(@blob,'@addComment=TRUE;','') from invoices where id = @mainInvoiceId
+   exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @mainInvoiceId ,@docReceivablesBRWBlob = '' , @blob = @blob
+
+  end
+*/
   exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@slink', @slink
    
   if left(@description,4) = 'VOID'
