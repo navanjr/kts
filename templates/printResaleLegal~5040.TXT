@@ -190,7 +190,7 @@
  if(lcDetblob='' or len(lcE1)>0,if(len(lcE1)>0,send(lcfile,clip(obj5:c1),1),send(lcfile,clip(obj5:a1),1)),exportBlob=);
 
 @exportBlob=
- lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&choose(lcDetBlob=3,3,1)&')')),
+ lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&choose(lcDocCollectionOption>1,lcDocCollectionOption,1)&')')),
  send(lcfile,clip(lcLegal),1);
  
 
@@ -321,13 +321,13 @@ tr(
  if(gcretval=2,do(5040,exportDelinquentForPub=));
 
 @delinquentForPubVars=
- lcDocCollectionOption=kp('select case when dbo.settingsF(''site.delinquentTaxPubNewest'',''True'') = ''True'' then 3 else 1 end'),
+ lcDocCollectionOption=kp('select dbo.settingsF(''site.delinquentTaxPubOption'',''3'')'),
  do(4506,getSiteInfo=),
  iw('\t001Interest To; \t002@d2; \w00250; \f002=c;'),
  break(gcretval='esc'),
  lcInterestTo=format(obj7:key1,@d2),
  lcfile='c:\client\delinquentForPub.txt',
- lcDetblob=lcDocCollectionOption,
+ lcDetblob=choose(lcDocCollectionOption=4,1,0),
  lc5040sql='select invoiceId from dbo.docBatchBRW('&gcBatchId&',null,null,'''') where due>0 order by parcel';
 
 @exportDelinquentForPub=
@@ -349,7 +349,7 @@ tr(
  rhd(txt(obj7:e1,lcLm,,5000,1000,1)),
  nl,nl,
  det(lc5040sql),
- lcLegal=kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&lcDocCollectionOption&')'),
+ lcLegal=choose(lcDetBlob=1,kp('select dbo.docCollectionDescSum('&obj5:a1&','''&lcInterestTo&''')'),kp('select dbo.docCollectionDesc('&obj5:a1&','''&lcInterestTo&''','&choose(lcDocCollectionOption>1,lcDocCollectionOption,1)&')')),
  txt(lcLegal,lcLm,,5000,100,1),
  nl,
  edt,
