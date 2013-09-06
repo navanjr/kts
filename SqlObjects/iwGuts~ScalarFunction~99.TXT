@@ -1,0 +1,39 @@
+create function dbo.iwGuts(
+ @title varchar(max) = null,
+ @pipedMessages varchar(max) = null,
+ @buttonWidth varchar(10) = null
+) returns varchar(max) as
+begin
+
+-- pass in piped list of buttons return an iw that will work
+
+ declare @retvar varchar(max)
+
+ declare
+  @createString varchar(max) = '',
+  @backTString varchar(max) = '',
+  @acceptedString varchar(max) = '',
+  @wt splitWt,
+  @objBase int = 400
+
+ insert @wt select * from dbo.split(@pipedMessages, '|')
+
+ select
+  @retvar = '\t000' + isnull(@title,'Choose one of the following options...') + ';@loadwindow=createstring;backtstring;acceptedString;\h106;\h107;\t001;\h002;'
+   + '\y001' + cast((max(id) * 14) - 9 as varchar) + ';'
+   + '\x001' + cast(@buttonWidth - 138 as varchar) + ';',
+  @buttonWidth = isnull(@buttonWidth,100)
+ from @wt
+
+ select
+  @createString = @createString + ',create(' + CAST(id + @objBase as varchar) + ',9,2,' + cast(-12 + (id * 14) as varchar) + ',''' + data + ''')',
+  @backTString = @backTString + ';\w' + dbo.padLeft(CAST(id + @objBase as varchar),'0',3) + @buttonWidth,
+  @acceptedString = @acceptedString + ';@acc' + dbo.padLeft(CAST(id + @objBase as varchar),'0',3) + '=gciwgutval=' + CAST(id as varchar) + ',close(''ok'')'
+ from @wt
+
+ select @retvar = replace(@retvar, 'createstring', stuff(@createString,1,1,''))
+ select @retvar = replace(@retvar, 'backtstring', stuff(@backtString,1,1,''))
+ select @retvar = replace(@retvar, 'acceptedstring', stuff(@acceptedString,1,1,''))
+
+ return @retvar
+end
