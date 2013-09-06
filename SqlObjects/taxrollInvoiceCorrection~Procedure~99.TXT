@@ -23,6 +23,7 @@ as begin
   begin
    update journallink set invoiceId=@newInvoiceId where invoiceId in (select id from invoices where taxrollId=@taxrollId)
   end
+ 
 
 -- now lets check to see if we are all good
   if dbo.glPostCheck(@slink) = 0
@@ -32,7 +33,9 @@ as begin
    end
   else
    begin 
+    if not exists (select * from invoices where id = @newInvoiceId and invoiceDue=0)
+      select '@code=1;@message=Assessment failed to process correctly, Contact Support. (as.inv);'
     rollback transaction
-    select '@code=1;@message=Assessment failed to process correctly, Contact Support. (as.inv);'
+  
    end
 end
