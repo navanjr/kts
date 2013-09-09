@@ -7,7 +7,8 @@ returns @rt table(	rowstring varchar(250),
 					Collateral varchar(60),
 					FDIC varchar(60),
 					rowType varchar(10),
-					ord varchar(250))
+					ord varchar(250),
+                                        accountcode varchar(60))
 as begin
 
 declare @wt table(	accountDesc varchar(60),
@@ -61,6 +62,7 @@ insert @wt
 if @useCollateralLedger = 'TRUE'
    update w set Collateral=ca.collateralAmount, FDIC=ca.FDICAmount from @wt w, dbo.collateralAmount(@enddate) ca where w.accountCode=ca.bankAccountCode
 
+
 ----insert detail
 insert @rt
 	select	'  ' + dbo.padRight(accountDesc,' ',61),
@@ -71,7 +73,7 @@ insert @rt
 			dbo.padLeft(dbo.formatCurr(Collateral),' ',16),
 			dbo.padLeft(dbo.formatCurr(FDIC),' ',16),
 			'detail',
-			@ordSeed + ord + 'c'
+			@ordSeed + ord + 'c', accountcode
 		from @wt where isnull(DemandBalance,0) <> 0 or
   isnull(InvestBalance,0) <> 0 or isnull(TotalCash,0) <> 0 or isnull(Collateral,0) <> 0 or isnull(FDIC,0) <> 0.00
 
@@ -85,7 +87,7 @@ insert @rt
             dbo.padLeft(dbo.formatCurr(SUM(Collateral)),' ',16),
             dbo.padLeft(dbo.formatCurr(SUM(FDIC)),' ',16),
             'gFooter',
-            @ordSeed + 'zzzz' + 'd' 
+            @ordSeed + 'zzzz' + 'd','' 
 		from @wt 
 
 insert @rt 
@@ -97,7 +99,9 @@ insert @rt
 			replicate('=',16),
 			replicate('=',16),
 			'line',
-			@ordSeed + 'xxxx' + 'c' 
+			@ordSeed + 'xxxx' + 'c','' 
+
+update r set FDIC=ca.CDARS from @rt r, dbo.collateralAmount(@enddate) ca where r.accountcode=ca.bankAccountCode and ca.CDARS='CDARS'
 		
 declare @asterisk varchar(50)
 select @asterisk = asterisk from dbo.reportCommentsBRW(17,@beginDate,@endDate) where display = 'Banks'
@@ -108,7 +112,7 @@ else
 
 ----headers
 insert @rt 
-	select '','','','','','','','lineFeed',@ordSeed + '0000a'
+	select '','','','','','','','lineFeed',@ordSeed + '0000a',''
 
 insert @rt 
 	select '  '+@asterisk+'Banks/Location',
@@ -119,7 +123,7 @@ insert @rt
 			dbo.padLeft('Collateral',' ',16),
 			dbo.padLeft('FDIC',' ',16),
 			'sHeader',
-			@ordSeed + '0000aa'	
+			@ordSeed + '0000aa',''
 
 insert @rt 
 	select 	' ' + replicate('=',79),
@@ -130,7 +134,7 @@ insert @rt
 			replicate('=',16),
 			replicate('=',16),
 			'line',
-			@ordSeed + '0000ab'
+			@ordSeed + '0000ab',''
 
 
 
