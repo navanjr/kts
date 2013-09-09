@@ -46,10 +46,10 @@ begin
 
 
 -- compress keyLog
- if @compressKeyLog='True'
-   begin
-    delete from keylog where id<(select min(id) from (select top 100 id from keyLog order by id desc) data)
-   end
+  if @compressKeyLog='True'
+  begin
+   delete from keylog where id<(select min(id) from (select top 100 id from keyLog order by id desc) data)
+  end
  
   select @backupFile = path from dbo.paths() where name = 'backup'
 
@@ -79,6 +79,10 @@ begin
      delete from @backups where id = @tokenId
     end
    end
+
+-- Diagnostics
+  if dbo.settingsF('backup.includeDiagnostics','FALSE') = 'TRUE'
+   exec dbo.diagnostics @mode='light', @storeResults='TRUE', @verbose='FALSE'
 
   if @returnRows = 'TRUE'
    select @sql as result
