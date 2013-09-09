@@ -84,7 +84,7 @@ begin
    set @deletedBatchSize = @batchSize
 
   insert @deletedReceiptsStringBlob
-  select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(invoice_link as varchar) from dbo.apiReceiptIds() where typ = 'deletedReceipt'
+  select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(isnull(invoice_link,'') as varchar) + '|' + typ from dbo.apiReceiptIds() where typ in  ('deletedReceipt','voidReceipt')
   if exists(select * from @deletedReceiptsStringBlob)
   begin
    declare 
@@ -114,7 +114,10 @@ begin
    if isnull(@deletedTally,0) = @deletedBatchSize
    begin
     set @theDate = getDate()
-    update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
+    if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'deletedReceipt') 
+     update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
+    if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'voidReceipt')
+      update o set k7 = @theDate from object o inner join @deletedReceiptsStringBlob on dbo.splitF(blob,'|',1) = o.ID where dbo.splitF(blob,'|',3) = 'voidReceipt'
     exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
    end
    else

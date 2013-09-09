@@ -9,11 +9,11 @@ begin
  insert @rt
  select
   o.id,
-  'o' + cast(o.id as varchar),
+   'o' + cast(o.id as varchar),
   (select max(r.invoiceId) from receiptLink r where r.receiptId = o.id),
-  'receipt'
+  case when o.a17 = 'posted' then 'receipt' else 'voidReceipt' end
  from Object o 
- where o.typ = 4502 and o.Key3 = 'TAX' and o.k7 < dbo.date112(o.LastEditDate) and o.a17 = 'posted'
+ where o.typ = 4502 and o.Key3 = 'TAX' and  cast(o.k7 as datetime) < dbo.date112(o.LastEditDate) and o.a17  in ('void','posted')
  order by o.ID 
 
  insert @rt
