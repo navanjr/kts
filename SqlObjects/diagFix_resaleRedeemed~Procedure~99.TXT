@@ -12,40 +12,59 @@ create proc dbo.diagFix_resaleRedeemed(
 begin
  set nocount on
 
-----gather the data
-  declare @resaleTaxyear varchar(5) = ''
-   select @resaleTaxyear = MAX(realTaxYear)-3 from AdTax 
---Resale
-declare @wt table(taxrollId int,invoiceIdMain int,display varchar(50),keycode varchar(50),invoiceBlob varchar(max),unPaid int null)
-	insert @wt
-	select id,invoiceIdMain,display, keyCode, invoiceBlob,null 
-	 from dbo.collectionsBRW('RESALE',0,0,0,0) where id is not null order by display
+-- gather the data
+ declare @resaleTaxyear varchar(5) = ''
+ select @resaleTaxyear = MAX(realTaxYear)-3
+ from AdTax 
 
-declare @tokenId int,@invoiceBlob varchar(max)
---select * from @wt
-while
+--Resale
+ declare @wt table(
+  taxrollId int,
+  invoiceIdMain int,
+  display varchar(50),
+  keycode varchar(50),
+  invoiceBlob varchar(max),
+  unPaid int null
+ )
+
+ insert @wt
+ select id,invoiceIdMain,display, keyCode, invoiceBlob,null 
+ from dbo.collectionsBRW('RESALE',0,0,0,0) where id is not null order by display
+
+ declare
+  @tokenId int,
+  @invoiceBlob varchar(max)
+
+ while
  exists(select * from @wt where unPaid is null)
  begin
-  select top 1 @tokenId = taxrollId, @invoiceBlob = invoiceBlob from @wt where unPaid is null
-  if @tokenId>0
+
+  select top 1
+   @tokenId = taxrollId,
+   @invoiceBlob = invoiceBlob
+  from @wt
+  where unPaid is null
+
+  if @tokenId > 0
   begin
-   update @wt set unPaid = (select count(id) from dbo.split(invoiceBlob,'|') where isnumeric(dbo.splitF(data,':',4))>0 and dbo.splitF(data,':',4)<=@resaleTaxyear)
-    
+   update @wt set
+    unPaid = (select count(id) from dbo.split(invoiceBlob,'|')
+              where isnumeric(dbo.splitF(data,':',4)) > 0
+               and dbo.splitF(data,':',4) <= @resaleTaxyear)
   end
  end 
 
-
-
-
---taxWarrants
-     insert @wt
-    select id,invoiceIdMain,display, keyCode, invoiceBlob,0
-       from dbo.collectionsBRW('taxwarrant',0,0,0,0) where id is not null and isnull(totalDue,0)=0 order by display
+-- taxWarrants
+ insert @wt
+ select id,invoiceIdMain,display, keyCode, invoiceBlob,0
+ from dbo.collectionsBRW('taxwarrant',0,0,0,0)
+ where id is not null and isnull(totalDue,0) = 0
+ order by display
 
  
- update @wt set invoiceIdMain=(select top 1 id from invoices where keycode= case when PARCEL = '' then cast(item as varchar(50)) else parcel end order by taxYear asc) where unpaid=0
- 
-
+ update @wt set
+  invoiceIdMain = (select top 1 id from invoices where keycode= case when PARCEL = '' then cast(item as varchar(50)) else parcel end order by taxYear asc)
+ where unpaid = 0
 
  if @method = 'GET'
  begin  
@@ -57,6 +76,8 @@ while
    @tally = count(taxrollid),  
    @message = 'Redeemed tax items in resale'
   from @wt  where unpaid=0
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
 
   return
  end
