@@ -103,6 +103,27 @@ begin
    from dbo.vouchersExpiredTF()
   end
 
+-- Lock Fiscal Calendar
+  if dbo.settingsF('site.autoLockFiscalCalendar','FALSE') = 'TRUE'
+   and exists(select * from dbo.fiscalCalendar where endDate < dbo.clarionToday() and locked != '1')
+  begin
+   insert @rt 
+   select
+    '-2',
+    'lockFiscalCalendar',
+    dbo.padRight(' --> ' + 'Unlocked Fiscal Calendars',' ',65)
+    + dbo.padLeft('',' ',15),'glBalanceString','rowstring1','sourceNo',0,0,3,
+    '@tally=0;@amount=0;@ids=0;'
+  end
+
+-- blank line
+   insert @rt 
+   select
+    '0',
+    'Z',
+    '','','','',0,0,0,
+    ''
+
  end
 
  return

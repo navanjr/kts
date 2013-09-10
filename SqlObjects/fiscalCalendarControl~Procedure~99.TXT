@@ -1,0 +1,36 @@
+create proc dbo.fiscalCalendarControl(
+ @fpid int = null,
+ @date int = null,
+ @method varchar(50) = 'toggle'
+) as 
+begin
+
+ set @date = coalesce(@date, dbo.clarionToday())
+ 
+-- toggle the lock
+ if @method = 'toggle' and isnull(@fpid,0) > 0
+ begin
+
+  if exists(select * from dbo.fiscalCalendar where fpid = @fpid and locked = '1')
+   update object set a17 = '' where typ = 4700 and id = @fpid
+  else
+   update object set a17 = '1' where typ = 4700 and id = @fpid
+
+  return
+ end
+
+-- lock all
+ if @method = 'lockall'
+ begin
+
+  update object set a17 = '1'
+  where typ = 4700
+   and id in (select fpid from dbo.fiscalCalendar where endDate < @date and locked != '1')
+
+  exec dbo.logit @@procid, 'locked me some periods... @@rowCount', @@rowCount
+
+  return
+ end
+
+ return
+end
