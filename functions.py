@@ -223,6 +223,7 @@ class ktsMenu():
             'mikeClerksFundList',
             'mikeFund',
             'mikeOfficers',
+            'mikeTrustPurpose',
             # mikeTaxRates
             # mikeTaxroll
             # mikeVouchersOutstanding
