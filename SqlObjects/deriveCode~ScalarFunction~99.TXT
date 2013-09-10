@@ -1,0 +1,20 @@
+create function dbo.deriveCode(
+ @input varchar(max),
+ @splitChar varchar(5) = ' ',
+ @prefixCount int = 1,
+ @seporator varchar(5) = ''
+) returns varchar(50) as
+begin
+
+ declare @retval varchar(50) = ''
+
+ set @input = dbo.stripChars(@input, '39,34,44,46')
+
+ select @retval = @retval + isnull(@seporator, '') + left(data, @prefixCount)
+ from dbo.split(@input, isnull(@splitChar, ' '))
+
+ if len(isnull(@seporator, '')) > 0
+  set @retval = stuff(@retval, 1, len(isnull(@seporator,'')), '')
+
+ return @retval
+end
