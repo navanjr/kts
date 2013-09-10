@@ -160,20 +160,44 @@ begin
   select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16), 7
 
 --Insert missing Bank accounts
- insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob)
+ insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob,origin)
    select 
     cast('-6' + cast(o.accountId as varchar) as int),
     @seedString+'D'+o.accountCode+ '  a',
-    ' ' + dbo.padRight(o.accountDesc,' ',40),
+    ' ' + dbo.padRight(o.accountDesc,' ',61),
     --+ dbo.padLeft('0.00',' ',20)
     --+ dbo.padLeft('0.00',' ',20)
     --+ dbo.padLeft('0.00',' ',20),
     o.accountCode,
     o.accountDesc, 
     4,
-    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode) + ';@bankName='+rtrim(o.BankName)+';@accountType='+rtrim(o.accountType)+';'
-    from dbo.glAccounts o where o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
-     and o.showOnBKD='1' and o.accountCode not in (select isnull(depositAccountCode,'') from @rt)
+    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode)
+    + ';@bankName='+rtrim(o.BankName)+';@accountType='+rtrim(o.accountType)+';',
+    7
+   from dbo.glAccounts o 
+   where o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+    and o.showOnBKD='1' and o.accountCode not in (select isnull(depositAccountCode,'') from @rt)
+
+-- Show Collateral 
+  if dbo.settingsF('site.showCollateralOnBKD','FALSE') = 'TRUE'
+  begin
+
+   update a set a.rowString = a.rowString
+    + dbo.padLeft('**',' ',20)
+   from @rt a, dbo.collateralAmount(@theDate) b
+   where a.origin = 7
+    and a.depositAccountCode = b.bankAccountCode
+    and b.notCoveredAmount > 0
+
+   if isnull((select sum(notCoveredAmount) from dbo.collateralAmount(@theDate)),0) > 0
+    insert @rt(id,ord,rowstring,brwBGColor,blob,origin)
+    select
+     '0',
+     @seedString + 'E',
+     dbo.padRight(' ** ' + 'Balance is not covered by recorded collateral.',' ',65),
+     3,'@accountType=INVESTMENT;',8
+  
+  end
   
   if exists (select id from @rt where depositAccountCode='AAATrust')
     update @rt set blob = blob+'@AAATrust=1;' where receiptType='Official'
