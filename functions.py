@@ -81,6 +81,7 @@ class ktsMenu():
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
+        self.createCommand('devup',['devup'],'set all developer defaults on your database',self.command_devup)
 
         self.createCommand('api',['api', ],'run api job',self.command_api)
 
@@ -107,6 +108,11 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
+
+    def command_devup(self):
+        self.sendCommand('set gitpath')
+        self.sendCommand('set gitcommitter TRUE')
+        self.sendCommand('log on')
 
     def command_api(self):
         if len(self.command) == 2:
