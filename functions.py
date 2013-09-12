@@ -56,6 +56,7 @@ class ktsMenu():
             'conversion.officialbankcode',
             'conversion.initials',
             'conversion.conversiondate',
+            'conversion.taxyear',
         ]
 
         self.commands = {}
@@ -81,7 +82,7 @@ class ktsMenu():
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
-        self.createCommand('devup',['devup'],'set all developer defaults on your database',self.command_devup)
+        self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
 
         self.createCommand('api',['api', ],'run api job',self.command_api)
 
@@ -267,6 +268,7 @@ class ktsMenu():
 
     def ftp_put(self, fileName=None):
         files = self.ftpFiles()
+
         def thePut(fileName):
             ftpSet = self.ftpSettings
             session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
