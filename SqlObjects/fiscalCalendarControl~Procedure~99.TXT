@@ -1,10 +1,12 @@
 create proc dbo.fiscalCalendarControl(
  @fpid int = null,
  @date int = null,
- @method varchar(50) = 'toggle'
+ @method varchar(50) = 'toggle',
+ @taxyear varchar(10) = null
 ) as 
 begin
 
+ set nocount on
  set @date = coalesce(@date, dbo.clarionToday())
  
 -- toggle the lock
@@ -31,6 +33,99 @@ begin
 
   return
  end
+
+-- create periods for all taxyears in adtax
+ if @method = 'adtax'
+ begin
+  declare @taxyears table(year varchar(50))
+  declare @periods table(id int identity(1,1), month varchar(50), offset int)
+  declare @yearToken varchar(50)
+
+  insert @periods select 'July', -1
+  insert @periods select 'August', -1
+  insert @periods select 'September', -1
+  insert @periods select 'October', -1
+  insert @periods select 'November', -1
+  insert @periods select 'December', -1
+
+  insert @periods select 'January', 0
+  insert @periods select 'February', 0
+  insert @periods select 'March', 0
+  insert @periods select 'April', 0
+  insert @periods select 'May', 0
+  insert @periods select 'June', 0
+
+  if isnull(@taxyear,'') > '  0'
+   insert @taxyears select @taxyear
+  else
+   insert @taxyears select realtaxyear from adtax group by realtaxyear
+  select * from @taxyears
+
+  while exists (select * from @taxyears)
+  begin
+   select @yearToken = min(year) from @taxyears
+
+   insert object (typ, key1, key2, key3, a1, a18)
+   select
+    4700,
+    @yearToken + dbo.padleft(cast(id as varchar),'0',2),
+    month + ' ' + cast(cast(@yearToken as int) + offset as varchar),
+    dbo.clarionDate(month + ' 1, ' + cast(cast(@yearToken as int) + offset as varchar)),
+    dbo.clarionDate(replace(cast(DATEADD(s,-1,DATEADD(mm, DATEDIFF(m,0,month
+     + ' 1, ' + cast(cast(@yearToken as int) + offset as varchar))+1,0)) as varchar),' 11:59PM','')),
+    dbo.validateFiscalYear(@yearToken)
+   from @periods
+   where @yearToken + dbo.padleft(cast(id as varchar),'0',2) not in 
+    (select key1 from object where typ = 4700)
+
+   exec dbo.logit @@procid, 'Just inserted into object typ(4700)... @rowCount', @@rowCount, '@taxyear', @yearToken
+  
+   delete @taxyears where year = @yearToken
+  end
+
+/*
+002=gcfyr&gcfmo,
+004=gcfmoname&' '&gcfyy,
+
+006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),
+008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4)),
+042=gcfyrfmt));
+
+@bb4=Create FY,,,cur:securitylevel>80;
+@bbproc4=
+ iw(',.t000Please enter the 4 digit year...., ,.t001Year., ,.w00235., ,.t002p####p.,'),
+ break(gcretval<>'OK'),
+ gcfyr=obj7:key1,
+ d1select('select dbo.validateFiscalYear('''&gcfyr&''')'),
+ gcfyrfmt=obj7:d1,
+ gcfyoffset=-1,
+ gcfmo='01',gcfmoname='July',createfy=,
+ gcfmo='02',gcfmoname='August',createfy=,
+ gcfmo='03',gcfmoname='September',createfy=,
+ gcfmo='04',gcfmoname='October',createfy=,
+ gcfmo='05',gcfmoname='November',createfy=,
+ gcfmo='06',gcfmoname='December',createfy=,
+ gcfyoffset=0,
+ gcfmo='07',gcfmoname='January',createfy=,
+ gcfmo='08',gcfmoname='February',createfy=,
+ gcfmo='09',gcfmoname='March',createfy=,
+ gcfmo='10',gcfmoname='April',createfy=,
+ gcfmo='11',gcfmoname='May',createfy=,
+ gcfmo='12',gcfmoname='June',createfy=;
+
+@createfy=
+ gcfyy=gcfyr+gcfyoffset,
+ lcid=kp('select id from object where typ=4700 and key1 = '''&gcfyr&gcfmo&''''),
+ if(lcid<1,fastinsert(-02=4700,002=gcfyr&gcfmo,004=gcfmoname&' '&gcfyy,006=kpfd(deformat(gcfmoname&' 1, '&gcfyy,@d4)),008=kpld(deformat(gcfmoname&' 1, '&gcfyy,@d4)),042=gcfyrfmt));
+
+
+
+*/
+
+
+  return
+ end
+
 
  return
 end

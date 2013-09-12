@@ -1,21 +1,49 @@
-create procedure dbo.taxYearImport as
+create procedure dbo.taxYearImport(
+ @method varchar(50) = 'taxyear'
+) as
 
 begin
  
- declare @x varchar(max)
- declare @wt table (taxYear varchar(10),invoices varchar(20))
+ declare @wt table (
+  taxYear varchar(10),
+  invoices varchar(20),
+  processFlag int
+ )
 
-insert into @wt
-	select 
-		REALTAXYEAR,
-		COUNT(*) 
-	from mike_taxroll 
-		group by REALTAXYEAR 
-	order by REALTAXYEAR
+ declare @yearToken varchar(50)
 
-delete from @wt where taxYear in (select key1 from Object where Typ=4000)
-insert into Object (typ,Key1,A1)
-	select 4000,taxYear, invoices from @wt
+ insert into @wt
+ select 
+  REALTAXYEAR,
+  COUNT(*),
+  0 
+ from mike_taxroll 
+ group by REALTAXYEAR 
+ order by REALTAXYEAR
+
+ if @method = 'conversion'
+ begin
+
+  while exists(select * from @wt where processFlag = 0)
+  begin
+   select @yearToken = min(taxYear) from @wt where processFlag = 0
+   exec dbo.mike_specialsImport @taxyear = @yearToken, @code = 'mike_taxroll'
+   update @wt set processFlag = 1 where taxYear = @yearToken
+  end
+
+ end
 
 
+ if @method in ('taxyear', 'conversion')
+ begin
+
+  delete from @wt 
+  where taxYear in (select key1 from Object where Typ=4000)
+
+  insert into Object (typ,Key1,A1)
+  select 4000,taxYear, invoices from @wt
+
+ end
+
+ return
 end
