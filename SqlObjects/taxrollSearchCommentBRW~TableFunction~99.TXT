@@ -92,18 +92,18 @@ if @pubFlag = 'FALSE'
   insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3,1 from taxrollDetail where invoiceLinkId = @selectedId
 
 -- dtype records
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,4,1
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, dtype,4,1
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('RESALE','PROBATE')
 
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5,1
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, dtype,5,1
    from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('item','PROBATE')
     and cast('-1'+cast(id as varchar) as int) not in (select id from @rt)
 
 ---dtype bankrupt records
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, ' '+dtype,4,1
+  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, ' '+dtype,4,1
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('BANKRUPT')
 
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, ' '+dtype,5,1
+  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, ' '+dtype,5,1
    from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('BANKRUPT','EXEMPT')
     and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
 
@@ -116,10 +116,9 @@ if @pubFlag = 'FALSE'
    select	
 	cast('-1'+cast(min(id) as varchar) as int),
 	key2,
-	''
-	--'Field Name: '+rtrim(key3)+' ; '+original+' / '+corrected,
+	case when isnull(ini,'')>'  0' then ini + ' - ' else '' end
     from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) 
-	group by key2
+	group by key2,ini
 
  while exists (select * from @wtc where comments='')
   begin
@@ -127,7 +126,7 @@ if @pubFlag = 'FALSE'
     select @tokenDate = crtdate from @wtc where comments='' order by crtdate
      begin
       select @x = STUFF((select '|' + 'Field Name: '+rtrim(key3)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and key2=@tokenDate for XML path('')),1,1,'') 
-      update @wtc set comments = 'Correction # '+ CAST(abs(id) as varchar)+ ' ' + replace(@x,'&amp;','&') where crtdate = @tokenDate
+      update @wtc set comments = comments +'Correction: '+ replace(@x,'&amp;','&') where crtdate = @tokenDate
      end
      
   end
