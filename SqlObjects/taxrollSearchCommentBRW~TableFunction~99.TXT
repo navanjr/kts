@@ -6,7 +6,8 @@ create function dbo.taxrollSearchCommentBRW(
  actionDate nvarchar(12),
  comment text,
  commentType varchar(20),
- origin int
+ origin int,
+ color int
 )
 begin
 
@@ -47,7 +48,10 @@ if @pubFlag = 'FALSE'
    cast('-8'+cast(id as varchar) as int),
    a2,
    a3,
-   case when a4 = '1' then '<private> ' else '' end + rtrim(left(Attributes,5)) + ' - ' + cast(e1 as varchar(max)),'COMMENT',1
+   case when a4 = '1' then '<private> ' else '' end + rtrim(left(Attributes,5)) + ' - ' + cast(e1 as varchar(max)),'COMMENT',
+   1,
+   1
+  
   from dbo.object
   where typ=4002 
    and cast(e1 as varchar(max)) > '  0'
@@ -72,7 +76,9 @@ if @pubFlag = 'FALSE'
 	+case when state>'  0' then ', '+state else '' end
 	+case when zip1>'  0' then ' '+zip1 else '' end
 	+case when zip2>'  0' then '-'+zip2 else '' end,
-        'ADDRESS',2
+        'ADDRESS',
+         2,
+         0
 	from dbo.taxRollDetail
 	where	(name=@name or len(name)<1 or name<>@name) 
 		and (parcelNumber=@parcel or len(parcelNumber)<1) 
@@ -83,35 +89,58 @@ if @pubFlag = 'FALSE'
 
 -- print comments
  if @selectedId > 0 
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3 from taxrollDetail where invoiceLinkId = @selectedId
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3,1 from taxrollDetail where invoiceLinkId = @selectedId
 
 -- dtype records
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,4
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,4,1
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('RESALE','PROBATE')
 
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5,1
    from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('item','PROBATE')
     and cast('-1'+cast(id as varchar) as int) not in (select id from @rt)
 
 ---dtype bankrupt records
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,4
+  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, ' '+dtype,4,1
    from taxrollDetail where parcelNumber > '  0' and parcelNumber = @parcel and dtype in ('BANKRUPT')
 
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,5
-   from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('BANKRUPT')
+  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, ' '+dtype,5,1
+   from taxrollDetail where itemNumber > 0 and itemNumber = @item and dtype in ('BANKRUPT','EXEMPT')
     and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
 
+---corrections
+ declare @x varchar(max)
 
-insert @rt
-    select	cast('-1'+cast(id as varchar) as int),
-		key2,
+ declare @wtc table (id int,crtdate varchar(50),comments varchar(max))
+
+ insert @wtc
+   select	
+	cast('-1'+cast(min(id) as varchar) as int),
+	key2,
+	''
+	--'Field Name: '+rtrim(key3)+' ; '+original+' / '+corrected,
+    from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) 
+	group by key2
+
+ while exists (select * from @wtc where comments='')
+  begin
+   declare @tokenDate varchar(10)
+    select @tokenDate = crtdate from @wtc where comments='' order by crtdate
+     begin
+      select @x = STUFF((select '|' + 'Field Name: '+rtrim(key3)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and key2=@tokenDate for XML path('')),1,1,'') 
+      update @wtc set comments = 'Correction # '+ CAST(abs(id) as varchar)+ ' ' + replace(@x,'&amp;','&') where crtdate = @tokenDate
+     end
+     
+  end
+
+
+ insert @rt
+     select	id,
+		crtdate,
 		'',
-		'Field Name:'+rtrim(key3)+'; Original Info:'+case when a3 = '@d2;' then dbo.date1(a1) else a1 end+'; Corrected Info:'+case when a3 = '@d2;'                         then dbo.date1(a2) else a2 end,
-                'CORRECTION' ,6
-		from object 
-		  where typ=4005 
-		  and link1 in (select taxrollId from invoices where id=@selectedId) 
-		  order by key1 desc
+		comments,
+                ' CORRECTION' ,6,1
+		from @wtc
+		  
 
 
 --voided invoice comments		  
@@ -120,7 +149,7 @@ insert @rt
                 i.postdate,
                 i.postdate,
                 rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
-                'ADJUSTMENT',8
+                'ADJUSTMENT',8,1
             from dbo.invoices i, receiptDetail rd
                where i.typ='A' 
                   and i.invoiceId=@selectedId
@@ -131,7 +160,7 @@ insert @rt
                 i.postdate,
                 i.postdate,
                 'Fee Adjustment: '+rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
-                'ADJUSTMENT',8
+                'ADJUSTMENT',8,1
             from dbo.invoices i, receiptDetail rd
                where i.invoiceId = @selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
@@ -143,7 +172,7 @@ insert @rt
                 i.postdate,
                 i.postdate,
                 dbo.splitf(blob,char(13)+char(10),1),
-                'Fee',9
+                'Fee',9,0
             from dbo.invoices i where i.invoiceId =  @selectedId and i.typ='F' and blob>'  0'
 
 
@@ -155,7 +184,7 @@ insert @rt
 		'',
 		'',
 		'Physical Address: '+a.proploc,
-                ' Address' ,7
+                ' Address' ,7,0
 		from adtax a ,invoices i 
 		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
 
@@ -194,7 +223,7 @@ insert @rt
     recDate,
     '',
     'Tax Receipt: '+receipt+'   '+NAME+'   Control: '+controlNum+'   Amount: '+cast(dbo.formatcurr(amount) as varchar),
-    typ,9
+    typ,9,2
     from @wt
 
 if @pubFlag = 'FALSE'
@@ -233,7 +262,7 @@ if @pubFlag = 'FALSE'
     recDate,
     '',
     'Journal: '+controlNum+'   '+NAME+'  Amount: '+cast(dbo.formatcurr(amount) as varchar),
-    typ,10
+    typ,10,0
     from @wt
  end
 end

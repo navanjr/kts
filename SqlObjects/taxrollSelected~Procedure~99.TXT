@@ -1,7 +1,7 @@
 create procedure dbo.taxrollSelected(
  @receiptId int,
  @InvoiceId int,
- @part varchar(10),
+ @part varchar(10) = '',
  @method varchar(10)
 ) as 
 begin
@@ -14,12 +14,35 @@ set nocount on
          @name varchar(60),
          @taxYear varchar(60),
          @unPaidCnt int = 0
+   
 
        select top 1 @unPaidSelected = a15 from object where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
 
  exec dbo.logit @@procid, '@receiptId', @receiptId, '@invoiceId', @invoiceId, '@part', @part, '@method', @method
+
+ if @method = 'taxCheck' and not exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+  begin
+ declare @m varchar(max)= '',
+         @cblob varchar(max) = ''
+   select @cblob = case when rtrim(a.treamort) > '0'  then 'MORTGAGECODE|' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
+   select @cblob = @cblob  + stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where commentType in (' Exempt',' Bankrupt') and isnull(actionDate,0)=0 or commentType = ' Correction' and noteDate>dbo.clarionToday()-30 for xml path('')),1,1,'') 
+   
+   if charindex('mortgagecode',@cblob)>0
+     select @m = ' - Mortgage code on it.||'  
+   if charindex('correction',@cblob)>0
+     select @m = @m + ' - Correction has been made within the last 30 days.||'     
+   if charindex('Exempt',@cblob)>0
+     select @m = @m + ' - Flagged as Exempt.||'
+   if charindex('Bankrupt',@cblob)>0
+     select @m  = @m +' - Flagged as Bankrupt.||'
+   if @m>'  0'
+     select '@code=1;@message=' + @m + ';'
+   return
+  end
+
+
 
  if lower(@part) = 'full' and lower(@method) = 'reset'
  begin

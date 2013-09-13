@@ -41,7 +41,7 @@
  if(cur:securitylevel+0>59,create(356,9,513,240,'Void Invoice(F6)'),),
  halfToggle=;
 
-@lbrw3forecolor=obj7:c9='COMMENT' or obj7:c9='ADJUSTMENT',255,obj7:c9=' Receipt',32768;
+@lbrw3forecolor=obj7:c9=1,255,obj7:c9=2,32768;
 @lbrw1color=obj7:c10=3,16760879,obj7:c10=2,13428479,obj7:c10=1,13499135;
 @lbrw2color=obj7:c10=0,13428479;
 
@@ -124,7 +124,7 @@
   prop(172,'FontStyle',700),
   prop(172,'Font','Arial'),
   brw(161,2,gcsql2,3,155,400,120,'200L(2)~~#2#|20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n-14.2b@#7#|M45R(2)~Unpaid~@n-14.2b@#8#|M35C(2)~Sel~#9#|M',7,1),
-  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW(0) order by commentType,notedate desc',
+  gcsql3='select Id,notedate,comment,color from dbo.taxrollSearchCommentBRW(0) order by commentType,notedate desc',
   brw(162,3,gcsql3,3,296,400,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),
   prop(160,'SelectedFillColor',65535),
   prop(161,'SelectedFillColor',16777215),
@@ -146,9 +146,9 @@
 @brwClicked=
  break(lcClickedId=0),
  lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
- gcMortCode=kp('select rtrim(a.treamort) from adtax a,invoices i where a.id=i.taxrollId and i.id='&lcClickedId*-1),
- if(gcMortCode>' 0',m('This item has a mortgage code on it. Are you sure that you want to select it?','Select Anyway?',,6)),
- if(gcretval=2 or gcMortCode<=' 0',d1select('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&'''')),
+ d1select('exec dbo.taxrollSelected @receiptid = '&obj:id&',@invoiceId = '&lcClickedId*-1&', @method = ''taxcheck'''),
+ if(readstring(obj7:d1,'@code=')=1,m('This item has:|| '&readstring(obj7:d1,'@message=')&' Are you sure that you want to select it?','Select Anyway?',,6)),
+ if(gcretval=2 or readstring(obj7:d1,'@code=')<=' 0',d1select('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&'''')),
  if(readstring(obj7:d1,'@code=')=3,m(readstring(obj7:d1,'@message='),'Unpaid Back Taxes!...','MISC01.ico')),
  gcClickedId=lcClickedId*-1,
  gcalreadylinked=kp('select receiptId from receiptlink where invoiceId='&gcClickedId&' and receiptId in (select id from object where typ=4502 and a17<>''Posted'' and a17<>''VOID'') and receiptId<>'&obj:id),
@@ -313,12 +313,13 @@
  lcw3Id=kpbrwid(3)*-1,
  lcbrw3Typ=left(lcw3Id,1),
  lcbrw3Id=sub(lcw3Id,2,25),
+ lcDtype=kp('select dtype from taxrolldetail where id='&lcbrw3Id),
  break(instring('@group=publicuser',cur:options,1,1)>0),
  if(lcbrw3Typ+0=9,printReceipt=),
  if(lcbrw3Typ+0=7,actionDate=);
 
 @actionDate=
- m('Remove Bankrupt Flag?','Remove Flag',,6),
+ m('Remove '&lcDtype&' Flag?','Remove Flag',,6),
  break(gcretval<>2),
  d1select('exec dbo.dtypeCommentCRUD @mode=''actiondate'',@taxrolldetailId='&lcbrw3Id),
  refreshBRW3=
@@ -358,7 +359,7 @@
   kpmc();
 
 @refreshBRW3=
-  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by commentType, notedate desc',
+  gcsql3='select Id,notedate,comment,color from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by commentType, notedate desc',
   brwreload(3,gcsql3);
 
 \t001&Year; \w00230; \x002-40; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
