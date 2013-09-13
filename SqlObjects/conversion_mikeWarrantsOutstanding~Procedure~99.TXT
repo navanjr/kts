@@ -43,7 +43,8 @@ begin
   convertedDate varchar(50),
   tresFundCode varchar(50),
   paymentId int,
-  csv varchar(max)
+  csv varchar(max),
+  clerksCode varchar(50)
  )
 
  declare
@@ -56,16 +57,19 @@ begin
  begin
   select
    @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-   @sql = 'select *,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
+   @sql = 'select *,null,null,null,null,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where amnt != 0.00 and !deleted() and (dtePaid = "" or dtePaid > "'+@conversionDate+'")'')'
 
 -- removed to get all warrants entered, even the ones entered after @conversionDate
 -- and dteRegis <= "'+@conversionDate+'"
 
   insert @st exec(@sql)
 
+  update a set a.clerksCode = b.clerksFundCode
+   from @st a, clerksFundList b
+   where a.fundid = b.accountCode 
   update @st set convertedDate = @conversionDate where dteregis <= @conversionDate
   update @st set convertedDate = dteregis where dteregis > @conversionDate
-  update @st set csv = wfy + ',' + ltrim(rtrim(fundId)) + ',' + warno + ',' + convertedDate + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
+  update @st set csv = wfy + ',' + ltrim(rtrim(isnull(clerksCode,'unknown('+fundid+')'))) + ',' + warno + ',' + convertedDate + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
 
   update s set s.tresFundCode = (select top 1 a.accountCode from glAccounts a where a.targetAccountCode = l.accountCode and right(a.accountCode,3) = '_WR')
   from @st s
@@ -110,6 +114,7 @@ begin
   exec dbo.logit @@procid, '@csvTally', @csvTally, '@importTally', @importTally
 
   select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
+--select * from @st
  end
 
  if @method = 'cache'
