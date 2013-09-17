@@ -19,7 +19,8 @@ begin
   @fy varchar(50),
   @mikeTableName varchar(50) = 'balance',
   @mikePath varchar(max),
-  @sql nvarchar(max)
+  @sql nvarchar(max),
+  @monthColumnName varchar(3)
  
  declare @st table(
   dptno varchar(50),
@@ -28,10 +29,11 @@ begin
  )
  
  select @fy = RIGHT(fiscalYear,2) from dbo.fpInfo(dbo.clarionToday())
+ select @monthColumnName = left(datename(month,dateadd(month,datepart(m,cast(dbo.settingsF('conversion.conversionDate',null) as datetime)) - 1,'1900-01-01')),3)
 
  select
   @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
-  @sql = 'select ''OFF'' + dptno,jul * -1,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where fyr = "'+@fy+'" and dptno > ""'')'
+  @sql = 'select ''OFF'' + dptno,'+@monthColumnName+' * -1,null from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where fyr = "'+@fy+'" and dptno > ""'')'
 
  insert @st exec(@sql)
 
