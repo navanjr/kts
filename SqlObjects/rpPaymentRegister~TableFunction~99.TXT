@@ -1,71 +1,176 @@
-create function dbo.rpPaymentRegister(@begindate varchar(20),@enddate varchar(20)) returns @rt table(
-RegNo varchar(60),
-RegDateNo varchar(60),
-RegDate varchar(60),
-WarNo varchar(60),
-WarDateNo varchar(60),
-WarDate varchar(60),
-Payee varchar(60),
-amount money,
-FundCode varchar(60),
-FundDesc varchar(60),
-PayNo varchar(60),
-PayDateNo varchar(60),
-PayDate varchar(60),
-PayAmount money,
-fiscalYear varchar(60),
-debitCode varchar(60),
-reportOrder varchar(60),
-TCheckNo varchar(60)
-)
-as begin
-insert @rt 
-select [RegNo]
-      ,[RegDateNo]
-      ,[RegDate]
-      ,[WarNo]
-      ,[WarDateNo]
-      ,[WarDate]
-      ,[Payee]
-      ,[amount]
-      ,[FundCode]
-      ,[FundDesc]
-      ,[PayNo]
-      ,[PayDateNo]
-      ,[PayDate]
-      ,[PayAmount]
-      ,right([fiscalYear],2)
-      ,[debitCode]
-      ,[reportOrder] 
-      ,TCheckNo
+create function dbo.rpPaymentRegister(
+ @begindate varchar(20),
+ @enddate varchar(20)
+) returns @rt table(
+ RegNo varchar(60),
+ RegDateNo varchar(60),
+ RegDate varchar(60),
+ WarNo varchar(60),
+ WarDateNo varchar(60),
+ WarDate varchar(60),
+ Payee varchar(60),
+ amount money,
+ FundCode varchar(60),
+ FundDesc varchar(60),
+ PayNo varchar(60),
+ PayDateNo varchar(60),
+ PayDate varchar(60),
+ PayAmount money,
+ fiscalYear varchar(60),
+ debitCode varchar(60),
+ reportOrder varchar(60),
+ TCheckNo varchar(60),
+ ord varchar(100),
+ origin int
+) as 
+begin
+
+-- detail
+ insert @rt 
+ select
+  [RegNo],
+  [RegDateNo],
+  [RegDate],
+  [WarNo],
+  [WarDateNo],
+  [WarDate],
+  [Payee],
+  [amount],
+  ltrim(rtrim(FundCode)),
+  ltrim(rtrim(FundDesc)),
+  [PayNo],
+  [PayDateNo],
+  [PayDate],
+  [PayAmount],
+  right([fiscalYear],4),
+  [debitCode],
+  rtrim(ltrim(coalesce('a' + nullif(reportOrder,''),'b' + fundCode))),
+  TCheckNo,
+  null,
+  1
  from warrants 
  where PayDateNo >= @beginDate and PayDateNo <= @endDate
- 
- insert @rt 
- select ''
-      ,''
-      ,''
-      ,''
-      ,''
-      ,''
-      ,'Total Carried Forward'
-      ,sum(isnull(amount,0))
-      ,FundCode
-      ,FundDesc
-      ,''
-      ,''
-      ,''
-      ,0.00
-      ,right(fiscalYear,2)
-      ,''
-      ,reportOrder
-      ,''
+
+-- update ord for detail rows
+ update @rt set
+  ord = dbo.padRight(reportOrder,'0',11) + '_' + fiscalYear + '_' + dbo.padLeft(paydateno,'0',7)
+ where origin = 1
+
+-- beginning summary
+ insert @rt (payee, amount, fundCode, fundDesc, fiscalYear, reportOrder, ord, origin)
+ select 
+  'Fiscal Year ' + fiscalYear + ' Total Carried Forward',
+  0,
+  FundCode,
+  FundDesc,
+  fiscalYear,
+  reportOrder,
+  dbo.padRight(reportOrder,'0',11) + '_' + fiscalYear + '_' + dbo.padLeft('','0',7),
+  2
+ from @rt
+ where origin = 1
+ group by fiscalYear,fundCode,FundDesc,reportOrder
+
+-- update the beginning fiscalYear summary row
+ update a set
+  a.amount = isnull(
+  (select sum(b.amount) from warrants b
+   where b.PayDateNo < @beginDate and b.fundcode+b.fundDesc+right(b.fiscalYear,4) = a.fundcode+a.fundDesc+a.fiscalYear),'0')
+ from @rt a
+ where a.origin = 2
+
+
+-- FiscalYear ending totals
+ insert @rt (payee, amount, payAmount, fundCode, fundDesc, fiscalYear, ord, origin)
+ select 
+  'Fiscal Year ' + fiscalYear + ' Total ',
+  sum(isnull(amount,0)),
+  sum(isnull(payAmount,0)),
+  FundCode,
+  FundDesc,
+  fiscalYear,
+  dbo.padRight(reportOrder,'0',11) + '_' + fiscalYear + '_' + dbo.padLeft('','9',7),
+  3
+ from @rt 
+ where origin in (1,2)
+ group by fiscalYear,fundCode,FundDesc,reportOrder
+
+-- Fund ending totals
+ insert @rt (payee, amount, payAmount, fundCode, fundDesc, ord, origin)
+ select 
+  fundCode + ' - ' + fundDesc + ' Total',
+  sum(isnull(amount,0)),
+  sum(isnull(payAmount,0)),
+  FundCode,
+  FundDesc,
+  dbo.padRight(reportOrder,'0',11) + '_9999',
+  4
+ from @rt 
+ where origin in (1)
+ group by fundCode,FundDesc,reportOrder
+
+-- Fund Header
+ insert @rt (payee, fundCode, fundDesc, ord, origin)
+ select 
+  fundCode + ' - ' + fundDesc,
+  FundCode,
+  FundDesc,
+  dbo.padRight(reportOrder,'0',11) + '_0000',
+  5
+ from @rt 
+ where origin in (1)
+ group by fundCode,FundDesc,reportOrder
+
+--Report totals
+ insert @rt (payee, amount, payAmount, ord, origin)
+ select 
+  'Report Grand Total',
+  sum(isnull(amount,0)),
+  sum(isnull(payAmount,0)),
+  dbo.padRight('','z',11),
+  6
+ from @rt 
+ where origin in (1)
+
+/*
+
+-- beginning summary
+ insert @rt (payee, amount, fundCode, fundDesc, fiscalYear, reportOrder, ord, origin)
+ select 
+  'Total Carried Forward',
+  sum(isnull(amount,0)),
+  FundCode,
+  FundDesc,
+  right(fiscalYear,4),
+  reportOrder,
+  dbo.padRight(rtrim(ltrim(coalesce('a' + nullif(reportOrder,''),'b' + fundCode))),'0',11) + '_'
+   + right(fiscalYear,4) + '_'
+   + dbo.padLeft('','0',7),
+  2
  from warrants 
  where PayDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
- group by right(fiscalYear,2),fundCode,FundDesc,reportOrder
+ group by right(fiscalYear,4),fundCode,FundDesc,reportOrder
+
+-- ending totals
+ insert @rt (payee, amount, fundCode, fundDesc, fiscalYear, ord, origin)
+ select 
+  'Total ',
+  sum(isnull(amount,0)),
+  FundCode,
+  FundDesc,
+  right(fiscalYear,4),
+  dbo.padRight(rtrim(ltrim(coalesce('a' + nullif(reportOrder,''),'b' + fundCode))),'0',11) + '_'
+   + right(fiscalYear,4) + '_'
+   + dbo.padLeft('','9',7),
+  3
+ from @rt 
+ where PayDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
+ group by right(fiscalYear,4),fundCode,FundDesc,reportOrder
 
  update @rt set fiscalyear = cast(cast('20'+fiscalyear as int)-1 as varchar(4))+'-'+'20'+fiscalyear where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
       
-return
+ return
+*/
 
+ return
 end

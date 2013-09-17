@@ -5,6 +5,24 @@
  warrantRegister=;
 
 where PayNo>'' 0''
+FundCode, fiscalYear, PayDateNo, dbo.popro6(PayNo,6,1)
+
+  grp(1,obj5:a9,
+   do(
+    prn(,,lcTm),
+    bnd(,'FUND: '&obj5:a9,5000),
+    nl,nl,
+   ),
+   do(
+    bnd('O',,3100,,1200R,,1000R,,200R,,1650R),
+    prn(,,,9,bold,'courier new'),
+    bnd(,'',3100,'Fund Totals:',1200R,format(lcPrincTot,@n-14.2),1000R, ' 0',200R,format(lcGrandTot,@n-14.2),900R),
+    lcPrincTot=0,
+    lcGrandTot=0,
+    detendpage,
+   )
+  ),
+
 @payreg=
  do(452,getSiteInfo=),
  lcPrincTot=0,
@@ -19,8 +37,9 @@ where PayNo>'' 0''
      PayAmount,
      fiscalYear,
      FundDesc,
-     TCheckNo
-       from dbo.rpPaymentRegister('gcBeginDate','gcEndDate')  order by FundCode, PayDateNo, dbo.popro6(PayNo,6,1)',
+     TCheckNo,
+     origin
+    from dbo.rpPaymentRegister('gcBeginDate','gcEndDate')  order by ord',
  lcHeaderFontSize=12,
  lcBoxColor=14539482,
 tr(
@@ -33,45 +52,42 @@ tr(
   prn(gcCounty&' COUNTY TREASURER',1500,500,lcHeaderFontSize-2,regular,lcFont),
   prn(gcOfficial,1500,700),
   prn(printed),
-   prn(page),
-   prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
-   bnd(,'Treasurers Payment Register',8000C),
-   prn(,,,lcHeaderFontSize,bold,lcFont),
-   bnd(,'of Warrants (S.A.& I. 2211)',8000C),
-   bnd(,'Paid '&format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),8000C), 
-    nl,
-    lcTm=lcTm+1500,
-    prn(,lcLm,lcTm,9,bold),
-    box(pagex-100,pagey-50,pagex+7700,pagey+330,,lcBoxColor),
-    bnd(,'FUND: '&obj5:a9,5000),
-    bnd(,'Date Pd',600,'Paymt No.',600,'Chk No.',600,'To Whom Payable',1800,'Warnt No.',600,'Amount',750C,'Interest',400C,'Total Pd',750C,'Fiscal Yr',750),
-    prn(,,lcTm+390),
-  grp(1,obj5:a9,do(
-    prn(,,lcTm),
-    bnd(,'FUND: '&obj5:a9,5000),
-    nl,nl,
-     ), do(
+  prn(page),
+  prn(,,1000,lcHeaderFontSize+2,bold,lcFont),
+  bnd(,'Treasurers Payment Register',8000C),
+  prn(,,,lcHeaderFontSize,bold,lcFont),
+  bnd(,'of Warrants (S.A.& I. 2211)',8000C),
+  bnd(,'Paid '&format(gcBeginDate,@d2)&' thru '&format(gcEndDate,@d2),8000C), 
+  bnd(,choose(gcCheckBox+0=0,'Detail','Summary'),8000C),
+  nl,
+  lcTm=lcTm+1500,
+  prn(,lcLm,lcTm,9,bold),
+  box(pagex-100,pagey-50,pagex+7700,pagey+330,,lcBoxColor),
+  bnd(,'FUND: '&obj5:a9,5000),
+  bnd(,'Date Pd',600,'Paymt No.',600,'Chk No.',600,'To Whom Payable',1800,'Warnt No.',600,'Amount',750C,'Interest',400C,'Total Pd',750C),
+  prn(,,lcTm+390),
+  grp(1,obj5:a9,,
+   do(
     bnd('O',,3100,,1200R,,1000R,,200R,,1650R),
     prn(,,,9,bold,'courier new'),
-    bnd(,'',3100,'Fund Totals:',1200R,format(lcPrincTot,@n-14.2),1000R, ' 0',200R,format(lcGrandTot,@n-14.2),900R),
-    lcPrincTot=0,
-    lcGrandTot=0,
-    detendpage)
-     ),
+    if(gcCheckBox+0=0),detendpage,
+   )
+  ),
    
   det(lcsql),
-      prn(,,,8,regular,'courier new'),
-      bnd(,format(obj5:a1,@d1b),600,obj5:a3,600,obj5:a10,600,format(obj5:a4,@s22),1800,obj5:a5,600,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R,obj5:a8,750),
-      lcPrincTot=lcPrincTot+obj5:a6,
-      lcGrandTot=lcGrandTot+obj5:a7,
-      lcReportGrandTot=lcReportGrandTot+obj5:a7,
-      lcReportPrincTot=lcReportPrincTot+obj5:a6,   
+   prn(,,,8,regular,'courier new'),
+   
+   if(obj5:a11=1 and gcCheckBox+0=0),bnd(,format(obj5:a1,@d1b),600,obj5:a3,600,obj5:a10,600,obj5:a4,1800,obj5:a5,600,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R),
+   if(obj5:a11=2),do(nl,bnd('H',format(obj5:a1,@d1b),300,obj5:a3,300,obj5:a10,300,obj5:a4,2700,obj5:a5,600,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R)),
+   if(obj5:a11=3),do(nl,bnd('H',format(obj5:a1,@d1b),600,obj5:a3,600,obj5:a10,900,obj5:a4,1800,obj5:a5,300,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R),nl),
+   if(obj5:a11=4),do(bnd('O',,3100,,1200R,,1000R,,200R,,1650R),bnd('H',format(obj5:a1,@d1b),300,obj5:a3,300,obj5:a10,300,obj5:a4,2700,obj5:a5,600,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R),nl),
+   if(obj5:a11=5),do(nl,bnd('H',obj5:a4,2700),nl),
+   if(obj5:a11=6),do(bnd('O',,3100,,1200R,,1000R,,200R,,1650R),bnd('H',format(obj5:a1,@d1b),300,obj5:a3,300,obj5:a10,300,obj5:a4,2700,obj5:a5,600,format(obj5:a6,@n-14.2),750R,'',400C,format(obj5:a7,@n-14.2b),750R),nl),
   edt,
  nl,
- bnd('O','',3100,'Report Totals:',1200R,format(lcReportPrincTot,@n-14.2),1000R, ' 0',200R,format(lcReportGrandTot,@n-14.2),900R,,650),
 );
 
-
+ bnd('O','',3100,'Report Totals:',1200R,format(lcReportPrincTot,@n-14.2),1000R, ' 0',200R,format(lcReportGrandTot,@n-14.2),900R,,650),
 
 @warrantRegister=
   do(452,getSiteInfo=),
