@@ -1,0 +1,22 @@
+create function dbo.specialApportionmentRP(@receiptId int,@asOfDate int) returns @rt table (
+ accountDesc varchar(50),
+ accountType varchar(50),
+ amount money,
+ sourceDesc varchar(50),
+ accountId int,
+ accountCode varchar(50))
+as begin
+
+insert @rt
+
+select 
+ left(a.accountDesc,40), case when a.accountType = 'fund' and a.schoolFund='1' then 'SchoolFund' else a.accountType end, ap.amount, left(s.accountdesc,40) as sourcedesc,a.accountId, a.accountCode
+from glaccounts a,(select * from dbo.apportionCollectionsWT(@receiptId, @asOfDate, 'MISCREPORT', null, 0) ) ap, glaccounts s  
+where 
+ a.accountCode = ap.creditCode  
+ and s.accountcode = ap.sourcecode   
+ and a.accountType in (select accountType from dbo.glBankFundTypes('FUND'))  
+order by a.accountType desc,a.accountCode,a.monthEndColumn, ap.ord, ap.stepDesc
+
+return
+end
