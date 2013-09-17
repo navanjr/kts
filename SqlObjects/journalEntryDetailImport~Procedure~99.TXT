@@ -38,11 +38,13 @@ begin
 
   if @adjustToFlag = 'TRUE'
   begin
-   select @currentAccountBalance = sum(amount) from gldetailreports where accountId=@accountIdToken and sourcedate<=@endDate
+   select @currentAccountBalance = sum(amount) from gldetailreports where accountId=@accountIdToken and sourcedate <= @endDate
    select @amountToken = @amountToken - isnull(@currentAccountBalance,0)   
   end
 
-  exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken, @verbose = @verbose
+  if @verbose = 'TRUE'
+   exec dbo.logit @@procid, 'Staging... @accountId', @accountIdToken, '@amount', @amountToken, '@comment', @commentToken
+  exec dbo.glDetailStageAdd @jeId, 'o', @accountIdToken, @amountToken, @comment = @commentToken, @verbose = 'FALSE'
  
   update @wt set processFlag = 1 where id = @idToken
  end
