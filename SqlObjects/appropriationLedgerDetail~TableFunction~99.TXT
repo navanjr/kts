@@ -1,4 +1,4 @@
-create function dbo.appropriationLedgerDetail(@begindate varchar(20),@enddate varchar(20),@activeOnly varchar(5)) 
+create function dbo.appropriationLedgerDetail(@begindate varchar(20),@enddate varchar(20),@activeOnly varchar(5),@noBalance varchar(5)) 
 returns @rt table(accountCode varchar(60),
                   detailDate varchar(60),
                   warrantNumber varchar(60),
@@ -58,50 +58,53 @@ select accountCode,
   and accountcode like '%_A%'
   and left(accountcode,1)<>'_'
 
-if @activeOnly = 'TRUE'
+if @noBalance <> 'TRUE'
 begin
- insert @accounts select distinct accountcode from @rt
+ if @activeOnly = 'TRUE'
+ begin
+  insert @accounts select distinct accountcode from @rt   
 
- insert @rt
-  select g.accountCode,
-   @begindate as sourceDate,
-   '' as sourcekey3,
-   'BeginBalance' as person,
-   '' as purpose, 
-   sum(case when sourceType='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
-   sum(case when sourceType<>'4512' or sourcea18='Budget Payment' then amount else 0 end) as payments,
-   sum(amount*-1) as balance,
-   '' as accountNumber,
-   0 as accountDesc,
-   '' as fiscalYear,
-   'a' as ord 
-  from dbo.gldetailreports g, @accounts a
-  where g.accountcode = a.accountcode 
-   and sourceDate<@begindate 
-   and accounttype='BUDGET'
-  group by g.accountCode
-end
-else
-begin
- insert @rt
-  select accountCode,
-   @begindate as sourceDate,
-   '' as sourcekey3,
-   'BeginBalance' as person,
-   '' as purpose, 
-   sum(case when sourceType='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
-   sum(case when sourceType<>'4512' or sourcea18='Budget Payment' then amount else 0 end) as payments,
-   sum(amount*-1) as balance,
-   '' as accountNumber,
-   0 as accountDesc,
-   '' as fiscalYear,
-   'a' as ord 
-  from dbo.gldetailreports 
-  where sourceDate<@begindate 
-   and accounttype='BUDGET'
-   and accountcode like '%_A%'
-  and left(accountcode,1)<>'_'
-  group by accountCode
+  insert @rt
+   select g.accountCode,
+    @begindate as sourceDate,
+    '' as sourcekey3,
+    'BeginBalance' as person,
+    '' as purpose, 
+    sum(case when sourceType='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
+    sum(case when sourceType<>'4512' or sourcea18='Budget Payment' then amount else 0 end) as payments,
+    sum(amount*-1) as balance,
+    '' as accountNumber,
+    0 as accountDesc,
+    '' as fiscalYear,
+    'a' as ord 
+   from dbo.gldetailreports g, @accounts a
+   where g.accountcode = a.accountcode 
+    and sourceDate<@begindate 
+    and accounttype='BUDGET'
+   group by g.accountCode
+ end
+ else
+ begin
+  insert @rt
+   select accountCode,
+    @begindate as sourceDate,
+    '' as sourcekey3,
+    'BeginBalance' as person,
+    '' as purpose, 
+    sum(case when sourceType='4512' and sourcea18<>'Budget Payment' then amount*-1 else 0 end) as budget,
+    sum(case when sourceType<>'4512' or sourcea18='Budget Payment' then amount else 0 end) as payments,
+    sum(amount*-1) as balance,
+    '' as accountNumber,
+    0 as accountDesc,
+    '' as fiscalYear,
+    'a' as ord 
+   from dbo.gldetailreports 
+   where sourceDate<@begindate 
+    and accounttype='BUDGET'
+    and accountcode like '%_A%'
+   and left(accountcode,1)<>'_'
+   group by accountCode
+ end
 end
      
 update r
