@@ -4,7 +4,8 @@ Create Function penaltyPercent (
 ) returns decimal(21,9) 
 as 
 begin
- declare @grace int,
+ declare @gracesetting varchar(50),
+        @grace int,
         @months int,
         @days int,
         @rate int,
@@ -22,7 +23,7 @@ begin
  select @typ = [typ], @interestDate = interestDate,@taxYear = taxYear from invoices where id=@invoiceId
  select top 1
   @calcMethod = a19, 
-  @grace = cast(a20 as int),
+  @gracesetting = a20,
   @rate  = cast(b1 as int)
  from object
  where typ=40
@@ -69,6 +70,21 @@ begin
  end
 
  set @days = datediff(d, @begindate, @enddate)
+
+ if isnumeric(@gracesetting)=1
+   set @grace = cast(@gracesetting as int)
+ else
+  begin
+   if right(@gracesetting,1)='J' and datepart(m,@paydate) <> 1
+    begin
+     set @grace = 0
+    end
+   else 
+    begin
+     set @grace = case when isnumeric(left(@gracesetting,2))=1 then cast(left(@gracesetting,2) as int) else 0 end
+    end
+  end
+
 
  set @months = datediff(m, @begindate, @paydate) 
  if day(@paydate) < @grace
