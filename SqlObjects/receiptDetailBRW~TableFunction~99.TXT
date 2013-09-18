@@ -7,6 +7,7 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  amount money,
  sName varchar(100),
  fName Varchar(100),
+ adtaxId int,
  origin int,
  colorFlag int,
  subDescription2 varchar(125)  
@@ -96,11 +97,11 @@ begin
 
 
 
-  insert @rettable (ord,id,description,subdescription,amount,origin)
+  insert @rettable (ord,id,description,subdescription,amount,adtaxid,origin)
   select 'aa'+cast(c.id as varchar)+'a',cast('6'+cast(c.id as varchar) as int)*-1,
    max(c.name)+case when a.protestAmount>0.00 then ' Protesting: '+cast(a.protestAmount as varchar) else '' end,
    max(c.parcel),
-   i.due, 1
+   i.due, max(c.taxrollId), 1
   from receiptLink a, receiptDetail b, invoices c, @invoices i
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
@@ -109,8 +110,18 @@ begin
    and c.invoiceId < 1
   group by c.invoiceId, c.id, a.protestAmount, i.due
 
+-- mobile home 
+
+  insert @rettable (ord,id,description,colorFlag,origin)
+  select a.ord + 'b',0,
+   ' ** MOBILE HOME **',
+   2,
+   20
+  from @rettable a, adtax b
+  where a.adtaxid = b.id and a.origin = 1 and a.adtaxId > 0 and b.mfghomeassessed > 0
+
   insert @rettable (ord,id,description,subdescription,origin)
-  select 'aa'+cast(c.id as varchar)+'aa',cast('3'+cast(max(a.id) as varchar) as int)*-1,
+  select 'ac'+cast(c.id as varchar)+'aa',cast('3'+cast(max(a.id) as varchar) as int)*-1,
    'Tax Year: '+cast(c.taxyear as varchar(4)),
    'Tax Receipt: '+a.receiptNumber, 2
   from receiptLink a, receiptDetail b, invoices c
