@@ -30,7 +30,9 @@ create function dbo.paymentReports(
  dateCleared varchar(50),
  fundCode varchar(50),
  fundDesc varchar(50),
- fiscalYear varchar(50)
+ fiscalYear varchar(50),
+ comments varchar(max)
+ 
 ) as
 begin
 
@@ -62,6 +64,7 @@ begin
   max(case when @accountType='Bank' then dateCleared else @asofDate end),
   a.targetAccountCode,
   a.targetAccountDesc,
+  null,
   null
  from glDetail g
  join @accounts a on a.accountCode =g.accountCode 
@@ -87,7 +90,8 @@ begin
   a.foreignNumber = b.key3,
   a.foreignDate = b.a1,
   a.fundAccount = case when b.a18 like '%Voucher%' then b.b3 else '' end,
-  a.fiscalYear = case when b.a18 like '%Warrant%' then b.c10 else '' end
+  a.fiscalYear = case when b.a18 like '%Warrant%' then b.c10 else '' end,
+  a.comments = b.e1
  from @rt a
  join object b on dbo.slinkId(a.slink) = b.id
  where b.typ=4771
