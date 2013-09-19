@@ -1,10 +1,9 @@
-create procedure dbo.createPayCodes 
- as 
- begin
+create procedure dbo.createPayCodes as 
+begin
 
-set nocount on
-
-declare @wt table (String varchar(1000))
+ set nocount on
+ 
+ declare @wt table (String varchar(1000))
 
  insert @wt
   select '@paycode=CASH;'
@@ -23,30 +22,34 @@ declare @wt table (String varchar(1000))
  insert @wt
   select '@paycode=ETR;@depositType=E;'
 
-declare 
- @token varchar(1000) = '',
- @suspenseCode varchar(100) = '',
- @suspenseId int = 0,
- @suspenseDescr varchar(200) = '',
- @paycodeId int = 0
-while exists (select * from @wt)
+ declare 
+  @token varchar(1000) = '',
+  @suspenseCode varchar(100) = '',
+  @suspenseId int = 0,
+  @suspenseDescr varchar(200) = '',
+  @paycodeId int = 0
+
+ while exists (select * from @wt)
  begin
   select @token = string from @wt
   if @token>'  0'
    begin
-    set @suspenseCode='SUS'+dbo.readstring('@paycode=',@token)
+    select
+     @suspenseCode = 'SUS' + dbo.readstring('@paycode=',@token),
+     @paycodeId = null
 
     exec dbo.glAccountVerification @suspenseCode, 'SUSPENSE','CREATE'
     select @suspenseId = ID, @suspenseDescr = key2 from object where TYP=4701 and key1 = @suspenseCode
     select @paycodeId = id from object where TYP = 4505 and key1 = dbo.readstring('@paycode=',@token)
-    if isnull(@paycodeId,0)<1
+    if isnull(@paycodeId,0) < 1
      begin
       insert into object(typ,link1,key1,key3,a1,a2,A16)
        select 4505,@suspenseId,dbo.readstring('@paycode=',@token),@suspenseCode,@suspenseDescr,dbo.readstring('@depositType=',@token),dbo.readstring('@reqChk=',@token)
+      exec dbo.logit @@procid, 'inserted a paycode into object... ','@suspenseCode',@suspenseCode,'@suspenseDescr',@suspenseDescr
      end
  
     delete from @wt where String = @token
    end
- end
+  end
 
 end
