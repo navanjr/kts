@@ -361,7 +361,7 @@ class ktsMenu():
 
     def command_backup(self, bypassConfirmation=False):
         def doit():
-            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup @returnRows='FALSE'", isProc=True, isBackup=True)['code']
+            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup @returnRows='FALSE'", isProc=True, testConnection=True)['code']
 
         if bypassConfirmation:
             doit()
