@@ -9,8 +9,7 @@ lmode=2;
 \u002104;r
 @loadwindow=
  if(tier=3,procTier3=),
- create(160,9,3,120,'Link &Trust'),prop(160,7c04h,56),
- prop(160,'color',65280),
+ addLinkTrust=,
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  reate(45,9),
  setMiscReceiptAcct=,
@@ -20,9 +19,19 @@ lmode=2;
  prop(112,'color',65280),
  lcTrustDep=kp('select count(id) from paid where officialDepositId='&obj:id);
 
+ obj:a2<>gcTrustAccount or a17='Posted' or gcadmin=0;
+
+@addLinkTrust=
+ break(obj:a17='Posted'),
+ break(obj:a2<>gcTrustAccount),
+ break(gcadmin+0<>1),
+ create(160,9,3,120,'Link &Trust'),
+ prop(160,7c04h,56),
+ prop(160,'color',65280);
+
 @displayNextNumber=update,
  sql('update object set olink1 = isnull((select fp.a18 from object fp where fp.typ=4700 and fp.key3 <= '''&obj:key2&''' and fp.a1>='''&obj:key2&'''),'''') where id = '&obj:id),
- d1select('exec dbo.receiptNumber '&obj:id&','''''),
+ d1select('exec dbo.receiptNumber '&obj:id&', '''', @clobberUpdate=''TRUE'''),
  lcNextNumber=obj7:d1,
  create(550,10,130,3,lcNextNumber),prop(550,'7c13h',700),tsc;
 
@@ -212,9 +221,6 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  set(022,readstring(gcblob,'@amount=')),
  set(024,readstring(gcblob,'@checkNumber=')),
  focus(020);
-
-\h160gcadmin+0<>1;
- or obj:a2<>gcTrustAccount or a17='Posted';
 
 @acc160=update,
  m('Please Choose one of the following options...','Link Trust...','question.ico','&All Available Trust Receipts|By &Date|&Cancel'),
