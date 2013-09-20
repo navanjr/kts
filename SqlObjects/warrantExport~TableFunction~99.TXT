@@ -1,37 +1,54 @@
-create function dbo.warrantExport(@begindate varchar(20),
-        @enddate varchar(20))
-
-returns @rt table(
-slink varchar(20),
-accountCode varchar(60),
-fiscalYear varchar(20),
-fund varchar(50),
-warNo varchar(50),
-payDate varchar(50),
-amount money,
-interest money,
-payNo varchar(50),
-payee varchar(50),
-issueDate varchar(50),
-comments varchar(max)
-)
-as 
+create function dbo.warrantExport(
+ @begindate varchar(20),
+ @enddate varchar(20)
+)returns @rt table(
+ slink varchar(20),
+ accountCode varchar(60),
+ fiscalYear varchar(20),
+ fund varchar(50),
+ warNo varchar(50),
+ payDate varchar(50),
+ amount money,
+ interest money,
+ payNo varchar(50),
+ payee varchar(50),
+ issueDate varchar(50),
+ comments varchar(max)
+) as 
 begin
-insert @rt
-select slink,accountCode,'','',foreignNumber,dbo.date112(contraPostDate),naturalAmount,0.00,contraControlNumber,payee,dbo.date112(foreignDate),comments from dbo.paymentreports('Warrant',@enddate,'TRUE')
+ insert @rt
+ select 
+  slink,
+  accountCode,
+  '',
+  '',
+  foreignNumber,
+  dbo.date112(contraPostDate),
+  naturalAmount,
+  0.00,
+  contraControlNumber,
+  payee,
+  dbo.date112(foreignDate),
+  comments
+ from dbo.paymentreports('Warrant',@enddate,'TRUE')
  where contraPostDate >= @beginDate
    and contraPostDate <= @enddate
    and paymentType='warrant'
 
-update r set fiscalYear = o.c10 
+ update r set fiscalYear = dbo.stripChars(o.c10,'10,13') 
   from @rt r, object o 
    where dbo.slinkId(r.slink)=o.id
 
-update r set fund = c.key2
+ update @rt set 
+  fiscalYear = cast(cast(fiscalYear as int) + 1999 as varchar)
+   + '-' + cast(cast(fiscalYear as int) + 2000 as varchar)
+  where len(fiscalYear) = 2
+
+ update r set fund = c.key2
  from @rt r, glaccounts a, object c
   where r.accountCode=a.accountCode
     and c.typ = 4704
     and c.a2=a.targetaccountCode
 
-return
+ return
 end
