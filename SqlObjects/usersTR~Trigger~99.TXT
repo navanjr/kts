@@ -1,0 +1,64 @@
+create TRIGGER dbo.usersTR ON dbo.users AFTER INSERT, UPDATE AS
+begin
+
+ if update(pswd) 
+ begin
+
+  declare
+   @name varchar(20),
+   @oldPswd varchar(20),
+   @newPswd varchar(20),
+   @blobToken varchar(max) = '',
+   @blob varchar(max),
+   @checkResult varchar(50) = ''
+
+  declare @passwords splitwt
+
+
+-- gather the data
+  select
+   @name = name,
+   @oldPswd = pswd,
+   @blob = blob
+  from deleted
+
+  select
+   @newPswd = pswd
+  from inserted
+
+  insert @passwords select * from dbo.split(dbo.readstring('@pswdhistory=',@blob),',')
+
+
+-- preform password checks
+  if dbo.settingsF('site.enhancedSecurity','FALSE') = 'TRUE'
+  begin
+
+   if exists(select * from @passwords where data = @newPswd)
+    set @checkResult = 'new password found in password history'
+
+   if not @newPswd > '      0' 
+    set @checkResult = 'new password can not be blank'
+
+  end
+
+-- update
+  if @checkResult > '  0'
+  begin
+   exec dbo.logit @@procid, 'failed password policy... ', @checkResult
+   set @newPswd = @oldPswd
+  end
+  else
+  begin
+   select top 2 @blobToken = @blobToken + ',' + data from @passwords order by id
+   set @blob = '@datetime=' + cast(getdate() as varchar) + ';@pswdHistory=' + @newPswd + isnull(@blobToken,'') + ';'
+   exec dbo.logit @@procid, 'changing password... @name', @name, '@oldPswd', @oldPswd, '@newPswd', @newPswd
+  end
+
+  update users set 
+   pswd = @newPswd,
+   blob = @blob
+  where name = @name
+
+ end
+
+end
