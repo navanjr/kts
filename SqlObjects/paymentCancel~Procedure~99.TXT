@@ -121,6 +121,7 @@ begin
   if @paymentType like '%Miscellaneous'
    set @cancelPaymentType = dbo.proper(@method) + ' Miscellaneous'
 
+  exec dbo.logit @@procid, 'canceling or voiding...(1)  @cancelPaymentType', @cancelPaymentType
   exec dbo.paymentCRUD  @mode = 0, @paymentType = @cancelPaymentType, @id = @id, @comments = @comments, @reasonToCancel = @reasonToCancel
   return
  end
@@ -129,11 +130,13 @@ begin
 -- Deleting glDetail and hiding object records
  if @paymentType in ('Cancel Voucher','Cancel Warrant') and @method = 'VOID'
  begin
+  exec dbo.logit @@procid, 'canceling or voiding...(2)  @cancelPaymentType', @cancelPaymentType
   exec dbo.paymentCRUD @mode = 3, @id = @id, @paymentType = @paymentType, @postOverride = 'TRUE'
   return
  end
  if @paymentType in ('Cancel Voucher','Cancel Warrant') and @method = 'CANCEL'
  begin
+  exec dbo.logit @@procid, 'canceling or voiding...(3)  @cancelPaymentType', @cancelPaymentType
   exec dbo.paymentCRUD @mode = 3, @id = @id, @paymentType = @paymentType, @postOverride = 'TRUE', @deleteObject = 'TRUE'
   return
  end
