@@ -13,6 +13,7 @@ begin
 
  declare
   @backupFile varchar(max),
+  @backupFolder varchar(max),
   @sql varchar(max),
   @database varchar(50) = db_name(),
   @backupJobName varchar(100) = 'backup',
@@ -26,7 +27,8 @@ begin
   @cmdOutput varchar(8000),
   @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
   @compresskeyLog varchar(5) = dbo.settingsF('backup.CompressKeyLog','TRUE'),
-  @retainBackup int = dbo.settingsF('backup.retainBackups','14')
+  @retainBackup int = dbo.settingsF('backup.retainBackups','14'),
+  @fileSize int
 
  set @useSqlCompression = coalesce(@useSqlCompression,dbo.settingsF('backup.sqlCompression','TRUE'))
    
@@ -51,6 +53,7 @@ begin
    delete from keylog where id<(select min(id) from (select top 100 id from keyLog order by id desc) data)
   end
  
+-- backup 
   select @backupFile = path from dbo.paths() where name = 'backup'
 
   select @sql = 'backup database ' + db_name() + ' to disk=''' + @backupFile + ''' with retaindays=0, INIT'
@@ -58,16 +61,39 @@ begin
   exec dbo.logit @@procid, @sql
   exec(@sql)
 
+-- windows Compression
+  if dbo.settingsF('backup.windowsCompression','FALSE') = 'TRUE' and @useSqlCompression != 'TRUE'
+  begin
+   declare @zipFile varchar(max) = replace(@backupFile,'.bak','.zip')
+   exec dbo.logit @@procid, 'Windows Compression underway...'
+-- run compression script
+   select @cmd = 'cscript ' + path + '\zip.vbs ' + @backupFile + ' ' + @zipFile
+   from dbo.paths() where name = 'gitrepo'
+   exec dbo.logit @@procid, 'running command.... ', @cmd
+   exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+-- check to see if it worked
+   select @backupFolder = path From dbo.paths() where name = 'backupPath'
+   select @fileSize = fileSize from dbo.dirFiles(@backupFolder,null) where pathAndFileName = @zipFile
+   exec dbo.logit @@procid, 'Done.... @zipFile', @zipFile, '@fileSize', @fileSize
+   if isnull(@fileSize,0) > 1000
+   begin
+    set @cmd = 'del ' + @backupFile
+    exec dbo.logit @@procid, '@cmd', @cmd
+    exec @cmdOutput = master..xp_cmdshell @cmd, no_output
+    exec dbo.logit @@procid, '@cmdOutput', @cmdOutput
+   end
+  end
+
 --- remove unretained backups
- declare @backups table (id int,pathAndFileName varchar(1000),modifiedDate varchar(50))
+  declare @backups table (id int,pathAndFileName varchar(1000),modifiedDate varchar(50))
   insert @backups
    select substring(cast(brwId as varchar),2,30),pathAndFileName,modifiedDate From dbo.sqlBackupBRW() where LEFT(cast(brwid as varchar),1)='9'
 
- select @retainBackup = (MAX(id) - @retainBackup) from @backups 
+  select @retainBackup = (MAX(id) - @retainBackup) from @backups 
  
- delete from @backups where id > @retainBackup
+  delete from @backups where id > @retainBackup
 
- declare @tokenId int
+  declare @tokenId int
   while exists (select * from @backups)
    begin
      exec dbo.logit @@procid, 'deleting backup @retainBackup', @retainBackup
@@ -112,8 +138,6 @@ begin
 
  if @method in ('show')
  begin
-  declare
-   @backupFolder varchar(max)
    select @backupFolder = path From dbo.paths() where name = 'backupPath'
    select * from dbo.dirFiles(@backupFolder,@database+'_%')
    return

@@ -16,10 +16,11 @@ begin
   @sizeToken bigint
 
  if @fileNameLike is null
-  insert @files select null, path, name, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath)
+  insert @files select null, path, null, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath)
  else
-  insert @files select null, path, name, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath) where name like @fileNameLike
+  insert @files select null, path, null, ModifyDate, dbo.dirFileSize(path) from dbo.dirRead(@folderPath) where name like @fileNameLike
 
+ update @files set fileName = dbo.splitF(pathAndFileName,'\',-1)
  update @files set path = REPLACE(pathAndFileName,fileName,'')
 
 /*
