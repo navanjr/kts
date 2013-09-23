@@ -1,0 +1,22 @@
+create function dbo.rpPopulationInfo(
+ @taxYear varchar(50)
+) returns @rt table(
+ city varchar(50),
+ alcohol money,
+ motor money,
+ others money
+) as
+begin
+ 
+ insert @rt
+ select 
+  key2,
+  max(case when a2 = 'A' then dbo.formatCurr(key3) else '' end),
+  max(case when a2 = 'M' then dbo.formatCurr(key3) else '' end),
+  max(case when a2 = 'S' then dbo.formatCurr(key3) else '' end)
+ from object 
+ where typ = 4014 and key1 = @taxYear
+ group by key2
+
+ return
+end
