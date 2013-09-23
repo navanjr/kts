@@ -3,14 +3,14 @@ create function dbo.mortgageLinkImporterBrw(
  @csvBlob varchar(max) = null
 ) returns @rt table(
  id int identity(1,1),
- col1 varchar(50),
- col2 varchar(50),
- col3 varchar(50),
- col4 varchar(50),
- col5 varchar(50),
- col6 varchar(50),
- col7 varchar(50),
- col8 varchar(50),
+ col1 varchar(100),
+ col2 varchar(100),
+ col3 varchar(100),
+ col4 varchar(100),
+ col5 varchar(100),
+ col6 varchar(100),
+ col7 varchar(100),
+ col8 varchar(100),
  ord varchar(200),
  blob varchar(max),
  color int
@@ -36,7 +36,9 @@ begin
   @dataToken nvarchar(max),
   @csv nvarchar(max),
   @binFileName varchar(max),
-  @columns varchar(max)
+  @columns varchar(max),
+  @blob varchar(max),
+  @columnWidth varchar(250)
 
 -- get the csv from the importer or from the passed variable
  if isnull(@id,0) > 0 
@@ -57,24 +59,30 @@ begin
    @csv = @csvBlob
  end
 
-
  insert @rt 
   select
-   case when key1='<blank>' then '' else key1 end,
-   case when key2='<blank>' then '' else key2 end,
-   case when key3='<blank>' then '' else key3 end,
    case when a1='<blank>' then '' else a1 end,
    case when a2='<blank>' then '' else a2 end,
    case when a3='<blank>' then '' else a3 end,
    case when a4='<blank>' then '' else a4 end,
    case when a5='<blank>' then '' else a5 end,
+   case when a6='<blank>' then '' else a6 end,
+   case when a7='<blank>' then '' else a7 end,
+   case when a8='<blank>' then '' else a8 end,
    'a1',
-   '',
-   1
+   '@company='+key1+';'
+    + case when key2>'  0' then '@mortgage_code='+cast(key2 as varchar)+';' else '' end 
+    + case when a17>'  0' then '@year='+cast(a17 as varchar)+';' else '' end
+    + '@columnWidths='+cast(key3 as varchar)+';' ,
+   10
     from object where id = @id
 
-select @columns=col1 +'|'+col2 +'|'+col3 +'|'+col4 +'|'+col5 +'|'+col6 +'|'+col7 +'|'+col8 from @rt where ord = 'a1'
 
+select 
+  @columns=col1 +'|'+col2 +'|'+col3 +'|'+col4 +'|'+col5 +'|'+col6 +'|'+col7 +'|'+col8,
+  @blob=blob,
+  @columnWidth=dbo.readstring('@columnWidths=',blob) 
+  from @rt where ord = 'a1'
 
 
  -- take the csv data and run with it
@@ -95,9 +103,34 @@ select @columns=col1 +'|'+col2 +'|'+col3 +'|'+col4 +'|'+col5 +'|'+col6 +'|'+col7
    @idToken = id,
    @dataToken = rowData
   from @rows order by id
-  
-  
-  if (select data from dbo.split(@dataToken,',') where id = 4) > '  0'
+
+ if @columnWidth>'  0'
+  begin
+----Fixed Length rows
+  declare 
+   @cw1 int = dbo.splitf(@columnWidth,',',1),
+   @cw2 int = dbo.splitf(@columnWidth,',',2),
+   @cw3 int = dbo.splitf(@columnWidth,',',3),
+   @cw4 int = dbo.splitf(@columnWidth,',',4),
+   @cw5 int = dbo.splitf(@columnWidth,',',5),
+   @cw6 int = dbo.splitf(@columnWidth,',',6),
+   @cw7 int = dbo.splitf(@columnWidth,',',7),
+   @cw8 int = dbo.splitf(@columnWidth,',',8)
+   
+  insert @wt   
+   select 
+    rtrim(substring(@dataToken,1,@cw1)),
+    rtrim(substring(@dataToken,1+@cw1,@cw2)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2,@cw3)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2+@cw3,@cw4)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2+@cw3+@cw4,@cw5)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2+@cw3+@cw4+@cw5,@cw6)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2+@cw3+@cw4+@cw5+@cw6,@cw7)),
+    rtrim(substring(@dataToken,1+@cw1+@cw2+@cw3+@cw4+@cw5+@cw6+@cw7,@cw8))
+  end
+  else 
+----Delimited rows
+ if charindex(',',@dataToken)>0 
    insert @wt select 
     (select data from dbo.split(@dataToken,',') where id = 1),
     (select data from dbo.split(@dataToken,',') where id = 2),
@@ -114,36 +147,41 @@ select @columns=col1 +'|'+col2 +'|'+col3 +'|'+col4 +'|'+col5 +'|'+col6 +'|'+col7
 
  insert @rt 
   select
-   case when dbo.splitf(@columns,'|',1) = '' then '' else coalesce(nullif(col1,''),'????') end,
-   case when dbo.splitf(@columns,'|',2) = '' then '' else coalesce(nullif(col2,''),'????') end,
-   case when dbo.splitf(@columns,'|',3) = '' then '' else coalesce(nullif(col3,''),'????') end,
-   case when dbo.splitf(@columns,'|',4) = '' then '' else coalesce(nullif(col4,''),'????') end,
-   case when dbo.splitf(@columns,'|',5) = '' then '' else coalesce(nullif(col5,''),'????') end,
-   case when dbo.splitf(@columns,'|',6) = '' then '' else coalesce(nullif(col6,''),'????') end,
-   case when dbo.splitf(@columns,'|',7) = '' then '' else coalesce(nullif(col7,''),'????') end,
-   case when dbo.splitf(@columns,'|',8) = '' then '' else coalesce(nullif(col8,''),'????') end,
+   case when dbo.splitf(@columns,'|',1) = '' then '' else col1 end,
+   case when dbo.splitf(@columns,'|',2) = '' then '' else col2 end,
+   case when dbo.splitf(@columns,'|',3) = '' then '' else col3 end,
+   case when dbo.splitf(@columns,'|',4) = '' then '' else col4 end,
+   case when dbo.splitf(@columns,'|',5) = '' then '' else col5 end,
+   case when dbo.splitf(@columns,'|',6) = '' then '' else col6 end,
+   case when dbo.splitf(@columns,'|',7) = '' then '' else col7 end,
+   case when dbo.splitf(@columns,'|',8) = '' then '' else col8 end,
    'b',
-   case when dbo.splitf(@columns,'|',1) = '' or isnull(col1,'') = '' then '' else '@' + dbo.splitf(@columns,'|',1) + '=' + isnull(col1,'') + ';' end
+   @blob+case when dbo.splitf(@columns,'|',1) = '' or isnull(col1,'') = '' then '' else '@' + dbo.splitf(@columns,'|',1) + '=' + isnull(col1,'') + ';' end
    + case when dbo.splitf(@columns,'|',2) = '' or isnull(col2,'') = '' then '' else '@' + dbo.splitf(@columns,'|',2) + '=' + isnull(col2,'') + ';' end
    + case when dbo.splitf(@columns,'|',3) = '' or isnull(col3,'') = '' then '' else '@' + dbo.splitf(@columns,'|',3) + '=' + isnull(col3,'') + ';' end
    + case when dbo.splitf(@columns,'|',4) = '' or isnull(col4,'') = '' then '' else '@' + dbo.splitf(@columns,'|',4) + '=' + isnull(col4,'') + ';' end
    + case when dbo.splitf(@columns,'|',5) = '' or isnull(col5,'') = '' then '' else '@' + dbo.splitf(@columns,'|',5) + '=' + isnull(col5,'') + ';' end
    + case when dbo.splitf(@columns,'|',6) = '' or isnull(col6,'') = '' then '' else '@' + dbo.splitf(@columns,'|',6) + '=' + isnull(col6,'') + ';' end
    + case when dbo.splitf(@columns,'|',7) = '' or isnull(col7,'') = '' then '' else '@' + dbo.splitf(@columns,'|',7) + '=' + isnull(col7,'') + ';' end
-   + case when dbo.splitf(@columns,'|',8) = '' or isnull(col8,'') = '' then '' else '@' + dbo.splitf(@columns,'|',8) + '=' + isnull(col8,'') + ';' end,
+   + case when dbo.splitf(@columns,'|',8) = '' or isnull(col8,'') = '' then '' else '@' + dbo.splitf(@columns,'|',8) + '=' + isnull(col8,'') + ';' end
+   + '@ord=b;',
     0
   from @wt order by id
 
 
-
-
  update r set 
-  r.blob = replace(blob,'@Mtg_Code=????;','') + '@Mtg_Code=' + cast(key1 as varchar) + ';' 
-  from @rt r,object o where o.typ=4030 and r.ord='b' and dbo.readstring('@Mtg_Code=',blob) in ('','????') and o.key3 = dbo.readstring('@Company=',blob) and o.key1>'  0'
+  r.blob = replace(blob,'@mortgage_code=????;','') + '@mortgage_code=' + cast(key1 as varchar) + ';' 
+  from @rt r,object o where
+   o.typ=4030 and r.ord='b' and dbo.readstring('@mortgage_code=',blob) in ('','????')     
+   and o.key3 = dbo.readstring('@Company=',blob) and o.key1>'  0'and o.key3>'  0'
 
- update @rt set color = 2, blob = blob + '@color=2;' where ord = 'b' and dbo.readstring('@Mtg_code=',blob) in  ('','????')
+ update @rt set color = 2, blob = blob + '@color=2;' where ord = 'b' and dbo.readstring('@mortgage_code=',blob) in  ('','????')
 
- update @rt set color = 2, blob = blob + '@color=3;' where ord = 'b' and dbo.readstring('@Parcel=',blob) in  ('','????')
+ update @rt set color = 3, blob = blob + '@color=3;' where ord = 'b' and dbo.readstring('@parcel=',blob) in  ('','????')
+
+ update @rt set color = 4, blob = blob + '@color=4;' where ord = 'b' and dbo.readstring('@year=',blob) in  ('','????')
+
+ update @rt set color = 1, blob = blob + '@color=1;' from @rt where ord = 'b' and blob in (select blob from dbo.mortgagelinksimported)
 
 
 

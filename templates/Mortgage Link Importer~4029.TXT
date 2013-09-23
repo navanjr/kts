@@ -12,21 +12,23 @@
  if(lcid+0>0,change(lcid),new(4029));
 
 @loadwindow=
+ create(1,9)
+ tabord('002004040006'),
  if(len(clip(obj:e1))+0=0,setDefaultCol=),
  lcWarn4029='TRUE',
  create(552,12,500,272,'&Edit Raw Data',84),
  update,
  brwstuff=,
  prop(111,'color',65280),
- create(151,34,3,3,'',002),
- create(152,34,64,3,'',004),
- create(153,34,125,3,'',006),
- create(154,34,186,3,'',008),
- create(155,34,246,3,'',010),
- create(156,34,307,3,'',012),
- create(157,34,369,3,'',014),
- create(158,34,429,3,'',016),
- lcOptions='<blank>|Address|Company|County|Mtg_Code|Name|Parcel|Year',
+ create(151,34,3,18,'',008),
+ create(152,34,64,18,'',010),
+ create(153,34,125,18,'',012),
+ create(154,34,186,18,'',014),
+ create(155,34,246,18,'',016),
+ create(156,34,307,18,'',018),
+ create(157,34,369,18,'',020),
+ create(158,34,429,18,'',022),
+ lcOptions='<blank>|address|company|county|mortgage_code|name|parcel|year',
  prop(151,'From',lcOptions),
  prop(152,'From',lcOptions),
  prop(153,'From',lcOptions),
@@ -42,19 +44,19 @@
  prop(155,'Drop',25),
  prop(156,'Drop',25),
  prop(157,'Drop',25),
- prop(158,'Drop',25),
- prop(151,7cfah,16777215);
+ prop(158,'Drop',25);
+
 \w15115860;r \z15115812;r \r151168;r
 
 @setDefaultCol=
- set(2,'County',1),
- set(4,'Parcel',1),
- set(6,'Company',1),
- set(8,'Tax Year',1),
- set(10,'Details',1),
- set(12,'<blank>',1),
- set(14,'<blank>',1),
- set(16,'<blank>',1);
+ set(8,'County',1),
+ set(10,'Parcel',1),
+ set(12,'Company',1),
+ set(14,'Tax Year',1),
+ set(16,'Details',1),
+ set(18,'<blank>',1),
+ set(20,'<blank>',1),
+ set(22,'<blank>',1);
 
 @acc151=update,refreshBRW=;
 @acc152=acc151=;
@@ -69,17 +71,19 @@
 
 @brwstuff=
  gcvars=,
- brw(150,1,gcsql4029,3,16,485,170,gcformat4029,7,1),
+ brw(150,1,gcsql4029,3,33,485,154,gcformat4029,7,1);
  prop(150,7CFAH,13499135);
 
-@lbrw1color=obj7:c10='2' or obj7:c10='3',255,obj7:c10='1',2350115;
+@lbrw1color=obj7:c10='2' or obj7:c10='3' or obj7:c10='4',255,obj7:c10='10',8308990,obj7:c10='1',2350115;
 
 @lbrwclick150=
  lcId=kpbrwid(1)*-1,
  break(lcId+0=0),
  lcBlob=kp('select blob from dbo.mortgageLinkImporterBrw('&obj:id&',null) where id = '&lcId),
+ break(readstring(lcblob,'@ord=')<>'b'),
  if(readstring(lcblob,'@color=')=2 or readstring(lcblob,'@color=')=0,Menu=),
- if(readstring(lcblob,'@color=')=3,m('Parcel Missing!'));
+ if(readstring(lcblob,'@color=')=3,m('Parcel Missing!')),
+ if(readstring(lcblob,'@color=')=4,m('Year Missing!'));
 
 @Menu=
  m('Missing MTG Company...','CSV Row: '&lcid,,'Add MTG Company|View MTG Company|&Cancel'),
@@ -104,24 +108,34 @@
  tsc;
 
 @nox=lcWarn4029='TRUE';
+
 @noexit=
  getImportStats=,
  if(lcCount+0=0,normalClose=),
  break(lcWarn4029='FALSE'),
  m('|Warning... ||It appears you still have items to import.||Are you sure you want to close the MTG Links Importer?|','Are you sure?...','question.ico',6,2),
  break(gcretval<>2),
- lcWarn4770='FALSE',
+ lcWarn4029='FALSE',
  close('OK');
 
-\t001Col_1; \x0023; 
-\t003Col_2; \x00464; 
-\t005Col_3; \x006125; 
-\t007Col_4; \x008186; 
-\t009Col_5; \x010246; 
-\t011Col_6; \x012307; 
-\t013Col_7; \x014368; 
-\t015Col_8; \x016429; 
- \h001016;r \y0020163;r2 \w00201659;r2
+\t001Company; \l0024030;r002006004002006086088088086084; @lf002=,3; @acc002=if(obj:c6=1,set(004,'')),acc151=; \x002-20; \w00140; \z00114; \y001-2;
+@acc001=
+ lcComId=kp('select id from object where typ=4030 and key3='''&obj:key1&''''),
+ if(lcComId+0>0,change(lcComId));
+
+\t003Mortgage Code; \w00435; \x003166; \x004217; @acc004=acc151=; \h003004obj:c6=1;r
+\t005Column Widths; \h005006obj:c5<>'1';r \x005312; \x006368; @acc006=acc151=;
+\y0010063;r 
+
+\t007Col_1; \x0083; 
+\t009Col_2; \x01064; 
+\t011Col_3; \x012125; 
+\t013Col_4; \x014186; 
+\t015Col_5; \x016246; 
+\t017Col_6; \x018307; 
+\t019Col_7; \x020368; 
+\t021Col_8; \x022429; 
+ \h007022;r \y00702216;r2 \w00802259;r2
 
 \t023Input_1; \x0243; 
 \t025Input_2; \x02664; 
@@ -132,19 +146,28 @@
 \t035Input_7; \x036368; 
 \t037Input_8; \x038429; 
  \h023037;r2 \y024038190;r2 \w02403859;r2 \p0240387cfah,13217535;r2
+\h024038obj:key3>'  0';r2
+
+\t039Year; \w04030; \y0390403;r \x039257; \x040277; \f040=year(today()); @acc040=acc151=;
+
+\t065FireNewItem; \h065; \x066-490; \y066190; \w06620; \h066obj:key3>'  0';
+@sel066=
+ fireNewMtgCode=;
+
+\t085FixedWidth; \h085086;r
+\t087Consolidator; \h087088;r
 
 @normalClose=
  lcWarn4029='FALSE',
  close('OK');
 
-@acc024=break(obj:key2~='<blank>'),fireNewMtgCode=;
-@acc026=break(obj:key3~='<blank>'),fireNewMtgCode=;
-@acc028=break(obj:a1~='<blank>'),fireNewMtgCode=;
-@acc030=break(obj:a2~='<blank>'),fireNewMtgCode=;
-@acc032=break(obj:a3~='<blank>'),fireNewMtgCode=;
-@acc034=break(obj:a4~='<blank>'),fireNewMtgCode=;
-@acc036=break(obj:a5~='<blank>'),fireNewMtgCode=;
-
+@acc024=break(obj:a2~='<blank>'),fireNewMtgCode=;
+@acc026=break(obj:a3~='<blank>'),fireNewMtgCode=;
+@acc028=break(obj:a4~='<blank>'),fireNewMtgCode=;
+@acc030=break(obj:a5~='<blank>'),fireNewMtgCode=;
+@acc032=break(obj:a6~='<blank>'),fireNewMtgCode=;
+@acc034=break(obj:a7~='<blank>'),fireNewMtgCode=;
+@acc036=break(obj:a8~='<blank>'),fireNewMtgCode=;
 
 @fireNewMtgCode=
  if(1=1,addNewMtgCode=),
@@ -164,28 +187,9 @@
  set(38,''),
  acc102=;
 
-\t065FireNewItem; \h065; \x066-490; \y066190; \w06620; 
-@sel066=
- fireNewMtgCode=;
 
 \t118&Reset Import Data; \y118285;
  @acc118=clearmemo=;
-
-@openClerksFund=
- fundCheck=,
- if(lcFundId+0>0,change(lcFundId,,1),clerksFundMissing=),
- break(lcFundId+0=0),
- refreshBRW=;
-
-@fundCheck=
- lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&',null) where id = '&lcid),
- lcFundId=kp('select id from object where typ = 4704 and key2 = '''&lcFund&'''');
-
-@clerksFundMissing=
- m('Would you like to add it?','Missing Clerks Fund....',,6,2),
- break(gcretval<>2),
- neww(4704,,004=lcFund),
- refreshBRW=;
 
 \t101Raw Import Data; \x1013; \y101205; @acc102=update,refreshBRW=;
  \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
@@ -195,7 +199,6 @@
  @acc104=acc102=;
  \p1047cfah,13499135; \p1047c10h,courier new; \p1047c11h,8;
  \x1043; \y104315; \w104480; \z104100; \d104obj:c4=0;
-
 
 \t120&Load Raw Data; 
 @acc120=
@@ -227,28 +230,25 @@
  acc102=;
 
 \t114&Import;
+
 @getImportStats=
- lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&choose(obj:c1+0=1,',null,null',',null')&')'),
- lcCount=readstring(lcMsgBlob,'@count='),
- lcAmount=readstring(lcMsgBlob,'@amount='),
- lcRed=readstring(lcMsgBlob,'@red=');
+  d1select('exec dbo.mortgageLinkCrud @id ='&obj:id&', @method = ''verify'''),
+ lcCount=readstring(obj7:d1,'@count='),
+ lcAmount=readstring(obj7:d1,'@amount='),
+ lcRed=readstring(obj7:d1,'@red=');
 
 @acc114=
  update,
  getImportStats=,
+ if(lcCount+0=0,m('Nothing to import!','Import mortgage links...')),
  break(lcCount+0<1),
- lcType=choose(obj:c1+0=1,'Vouchers','Warrants'),
- if(lcType='Vouchers',importVouchers=,importWarrants=);
-
-@importWarrants=
- m(choose(lcRed+0>0,'WARNING!!****There are '&lcRed&' '&lcType&' that will not be imported!!!!!||','')&lcCount&' '&lcType&' - '&format(lcAmount,@n$14.2)&'||Do you wish to insert these into the '&choose(obj:c1+0=1,clip(obj:a18),'warrant')&' register?','Insert '&lcType&'...','question.ico','&Print Import Report|&Import Warrants|E&xit'),
+ m(choose(lcRed+0>0,'WARNING!!****There are '&lcRed&' mortgage links that will not be imported!!!!!||','')&lcCount&' - mortgage links will be imported.||What would you like to do?','Import mortgage links...','question.ico','&Import Mtg Links|E&xit'),
  break(gcretval=3),
- if(gcretval=2,importGuts=),
- if(gcretval=1,acc113=);
+ if(gcretval=1,importGuts=);
 
 @importGuts=
- pmo('Importing '&lcCount&' '&lctype,'Please wait...'),
- d1select('exec dbo.paymentsImportBatch '''&choose(obj:c1+0=1,'official voucher','warrant')&''','&obj:id&','''&cur:ini&''''),
+ pmo('Importing '&lcCount&' Please wait...'),
+ d1select('exec dbo.mortgageLinkCrud @id ='&obj:id&', @method = ''Create'''),
  pmc(),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Oops...')),
  acc102=;

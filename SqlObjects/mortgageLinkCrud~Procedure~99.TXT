@@ -1,0 +1,37 @@
+create procedure dbo.mortgageLinkCrud @id int, @method  varchar(10) = 'Create'
+ as
+begin
+ set nocount on
+
+ declare @message varchar(max) = ''
+
+ exec dbo.logit @@procid, '@id',@id,'@method',@method
+
+if @method = 'Verify' and @id>0
+ begin
+   
+    select @message =  
+      '@count=' + cast(sum(case when color = 0 then 1 else 0 end) as varchar) +';' 
+      + '@red=' + cast(sum(case when color = 2 then 1 else 0 end) as varchar) +';'
+     from dbo.mortgageLinkImporterBrw(@id,null) where ord = 'b'
+
+    exec dbo.logit @@procid, @message
+  
+  select @message
+
+  return 
+ end
+
+if @method = 'Create' and @id>0
+ insert into dbo.mortgageLinksImported (parcel,year,mortgage_code,company,blob)
+  select  
+   replace(dbo.readstring('@parcel=',blob),'-',''),
+   dbo.readstring('@year=',blob),
+   dbo.readstring('@mortgage_code=',blob),
+   dbo.readstring('@company=',blob),
+   blob
+   from dbo.mortgageLinkImporterBrw(@id,null) where color = 0 and ord = 'b'
+
+ exec dbo.logit @@procid, 'done!...enjoy'
+
+end
