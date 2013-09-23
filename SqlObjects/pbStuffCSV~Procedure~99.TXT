@@ -103,7 +103,7 @@ declare @rt table(
  select @address = dbo.parseAddress(@siteBlob)+CHAR(13)+CHAR(10)+dbo.readstring('Phone=',@siteBlob)
  
 insert @rt (id,name,taxRollItemNumber,parcelNumber,taxyear,taxType,countyName,countyadd1,countyadd2,countyadd3,countyadd4,barcode,ownerId)
- select top 10000
+ select top 100
   i.ID, NAME, ITEM, PARCEL, taxYear, case when typ='R' then 'REAL ESTATE' else 'PERSONAL' end,
   dbo.readstring('@county=',@siteBlob)+' County Treasurer',
   dbo.splitf(@address,CHAR(13)+CHAR(10),1),
@@ -114,7 +114,7 @@ insert @rt (id,name,taxRollItemNumber,parcelNumber,taxyear,taxType,countyName,co
   a.OWNERNUMBER
   
    from invoices i
-    inner join AdTax a on a.ID=i.taxrollid
+    inner join AdTax a on a.ID=i.taxrollid and i.invoiceDue>0
     where i.TAXYEAR=@taxYear and i.invoiceAmount>0 order by a.OWNERNUMBER
 
 declare @wt table (id int)
@@ -131,7 +131,7 @@ while exists (select ID from @wt)
    select @invoiceBlob = dbo.getTaxInvoiceBlob(@tokenId)
    select @address=dbo.parseAddress(@invoiceBlob)
    select @det = @det + alternateDescription+':'+subdescription+':'+cast(amount as varchar)+'|' from dbo.glDetailBRW('t'+@tokenId,1) where id<0 order by ord
-   select @half2 = cast(SUM(case when trcode='half tax' and trSection = 2 then invoiceDue else 0 end) as varchar),@total2 = cast(SUM(case when trcode='Current Yr Tax' and trSection = 2 then invoiceDue else 0 end) as varchar)  from dbo.unpaidTFNew(@tokenId)
+   select @half2 = cast(SUM(case when trcode='half tax' and trSection = 2 then invoiceDue else 0 end) as varchar),@total2 = cast(SUM(case when trcode='Current Yr Tax' and trSection = 1 then invoiceDue else 0 end) as varchar)  from dbo.unpaidTFNew(@tokenId)
    select @det2 = @det2 + cast(sum(invoiceDue + penalty) as varchar) + ':' + cast(year as varchar) + '|' from dbo.unpaidTF(@tokenId,@DocumentId) where trcode = 'Past Due' and year is not null group by year
     
    if len(@invoiceBlob)>0
