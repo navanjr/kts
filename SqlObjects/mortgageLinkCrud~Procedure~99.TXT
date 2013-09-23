@@ -3,26 +3,46 @@ create procedure dbo.mortgageLinkCrud @id int, @method  varchar(10) = 'Create'
 begin
  set nocount on
 
- declare @message varchar(max) = ''
+ declare @message varchar(max) = '',
+         @count int,
+         @red int,
+         @update int
 
  exec dbo.logit @@procid, '@id',@id,'@method',@method
 
 if @method = 'Verify' and @id>0
  begin
-   
-    select @message =  
-      '@count=' + cast(sum(case when color = 0 then 1 else 0 end) as varchar) +';' 
-      + '@red=' + cast(sum(case when color = 2 then 1 else 0 end) as varchar) +';'
+ 
+    select 
+      @count = sum(case when color in (0,5) then 1 else 0 end),
+      @red = sum(case when color = 2 then 1 else 0 end),
+      @update = sum(case when color = 5 then 1 else 0 end)
      from dbo.mortgageLinkImporterBrw(@id,null) where ord = 'b'
+  
+    select @message =  
+      '@count=' + cast(@count as varchar) +';' 
+      + '@red=' + cast(@red as varchar) +';'
+      + '@update=' + cast(@update as varchar) +';'
+      + '@code=1;@message='
+      + case when @red>0 then 'WARNING!!****There are '+ cast(@red as varchar) +' mortgage links that will not be imported!!!!!||' else '' end
+      + case when @count-@update>0 then cast(@count-@update as varchar) +' - mortgage links will be imported.||' else '' end
+      + case when @update>0 then cast(@update as varchar) +' - mortgage links will be updated.||' else '' end
+      + 'What would you like to do?'
 
     exec dbo.logit @@procid, @message
-  
+ 
   select @message
 
   return 
  end
 
 if @method = 'Create' and @id>0
+--clear out existing  
+ delete from mortgagelinksimported where  parcel+cast(year as varchar) in 
+  (select replace(dbo.readstring('@parcel=',blob),'-','')+cast(dbo.readstring('@year=',blob)as varchar) from dbo.mortgageLinkImporterBrw(@id,null) where color=5)
+
+
+
  insert into dbo.mortgageLinksImported (parcel,year,mortgage_code,company,blob)
   select  
    replace(dbo.readstring('@parcel=',blob),'-',''),
@@ -30,7 +50,8 @@ if @method = 'Create' and @id>0
    dbo.readstring('@mortgage_code=',blob),
    dbo.readstring('@company=',blob),
    blob
-   from dbo.mortgageLinkImporterBrw(@id,null) where color = 0 and ord = 'b'
+   from dbo.mortgageLinkImporterBrw(@id,null) where color=0 and ord = 'b'
+
 
  exec dbo.logit @@procid, 'done!...enjoy'
 
