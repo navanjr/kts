@@ -1,0 +1,122 @@
+create proc dbo.conversion_mikeAddress(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @links table(
+  code int,
+  audkey varchar(50),
+  errflg varchar(50),
+  linkocode int
+ )
+ declare @address table(
+  code int, 
+  name varchar(50),
+  add1 varchar(50),
+  add2 varchar(50),
+  add3 varchar(50),
+  city varchar(50),
+  state varchar(50),
+  zip varchar(50),
+  addressocode int,
+  date varchar(50)
+ )
+
+ declare
+  @step int = 1,
+  @mikeAddress varchar(50) = 'people00',
+  @mikeLink varchar(50) = 'people02',
+  @mikePath varchar(max),
+  @sqlAddress nvarchar(max),
+  @sqlLink nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeLink + '.dbf',
+  @sqlLink = 'select * from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeLink + ' where !deleted()'')'
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeAddress + '.dbf',
+  @sqlAddress = 'select * from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeAddress + ' where !deleted()'')'
+
+ if exists(select * from taxrollDetail where stamp = 'KPS Address Import')
+  set @step = 3
+ 
+ if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_address]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+  if exists(select * from mike_address)
+   set @step = 2
+
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX'
+
+  if @step = 3
+   select
+    @code = 0,
+    @tally = 0,  
+    @message = 'mike_Address already Imported'
+
+  if @step = 2
+   select
+    @code = 1,
+    @tally = count(*),  
+    @message = 'mike_Address records in SQL but not yet imported'
+   from mike_address
+
+  if @step = 1
+   select
+    @code = 1,
+    @tally = 1,  
+    @message = 'mike_Address table does not yet exist'
+
+  return
+ end
+
+
+ if @method = 'SHOW'
+ begin  
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  exec dbo.logit @@procid, 'Here'
+  if @step <> 2
+  begin
+   insert @links exec(@sqlLink)
+   insert @address exec(@sqlAddress)
+
+   if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_address]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+    drop table mike_address
+   if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mike_addressLinks]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+    drop table mike_addressLinks
+
+   select * into mike_address from @address 
+   select *, left(audkey,4) as taxyear, SUBSTRING(audkey,5,50) as itemNumber into mike_addressLinks from @links 
+
+   return 
+  end
+
+  if @step = 2
+  begin
+   return
+  end
+
+  return 
+ end
+
+end
