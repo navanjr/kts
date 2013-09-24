@@ -1,0 +1,90 @@
+create function dbo.rpMowingReport(
+ @startDate int,
+ @endDate int
+) returns @rt table(
+ taxyear varchar(10),
+ invoiceId int,
+ taxAmount money,
+ PenAmount money,
+ FeeAmount money,
+ name varchar(50),
+ objectId int
+) as 
+begin
+
+ declare @wt table(
+  taxyear varchar(10),
+  item numeric(7,1),
+  receiptNumber varchar(50),
+  typ varchar(50),
+  name varchar(50),
+  invoiceId int,
+  invoiceLinkId int,
+  receiptId int,
+  taxReceiptNumber varchar(50),
+  amount money,
+  postDate int,
+  paid money,
+  objectId int
+ )
+
+ declare @wt2 table(
+  taxyear varchar(10),
+  invoiceId int,
+  typ varchar(50),
+  amount money,
+  name varchar(50),
+  objectId int,
+  district
+ )
+
+ insert @wt
+ select
+  i.TAXYEAR,i.ITEM,r.recNum,i.TYP,i.NAME,i.id,i.invoiceId,
+  l.receiptId,l.receiptNumber,
+  g.amount,
+  r.postDate,r.Paid,
+  i.taxrollId
+ from receiptlink l
+  join invoices i on l.invoiceId = i.ID --and i.invoiceId = 0
+  join receipt r on l.receiptId = r.recid and recStatus = 'POSTED'
+  join glDetail g on 'l' + cast(l.id as varchar) = g.slink and RIGHT(g.accountCode,4) = '_ACR'
+ where
+  r.postDate between @startDate and @endDate
+  --and i.TAXROLLID = 0
+  and i.TYP in ('O','S','F','P') 
+ order by l.receiptId, i.invoiceId
+
+ insert @wt2
+ select
+  taxyear,
+  coalesce(nullif(invoiceLinkId,0),invoiceId),
+  typ,
+  sum(amount),
+  max(name),
+  max(objectId)  
+ from @wt
+ group by
+  taxyear,
+  coalesce(nullif(invoiceLinkId,0),invoiceId),  
+  typ
+
+ delete @wt2 where invoiceId not in (select invoiceId from @wt2 where typ in ('O','S'))
+-- delete @wt2 where invoiceId not in (select invoiceId from @wt2 where typ != 'P')
+
+ insert @rt 
+ select 
+  taxyear,
+  invoiceId,
+  sum(case when typ in ('O','S') then amount else 0 end), 
+  sum(case when typ in ('P') then amount else 0 end), 
+  sum(case when typ in ('F') then amount else 0 end),
+  max(name),
+  max(objectId)  
+ from @wt2
+ group by
+  taxyear,
+  invoiceId
+
+ return
+end
