@@ -167,18 +167,26 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
 
  if lower(@method) = 'mtgcodeall'
  begin
-  declare @mtgcodeAll varchar(60)
-  select @mtgcodeAll = key1,@taxYear = a10 from object where id = @receiptId and typ = 4030
-  exec dbo.logit @@procid, '@mtgcodeAll = ', @mtgcodeAll,'@taxYear = ',@taxYear, @level = 2 
+  declare 
+    @mtgcode varchar(60),
+    @searchString varchar(250),
+    @orderString varchar(50)
+
+  select 
+   @mtgcode = key1,
+   @taxYear = a10,
+   @searchString = b9,
+   @orderString = cast(b13+0 as varchar)+cast(b14+0 as varchar)+'0000'  
+  from object where id = @receiptId and typ = 4030
+
+
+  exec dbo.logit @@procid, '@mtgcode = ', @mtgcode,'@taxYear = ',@taxYear, @level = 2 
  
- if @mtgcodeAll > ' 0'
+ if @mtgcode > ' 0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, i.id, @methodRate 
-    from invoices i,adtax a
-   where  i.taxrollid = a.id and @mtgcodeAll = case when a.treamort>'  0' then a.treamort else cast(a.mortgagecode as varchar) end
-          and i.taxyear=@taxYear
-          and i.id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    select @receiptId, abs(invoiceId), @methodRate from dbo.mortgageCodeBRW(@receiptId,@taxYear,@searchString,@orderString)
+       where abs(invoiceId) not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
  end
 

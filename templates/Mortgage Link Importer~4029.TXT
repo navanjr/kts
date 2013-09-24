@@ -1,5 +1,6 @@
 @dk1;
 @dup;
+@nolock;
 
 @menuprocess=
  displayWindow=;
@@ -12,22 +13,22 @@
  if(lcid+0>0,change(lcid),new(4029));
 
 @loadwindow=
- create(1,9)
- tabord('002004040006'),
+ create(1,9),
+ tabord('002004040006024026028030032034036038066'),
  if(len(clip(obj:e1))+0=0,setDefaultCol=),
  lcWarn4029='TRUE',
  create(552,12,500,272,'&Edit Raw Data',84),
  update,
  brwstuff=,
  prop(111,'color',65280),
- create(151,34,3,18,'',008),
- create(152,34,64,18,'',010),
- create(153,34,125,18,'',012),
- create(154,34,186,18,'',014),
- create(155,34,246,18,'',016),
- create(156,34,307,18,'',018),
- create(157,34,369,18,'',020),
- create(158,34,429,18,'',022),
+ create(151,34,3,31,'',008),
+ create(152,34,64,31,'',010),
+ create(153,34,125,31,'',012),
+ create(154,34,186,31,'',014),
+ create(155,34,246,31,'',016),
+ create(156,34,307,31,'',018),
+ create(157,34,369,31,'',020),
+ create(158,34,429,31,'',022),
  lcOptions='<blank>|address|company|county|mortgage_code|name|parcel|year',
  prop(151,'From',lcOptions),
  prop(152,'From',lcOptions),
@@ -48,31 +49,34 @@
 
 \w15115860;r \z15115812;r \r151168;r
 
+afterloadwindow=
+ toggleButt=;
+
 @setDefaultCol=
- set(8,'County',1),
- set(10,'Parcel',1),
- set(12,'Company',1),
- set(14,'Tax Year',1),
- set(16,'Details',1),
+ set(8,'parcel',1),
+ set(10,'mortgage_code',1),
+ set(12,'year',1),
+ set(14,'<blank>',1),
+ set(16,'<blank>',1),
  set(18,'<blank>',1),
  set(20,'<blank>',1),
  set(22,'<blank>',1);
 
-acc151=acc105=;
-acc152=acc105=;
-acc153=acc105=;
-acc154=acc105=;
-acc155=acc105=;
-acc156=acc105=;
-acc157=acc105=;
-acc158=acc105=;
+@acc151=tsc;
+@acc152=tsc;
+@acc153=tsc;
+@acc154=tsc;
+@acc155=tsc;
+@acc156=tsc;
+@acc157=tsc;
+@acc158=tsc;
 
 @acc552=refreshBRW=,if(obj:c4=1,focus(102)); 
 
 @brwstuff=
  kpmo('Refreshing Data...'),
  gcvars=,
- brw(150,1,gcsql4029,3,33,485,154,gcformat4029,7,1),
+ brw(150,1,gcsql4029,3,46,485,154,gcformat4029,7,1),
  kpmc();
  prop(150,7CFAH,13499135),
 
@@ -123,14 +127,14 @@ kpmo('Refreshing Data...'),
  lcWarn4029='FALSE',
  close('OK');
 
-\t001Company; \l0024030;r002006004002006086088088086084; @lf002=,3; @acc002=if(obj:c6=1,set(004,'')),acc105=; \x002-20; \w00140; \z00114; \y001-2;
+\t001Company; \l0024030;r002006004002006086088088086084; @lf002=,3; @acc002=if(obj:c6=1,set(004,'')),acc105=; \x002-20; \w00140; \z00114; 
 @acc001=
  lcComId=kp('select id from object where typ=4030 and key3='''&obj:key1&''''),
  if(lcComId+0>0,change(lcComId));
 
 \t003Mortgage Code; \w00435; \x003166; \x004217; @acc004=acc105=; \h003004obj:c6=1;r
 \t005Column Widths; \h005006obj:c5<>'1';r \x005312; \x006368; @acc006=acc105=;
-\y0010063;r 
+\y00100616;r \y001-2;
 
 \t007Col_1; \x0083; 
 \t009Col_2; \x01064; 
@@ -150,10 +154,18 @@ kpmo('Refreshing Data...'),
 \t033Input_6; \x034307; 
 \t035Input_7; \x036368; 
 \t037Input_8; \x038429; 
- \h023037;r2 \y024038190;r2 \w02403859;r2 \p0240387cfah,13217535;r2
-\h024038obj:key3>'  0';r2
+ \h023037;r2 \y024038201;r2 \w02403859;r2 \p0240387cfah,13217535;r2
 
-\t039Year; \w04030; \y0390403;r \x039257; \x040277; \f040=year(today()); @acc040=acc105=;
+\h024obj:key3>'  0' or obj:a1='<blank>';
+\h026obj:key3>'  0' or obj:a2='<blank>';
+\h028obj:key3>'  0' or obj:a3='<blank>';
+\h030obj:key3>'  0' or obj:a4='<blank>';
+\h032obj:key3>'  0' or obj:a5='<blank>';
+\h034obj:key3>'  0' or obj:a6='<blank>';
+\h036obj:key3>'  0' or obj:a7='<blank>';
+\h038obj:key3>'  0' or obj:a8='<blank>';
+
+\t039Year; \w04030; \y03904016;r \x039257; \x040277; \f040=year(today()); @acc040=acc105=;
 
 \t065FireNewItem; \h065; \x066-490; \y066190; \w06620; \h066obj:key3>'  0';
 @sel066=
@@ -166,7 +178,7 @@ kpmo('Refreshing Data...'),
  lcWarn4029='FALSE',
  close('OK');
 
-@acc024=break(obj:a2~='<blank>'),fireNewMtgCode=;
+@acc024=if(obj:a2='mortgage_code',set(26,obj:key2)),if(obj:a3='year',set(28,obj:a17)),break(obj:a2~='<blank>'),fireNewMtgCode=;
 @acc026=break(obj:a3~='<blank>'),fireNewMtgCode=;
 @acc028=break(obj:a4~='<blank>'),fireNewMtgCode=;
 @acc030=break(obj:a5~='<blank>'),fireNewMtgCode=;
@@ -192,20 +204,26 @@ kpmo('Refreshing Data...'),
  set(38,''),
  acc105=;
 
+\t101Raw Import Data; \x1013; \y101192; @acc102=update,refreshBRW=;
+ \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
+ \x1023; \y102215; \w102480; \z102100; \d102obj:c4=0;
+
+
+t108Toggle; 
+acc108=
+ gcDType=choose(gcDType='FastAdd','LoadData','FastAdd'),
+ toggleButt=,
+ tsc;
+
+@toggleButt=
+ gcToggleLabel=choose(gcDType='FastAdd','Load File','Fast Add'),
+ prop(108,'text',gcToggleLabel);
+
 \t105Refresh;
 @acc105=update,refreshBRW=;
 
 \t118&Reset Import Data; \y118285;
  @acc118=clearmemo=;
-
-\t101Raw Import Data; \x1013; \y101205; @acc102=update,refreshBRW=;
- \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
- \x1023; \y102215; \w102480; \z102100; \d102obj:c4=0;
-
-\t103Raw Import Data2; \h103; \h104len(clip(obj:e2))=0;
- @acc104=acc102=;
- \p1047cfah,13499135; \p1047c10h,courier new; \p1047c11h,8;
- \x1043; \y104315; \w104480; \z104100; \d104obj:c4=0;
 
 \t120&Load Raw Data; 
 @acc120=
@@ -267,3 +285,4 @@ kpmo('Refreshing Data...'),
  set(102,''),
  set(104,''),
  acc102=;
+

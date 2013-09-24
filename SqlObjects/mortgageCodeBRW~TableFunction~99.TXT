@@ -48,9 +48,8 @@ select @mortcode = key1 from object where id = @mtgCodeId
         id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId
        from dbo.invoices
        where 
-        --name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%'
---        and 
-status<>'Firstnum'
+        name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%'
+        and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and taxrollId in (select id from adtax where case when treamort>'  0' then treamort else cast(mortgagecode as varchar) end = @mortcode)  
 

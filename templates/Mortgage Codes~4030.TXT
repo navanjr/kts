@@ -32,14 +32,27 @@ key7 = apiUpdated
  gctaxyear=obj7:key1,
  trreport('printMortageLinkReport',5021,'printAPI=');
 
+@gfwindow=
+ if(lcRefreshBrw=1,refreshBRW=),
+ lcRefreshBrw='';
+
+
 @loadwindow=
  create(550,12,65,16,'&Print Separate',78),
  create(551,12,125,16,'&Hide Msg Stmt',80),
  create(553,12,185,16,'&Hide Webiste',82),
  create(554,12,245,16,'&Fixed Width',84),
  create(555,12,305,16,'&Consolidator',88),
+ create(150,12,100,133,'Show Paid',70),
+ create(151,10,158,133,'Order By:'),
+ create(152,12,190,133,'Name',72),
+ create(153,12,225,133,'Parcel',74),
+ create(154,12,270,133,'View Links',76),
  lcYear=,
  createbrw=;
+@acc150=tsc,refreshBRW=;
+@acc152=if(obj:b13+0>0,set(74,0),set(74,1)),tsc,refreshBRW=;
+@acc153=if(obj:b14+0>0,set(72,0),set(72,1)),tsc,refreshBRW=;
 
 @acc554=
  lcFixedWidthDefault='23,10,21,32',
@@ -49,27 +62,35 @@ key7 = apiUpdated
 @deleted=
  if(obj:type+0<0,sql('exec dbo.apiDeletedProc '&obj:id&',''mortgagecodes'''));
 
-\t001Code;
+\t001Code; \w00245;
 
 \t005Name;
 \t007Address;
 \t009Address2; \h009;
-\t011City;
-\t013State;
-\t015Zip;
+\t011City; \w012100; \u012;
+\t013State; \t014@s2; \w01415; \y013014-13;r \h013; \x014+102; \u014;
+\t015Zip; \t016@s5; \w01627; \y015016-26;r \h015; \x016+119; \h013015;r2
 \t017Phone;
 \t019Fax;
 \t021Contact;
 \t023Email;
-\t025Year; \w02630; \f026=kp('select max(taxyear) from invoices'); @acc026=refreshBrw=;
+\t025Year; \w02630; \f026='All'; @acc026=refreshBRW=;
+\w006010+28;r2 \y017026-26;r
 
-\t063Search; @acc064=refreshBrw=; \h063064;r
+
+\t063Search; @acc064=refreshBRW=; \y063064-26;r \x063+30; \x063064+140;r
+
+\t069ShowPaid;
+\t071OrderName;
+\t073OrderParcel;
+\t075ViewLinks;
+\h069076;r
 
 \t077PrintSeparate; 
 \t079Hide Msg Stmt; 
 \t081Hide Website; 
 \t083FixedWidth; 
-\t085Column Lengths; \y08508629;r \x085185; \x086245; \h085086obj:c4<>1;r
+\t085Column Lengths; \y08508629;r \x085215; \x086275; \h085086obj:c4<>1;r
 \t087Consolidator; 
 
 \h077084;r
@@ -82,8 +103,8 @@ key7 = apiUpdated
 @createbrw=
   kpmo('Selecting Mortgage Code Data...'),
   obj:b9, 
-  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&',''ALL'','''&obj:b9&''',''101000'') order by ord',
-  brw(160,1,gcsql,3,175,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M18C(2)~Sel~#9#|M',7,1),
+  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
+  brw(160,1,gcsql,3,146,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M18C(2)~Sel~#9#|M',7,1),
   kpmc();
 
 @brw1=
@@ -101,7 +122,7 @@ key7 = apiUpdated
  refreshBRW=;
 
 @refreshBRW=
- gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''',''101000'') order by ord',
+ gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
  brwreload(1,gcsql);
 
 @alreadylinked=m('This tax item is already linked to another receipt in progress. Would you like to edit that receipt?','Edit Linked Receipt.',,6),
@@ -111,6 +132,7 @@ key7 = apiUpdated
 
 \t116New Receipt;
 @acc116=
+ lcRefreshBrw=1,
  d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
  if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
 @newReceiptRocks=
@@ -144,3 +166,4 @@ key7 = apiUpdated
   break(gcretval='esc'),
   sql('update a set treamort='''&obj7:key1&''' from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
   refreshBRW=;
+
