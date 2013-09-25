@@ -1,0 +1,146 @@
+create procedure dbo.apiMortgageLinks(
+ @method varchar(50) = 'GET',
+ @batchSize int = 1,
+ @postFile varchar(50) = 'apiPostMortgageLink.json',
+ @scratchFile varchar(1000) = null,
+ @debugMode varchar(5) = 'FALSE',
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
+) as
+begin
+ set nocount on
+
+ declare
+  @resource varchar(50) = 'mortgagelink',
+  @apiService varchar(50),
+  @tempPath varchar(50), 
+  @postFileFull varchar(100), 
+  @apiCode varchar(50),
+  @apiwt JSONHierarchy,
+  @filter varchar(500),
+  @apiResource varchar(50) = '/v2/treasurer/mortgagelink',
+  @dump varchar(max),
+  @log varchar(max),
+  @tokenId int,
+  @apiResultWt JSONHierarchy,
+  @theDate datetime,
+  @updated int,
+  @inserted int,
+  @tally int,
+  @goofyChars varchar(100) = '13,10,9,167,248,34,39'
+
+ exec dbo.keyAcVars 'acapiservice', @method='GET', @dump = @apiService output
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
+
+-- if not @apiService = 'ON' 
+--  return
+ 
+ select @tempPath = path from dbo.paths() where name = 'temp'
+ select top 1 @apiCode = b12 from object where typ = 40 order by id
+ set @postFileFull = @tempPath + '\' + @postFile
+ if @scratchFile is null
+  set @scratchFile = @tempPath + '\' + 'apiResultMortgagelink.tmp'
+
+ declare @jsonPrep table(
+  id int identity(1,1),
+  parentId int,
+  objectId int,
+  name varchar(50),
+  value varchar(500),
+  type varchar(50)
+ )
+
+ declare @wt table(
+  parentId int,
+  company varchar(50),
+  details varchar(300),
+  mortgage_code varchar(50),
+  parcel varchar(50),
+  year varchar(50))
+
+ if @method = 'JOB'
+ begin
+  select @batchSize = case when dbo.readString('@batchSize=',blob) = '' then @batchSize else dbo.readString('@batchSize=',blob) end from dbo.apiControlBRW() where resource = @resource
+  exec dbo.apiMortgageLinks @method = 'POST'
+ end
+ 
+ if @method = 'POST'
+ begin
+
+-- create the post data file then call the API
+ insert @wt 
+  select top (@batchSize)
+   id,
+   dbo.readstring('@company=',blob),
+   '{name:"' + dbo.readstring('@name=',blob) + '",address:"' + dbo.readstring('@address=',blob) +'"}',
+   mortgage_code,
+   parcel,
+   year
+   from mortgageLinksImported 
+   where isnull(apiUpdated,0)<modified order by id desc
+   
+
+-- bail if your done or update batchSize from tally, maybe... 
+  select @tally = count(*) from @wt
+  if isnull(@tally,0) = 0
+  begin
+   exec dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
+   return
+  end
+ 
+  if @batchSize != @tally
+  begin
+   set @batchSize = @tally
+   exec dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize, @override = 'TRUE'
+  end
+
+  insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
+  insert @jsonPrep select parentId,null,'company',company,'string' from @wt
+  insert @jsonPrep select parentId,null,'details', dbo.stripChars(details,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'mortgage_code',mortgage_code,'string' from @wt
+  insert @jsonPrep select parentId,null,'parcel', dbo.stripChars(parcel,'-'),'string' from @wt
+  insert @jsonPrep select parentId,null,'year', year,'int' from @wt
+  
+-- insert lowest level object wrapper
+  select @tokenId = MAX(id) + 1 from @jsonPrep
+  insert @jsonPrep (objectId,parentId,name,value,type) 
+  select parentId,@tokenId,null,'','object' from @jsonPrep group by parentId
+-- insert array wrapper
+  insert @jsonPrep (objectId,name,value,type) 
+  select @tokenId,'','','array'
+
+  insert @apiwt select * from @jsonPrep
+  select @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+
+  exec spOverwriteTextFile @postFileFull, @dump
+  
+  exec dbo.api
+   @method = @method,
+   @resource = @apiResource,
+   @postFile = @postFile,
+   @debugMode = @debugMode,
+   @scratchFile = @scratchFile,
+   @cmdOutput = @tokenId output,
+   @dump = @dump output
+
+  set @result = @dump 
+
+  insert @apiResultWt select * from dbo.parseJSON(@dump)
+  select @updated = cast(stringValue as int) from @apiResultWt where name = 'updated' and valueType = 'int'
+  select @inserted = cast(stringValue as int) from @apiResultWt where name = 'created' and valueType = 'int'
+  if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
+  begin
+   set @theDate = getDate()
+   update mortgageLinksImported  set apiUpdated = @theDate where id in (select parentId from @wt)
+   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
+  end
+  else
+  begin
+   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+  end
+
+  return
+ end
+
+end
+
