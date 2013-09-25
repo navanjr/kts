@@ -2,6 +2,8 @@
 @dup;
 @nolock;
 
+@select=choose(tier=3,24,002);
+
 @menuprocess=
  displayWindow=;
 
@@ -17,18 +19,19 @@
  tabord('002004040006024026028030032034036038066'),
  if(len(clip(obj:e1))+0=0,setDefaultCol=),
  lcWarn4029='TRUE',
- create(552,12,500,272,'&Edit Raw Data',84),
  update,
  brwstuff=,
- prop(111,'color',65280),
- create(151,34,3,31,'',008),
- create(152,34,64,31,'',010),
- create(153,34,125,31,'',012),
- create(154,34,186,31,'',014),
- create(155,34,246,31,'',016),
- create(156,34,307,31,'',018),
- create(157,34,369,31,'',020),
- create(158,34,429,31,'',022),
+ if(tier=3,tier3Mods=),
+ break(tier=3),
+ create(552,12,500,272,'&Edit Raw Data',84),
+ create(151,34,3,18,'',008),
+ create(152,34,64,18,'',010),
+ create(153,34,125,18,'',012),
+ create(154,34,186,18,'',014),
+ create(155,34,246,18,'',016),
+ create(156,34,307,18,'',018),
+ create(157,34,369,18,'',020),
+ create(158,34,429,18,'',022),
  lcOptions='<blank>|address|company|county|mortgage_code|name|parcel|year',
  prop(151,'From',lcOptions),
  prop(152,'From',lcOptions),
@@ -45,12 +48,38 @@
  prop(155,'Drop',25),
  prop(156,'Drop',25),
  prop(157,'Drop',25),
- prop(158,'Drop',25);
+ prop(158,'Drop',25),
+ prop(102,7C04H,480),
+ prop(003,7C02H,166),
+ prop(004,7C02H,217),
+ prop(039,7C02H,257),
+ prop(040,7C02H,277),
+ prop(024,7C02H,3),
+ prop(026,7C02H,64),
+ prop(028,7C02H,125),
+ prop(024,7C04H,58),
+ prop(026,7C04H,58),
+ prop(028,7C04H,58);
+
+
+@tier3Mods=
+ create(552,12,285,272,'&Edit Raw Data',84),
+ prop(002,7C02H,23),
+ prop(003,7C02H,125),
+ prop(004,7C02H,180),
+ prop(039,7C02H,220),
+ prop(040,7C02H,240),
+ prop(024,7C02H,3),
+ prop(026,7C02H,94),
+ prop(028,7C02H,185),
+ prop(024,7C04H,88),
+ prop(026,7C04H,88),
+ prop(028,7C04H,88),
+ prop(102,7C04H,270);
+
+\h154158tier=3;
 
 \w15115860;r \z15115812;r \r151168;r
-
-afterloadwindow=
- toggleButt=;
 
 @setDefaultCol=
  set(8,'parcel',1),
@@ -76,10 +105,9 @@ afterloadwindow=
 @brwstuff=
  kpmo('Refreshing Data...'),
  gcvars=,
- brw(150,1,gcsql4029,3,46,485,154,gcformat4029,7,1),
+ if(tier=3,brw(150,1,gcsql4029,3,30,270,167,gcformat4029,7,1),brw(150,1,gcsql4029,3,33,485,167,gcformat4029,7,1)),
  kpmc();
  prop(150,7CFAH,13499135),
-
 
 @lbrw1color=obj7:c10='2' or obj7:c10='3' or obj7:c10='4',255,obj7:c10='5',65535,obj7:c10='10',8308990,obj7:c10='1',2350115;
 
@@ -106,7 +134,7 @@ afterloadwindow=
  if(lcId+0>0,change(lcId));
 
 @gcvars=
- gcformat4029='60L(2)~~#2#M|60L(2)~~#3#M|60L(2)~~#4#M|60L(2)~~#5#M|60L(2)~~#6#M|60L(2)~~#7#M|60L(2)~~#8#M|60L(2)~~#9#M|',
+ gcformat4029=choose(tier=3,'90L(2)~~#2#M|90L(2)~~#3#M|90L(2)~~#4#M|','60L(2)~~#2#M|60L(2)~~#3#M|60L(2)~~#4#M|60L(2)~~#5#M|60L(2)~~#6#M|60L(2)~~#7#M|60L(2)~~#8#M|60L(2)~~#9#M|'),
  gcsql4029='select id*-1,col1,col2,col3,col4,col5,col6,col7,col8,ord,color from dbo.mortgageLinkImporterBrw('&obj:id&',null) where ord<>''a1'' order by ord';
 
 @refreshBRW=
@@ -127,45 +155,49 @@ kpmo('Refreshing Data...'),
  lcWarn4029='FALSE',
  close('OK');
 
-\t001Company; \l0024030;r002006004002006086088088086084; @lf002=,3; @acc002=if(obj:c6=1,set(004,'')),acc105=; \x002-20; \w00140; \z00114; 
+
+
+\t001Company; \l0024030;r002006004002006086088088086084; @lf002=,3; @acc002=if(obj:c6=1,set(004,'')),acc105=; \x002-20; \w00140; \z00114; \h001tier=3;
 @acc001=
  lcComId=kp('select id from object where typ=4030 and key3='''&obj:key1&''''),
  if(lcComId+0>0,change(lcComId));
 
-\t003Mortgage Code; \w00435; \x003166; \x004217; @acc004=acc105=; \h003004obj:c6=1;r
+\t003Mortgage Code; \w00435; @acc004=acc105=; \h003004obj:c6=1;r
 \t005Column Widths; \h005006obj:c5<>'1';r \x005312; \x006368; @acc006=acc105=;
-\y00100616;r \y001-2;
+\y0010063;r \y001-2; \d002004tier=3;r2
 
 \t007Col_1; \x0083; 
-\t009Col_2; \x01064; 
-\t011Col_3; \x012125; 
+\t009Col_2; \x01094; 
+\t011Col_3; \x012185;
 \t013Col_4; \x014186; 
 \t015Col_5; \x016246; 
 \t017Col_6; \x018307; 
 \t019Col_7; \x020368; 
 \t021Col_8; \x022429; 
- \h007022;r \y00702216;r2 \w00802259;r2
+\h007011;r
+\h008012tier<>3;r2 \d008012tier=3;r2
+ \h013022;r \y00702216;r \w00802288;r2 
 
-\t023Input_1; \x0243; 
-\t025Input_2; \x02664; 
-\t027Input_3; \x028125; 
+\t023Input_1; x0243; 
+\t025Input_2; x02664; \d026tier=3;
+\t027Input_3; x028125; \d028tier=3; 
 \t029Input_4; \x030186; 
 \t031Input_5; \x032246; 
 \t033Input_6; \x034307; 
 \t035Input_7; \x036368; 
 \t037Input_8; \x038429; 
- \h023037;r2 \y024038201;r2 \w02403859;r2 \p0240387cfah,13217535;r2
+ \h023037;r2 \y024038201;r2 \w03003859;r2 \p0240387cfah,13217535;r2
 
 \h024obj:key3>'  0' or obj:a1='<blank>';
-\h026obj:key3>'  0' or obj:a2='<blank>';
-\h028obj:key3>'  0' or obj:a3='<blank>';
+\h026obj:key3>'  0' or obj:a2='<blank>' or tier=3;
+\h028obj:key3>'  0' or obj:a3='<blank>' or tier=3;
 \h030obj:key3>'  0' or obj:a4='<blank>';
 \h032obj:key3>'  0' or obj:a5='<blank>';
 \h034obj:key3>'  0' or obj:a6='<blank>';
 \h036obj:key3>'  0' or obj:a7='<blank>';
 \h038obj:key3>'  0' or obj:a8='<blank>';
 
-\t039Year; \w04030; \y03904016;r \x039257; \x040277; \f040=year(today()); @acc040=acc105=;
+\t039Year; \w04030; \y0390403;r \f040=year(today()); @acc040=acc105=; \d040tier=3;
 
 \t065FireNewItem; \h065; \x066-490; \y066190; \w06620; \h066obj:key3>'  0';
 @sel066=
@@ -206,7 +238,7 @@ kpmo('Refreshing Data...'),
 
 \t101Raw Import Data; \x1013; \y101192; @acc102=update,refreshBRW=;
  \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
- \x1023; \y102215; \w102480; \z102100; \d102obj:c4=0;
+ \x1023; \y102215; \z102100; \d102obj:c4=0; \h101;
 
 
 t108Toggle; 
@@ -225,7 +257,7 @@ acc108=
 \t118&Reset Import Data; \y118285;
  @acc118=clearmemo=;
 
-\t120&Load Raw Data; 
+\t120&Load Raw Data; \h120tier=3;
 @acc120=
  if(len(clip(obj:e1))>0,overwritememo=),
  break(gcretval<>2 and gcretval<>''),
