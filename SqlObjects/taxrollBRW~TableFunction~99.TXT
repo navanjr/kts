@@ -83,6 +83,19 @@ set @searchString=replace(@searchstring,'~{','''')
         and i.id not in (select invoiceId from receiptlink where receiptid = @receiptId)
      else
 ---Regular Search 
+     if @sSlen=1 and isnumeric(@searchString)=0
+      insert @rt
+       select  
+        id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
+       from dbo.invoices
+       where 
+        left(name,@sSlen) = @searchString
+        and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
+        and status<>'Firstnum'
+        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+        and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
+        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
+     else
       insert @rt
        select  
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
