@@ -7,6 +7,7 @@
 @save;
 lmode=2;
 @format=50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M;
+
 @filtername=All,All Un-Posted,All Query,Miscellaneous,Mortgage,Tax,Trust,Individual Redemption;
 @filter='id>0',
 'a17<>''Posted''',
@@ -16,10 +17,21 @@ lmode=2;
 'typ=4502 and key3=''TAX'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''TRUST'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''INDIV'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ';
+
+@closebrowse=
+ gcDashRecType='';
+
 @loadbrowse=
+ altFormat=,
  prop(016,'color',65280),
  prop(017,'color',65280),
  prop(023,'color',65280);
+
+@gfbrowse=
+ altFormat=;
+
+@altFormat=
+ format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
 key7=apiUpdate
@@ -27,9 +39,7 @@ key7=apiUpdate
 @ordername=Receipt No Only,Date Newest on Top;
 
 @menuprocess=
-     insertSelections=;
-
-
+ insertSelections=;
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
