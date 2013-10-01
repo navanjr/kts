@@ -27,7 +27,8 @@ begin
   @creditAcct varchar(50),
   @officalLink int,
   @lastNumber int,
-  @fiscalYear varchar(20)
+  @fiscalYear varchar(20),
+  @voucherNumberEnforcementMethod varchar(max) = dbo.settingsF('site.voucherNumberEnforcementMethod','FISCAL')
 
  if isnull(@id,0) > 0
  begin
@@ -98,8 +99,45 @@ begin
  declare @registerPostDate int = (select dbo.readString('@postdate=',dbo.paymentPostDateLogic(0)))
  select @fiscalYear = fiscalYear from fpInfo(@registerPostDate)
 
- update a set postCheck = 2, registerNumber=b.key1
- from @rt a, object b where a.voucherNumber = b.key3 and b.typ = 4771 and a18 = 'official Voucher' and a.debitAcct = b.a4 and olink1 = @fiscalYear
+
+-- check for existing voucher number
+ if not @voucherNumberEnforcementMethod = 'None'
+ begin
+
+  if @voucherNumberEnforcementMethod = 'Unique'
+   update a set
+    postCheck = 2,
+    registerNumber=b.key1
+   from @rt a, object b 
+   where a.voucherNumber = b.key3
+    and b.typ = 4771
+    and a18 = 'official Voucher'
+    and a.debitAcct = b.a4
+
+  if @voucherNumberEnforcementMethod = 'Calendar'
+   update a set
+    postCheck = 2,
+    registerNumber=b.key1
+   from @rt a, object b 
+   where a.voucherNumber = b.key3
+    and b.typ = 4771
+    and a18 = 'official Voucher'
+    and a.debitAcct = b.a4
+    and left(dbo.date112(b.key2),4) = left(dbo.date112(a.voucherDate),4)
+
+  if @voucherNumberEnforcementMethod = 'Fiscal'
+   update a set
+    postCheck = 2,
+    registerNumber=b.key1
+   from @rt a, object b 
+   where a.voucherNumber = b.key3
+    and b.typ = 4771
+    and a18 = 'official Voucher'
+    and a.debitAcct = b.a4
+    and left(dbo.fpCodeFromDate(b.key2),4) = left(dbo.fpCodeFromDate(a.voucherDate),4)
+--    and olink1 = @fiscalYear
+
+ end
 
  update @rt set postCheck = 3 where postCheck = 0 and (voucherNumber < '  0' or isdate(dbo.date1(voucherDate)) != 1 or payee < '  0')
 
