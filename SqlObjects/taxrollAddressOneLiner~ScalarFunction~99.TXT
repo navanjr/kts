@@ -1,0 +1,30 @@
+create function dbo.taxrollAddressOneLiner(
+ @year varchar(50),
+ @item varchar(50),
+ @pipedKeys varchar(max)
+) returns varchar(max) as
+begin
+
+ declare
+  @blob varchar(max),
+  @retval varchar(max) = '',
+  @tokenKey varchar(max)
+
+ declare @wt splitwt
+
+ if not isnull(@pipedKeys,'') > '  0'
+  set @pipedKeys = 'address1|address2|address3|city|state|zip1'
+
+ insert @wt select id, '@' + data + '=' from dbo.split(@pipedKeys,'|') where data > '  0'
+
+ select @blob = dbo.taxrollAddressBlob(@year, @item)
+
+ while exists (select * from @wt)
+ begin
+  select top 1 @tokenKey = data from @wt order by id 
+  select @retval = @retval + isnull(dbo.joinStr(', ',dbo.readstring(@tokenKey,@blob)),'')
+  delete @wt where data = @tokenKey
+ end
+
+ return stuff(@retval,1,2,'')
+end
