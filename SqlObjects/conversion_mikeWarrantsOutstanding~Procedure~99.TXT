@@ -71,10 +71,12 @@ begin
   update @st set convertedDate = dteregis where dteregis > @conversionDate
   update @st set csv = wfy + ',' + ltrim(rtrim(isnull(clerksCode,'unknown('+fundid+')'))) + ',' + warno + ',' + convertedDate + ',,' + cast(amnt as varchar) + ',' + ltrim(rtrim(paywhom))
 
-  update s set s.tresFundCode = (select top 1 a.accountCode from glAccounts a where a.targetAccountCode = l.accountCode and right(a.accountCode,3) = '_WR')
+-- get the debit account code that would be used during a normal import
+  update s set s.tresFundCode = rtrim(l.accountCode) + '_WR'
   from @st s
-  join clerksFundList l on s.fundid = l.clerksFundCode
-  
+  join clerksFundList l on  s.clerksCode = l.clerksFundCode
+
+-- get the paymentid from KTS so we dont import twice  
   update s set s.paymentId = p.id
   from @st s, payments p
   where s.tresFundCode = p.debitAccountCode and cast(s.warno as int) = p.clerksNumber 
@@ -113,8 +115,8 @@ begin
   select @importTally = COUNT(*) from dbo.warrantImportBRW(null,@csvBlob) where postCheck = 0
   exec dbo.logit @@procid, '@csvTally', @csvTally, '@importTally', @importTally
 
-  select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
---select * from @st
+--  select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
+select * from @st
  end
 
  if @method = 'cache'

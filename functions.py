@@ -56,6 +56,7 @@ class ktsMenu():
             'conversion.officialbankcode',
             'conversion.initials',
             'conversion.conversiondate',
+            'conversion.cutoffdate',
             'conversion.taxyear',
         ]
 
@@ -667,7 +668,7 @@ class ktsMenu():
             self.command_setSetting('git')
         elif cmd in ('mikepath', 'mikepathtax'):
             self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd in ('taxyear','officialbankcode','initials','conversiondate'):
+        elif cmd in ('taxyear','officialbankcode','initials','conversiondate','cutoffdate'):
             self.command_setSetting('conversion')
         elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
             if cmd == 'ftppath':

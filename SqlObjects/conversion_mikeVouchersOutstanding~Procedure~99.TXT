@@ -32,6 +32,7 @@ begin
 
  declare
   @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate',''),
+  @cutoffDate varchar(50) = dbo.settingsF('conversion.cutoffDate',''),
   @mikeTableName varchar(50) = 'ovoureg',
   @mikePath varchar(max),
   @sql nvarchar(max)
@@ -46,6 +47,10 @@ begin
 -- and vchdate <= "'+@conversionDate+'" 
 
   insert @st exec(@sql)
+
+-- remove any items that preceed the cutoff date
+  if @cutoffDate > '  0'
+   delete @st where vchdate <= @cutoffDate
 
 -- get the officials account code
   update a set a.officialAccountCode = b.officialDepositAccountcode
