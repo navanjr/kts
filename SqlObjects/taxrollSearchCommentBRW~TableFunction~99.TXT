@@ -115,17 +115,17 @@ if @pubFlag = 'FALSE'
  insert @wtc
    select	
 	cast('-1'+cast(min(id) as varchar) as int),
-	key2,
+	date,
 	case when isnull(ini,'')>'  0' then ini + ' - ' else '' end
     from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) 
-	group by key2,ini
+	group by date,ini
 
  while exists (select * from @wtc where comments='')
   begin
    declare @tokenDate varchar(10)
     select @tokenDate = crtdate from @wtc where comments='' order by crtdate
      begin
-      select @x = STUFF((select '|' + 'Field Name: '+rtrim(key3)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and key2=@tokenDate for XML path('')),1,1,'') 
+      select @x = STUFF((select '|' + 'Field Name: '+rtrim(field)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and date=@tokenDate for XML path('')),1,1,'') 
       update @wtc set comments = comments +'Correction: '+ replace(@x,'&amp;','&') where crtdate = @tokenDate
      end
      

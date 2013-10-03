@@ -1,0 +1,47 @@
+create function dbo.taxrollCorrectionsRp(
+ @startDate int,
+ @endDate int
+) returns @rt table(
+ taxrollId int,
+ taxyear int,
+ item varchar(50),
+ name varchar(50),
+ parcel varchar(50),
+  changeDate int,
+  field varchar(50),
+  original varchar(50),
+  corrected varchar(50),
+  ini varchar(50),
+ ord varchar(100),
+ origin int
+) as
+begin
+
+ insert @rt (taxrollId,taxyear,item,name,parcel,ord,origin)
+ select
+  i.taxrollId,
+  i.TAXYEAR,
+  i.ITEM,
+  i.NAME,
+  i.PARCEL,
+  cast(i.taxyear as varchar) + ltrim(rtrim(i.NAME)),
+  1
+ from invoices i
+ where i.taxrollId in (select TAXROLLID from taxrollCorrectionsView where date between @startDate and @endDate)
+
+ insert @rt (taxrollid,changeDate,field,original,corrected,ini,ord,origin)
+ select 
+  c.taxrollId,
+  c.date,
+  c.field,
+  c.original,
+  c.corrected,
+  c.ini,
+  i.ord + cast(isnull(c.date,99999) as varchar),
+  2
+ from taxrollCorrectionsView c 
+  join @rt i on c.TAXROLLID = i.TAXROLLID
+ where date between @startDate and @endDate
+
+ return
+end
