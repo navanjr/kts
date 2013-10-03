@@ -47,19 +47,24 @@ begin
 
   insert @st exec(@sql)
 
+-- get the officials account code
   update a set a.officialAccountCode = b.officialDepositAccountcode
   from @st a, dbo.officers b
   where a.dptno = b.departmentNumber
- 
+
+-- get the id and amount already found in KTS so we dont do it again 
+-- this currently assumes a unique vouchernumber
   update a set a.ktsPaymentId = b.id, a.ktsAmount = b.amount
   from @st a, dbo.payments b
   where a.officialAccountCode = b.debitAccountCode 
    and cast(a.vchno as int) = cast(b.clerksNumber as int)
 
+-- update the ord and csv fields
   update @st set
    ord = officialAccountCode + 'b',
    csv = ltrim(rtrim(vchno)) + ',' + vchdate + ',' + ltrim(rtrim(paywhom)) + ',' + cast(vchamt as varchar) + ',' + ltrim(rtrim(comment))
 
+-- add grouping for display
   insert @st (ord,csv,origin,officialAccountCode)
   select
    s.officialAccountCode + 'a',
@@ -72,6 +77,7 @@ begin
   where s.officialAccountCode = o.officialDepositAccountCode
   group by s.officialAccountCode, o.bankAccountCode, o.officialName, o.id
 
+-- add blanks line for display
   insert @st (ord,csv,origin) select officialAccountCode,'',3 from @st where origin = 1 group by officialAccountCode
 
  end
