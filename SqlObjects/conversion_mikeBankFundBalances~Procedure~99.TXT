@@ -47,10 +47,17 @@ begin
    select 
     @class = 'conversion',
     @guide = 'GET|SHOW|FIX',
-    @code = case when count(*) > 0 then 1 else 0 end,
-    @tally = COUNT(*),  
     @message = 'bank fund balances not found in KTS'
-   from @st
+
+   if not exists(select * from object where typ = 4512 and key3 = 'G/L BEGINNING BALANCES' and olink5 = 'mike')
+    select
+     @code = case when count(*) > 0 then 1 else 0 end,
+     @tally = COUNT(*)
+    from @st
+   else
+    select
+     @code = 0,
+     @tally = 0
  end
 
  if @method = 'SHOW'
@@ -78,6 +85,7 @@ begin
    @description = 'G/L BEGINNING BALANCES',
    @jeType = 'MANUAL',
    @postDate = @conversionDateClarionDate,
+   @conversionNote = 'mike',
    @resultCode = @resultCode output,
    @resultMessage = @resultMessage output,
    @newId = @newId output
