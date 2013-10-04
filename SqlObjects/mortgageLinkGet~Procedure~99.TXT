@@ -5,6 +5,9 @@ create proc dbo.mortgageLinkGet (
 begin
  set nocount on
 
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_mortgageLink' and COLUMN_NAME = 'mortgage_Code')
+   alter table temp_mortgageLink add mortgage_Code varchar(10)
+
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_mortgageLink]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   create table temp_mortgageLink(
    id int identity(1,1),
@@ -16,7 +19,8 @@ begin
    site_id int,
    createDate varchar(50),
    taxrollId int,
-   companyId varchar(50)
+   companyId varchar(50),
+   mortgage_code varchar(10)
   )
 
   delete from temp_mortgageLink
@@ -73,7 +77,8 @@ begin
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'year'),''),
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'site_id'),''),
      isnull((select stringValue from @apiwt where parent_id = @token and name = 'created_date'),''),
-     null,null,null,0
+     null,null,null,0,
+     isnull((select stringValue from @apiwt where parent_id = @token and name = 'mortgage_code'),'')
     delete @apiwt where parent_id = @token
    end
 
@@ -136,7 +141,7 @@ begin
     and a.companyId is null
 
    select @tally = count(*) from temp_mortgageLink
-   exec dbo.logit @@procid, 'total rows received from the API', @tally   
+   exec dbo.logit @@procid, 'total rows received from the API', @tally 
 
  end
 end

@@ -1,0 +1,32 @@
+create procedure dbo.mortgageLinkApply(
+ @year int,
+ @method varchar(10) = 'Verify')
+as 
+begin
+
+set nocount on
+
+ declare 
+  @tally int,
+  @message varchar(max)
+
+---verify there are records in the temp_mortgagelink table
+ if @method = 'Verify'
+   begin
+    select @tally = count(id) from temp_mortgageLink where year = @year and  taxrollId in (select id from adtax)
+    select '@code=1;@message=' + cast(@tally as varchar) + ' mortgage links pulled from the website||Do you want to continue and update mortgage codes?:'
+   return
+   end
+
+---Apply Mortgage Codes
+ if @method = 'Apply'
+   begin
+     update a set 
+      treamort = mortgage_code 
+      from adtax a join dbo.mortgageLinksBrw('Detail') on replace(fullPidNumber,'-','')=parcel and realtaxyear=@year and realtaxYear=year
+   return
+  end
+
+
+
+end

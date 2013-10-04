@@ -1,0 +1,22 @@
+@nolock;
+@nosave;
+
+@menuprocess=
+ lcId=kp('select top 1 id from object where typ=4028'),
+ if(lcId+0>0,change(lcId),new(4028));
+
+@loadbrowse=
+ menuprocess=;
+
+@loadwindow=
+ createbrw=;
+
+ @createbrw=
+  gcsql='select id*-1,company,mortgage_code,tally from dbo.mortgageLinksBrw(''sum'') order by id',
+  brw(160,1,gcsql,3,3,250,300,'150L(2)~Company~#2#|M40L(2)~Mtg Code~#3#|M20R(2)~Tally~#4#|M',7,1);
+
+\t105&Apply;
+
+@acc105=
+ m('Do you want to apply the mortgage links?','apply mtg links...',,6,4),
+ if(gcretval=2,d1select('exec dbo.mortgageLinkApply '&gcTaxYear4000&', @method=''Apply'''));

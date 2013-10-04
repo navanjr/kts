@@ -1,0 +1,42 @@
+create function dbo.mortgageLinksBrw(@option varchar(50))
+ returns @rt table(
+ id int identity(1,1),
+ company varchar(50),
+ mortgage_Code varchar(15),
+ tally int,
+ year int,
+ parcel varchar(50))
+as
+begin
+
+declare @wt table
+ (id int identity(1,1),
+ company varchar(50),
+ mortgage_Code varchar(15),
+ year int,
+ parcel varchar(50))
+
+ insert @wt (company,mortgage_Code,year,parcel)
+  select coalesce(o.key3,company),coalesce(o.key1,mortgage_code),year,parcel
+   from temp_mortgageLink l left join  object o on  (l.mortgage_code = o.Key1 or l.mortgage_code = o.a17) and o.Typ=4030
+--   group by coalesce(o.key3,company),coalesce(o.key1,mortgage_code)
+   order by coalesce(o.key3,company),coalesce(o.key1,mortgage_code),parcel
+
+
+if @option='sum'
+ insert @rt (company,mortgage_code,tally)
+  select company,mortgage_code,COUNT(id) 
+   from @wt
+   group by company,mortgage_code
+   order by company,mortgage_code
+
+
+if @option='Detail'
+ insert @rt (company,mortgage_code,year,parcel)
+  select company,mortgage_code,year,parcel
+   from @wt
+   order by company,mortgage_code,parcel
+
+
+ return
+end
