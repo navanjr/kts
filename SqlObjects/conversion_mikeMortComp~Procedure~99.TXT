@@ -1,0 +1,80 @@
+create proc dbo.conversion_mikeMortComp(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare @mortcomp table(
+  code varchar(50),
+  name varchar(50),
+  add1 varchar(50),
+  add2 varchar(50),
+  add3 varchar(50),
+  city varchar(50),
+  state varchar(50),
+  zip varchar(50),
+  contact varchar(50),
+  phone varchar(50),
+  memo varchar(max)
+ )
+
+ declare
+  @mikeTableName varchar(50) = 'mortcomp',
+  @mikePath varchar(max),
+  @sql nvarchar(max)
+
+ select
+  @mikePath = dbo.settingsF('conversion.mikepathtax','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select * from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted()'')'
+ 
+ insert @mortcomp exec(@sql)
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'mortgage companies not found in KTS'
+  from @mortcomp
+  where code not in (select key1 from object where typ = 4030)
+   and code > '  0' and name > '  0'
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @mortcomp
+  where code not in (select key1 from object where typ = 4030)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  insert object (typ,key1,key3,a1,a2,a3,a4,a5,a6,a8)
+  select 4030, code, name, add1, add2, city, state, zip, phone, contact
+  from @mortcomp
+  where code > '  0' and name > '  0'
+
+  exec dbo.logit @@procid, 'inserted typ 4030 records into object...  @@rowCount', @@rowCount
+
+  return
+
+ end
+
+end
+
+
