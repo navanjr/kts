@@ -1,0 +1,34 @@
+create function dbo.warrantPastPaidSummary()
+returns @wt3 table(fundCode varchar(60),
+                   fundDesc varchar(50),
+                   fy varchar(50),
+                   amount money)   
+as
+begin                    
+ declare @wt table(id int identity(1,1),
+                  fundcode varchar(60),
+                  data varchar(max))
+
+ declare @idToken int,
+        @fundCodeToken varchar(60),
+        @dataToken varchar(max)
+                           
+ insert @wt                  
+  select a2,e1 from object o where typ=4704 and e1 like '%,%' 
+
+
+ while exists (select * from @wt)
+ begin
+   select top 1 @idToken=id,
+        @fundCodeToken=fundcode,
+        @dataToken=data
+    from @wt
+   insert @wt3
+    select @fundCodeToken,'', dbo.splitF(data,',',1), dbo.splitF(data,',',2) from dbo.split(@dataToken,'|') 
+  delete from @wt where id=@idToken
+ end
+
+ update w set fundDesc = a.accountDesc from @wt3 w, glaccounts a where a.accountcode=w.fundCode
+
+ return
+end
