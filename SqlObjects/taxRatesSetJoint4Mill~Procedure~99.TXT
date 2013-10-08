@@ -1,0 +1,17 @@
+create procedure dbo.taxRatesSetJoint4Mill (@schooldistrict varchar(60))
+as
+begin
+ declare @millname varchar(60), @4millname varchar(60)
+
+ if not exists(select * from object where typ=4008 and key1 in ('JOINT 4 MILL','JOINT 4-MILL'))
+ begin
+  insert object (typ,attributes,key1,a3)
+  select 4008,'          Y','JOINT 4 MILL','1'
+ end
+
+ select top 1 @millname=key1 from object where typ=4008 and key1 in ('JOINT 4 MILL','JOINT 4-MILL')
+ select top 1 @4millname=key1 from object where typ=4008 and key1 like '%4%' and key1 like '%MIL%' and key1 not like '%JOINT%'
+
+ update object set a1=@millname where typ=4012 and key1=@schooldistrict and a1=@4millname
+
+end
