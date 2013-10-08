@@ -5,7 +5,21 @@ create function dbo.settingsF(
 begin
 
  declare @retvar varchar(150)
- select @retvar = settingValue from settings where settingName = @settingName
+
+ if not @settingName in ('site.apiurl','site.apikey')
+ begin
+  select @retvar = settingValue from settings where settingName = @settingName
+ end
+ else
+ begin
+
+  if @settingName = 'site.apiurl'
+   select @retvar = apiurl from dbo.site
+
+  if @settingName = 'site.apikey'
+   select @retvar = apikey from dbo.site
+
+ end
 
  return isnull(@retvar,@returnIfNull)
 
