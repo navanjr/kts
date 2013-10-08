@@ -13,7 +13,10 @@ break(obj7:d1+0>1),
 d1select('exec dbo.createFiscalPeriod '&lcDate+0);
 
 @loadwindow=checkFiscalCalendar=,
- brwstuff=;
+ brwstuff=,
+ d1select('select isnull((select settingvalue from settings where settingname=''site.summaryReceiptsOnDashboard''),''FALSE'')'),
+ if(gctax+0>0,gcshowsummary=obj7:d1,gcshowsummary='TRUE')
+ ;
 
 @afterloadwindow=
  d1select('select count(distinct accountCode) from dbo.posAccounts(null) where accountId = 0'),
@@ -146,7 +149,7 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
 \t116Ta&x Inquiry; @acc116=newRecLog=,do(4502,'goTax=');
 \t117&Individual Redeem; @acc117=newRecLog=,do(4502,'newIndiv=');
 \t118&Browse All Receipts; @acc118=gcDashRecType='ALL',browse(1,4502);
-\t119&Summary Receipt; @acc119=newRecLog=,do(4502,'newSummary='); \h119gctax+0>0 or cur:securitylevel < 30;
+\t119&Summary Receipt; @acc119=newRecLog=,do(4502,'newSummary='); \h119gcshowsummary='FALSE' or cur:securitylevel < 30;
 \t120Co&llections; @acc120=do(4026,menuprocess=);
 @newRecLog=
  sql('exec dbo.logit null,''NewReceipt'','''&gcretval&'''');
