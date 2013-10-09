@@ -1,0 +1,29 @@
+create function dbo.rpform308(@begindate varchar(20),@enddate varchar(20))
+
+returns @rt table(fundCode varchar(60), 
+                  fundDesc varchar(50),
+                  postDate1 varchar(30),
+                  ReceiptNo varchar(50),
+                  sourceDesc varchar(50),
+                  amountToApportion money,
+                  detCount int)
+as
+begin
+                
+ declare @miscCollectionAccountCode varchar(60)
+
+ select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
+ insert @rt
+ select fundCode, FundDesc,postDate1, ReceiptNo, sourceDesc, amountToApportion,detCount from dbo.reportMiscReceiptDetail(@begindate,@enddate) 
+  where isnull(form308,0)=1 
+
+ insert @rt
+ select accountCode as fundCode,accountDesc as FundDesc,'' as postDate1,'' as receiptNo,sourceDesc,sum(amount)*-1 as amountToApportion, 0 as detCount 
+  from rpMonthEndDetail(@begindate,@enddate,'TRUE') 
+  where apportionContraCode<>@miscCollectionAccountCode and apportionContraCode <> accountcode  
+   and accountType in (select accounttype from dbo.glbankfundtypes('FUND'))
+   and accountcode in (select accountcode from glaccounts where form308='1')
+  group by accountcode,accountDesc,SourceDesc
+  
+ return
+end
