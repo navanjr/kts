@@ -19,6 +19,24 @@ begin
 
  end
 
+ if @receiptType = 'MTG'
+ begin
+ 
+  if not exists(select * from object td, glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%TAX%')
+  begin
+   exec dbo.logit @@procid, 'Someone tried to create a new Mortgage receipt with out the appropriate Mortgage Tax Tax Description.'
+   select '@code=1;@message=Sorry, The Mortgage Tax, Tax Descripiton has not been properly setup.;'
+   return
+  end 
+
+  if not exists(select * from object td, glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%FEE%')
+  begin
+   exec dbo.logit @@procid, 'Someone tried to create a new Mortgage receipt with out the appropriate Mortgage Fee Tax Description.'
+   select '@code=1;@message=Sorry, The Mortgage Fee, Tax Descripiton has not been properly setup.;'
+   return
+  end 
+ end
+
  declare @newId int
 
  exec dbo.receiptCRUD
