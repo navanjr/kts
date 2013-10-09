@@ -4,13 +4,15 @@ create function dbo.specialApportionmentRP(@receiptId int,@asOfDate int) returns
  amount money,
  sourceDesc varchar(50),
  accountId int,
- accountCode varchar(50))
+ accountCode varchar(50),
+ reportSection varchar(50))
 as begin
 
 insert @rt
 
 select 
- left(a.accountDesc,40), case when a.accountType = 'fund' and a.schoolFund='1' then 'SchoolFund' else a.accountType end, ap.amount, left(s.accountdesc,40) as sourcedesc,a.accountId, a.accountCode
+ left(a.accountDesc,40), case when a.accountType = 'fund' and a.schoolFund='1' then 'SchoolFund' else a.accountType end, ap.amount, left(s.accountdesc,40) as sourcedesc,a.accountId, a.accountCode,
+case  when a.accountType in ('fund') then 'B' when a.accountType = 'city' then 'C' when a.accountType in ('school','votech') then 'D' when a.accountType in ('schoolfund') then 'E' end
 from glaccounts a,(select * from dbo.apportionCollectionsWT(@receiptId, @asOfDate, 'MISCREPORT', null, 0) ) ap, glaccounts s  
 where 
  a.accountCode = ap.creditCode  
@@ -20,3 +22,5 @@ order by a.accountType desc,a.accountCode,a.monthEndColumn, ap.ord, ap.stepDesc
 
 return
 end
+
+
