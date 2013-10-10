@@ -116,8 +116,15 @@
  lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
  lcDescrip=readstring(obj7:d1,'@description='),
  lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ lcType=readstring(obj7:d1,'@type='),
  gcDialog=choose(instring('file',lower(lcDescrip),1,1)>0,'',''),
- if(lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,toggleIt=);
+ case(instring('|',lcType,1,1)>0,comboSetting=,lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,else,toggleIt=);
+
+@comboSetting=
+ iw('@select=150;,.t000'&str_replace(lcName,'site.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.h002., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004., ,[loadwindow=create(150,33,64,1,'''',002),prop(150,''From'','''&lcType&'''),prop(150,''Width'',118),prop(150,''Height'',12),prop(150,''Readonly'',0),prop(150,''Drop'',5),prop(150,7cfah,16777215).,'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.settingsCRUD '''&'taxroll.'&lcName&''','''&obj7:key1&''''),
+ refreshBrw=;
 
 @editVariable=
  iw('@loadwindow=if(gcDialog=1,create(1,9)); @acc001=filedialog(''Locate file...'',),set(002,gcretval); \t001'&lcDescrip&';\f002'&lcValue&';'),

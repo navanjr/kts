@@ -105,6 +105,7 @@ class ktsMenu():
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
+        self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
 
         self.command = []
 
@@ -761,7 +762,13 @@ class ktsMenu():
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
             print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
-            sqlInsert = "insert adtaxCheck "
+            columnNames = ['RECORDTYPE','ADDITIONNUMBER','TOWNSHIPBLOCK','RANGELOT','SECTIONNUMBER','QTRSECTIONNUMBER','PARCELNUMBER','PROPERTYSPLIT','FULLPIDNUMBER','PIDSORTNUMBER','ITEMNUMBER']
+            columnNames = columnNames + ['REALTAXYEAR','OWNERNAME','BUSINESSNAME','ADDRESS1','ADDRESS2','ADDRESS3','CITY','STATE','ZIP1','ZIP2','ZIP3','COUNTRY','ORGSCHOOLDISTRICTMAIN','SCHOOLDISTRICTMAIN']
+            columnNames = columnNames + ['ORGSCHOOLDISTRICTTAXRATE','SCHOOLDISTRICTTAXRATE','FIREDISTRICT','MORTGAGECODE','OWNERNUMBER','ACRES','LOTS','MFGHOMEASSESSED','GROSSASSESSED','FREEPORTEXEMPTION']
+            columnNames = columnNames + ['BASEEXEMPTION','DBLEXEMPTION','EXEMPTION1','EXEMPTION2','EXEMPTION3','NETASSESSEDVALUE','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE','CERTIFICATENUMBER']
+            columnNames = columnNames + ['PAIDOFFDATE','PROPERTYLIENCODE1','PROPERTYLIENAMOUNT1','PROPERTYLIENCODE2','PROPERTYLIENAMOUNT2','LASTTRANDATE','TAXCORRECTIONDATE','TAXCORRECTIONINITIALS','FLAG1']
+            columnNames = columnNames + ['FLAG2','FLAG3','LEGALDESCRIPTION']
+            sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(package['rows']):
                 formatedRow = [str(x).replace("'", "''") for x in row]
@@ -769,6 +776,170 @@ class ktsMenu():
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
             print 'ok i inserted %s records' % tally
+
+    def gsiTaxroll(self):
+        def map(row):
+            source_Type = row[0:1]
+            tax_Year = row[1:5]
+            account = row[7:15]
+            owner_ID = row[15:22]
+            owner_Name1 = row[22:62]
+            #owner_Name2 = row[62:102]
+            owner_MailInfo = row[102:142]
+            owner_Address1 = row[142:182]
+            owner_Address2 = row[182:222]
+            owner_City = row[222:252]
+            owner_St = row[252:254]
+            owner_Zip = row[254:259]
+            owner_Zip2 = row[259:263]
+            owner_Country = row[263:303]
+            owner_LCD = row[303:311]
+            owner_LCI = row[311:314]
+            owner_LCT = row[314:320]
+            geo_Number = row[320:350]
+            other_ID = row[350:380]
+            millCodeSet = row[380:392]
+            grossAssessed = row[392:401]
+            landAssessed = row[401:410]
+            improvAssessed = row[410:419]
+            mhAssessed = row[419:428]
+            penaltyAssessed = row[428:437]
+            exempt = row[437:446]
+            taxable = row[446:455]
+            millage = row[455:461]
+            millCode = row[461:545]
+            total_Tax = row[545:557]
+            streetNumber = row[557:567]
+            streetNoSufix = row[567:571]
+            streetDirection = row[571:581]
+            streetName = row[581:611]
+            streetType = row[611:621]
+            streetTown = row[621:651]
+            hS_Status = row[651:681]
+            acres = row[681:687]
+            lots = row[687:693]
+            addit = row[693:698]
+            block = row[698:702]
+            lot = row[702:706]
+            sec = row[706:708]
+            township = row[708:711]
+            range = row[711:714]
+            qtrSection = row[714:715]
+            deedBook = row[715:724]
+            deedPage = row[724:733]
+            salesPrice = row[733:742]
+            mhPrePaidFlag = row[742:743]
+            taxroll_LCD = row[743:751]
+            taxroll_LCI = row[751:754]
+            taxroll_LCT = row[754:760]
+            legal = row[760:2760]
+            advanceValue = row[2760:2770]
+            advanceTax = row[2770:2780]
+            return [
+                source_Type,
+                tax_Year,
+                account,
+                owner_ID,
+                owner_Name1.strip(),    #4
+                #owner_Name2,
+                owner_MailInfo.strip(), #5
+                owner_Address1.strip(), #6
+                owner_Address2.strip(), #7
+                owner_City.strip(),     #8
+                owner_St.strip(),       #9
+                owner_Zip,      #10
+                owner_Zip2,     #11
+                owner_Country.strip(),  #12
+                #owner_LCD,
+                #owner_LCI,
+                #owner_LCT,
+                geo_Number.strip(),     #13
+                #other_ID,
+                #millCodeSet,
+                grossAssessed.strip(),  #14
+                landAssessed.strip(),   #15
+                improvAssessed.strip(),  #16
+                mhAssessed.strip(),     #17
+                penaltyAssessed.strip(),#18
+                exempt.strip(),         #19
+                taxable.strip(),        #20
+                streetNumber.strip(),   #21
+                streetNoSufix.strip(),  #22
+                streetDirection.strip(),#23
+                streetName.strip(),     #24
+                streetType.strip(),     #25
+                streetTown.strip(),     #26
+                #hS_Status,
+                acres.strip(),          #27
+                #lots,
+                addit.strip(),          #28
+                block.strip(),          #29
+                lot.strip(),            #30
+                sec.strip(),            #31
+                township.strip(),       #32
+                range.strip(),          #33
+                qtrSection.strip(),     #34
+                #deedBook,
+                #deedPage,
+                #salesPrice,     #35
+                #mhPrePaidFlag,  #36
+                #taxroll_LCD,    #37
+                #taxroll_LCI,    #38
+                #taxroll_LCT,    #39
+                legal.strip(),          #40
+                #advanceValue,   #41
+                #advanceTax      #42
+                millage,
+                millCode,
+                total_Tax
+            ]
+        importFileRaw = self.settingsF('taxroll.importFile')
+        if not  importFileRaw:
+            print 'missing path to gsi file... fail!'
+            return
+        rows = []
+        with open( importFileRaw, 'r') as content_file:
+            rawData = content_file.read()
+        i = 0
+        for row in rawData.split('\n'):
+            rows.append(map(row))
+        #for x in rows[0:100]:
+        #    m = float(x[36])*.000001
+        #    t = format(float(x[38])*.01,'.2f')
+        #    p = x[21]+' '+x[22]+' '+x[23]+' '+x[24]+' '+x[25]+' '+x[26] + '                                                        '
+        #    print x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[20],p[1:50],x[27],x[28],x[29]+''+x[32],x[31],x[30]+''+x[33],x[34],x[35],m,t,t,t,x[37]
+
+        if len(rows) > 0:
+            print 'how many? ', len(rows)
+            print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
+            columnNames = ['recordType','realTaxYear','itemNumber','ownerNumber','ownerName','address1','address2','address3','city','state','zip1','zip2']
+            columnNames = columnNames + ['country','fullPidNumber','grossAssessed','landAssessed','improvedAssessed','mfgHomeAssessed','miscAssessed','baseExemption','netAssessedValue','propLoc']
+            columnNames = columnNames + ['acres','additionNumber','townshipBlock','sectionNumber','rangeLot','qtrSectionNumber','legalDescription','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE']
+            sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(rows):
+                formatedRow = self.gsiFormatedRow(row)
+                formatedRow = [str(x).replace("'", "''") for x in formatedRow]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                #print sqlInsert
+                #print sqlSelect
+                if len(formatedRow) > 1:
+                    if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                        tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+    def gsiFormatedRow(self,x):
+        try:
+            item = x[2]
+            m = float(x[36])*.000001
+            t = format(float(x[38])*.01,'.2f')
+            proploc = x[21]+' '+x[22]+' '+x[23]+' '+x[24]+' '+x[25]+' '+x[26] + '                                                        '
+            proploc = proploc.strip()
+            acres = format(float(x[27])*.001,'.2f')
+            return [x[0],x[1],item,x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[20],proploc,acres,x[28],x[32],x[31],x[33],x[34],x[35],m,t,t,t]#,x[37]]
+        except ValueError, e:
+            print e
+            return []
 
     def gsiAamasterCheck(self):
         def map(row):

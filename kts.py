@@ -18,6 +18,8 @@ elif len(sysArgs) > 2 and sysArgs[1] in autoArgs:
         menu.ftp_put(sysArgs[2])
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importTax':
         menu.tpsXXXXadtax()
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'importGSITax':
+        menu.gsiTaxroll()
     elif sysArgs[1] == 'api':
         menu.sendCommand(' '.join(sysArgs[1:]))
 
