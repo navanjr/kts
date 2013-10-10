@@ -1,0 +1,23 @@
+create function dbo.rpApportionmentPreview(@enddate varchar(20))
+ returns @rt table(id int identity(1,1),
+                   accountCode varchar(60),
+                   accountDesc varchar(50),
+                   amount money,
+                   accountType varchar(60),
+                   subAccount varchar(100),
+                   reportOrder varchar(60))
+as
+begin
+insert @rt
+select d.accountcode, a.accountdesc,sum(amount)*-1 as amount,case when contraAccountCode=d.AccountCode then ' Collection Account' else a.accounttype end as accountType
+ ,case when a.accounttype = 'FUND' then '' else case when isnull(comment2,'') like '%MIL%' then '4 MILL' when isnull(comment2,'')='' then 'GENERAL' else isnull(comment2,'') end end as SubAccount, reportOrder
+ from dbo.apportionCollectionsBRW(0,@enddate) d, glaccounts a
+where a.accountcode=d.accountcode 
+ and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+ group by d.accountcode, a.accountdesc,case when contraAccountCode=d.AccountCode then ' Collection Account' else a.accounttype end, reportOrder
+,case when a.accounttype = 'FUND' then '' else case when isnull(comment2,'') like '%MIL%' then '4 MILL' when isnull(comment2,'')='' then 'GENERAL' else isnull(comment2,'') end end, reportOrder 
+ having sum(amount)<>0.00
+ order by case when contraAccountCode=d.AccountCode then ' Collection Account' else a.accounttype end, reportOrder
+ 
+return
+end
