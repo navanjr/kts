@@ -28,25 +28,48 @@ begin
   @taxYear = taxYear from invoices where id = @invoiceId
   
  select @ownernumber = ownerNumber from adtax where id = @taxrollId
- 
- insert @rt
- select
-  a.id,
-  b.id,
-  a.ownerName,
-  a.fullPidNumber,
-  a.itemNumber,
-  a.legalDescription,
-  a.netAssessedValue,
-  a.acres,
-  a.lots,
-  a.schoolDistrictTaxRate,
-  a.mfgHomeAssessed,
-  a.baseExemption,
-  0,0  
- from adtax a, invoices b
- where a.id = b.taxrollId and a.ownerNumber = @ownerNumber and a.realTaxYear = @taxYear  
- 
+
+ if @ownernumber > ' 0'
+ begin 
+  insert @rt
+   select
+    a.id,
+    b.id,
+    a.ownerName,
+    a.fullPidNumber,
+    a.itemNumber,
+    a.legalDescription,
+    a.netAssessedValue,
+    a.acres,
+    a.lots,
+    a.schoolDistrictTaxRate,
+    a.mfgHomeAssessed,
+    a.baseExemption,
+    0,0  
+   from adtax a, invoices b
+   where a.id = b.taxrollId and a.ownerNumber = @ownerNumber and a.realTaxYear = @taxYear  
+ end
+ else
+ begin
+  insert @rt
+   select
+    a.id,
+    b.id,
+    a.ownerName,
+    a.fullPidNumber,
+    a.itemNumber,
+    a.legalDescription,
+    a.netAssessedValue,
+    a.acres,
+    a.lots,
+    a.schoolDistrictTaxRate,
+    a.mfgHomeAssessed,
+    a.baseExemption,
+    0,0  
+   from adtax a, invoices b
+  where a.id = b.taxrollId and b.id=@invoiceId and a.realTaxYear = @taxYear  
+ end
+
  update @rt set item = dbo.taxCorrectionsSF(item,taxrollId,'008')
 
  update @rt set halfTax = (select sum(invoiceDue) from dbo.unpaidTF(invoiceId,0) where trCode = 'Half Tax' and trSection = 2)
