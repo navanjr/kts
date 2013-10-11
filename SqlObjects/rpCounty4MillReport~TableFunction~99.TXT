@@ -77,13 +77,13 @@ select accountid,accountcode,accountdesc,sum(amount*-1),journaltype,
  case when len(isnull((select max(a1) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a1) from object where typ=4010 and key2=accountcode),'') else accountcode end,
  case when len(isnull((select max(a2) from object where typ=4010 and key2=accountcode),''))>0 then isnull((select max(a2) from object where typ=4010 and key2=accountcode),'') else accountdesc end,
  accounttype
-         
  from @det where accountType <> 'JOINT SCHOOL' and comment2='4 MILL' 
   group by accountid,accountcode,accountdesc,journaltype,accounttype
   
 
   update r set schooldistrict = o.a1,schoolname = o.a2 from @rt r, object o where r.accounttype <> 'COUNTY SCHOOL' and o.typ=4010 and o.key2 > ' 0' and o.key2=left(r.accountcode,len(o.key2))
 
+ delete from @rt where amount=0.00
 
   return
   end
