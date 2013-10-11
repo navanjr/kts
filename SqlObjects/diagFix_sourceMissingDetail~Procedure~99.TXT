@@ -1,0 +1,56 @@
+create proc dbo.diagFix_sourceMissingDetail(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+  select 
+   @class = 'Taxroll',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Source Account Missing Detail'
+  from glaccounts 
+  where accounttype='SOURCE' and charindex('_',accountcode)>1 
+    and left(accountcode,charindex('_',accountcode)-1) in (select key1 from object where typ=4010) and (apyear <' 0' or apdistrict < ' 0' or aprate < ' 0')
+    and isnumeric(right(accountcode,4))=1
+
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+   
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+select accountcode,apyear,right(accountcode,4),apdistrict,left(accountcode,charindex('_',accountcode)-1),aprate,substring(left(accountcode,len(accountcode)-5),charindex('_',accountcode)+1,10),* from glaccounts 
+  where accounttype='SOURCE' and charindex('_',accountcode)>1 
+    and left(accountcode,charindex('_',accountcode)-1) in (select key1 from object where typ=4010) and (apyear <' 0' or apdistrict < ' 0' or aprate < ' 0')
+    and isnumeric(right(accountcode,4))=1
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  update object set a11=case when a11 <' 0' then right(key1,4) else a11 end,
+   a12=case when a12 <' 0' then left(key1,charindex('_',key1)-1) else a12 end,
+   a13=case when a13 <' 0' then substring(left(key1,len(key1)-5),charindex('_',key1)+1,10) else a13 end
+  where a1='SOURCE' and charindex('_',key1)>1 
+    and left(key1,charindex('_',key1)-1) in (select key1 from object where typ=4010)and a12 <' 0'
+    and isnumeric(right(key1,4))=1
+
+  return
+
+ end
+
+end
