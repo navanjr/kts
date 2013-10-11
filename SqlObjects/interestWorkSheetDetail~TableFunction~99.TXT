@@ -20,13 +20,19 @@ select @lastDayPriorMonth = dbo.clariondate(dateadd(month, datediff(month, 0, @d
 
 declare @wt table(accountCode varchar(60), accountDesc varchar(50),comment2 varchar(50),amount money)
 
-declare @investments table(bankaccountcode varchar(60),fundaccountcode varchar(60),interestTo varchar(60),amount money)
+declare @investments table(id int identity(1,1),bankaccountcode varchar(60),fundaccountcode varchar(60),interestTo varchar(60),amount money, processCode int)
 declare @investmentTotal table(interestTo varchar(60),amount money)
 
-insert @investments
- select distinct bankAccountCode,fundDrawnOnCode,'',0 from dbo.investmentheader where (isnull(liquidationdate,0)=0 or liquidationdate>@lastDayPriorMonth) and purchaseDate<=@lastDayPriorMonth
+declare @idToken int,
+        @bankAccountCodeToken varchar(60),
+        @fundaccountcodeToken varchar(60),   
+        @fundAccountIdToken int,      
+        @amountToken money
 
-delete from @investments where fundAccountCode not in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL'))
+insert @investments
+ select distinct bankAccountCode,fundDrawnOnCode,'',0,0 from dbo.investmentheader where (isnull(liquidationdate,0)=0 or liquidationdate>@lastDayPriorMonth) and purchaseDate<=@lastDayPriorMonth
+
+delete from @investments where fundAccountCode <' 0'
 
  update i set i.amount=g.amount from @investments i,
 (select sum(amount) as amount,accountcode 
@@ -36,7 +42,29 @@ delete from @investments where fundAccountCode not in (select accountcode from g
  group by accountcode
 ) g
 where i.bankAccountCode=g.accountcode
+
+while exists(select * from @investments i, glaccounts a where i.fundaccountcode=a.accountcode and a.accounttype not in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL') and i.processCode=0)
+begin
+ select @idToken=id,
+        @bankAccountCodeToken=bankaccountcode,
+        @fundaccountcodeToken=fundaccountcode,         
+        @fundAccountIdToken=a.accountid,
+        @amountToken=amount
+  from @investments i, glaccounts a where i.fundaccountcode=a.accountcode and a.accounttype not in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL') and i.processCode=0
+
+ insert @investments 
+  select @bankAccountCodeToken,accountcode,'',amount,1
+from glaccounts a,
+(select * from dbo.apportionCollectionsWT(@fundAccountIdToken, 0, 'TRUE', null, @amountToken) ) ap 
+where a.accountCode = ap.creditCode   
+and a.accountType in (select accountType from dbo.glBankFundTypes('FUND'))
+
  
+ delete from @investments where id=@idToken
+end
+
+delete from @investments where fundAccountCode not in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL'))
+
  update i set interestTo = a.b7 from @investments i, glaccounts a where i.fundaccountcode = a.accountcode
 
 insert @investmentTotal
