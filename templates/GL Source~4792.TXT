@@ -10,6 +10,17 @@
  gcsql4792='select case when left(sId,1)=''o'' then objId else cast(substring(sId,2,14) as int)*-1 end,sNo,sDate,sDesc,case when debit<>0 then debit*-1 else credit end,balance from dbo.glAnalysisSrc('&gcFpId&','&gcAcctId&') order by postDate desc, sNo desc, id desc',
  brw(150,1,gcsql4792,3,3,400,350,'35L(1)~Source #~#2#|M45L(1)~Date~#3#|M150L(1)~Description~#4#|M75R(1)~Amount~@n$-16.2b@#5#|M75R(1)~Balance~@n$-16.2@#6#|M');
 
+@lbrwclick150=
+ break(kpbrwid(1)+0=0),
+ break(gcadmin+0<>1),
+ get(kpbrwid(1)),
+ m('Please choose one of the following...||id:'&kpbrwid(1)&'|Typ:'&obj7:type,'GCAdmin RightClick Options...','question.ico','Attempt &Delete|E&xit'),
+ if(gcretval=1 and obj7:type=4512,deleteJE=);
+
+@deleteJE=
+ sql('exec dbo.journalEntryCRUD @mode=3, @id='&kpbrwid(1)),
+ brwreload(1);
+
 brw1=lcParentId=kpbrwid(1),m(lcParentId);
 
 
