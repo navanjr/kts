@@ -1,5 +1,6 @@
 create procedure dbo.createAdtaxMillageReceivables(
- @debugMode varchar(5) = 'FALSE'
+ @debugMode varchar(5) = 'FALSE',
+ @method varchar(50) = 'adtax'
 ) 
 as 
 begin
@@ -16,13 +17,22 @@ begin
   SCHOOLDISTRICTTAXRATE varchar(50),
   pilottable varchar(50))
 
- insert @pt 
- select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' 
+ if @method = 'adtax'
+ begin
+  insert @pt 
+  select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTMAIN], [SCHOOLDISTRICTTAXRATE],'' from adtax 
+  where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]>'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' 
 
- insert @pt 
- select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTTAXRATE], [SCHOOLDISTRICTTAXRATE],'' from adtax 
- where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]<'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' and [RECORDTYPE]='O'
+  insert @pt 
+  select distinct cast([realtaxyear] as varchar(4)), [SCHOOLDISTRICTTAXRATE], [SCHOOLDISTRICTTAXRATE],'' from adtax 
+  where [realtaxyear]>0 and [SCHOOLDISTRICTMAIN]<'  0' and [SCHOOLDISTRICTTAXRATE]>'  0' and [RECORDTYPE]='O'
+ end
+
+ if @method = 'taxRateDetail'
+ begin
+  insert @pt 
+  select year, rateName, millageName, '' from taxRateDetail group by year, rateName, millageName
+ end
 
 -- delete from @pt where exists(select * from glAccounts where accountType = 'ACCRUED RECEIVABLE' and aptabletype='M' and apyear=[realtaxyear] 
 --  and apdistrict=[SCHOOLDISTRICTMAIN] and aprate=[SCHOOLDISTRICTTAXRATE])   
