@@ -1,0 +1,156 @@
+create proc dbo.conversion_mikeClerkBudgetDetail(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @mode != 'conversion'
+  return
+
+ declare
+  @mikeTableName varchar(50),
+  @mikePath varchar(max),
+  @sql nvarchar(max),
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversiondate','')
+
+ declare @adjustments table(
+  account varchar(50),
+  budget money,
+  fiscalYear varchar(50),
+  adjustWarrant money
+ )
+ declare @warrants table(
+  account varchar(50),
+  fiscalYear varchar(50),
+  amount money
+ )
+ declare @detail table(
+  id int identity(1,1),
+  account varchar(50),
+  fiscalYear varchar(50),
+  budget money,
+  amount money,
+  treasFund varchar(50)
+ )
+
+
+ if @method = 'GET'
+ begin  
+ 
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @code = 0,
+   @tally = 0,  
+   @message = 'budget detail conversion available to you... know what you are doing :)'
+
+-- dont run if you are not ready...
+  if not exists(select * from object where typ = 4705)
+  begin
+   exec dbo.logit @@procid, 'bailed cause you dont have any clerks budget accounts'
+   return
+  end
+  if exists(select * from object where typ = 4705 and key3 < '  0')
+  begin
+   exec dbo.logit @@procid, 'bailed cause you have any clerks budget accounts that are missing treasurers funds'
+   return
+  end
+
+  select 
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*)
+  from object 
+  where typ = 4705
+ 
+  return
+
+ end
+
+-- now take the time to gather the kps data
+ set @mikeTableName = 'APPRadj'
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select acctno, sum(adjin) - sum(adjout), fy, sum(adjwar) from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted() and between(fy,"12","14")'') group by acctno, fy'
+ insert @adjustments exec(@sql)
+ set @mikeTableName = 'APPRwar'
+ select
+  @mikePath = dbo.settingsF('conversion.mikepath','') + '\' + @mikeTableName + '.dbf',
+  @sql = 'select acctno, wfy, sum(acctamnt) from openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted() and between(wfy,"12","14") and left(dttm,6)<="'+@conversionDate+'"'') group by acctno, wfy'
+ insert @warrants exec(@sql)
+
+ insert @detail
+ select
+  j.account, j.fiscalYear, j.budget, w.amount, o.key3
+ from @adjustments j
+  left join @warrants w on w.account = j.account and j.fiscalYear = w.fiscalYear
+  left join object o on j.account = o.key1
+ order by j.account, j.fiscalYear 
+
+-- remove the negatives
+ delete @detail where budget < 0
+-- remove the ones that are all blank
+ delete @detail where isnull(budget,0) = 0 and isnull(amount,0) = 0
+
+
+ if @method = 'SHOW'
+ begin  
+  select * from @detail 
+ end
+
+ if @method = 'FIX'
+ begin  
+
+-- dont run if you are missing any treasurers fund
+
+  if exists(select * from @detail where isnull(treasFund,'') < '  0')
+  begin
+   exec dbo.logit @@procid, 'bailed cause you have clerks budget accounts that are missing Treasurers Funds'
+   return
+  end
+
+  declare 
+   @idToken int,
+   @accountToken varchar(50),
+   @fundToken varchar(50),
+   @fiscalToken varchar(50),
+   @budgetToken money,
+   @warrantToken money,
+   @conversionDateClarion int = dbo.clarionDate(@conversionDate)
+
+  while exists(select * from @detail)
+  begin
+
+   select top 1
+    @idToken = id,
+    @accountToken = account,
+    @fundToken = treasFund,
+    @fiscalToken = fiscalYear,
+    @budgetToken = isnull(budget,0),
+    @warrantToken = isnull(amount,0) * -1
+   from @detail
+   order by id 
+
+   if isnull(@budgetToken,0) != 0
+    exec dbo.budgetAdjustmentCRUD 0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @budgetToken, 0, 'Budget Adjustment', 'Budget Adjustment'
+
+   if isnull(@warrantToken,0) != 0
+    exec dbo.budgetAdjustmentCRUD 0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @warrantToken, 0, 'Budget Payment', 'Budget Payment'
+
+   delete @detail where id = @idToken
+
+  end
+
+  return
+
+ end
+
+end
+
+
