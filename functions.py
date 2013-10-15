@@ -10,7 +10,6 @@ import urllib2
 import urllib
 import base64
 import json
-from kps import *
 
 def isnull(what,convertTo=''):
     if what is None:
