@@ -6,11 +6,13 @@ create procedure dbo.journalEntryCRUD(
  @jeType varchar(50) = '',
  @comment varchar(max) = '',
  @conversionNote varchar(16) = '',
+ @verbose varchar(5) = 'TRUE',
  @resultCode int = 0 output,
  @resultMessage varchar(50) = '' output,
  @newId int = null output
 ) as 
 begin
+ set nocount on
 
  declare
   @slink varchar(15) = 'o' + cast(@id as varchar)
@@ -56,7 +58,8 @@ begin
   -- bail if missing description or Journal Type
   if @description < '  0' or @jeType < '  0'
   begin 
-   select @resultCode = 1, @resultMessage = 'this method requires Description and Journal Type'
+   if @verbose = 'TRUE'
+    select @resultCode = 1, @resultMessage = 'this method requires Description and Journal Type'
    return
   end
   
