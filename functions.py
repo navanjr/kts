@@ -1,11 +1,16 @@
 import os
 import sys
 import pyodbc
+import dbf
 import subprocess
 import ConfigParser
 import ftplib
 import shutil
-
+import urllib2
+import urllib
+import base64
+import json
+from kps import *
 
 def isnull(what,convertTo=''):
     if what is None:
@@ -50,6 +55,8 @@ class ktsMenu():
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
 
+        self.kpsTaxroll = kps(self)
+
         self.conversionSettings = [
             'conversion.mikepath',
             'conversion.mikepathtax',
@@ -84,8 +91,12 @@ class ktsMenu():
         self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
+        self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
 
         self.createCommand('api',['api', ],'run api job',self.command_api)
+        self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
+        self.createCommand('apiPostTest',['post', ],'test post to taxrolls api',self.command_apiPostTest, 'api')
+        self.createCommand('apiSettings',['settings','set' ],'return api settings',self.command_apiSettings, 'api')
 
         self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
@@ -118,8 +129,67 @@ class ktsMenu():
         self.sendCommand('log on')
 
     def command_api(self):
-        if len(self.command) == 2:
-            print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
+        menuName = self.getMenuName(self.command[0],self.commands)
+        subMenu = self.commands[menuName]['subMenu']
+        if len(self.command) == 1:
+            print subMenu
+        elif len(self.command) > 1:
+            self.runMenuFunction(self.command[1],subMenu)
+        # if len(self.command) == 2:
+        #     # print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
+        #     pass
+
+    def command_apiSettings(self):
+        settings = ['site.apiurl', 'site.apikey', 'site.apisitecode']
+        for setting in settings:
+            print setting, self.settingsF(setting)
+
+    def command_apiSite(self):
+        sites = self.apiCall()
+        for site in sites:
+            print site
+
+    def command_apiPostTest(self):
+        data = [
+            {'tax_roll_link': 400001, 'origin': 'nateTest', 'owner': 'PARKS, ELAM', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79},
+            {'tax_roll_link': 400002, 'origin': 'nateTest', 'owner': 'SHREWSBURY, FRANK ELDON', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79},
+            {'tax_roll_link': 400003, 'origin': 'nateTest', 'owner': 'LEFORCE FARMS INC', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79},
+            {'tax_roll_link': 400004, 'origin': 'nateTest', 'owner': 'WAYMAN, THEODORE KENT', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79},
+            {'tax_roll_link': 400005, 'origin': 'nateTest', 'owner': 'WAYMAN, KENT', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79},
+            {'tax_roll_link': 400006, 'origin': 'nateTest', 'owner': 'WAGGONER, ELMER JOE', 'tax_year': '2000', 'tax_type': 'R', 'site_id': 79}
+        ]
+        response = self.apiCall(resource='v2/treasurer/tax_rolls.json', data=data, debug=False)
+        print response
+
+    def apiCall(self, host=None, resource="v2/treasurer/sites.json", data=None, debug=False):
+        host = host or self.settingsF('site.apiurl')
+        url = 'http://%s/%s' % (host, resource)
+        print 'api url: %s' % url
+        if data:
+            data = json.dumps(data, separators=(',', ':'))
+            data = 'site_id=79&rows=%s' % urllib.quote(data)
+        req = urllib2.Request(url, data)
+        auth = 'Basic ' + base64.urlsafe_b64encode("%s:%s" % (self.settingsF('site.apikey'),''))
+        req.add_header('Authorization', auth)
+        # handler = urllib2.HTTPHandler(debuglevel=1)
+        # opener = urllib2.build_opener(handler)
+        # urllib2.install_opener(opener)
+
+        if not debug:
+            try:
+                # print "INFO method = ", req.get_method()
+                # print "INFO data = ", req.get_data()
+                response = urllib2.urlopen(req, data, 5)
+                # print "INFO url = ", response.geturl()
+                # print "INFO code = ", response.code
+                # print response.read()
+
+                return json.load(response)
+            except (urllib2.HTTPError, urllib2.URLError) as e:
+                print 'Oops... error', e
+                return e
+        else:
+            print 'debug', req
 
     def gitModified(self, repoDir=os.path.dirname(os.path.realpath(__file__))):
         p = subprocess.check_output('git status --porcelain', shell=True).split('\n')
@@ -254,6 +324,8 @@ class ktsMenu():
         result = self.sqlQuery(sqlcmd)
         if len(result['rows']) > 0:
             for row in result['rows']:
+                if not '~' in row[0]:
+                    print
                 print isnull(row[1]).rjust(5),row[0].ljust(30)
         else:
             print 'nothing to report'.rjust(30)
@@ -305,7 +377,14 @@ class ktsMenu():
 
     def ftpFiles(self):
         files = {}
-        for id, file in enumerate(os.listdir(self.ftpSettings['path'])):
+        listdir = []
+        try:
+            listdir = os.listdir(self.ftpSettings['path'])
+        except WindowsError, e:
+            print 'Oops... ', e
+            return files
+
+        for id, file in enumerate(listdir):
             fileToken = {}
             fileToken['name'] = file
             fileToken['size'] = os.path.getsize('%s/%s' % (self.ftpSettings['path'], file))
@@ -372,6 +451,7 @@ class ktsMenu():
             print "do you wish to backup the DB to..."
             if self.ask("%s?" % backupFileName) in ('yes', 'y'):
                 doit()
+
     def command_restore(self):
         files = self.ftpFiles()
         menuName = self.getMenuName(self.command[0],self.commands)
@@ -717,6 +797,12 @@ class ktsMenu():
 #        print self.git['status']
         print '     ==================================================='
         print
+
+    def command_kps(self):
+        self.kpsTaxroll.load()
+
+    def command_kpsShow(self):
+        self.kpsTaxroll.info()
 
     def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None):
         if not connDatabase:
@@ -1165,3 +1251,158 @@ class tasks(ktsMenu):
         for arg in args:
             taskName = self.tasks[int(arg)]['name']
             runDos('schtasks /run /tn "%s"' % taskName)
+
+
+class commands():
+    def __init__(self):
+        self.cmd = {}
+
+    def addCommand(self, commandName, keywordArray, description='', function='', subMenu=None):
+        self.cmd[commandName] = {
+            'keywords': keywordArray,
+            'description': description,
+            'function': function,
+            'subMenu': subMenu
+        }
+
+    def get(self, keyword):
+        for item in self.cmd.items():
+            if keyword in item[1]['keywords']:
+                return item[1]
+
+    def run(self, keyword):
+        if self.get(keyword):
+            self.get(keyword)['function']()
+
+    def show(self):
+        print
+        for key, value in self.cmd.items():
+            print key.rjust(20), '-', value['description']
+
+
+class kps(ktsMenu):
+    def __init__(self, parent):
+        self.parent_ = parent
+        self.taxRolls = {}
+        self.tally = {}
+        self.results = {}
+        self.c = commands()
+        self.c.addCommand('initialize', ['initialize', 'init', 'i'], 'open foxdata and index', self.load)
+        self.c.addCommand('info', ['info'], 'display the layout of one row', self.info)
+        self.c.addCommand('send', ['send'], 'send the kps data to the api', self.send)
+        self.c.addCommand('results', ['results','r'], 'display the results', self.showResults)
+
+    def menu(self):
+        if len(self.parent_.command) > 1:
+            self.c.run(self.parent_.command[1])
+        self.c.show()
+
+    def load(self):
+        m = ktsMenu()
+        filename = "%s\\TAXROLL.DBF" % m.settingsF('conversion.mikepathtax')
+        table = dbf.Table(filename)
+        table.use_deleted = False
+        table.open()
+        print '     please wait while we are creating an index...'
+        self.taxRolls = table.create_index(lambda rec: rec.taxyear+rec.itm_nbr)
+        self.tally = [0 for id, val in enumerate(self.taxRolls)]
+
+    def info(self, rowInt=None, showRecord=True, showResults=False):
+        if len(self.parent_.command) > 2:
+            rowInt = int(self.parent_.command[2])
+        rowInt = rowInt or 100
+        if len(self.taxRolls) >= int(rowInt):
+            print ' taxRoll Count:', len(self.taxRolls)
+            print 'api sent tally:', sum(1 for i in self.tally if i == 1)
+            if showRecord:
+                print self.taxRolls[int(rowInt)]
+            if showResults:
+                for key, value in self.results.items():
+                    print key, value
+        else:
+            print 'int:', rowInt, '-- not found in taxRolls.'
+
+    def showResults(self):
+        self.info(showRecord=False, showResults=True)
+
+    def send(self, rowIntArray=None):
+        cmd = self.parent_.command
+        if len(self.taxRolls) < 1:
+            print 'no data in taxRolls.  you will need to initialze'
+        else:
+            if len(cmd) > 3:
+                rowIntArray = [int(cmd[2]), int(cmd[3])]
+                self.sendCore(rowIntArray[0], rowIntArray[1])
+            else:
+                sendAll = areYouSure('are you sure you want to insert all %s rows?' % len(self.taxRolls))
+                if not sendAll:
+                    return
+                else:
+                    print 'ok how are we gonna do this?'
+                    end = len(self.taxRolls)
+                    start, step, token = 0, 499, 0
+                    i = end / step
+                    while token < end:
+                        if start + step < end:
+                            token = start + step
+                        else:
+                            token = end
+                        print '%s: start:%s  stop:%s' % (i, start, token)
+                        self.results[i] = self.sendCore(start, token)
+                        i = i - 1
+                        start = token + 1
+                    return
+
+    def sendCore(self, start, end):
+        if len(self.taxRolls) < 1:
+            return
+        dump = []
+        for i, record in enumerate(self.taxRolls[start:end]):
+            tempObj = {}
+            tempObj['site_id'] = 79
+            tempObj['tax_year'] = record['taxyear'].encode("ascii").strip()
+            tempObj['tax_roll_link'] = record['taxyear'].encode("ascii").strip().zfill(4) + record['itm_nbr'].encode("ascii").strip().zfill(6)
+            tempObj['tax_type'] = record['typ'].encode("ascii").strip()
+            tempObj['owner'] = record['name'].encode("ascii").strip()
+            tempObj['owner_address1'] = record['addl1'].encode("ascii").strip()
+            tempObj['owner_address2'] = record['addl2'].encode("ascii").strip()
+            tempObj['owner_city'] = record['city'].encode("ascii").strip()
+            tempObj['owner_state'] = record['state'].encode("ascii").strip()
+            tempObj['owner_postal'] = record['zip_1'].encode("ascii").strip()
+            tempObj['parcel'] = record['parcel'].encode("ascii").strip()
+            # tempObj['addition'] = record[''].encode("ascii").strip()
+            # tempObj['block'] = record[''].encode("ascii").strip()
+            # tempObj['lot'] = record[''].encode("ascii").strip()
+            tempObj['acres'] = record['acres']
+            tempObj['property_address1'] = record['proploc'].encode("ascii").strip()
+            # tempObj['property_address2'] = record[''].encode("ascii").strip()
+            # tempObj['property_city'] = record[''].encode("ascii").strip()
+            # tempObj['property_state'] = record[''].encode("ascii").strip()
+            # tempObj['property_postal'] = record[''].encode("ascii").strip()
+            # tempObj['assessed_gross'] = record[''].encode("ascii").strip()
+            tempObj['assessed_net'] = record['net_assd']
+            tempObj['assessed_improvements'] = record['g_imp']
+            tempObj['assessed_mobile_home'] = record['mobile_hm']
+            tempObj['assessed_exemption'] = record['exemp']
+            tempObj['millage_rate'] = record['c_cityc'].encode("ascii").strip()
+            tempObj['school_district'] = record['c_schn'].encode("ascii").strip()
+            tempObj['item_number'] = record['itm_nbr'].encode("ascii").strip()
+            tempObj['legal_description'] = record['leg_l1'].encode("ascii").strip()
+            # tempObj['tsvector'] = record[''].encode("ascii").strip()
+            tempObj['assessed_property'] = record['g_per']
+            # tempObj['assessed_miscellaneous'] = record[''].encode("ascii").strip()
+            tempObj['mortgage_code'] = record['treamort'].encode("ascii").strip()
+            tempObj['origin'] = 'nateTest'
+            dump.append(tempObj)
+
+        result = self.parent_.apiCall(resource="v2/treasurer/tax_rolls.json", data=dump)
+        print result
+
+        # update the result if completed successfully
+        if result['updated'] + result['created'] == end - start:
+            i = start
+            while i <= end and i <= len(self.tally):
+                self.tally[i] = 1
+                i = i + 1
+        self.info(showRecord=False)
+        return result
