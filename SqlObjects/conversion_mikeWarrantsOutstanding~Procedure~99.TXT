@@ -49,7 +49,8 @@ begin
   @mikeTableName varchar(50) = 'warrant',
   @mikePath varchar(max),
   @sql nvarchar(max),
-  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate','')
+  @conversionDate varchar(50) = dbo.settingsF('conversion.conversionDate',''),
+  @cutoffDate varchar(50) = dbo.settingsF('conversion.cutoffDate','')
 
  if @conversionDate > '  0'
  begin
@@ -80,7 +81,7 @@ begin
   where s.tresFundCode = p.debitAccountCode and cast(s.warno as int) = p.clerksNumber 
 
   set @csvBlob = ''
-  select @csvBlob = @csvBlob + csv + char(10) + char(13) from @st
+  select @csvBlob = @csvBlob + csv + char(10) + char(13) from @st where dteregis >  @cutoffDate
 
  end
 
@@ -113,8 +114,8 @@ begin
   select @importTally = COUNT(*) from dbo.warrantImportBRW(null,@csvBlob) where postCheck = 0
   exec dbo.logit @@procid, '@csvTally', @csvTally, '@importTally', @importTally
 
---  select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
-select * from @st
+  select * from dbo.warrantImportBRW(null,@csvBlob) order by ord, clerksFund
+-- select * from @st where dteregis >  @cutoffDate
  end
 
  if @method = 'cache'
