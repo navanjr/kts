@@ -24,16 +24,11 @@ begin
    @message = 'tax rates not found in KTS'
   from object
   where typ = 4012
+
+  return
+
  end
 
- if @method = 'SHOW'
- begin  
-  select * from object where typ = 4012
- end
-
- if @method = 'FIX'
- begin  
-  exec dbo.logit @@procid, 'Running conversion...'
 
   declare
    @mikeTableName varchar(50),
@@ -153,6 +148,8 @@ begin
 -- import rates
   insert @rates (impLink,district,rateName,rateCol,mill,rate,processFlag,year)
   select 0,ltrim(b.postdist),ltrim(b.city_c),b.val1,b.mil,0.0,0,b.year 
+-- use this if missing city in taxrates
+--  select 0,ltrim(b.postdist),ltrim(b.sch_n),b.val1,b.mil,0.0,0,b.year 
   from @taxTXLV b 
   exec dbo.logit @@procid, 'insert into rates  @@rowcount', @@rowcount
 
@@ -206,6 +203,31 @@ begin
   update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4011
   exec dbo.logit @@procid, 'udpates to object #2 rateNameId...  @@rowcount', @@rowcount
 
+
+ if @method = 'SHOW'
+ begin  
+
+--  select * from @picklistLineItems
+/* -- use this to create tax rate names if noTax
+  insert object (typ,key1)
+  select 4011, sch_n from @taxTXLV
+   where sch_n not in (select key1 from object where typ = 4011)
+   group by sch_n
+*/
+--  select * from @taxTXLV
+--  select * from @appsch02
+  select * from @rates
+--  select * from object where typ = 4012
+
+  return
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  exec dbo.logit @@procid, 'Running conversion...'
+
+
 -- remove any rates that wont import
   delete @rates where ISNULL(districtId,0)=0 
   exec dbo.logit @@procid, 'delete rates #1...  @@rowcount', @@rowcount
@@ -234,7 +256,7 @@ begin
     else
     begin
      insert object (typ,key1,link1,key2,link2,key3,a1,a2,a3)
-     select 4012,district,districtId,rateName,rateNameId,cast(@yearToken as varchar(5)),rateCol,cast(mill as varchar(50)),cast(rate as varchar(50))
+     select 4012,district,districtId,rateName,rateNameId,cast(@yearToken as varchar(5)),rateCol,cast(mill as varchar(50)),isnull(cast(rate as varchar(50)),'')
      from @rates where id = @idToken
      set @objectInsertedTally = @objectInsertedTally + 1
     end
