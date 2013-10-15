@@ -6,7 +6,9 @@ create procedure dbo.budgetAdjustmentCRUD(@mode int,
         @amount money,
         @newId int = 0,
         @jeType varchar(50)='',
-        @description varchar(50)='')
+        @description varchar(50)='',
+        @verbose varchar(5) = 'TRUE'
+)
 as
 begin
  set nocount on
@@ -29,7 +31,8 @@ begin
   exec dbo.journalEntryCRUD 0, 
        @postdate=@adjustDate, 
        @description=@description, 
-       @jeType=@jeType, 
+       @jeType=@jeType,
+       @verbose = 'FALSE', 
        @resultCode=@resultCode output,
        @resultMessage=@resultMessage output, 
        @newId=@newId output
@@ -37,12 +40,15 @@ begin
  
   if @resultcode <> 0
   begin
-   select '@code=1;@message='+@resultmessage+';'
+   if @verbose = 'TRUE'
+    select '@code=1;@message='+@resultmessage+';'
+   exec dbo.logit @@procid, '@code=1; @message', @resultmessage
    return
   end
   else
   begin
-   select '@code=0;@message='+@resultmessage+';@newId='+cast(@newId as varchar)+';'
+   if @verbose = 'TRUE'
+    select '@code=0;@message='+@resultmessage+';@newId='+cast(@newId as varchar)+';'
   end
   
   declare @budgetAccountCodeToken varchar(50),
@@ -70,7 +76,7 @@ begin
         where a.accountcode = @budgetFundCodeToken
    
    -- post gl
-   exec dbo.glPost @newid, 'o', @resultString = @postResult output
+   exec dbo.glPost @newid, 'o', @verbose = 'FALSE', @resultString = @postResult output
    exec dbo.logit @@procid, 'glPost - @postResult', @postResult
  end
 

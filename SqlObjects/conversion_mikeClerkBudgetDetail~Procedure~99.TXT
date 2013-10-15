@@ -37,7 +37,9 @@ begin
   fiscalYear varchar(50),
   budget money,
   amount money,
-  treasFund varchar(50)
+  treasFund varchar(50),
+  glaccount varchar(50),
+  gldetailCount money
  )
 
 
@@ -87,7 +89,9 @@ begin
 
  insert @detail
  select
-  j.account, j.fiscalYear, j.budget, w.amount, o.key3
+  j.account, j.fiscalYear, j.budget, w.amount, o.key3,
+  rtrim(j.account) + '_A' + right(cast(cast(rtrim(j.fiscalYear) as int) - 1 as varchar),2) + '-' + right(rtrim(j.fiscalYear),2) + '_B',
+  null
  from @adjustments j
   left join @warrants w on w.account = j.account and j.fiscalYear = w.fiscalYear
   left join object o on j.account = o.key1
@@ -97,7 +101,12 @@ begin
  delete @detail where budget < 0
 -- remove the ones that are all blank
  delete @detail where isnull(budget,0) = 0 and isnull(amount,0) = 0
+-- get the balance from existing gldetail data
+ update a set a.glDetailCount = (select count(*) from glDetail where accountCode = a.glAccount)
+ from @detail a
 
+-- remove the ones that are already done
+ delete @detail where isnull(glDetailCount,0) > 0
 
  if @method = 'SHOW'
  begin  
@@ -138,10 +147,12 @@ begin
    order by id 
 
    if isnull(@budgetToken,0) != 0
-    exec dbo.budgetAdjustmentCRUD 0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @budgetToken, 0, 'Budget Adjustment', 'Budget Adjustment'
+    exec dbo.budgetAdjustmentCRUD
+     0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @budgetToken, 0, 'Budget Adjustment', 'Budget Adjustment', @verbose = 'FALSE'
 
    if isnull(@warrantToken,0) != 0
-    exec dbo.budgetAdjustmentCRUD 0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @warrantToken, 0, 'Budget Payment', 'Budget Payment'
+    exec dbo.budgetAdjustmentCRUD
+     0, @accountToken, @fundToken, @fiscalToken, @conversionDateClarion, @warrantToken, 0, 'Budget Payment', 'Budget Payment', @verbose = 'FALSE'
 
    delete @detail where id = @idToken
 
