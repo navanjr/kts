@@ -195,7 +195,7 @@
  refreshBRW=;
 
 @fundCheck=
- lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&',null) where id = '&lcid),
+ lcFund=kp('select clerksFund from dbo.warrantImportBRW('&obj:id&',null,'''&obj:key3&''') where id = '&lcid),
  lcFundId=kp('select id from object where typ = 4704 and key2 = '''&lcFund&'''');
 
 @clerksFundMissing=
@@ -213,7 +213,7 @@
 
 @gcvarsWarrants=
  gcformat4770='50L(2)~FiscalYear~#2#M|40L(2)~ClerksFund~#3#M|40L(2)~Warrant #~#4#M|50R(2)~Date~@d2b@#5#M|50L(2)~Account #~#6#M|50R(2)~Amount~@n-14.2b@#7#M|50L(2)~Vendor~#8#M|50L(2)~DebitAcct~#9#M|50L(2)~CreditAcct~#10#M|50L(2)~Register#~#11#M|',
- gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&',null) order by ord';
+ gcsql4770='select id*-1,fiscalYear,clerksFund,warrantNumber,warrantDate,accountNumber,amount,vendorCode,debitAcct,creditAcct,registerNumber,postCheck from dbo.warrantImportBRW('&obj:id&',null,'''&obj:key3&''') order by ord';
 
 @refreshBRW=
  labels=,
@@ -302,7 +302,7 @@
 '&choose(obj:c1+0=1,'',' and CAST(amount as money)<>0')&'
 \t114&Import;
 @getImportStats=
- lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&choose(obj:c1+0=1,',null,null',',null')&')'),
+ lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&choose(obj:c1+0=1,',null,null',',null,'''&obj:key3&'''')&')'),
  lcCount=readstring(lcMsgBlob,'@count='),
  lcAmount=readstring(lcMsgBlob,'@amount='),
  lcRed=readstring(lcMsgBlob,'@red=');
