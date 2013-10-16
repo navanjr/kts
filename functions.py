@@ -134,9 +134,9 @@ class ktsMenu():
             print subMenu
         elif len(self.command) > 1:
             self.runMenuFunction(self.command[1],subMenu)
-        # if len(self.command) == 2:
-        #     # print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
-        #     pass
+        if len(self.command) == 2:
+             print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
+             #pass
 
     def command_apiSettings(self):
         settings = ['site.apiurl', 'site.apikey', 'site.apisitecode']
