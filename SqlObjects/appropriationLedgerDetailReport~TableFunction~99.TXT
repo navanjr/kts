@@ -8,7 +8,8 @@ returns @rt table(FundDesc varchar(60),
                   budget varchar(50),
                   balance varchar(50),
                   ord varchar(250),
-                  fiscalYear varchar(20))
+                  fiscalYear varchar(20),
+                  origin int)
 as
 begin
            
@@ -22,8 +23,9 @@ insert @rt
   SUM(payments),
   SUM(budget),
   sum(balance),
-  right(fiscalYear,2)+left(fundDesc,20)+left(accountnumber,20)+'bbb',
-  fiscalYear
+  right(fiscalYear,2)+dbo.padRight(fundDesc,' ',20)+dbo.padRight(accountnumber,' ',20)+'bbb',
+  fiscalYear,
+  1
   from dbo.appropriationLedgerDetail(@begindate,@enddate,@activeOnly,@noBalance) group by fiscalYear,funddesc,accountNumber
 
 
@@ -38,7 +40,9 @@ insert @rt
   SUM(cast(budget as money)),
   sum(cast(balance as money)),
   right(fiscalYear,2)+left(fundDesc,20)+'zzzzz'+'ccc',
-  fiscalYear from @rt group by fiscalYear,FundDesc
+  fiscalYear,
+  2
+  from @rt group by fiscalYear,FundDesc
 
 insert @rt
  select 
@@ -50,24 +54,25 @@ insert @rt
   payments,
   budget,
   balance,
-  right(fiscalYear,2)+left(fundDesc,20)+accountnumber+'bba',
-  fiscalYear
+  right(fiscalYear,2)+dbo.padRight(fundDesc,' ',20)+dbo.padRight(accountnumber,' ',20)+'bba',
+  fiscalYear,
+  3
   from dbo.appropriationLedgerDetail(@begindate,@enddate,@activeOnly,@noBalance) 
 
 
 
-insert @rt (FundDesc,accountNumber,ord,fiscalyear)
+insert @rt (FundDesc,accountNumber,ord,fiscalyear,origin)
   select 
   fundDesc,
   '',
-  right(fiscalYear,2)+left(fundDesc,20)+'     '+'aaa',fiscalyear 
+  right(fiscalYear,2)+dbo.padRight(fundDesc,' ',20)+dbo.padRight('',' ',20)+'aaa',fiscalyear,4 
   from @rt group by fiscalYear,FundDesc
 
-insert @rt (FundDesc,accountNumber,ord,fiscalyear)
+insert @rt (FundDesc,accountNumber,ord,fiscalyear,origin)
   select 
   'Fiscal Year: '+fiscalYear,
   '',
-  right(fiscalYear,2)+'          '+'aa1',fiscalyear from @rt group by fiscalYear
+    right(fiscalYear,2)+dbo.padRight('',' ',20)+dbo.padRight('',' ',20)+'aa1',fiscalyear,5 from @rt group by fiscalYear
 
 
 update @rt

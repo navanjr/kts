@@ -10,7 +10,8 @@ returns @rt table(accountCode varchar(60),
                   accountNumber varchar(60),
                   FundDesc varchar(60),
                   fiscalYear varchar(20),
-                  ord varchar(10))
+                  ord varchar(10),
+                  origin int)
 as
 begin
 
@@ -28,13 +29,14 @@ select accountCode,
    '' as accountNumber,
    '' as accountDesc,
    '' as fiscalYear,
-   'da'
+   'da',
+   1
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and (sourceType<>'4512' or sourcea18='Budget Payment')
      and accounttype='BUDGET'
-  and accountcode like '%_A%'
+  and accountcode like '%[_]A%'
   and left(accountcode,1)<>'_'
      
 insert @rt
@@ -49,13 +51,14 @@ select accountCode,
    '' as accountNumber,
    '' as accountDesc,
    '' as fiscalYear,
-   'da'
+   'da',
+   2
    from dbo.gldetailreports 
    where sourceDate>=@begindate 
      and sourceDate<=@enddate
      and (sourceType='4512' and sourcea18<>'Budget Payment')
      and accounttype='BUDGET'
-  and accountcode like '%_A%'
+  and accountcode like '%[_]A%'
   and left(accountcode,1)<>'_'
 
 if @noBalance <> 'TRUE'
@@ -76,7 +79,8 @@ begin
     '' as accountNumber,
     0 as accountDesc,
     '' as fiscalYear,
-    'a' as ord 
+    'a' as ord,
+     3
    from dbo.gldetailreports g, @accounts a
    where g.accountcode = a.accountcode 
     and sourceDate<@begindate 
@@ -97,11 +101,12 @@ begin
     '' as accountNumber,
     0 as accountDesc,
     '' as fiscalYear,
-    'a' as ord 
+    'a' as ord,
+    4
    from dbo.gldetailreports 
    where sourceDate<@begindate 
     and accounttype='BUDGET'
-    and accountcode like '%_A%'
+    and accountcode like '%[_]A%'
    and left(accountcode,1)<>'_'
    group by accountCode
  end
