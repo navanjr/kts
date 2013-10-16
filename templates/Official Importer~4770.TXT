@@ -135,6 +135,8 @@
  create(552,12,500,272,'&Edit Raw Data',84),
  lcPaymentDisplay=readstring(kp('select dbo.paymentPostDateLogic(0)'),'@label='),
  create(553,10,370,3,lcPaymentDisplay),prop(553,'7c13h',700),
+ d1select('select settingvalue from dbo.settings where settingname=''site.warrantsHitLedgerWhenRegistered'''),
+ gcwarrantsHitLedgerWhenRegistered=obj7:d1,
  update,
  bankaccount=, 
  brwstuff=,
@@ -147,7 +149,7 @@
              if(obj:c1+0=1,bankaccountVoucher=);
 
 @bankaccountWarrant=
- d1select('select a1 from object where typ=1515 and key1=''Warrant'''),
+ d1select('select key1 from object where typ=4701 and key3=''Warrant'''),
  lcwarrantaccount=obj7:d1,
  d1select('select accountDesc from glaccounts where accountcode='''&lcwarrantaccount&''''),
  lcwarrantaccountdesc=obj7:d1,
@@ -226,8 +228,10 @@
 @lbrw1forecolor=obj7:c10<0,255;
 @lbrw1color=obj7:c10='1',255,obj7:c10='2',2350115,obj7:c10='3',255; 2350115;
 
-\h001006obj:c1+0=0;r
-\h041044obj:c1+0=0;r
+\h001004obj:c1+0=0;r
+\h041042obj:c1+0=0;r
+\h005006obj:c1+0=0 and gcwarrantsHitLedgerWhenRegistered <> 'TRUE';r
+\h043044obj:c1+0=0 and gcwarrantsHitLedgerWhenRegistered <> 'TRUE';r
 \t001Received From;  \l0024601,2;r002002004012006014042050044052;  @acc002=calcrecord(),if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=; @lf002='a17!=1';
  \q002obj:c1+0=1;
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL'' and b3!=1',2;
@@ -235,7 +239,7 @@
  \t041OfficialAccountDesc; \h041; \d042; \x042184; \w042151;
  @acc004=calcrecord(),if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=;
 \t005Bank Account; \l0064701;r006002044004; @lf006='a1=''BANK'' and b3!=1',2; @acc006=if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=;
- \q006obj:c1+0=1;
+ \q006obj:c1+0=1 or gcwarrantsHitLedgerWhenRegistered='TRUE';
  \t043OfficialBankDesc; \h043; \d044; \x044184; \w044151;
 
 @updateRegisterNumber=

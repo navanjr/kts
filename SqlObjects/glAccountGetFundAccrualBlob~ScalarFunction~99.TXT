@@ -8,7 +8,8 @@ begin
 
  declare
   @retVar varchar(1000),
-  @codeSuffix varchar(10)
+  @codeSuffix varchar(10),
+  @overrideBankCode varchar(50)
 
 -- if clerks fund...
  if @accountType = 'Clerks Fund'
@@ -28,6 +29,8 @@ begin
   return @retvar
  end 
 
+ select @overrideBankCode = targetAccountCode from glaccounts where accountcode=@fundcode
+
 -- if we find the accrual account we return it
  if exists(select * from glaccounts where accountType = @accountType and targetaccountcode = @fundcode)
  begin
@@ -38,6 +41,10 @@ begin
   -- if this is a Payable request lets tack on the Expense account and Warrant Registered account 
   select @retVar = @retVar + '@expenseCode=' + rtrim(@fundCode) + '_EXP;'
   select @retVar = @retVar + '@warrantRegisterCode=' + rtrim(@fundCode) + '_WR;'
+  if @overrideBankCode > ' 0'
+  begin
+   select @retvar = @retvar + '@overrideBankCode=' + rtrim(@overrideBankCode) + ';'
+  end
   return @retvar
  end
 

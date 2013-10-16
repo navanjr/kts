@@ -52,7 +52,14 @@ begin
   @officalLink int,
   @lastNumber int,
   @payee varchar(max) = '',
-  @binFileName varchar(max)
+  @binFileName varchar(max),
+  @warrantsHitLedgerWhenRegistered varchar(5),
+  @bankcode varchar(60)
+
+ select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
+
+ select @bankcode = key3 from object where id = @id
+
 
 -- get the csv from the importer or from the passed variable
  if isnull(@id,0) > 0 
@@ -120,9 +127,12 @@ begin
 -- debit expense account per fund
    update @wt set accountBlob = dbo.glAccountGetFundAccrualBlob(clerksFund, 'Clerks Fund')
    update @wt set 
-    creditAcct = dbo.readString('@accrualCode=',accountBlob),
-    debitAcct = dbo.readString('@warrantRegisterCode=',accountBlob),
-    expenseAcct = dbo.readString('@expenseCode=',accountBlob) 
+    creditAcct = case when isnull(@warrantsHitLedgerWhenRegistered,'FALSE') = 'TRUE' then 
+     case when len(dbo.readString('@overrideBankCode=',accountBlob)) > 1 then dbo.readString('@overrideBankCode=',accountBlob) else @bankcode end
+    else  dbo.readString('@accrualCode=',accountBlob) end,
+    debitAcct = case when isnull(@warrantsHitLedgerWhenRegistered,'FALSE') = 'TRUE' then dbo.readString('@fundCode=',accountBlob) else dbo.readString('@warrantRegisterCode=',accountBlob) end,
+    expenseAcct = case when isnull(@warrantsHitLedgerWhenRegistered,'FALSE') = 'TRUE' then '' else dbo.readString('@expenseCode=',accountBlob) end
+
 
  insert @rt 
   select
