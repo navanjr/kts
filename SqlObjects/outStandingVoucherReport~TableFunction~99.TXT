@@ -1,5 +1,6 @@
 CREATE function dbo.outStandingVoucherReport(
- @endDate int
+ @endDate int,
+ @paymentType varchar(50)
 ) returns @rt table(
  registerDate varchar(50),
  controlNumber varchar(50),
@@ -14,7 +15,9 @@ CREATE function dbo.outStandingVoucherReport(
  paymentId int
 ) as
 begin
-
+ if isnull(@paymentType,'')<' 0'
+  select @paymentType = 'voucher'
+ 
  insert @rt
  select 
   postDate,
@@ -24,14 +27,16 @@ begin
   fundAccount,
   '',
   balanceAsOf*-1,
-  case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' else left(contraPaymentType,1) end,
+  case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' when 'Cancel Warrant' then 'C' else left(contraPaymentType,1) end,
   dbo.date1(contraPostDate),
   fundaccount+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b',
   dbo.slinkId(slink)
  from dbo.paymentReports('Bank',@endDate,null) 
-  where isnull(paymentType,'') like '%voucher%' 
+  where isnull(paymentType,'') like '%'+@paymentType+'%' 
 
-update @rt set fundAccountcode=key1 from object where typ=4701 and key2=fundAccount
+ update @rt set fundAccountcode=key1 from object where typ=4701 and key2=fundAccount
+
+
 
 --group header
  insert @rt (toWhom,ord,fundAccount,fundAccountCode)

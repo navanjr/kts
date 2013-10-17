@@ -179,21 +179,6 @@
     edt,);
   
  
-  tr(
-   prn(,lcLm),
-  box(lcLm-200,lcTm+200,4000,950,,lcBoxColor),
-  prn(gcCounty&' COUNTY TREASURER',lcLm+900,lcTm+250,lcHeaderFontSize-2,,lcFont),
-  prn(gcOfficial,lcLm+900,lcTm+450),
-  prn(printed,lcLm),
-  prn(page),
-  prn(,,lcTm+825,lcHeaderFontSize,bold,lcFont),
-  bnd(,'OFFICIAL DEPOSITORY REGISTER',8500C),
-  prn(,,,lcHeaderFontSize-2,bold,lcFont),
-  bnd(,'DEPOSITS RECEIVED',8500C),
-  bnd(,'FROM '&format(gcBeginDate,@d2)&' TO '&format(gcEndDate,@d2),8500C),
-  prn(,,lpagey),
-
-
 @printAllWarrants=
 do(452,getSiteInfo=),
 lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,debitAccountCode,debitAccountDesc,creditAccountCode,creditAccountDesc,official,depositAccountCode,bankAccountCode,status,paymentType,treasurersWarrant,case when warrantLinkId=0 then ''a'' else ''b'' end,dailyDataAccountLinkCode,fiscalYear,payee from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and paymentType=''Warrant'' order by case when warrantLinkId = 0 then ''a'' else ''b'' end,debitAccountCode',
@@ -273,6 +258,11 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
   lcWarrantTot=0,
   lcBoxColor=14539482,
   lcReportTotal=0,
+  d1select('select settingvalue from settings where settingname=''site.warrantsHitLedgerWhenRegistered'''),
+  lcwarrantsHitLedgerWhenRegistered=obj7:d1,
+  if(lcwarrantsHitLedgerWhenRegistered='TRUE',lcsql='select registerNumber,registerDate,controlNumber,registerDate,cast(paidAmount as money),toWhom,vType,actionDate,fundAccount,ord 
+ from dbo.outStandingVoucherReport('''&gcEndDate&''',''warrant'') 
+  where isnull(paymentId,0) > 1 '&choose(gcFundCode>'  0',' and fundAccountCode='''&gcFundCode&'''','')&' '&choose(gcCheckBox+0>'0',' and registerDate<='&lcAsOfDate,'')&' order by ord, registerNumber'),
   tr(
    lcHeaderFontSize=12,  
    lcTm=400,
