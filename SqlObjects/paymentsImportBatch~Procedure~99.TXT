@@ -29,7 +29,11 @@ begin
    @theDate datetime = getdate(),
    @importStamp varchar(50),
    @tally int,
-   @accountNumberBLOB varchar(max)
+   @accountNumberBLOB varchar(max),
+   @warrantsHitLedgerWhenRegistered varchar(5)
+
+  select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
+
 
   select @importStamp = @ini + '_' + convert(varchar,@theDate,112) + '-' + CONVERT(varchar,@theDate,108)
 
@@ -172,20 +176,15 @@ begin
 -- WARRANT
     if @paymentType = 'warrant'
     begin
+     declare @clobberKey1Token varchar(50)
+     select @clobberKey1Token = case when @warrantsHitLedgerWhenRegistered='TRUE' then '00000' else null end
 
 -- get the codes from the import record
     select
      @officialDepositCode = key2,
      @officialBankCode = key3
     from object where typ = 4770 and id = @batchId
-/*
-    if @officialBankCode<'  0'
-     begin
-      exec dbo.logit @@procid, 'missing Bank Account'
-      select '@code=1;@message=Missing Bank Account!;'
-      return
-     end
-*/
+
     select @checkPaymentId = 0
 
     select @checkPaymentId = id from object 
@@ -193,8 +192,6 @@ begin
        and key3 = @voucherNumber
        and a4 = @debitAcct
        and a18 = 'Warrant' 
---       and a2 = @payee
---       and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end = @voucherDate
        and c10 = @fiscalYear
 
      if isnull(@checkPaymentId,0)=0
@@ -214,7 +211,8 @@ begin
        @importStamp = @importStamp,
        @verbose = 'FALSE',
        @postResult = @resultStringToken output,
-       @accountNumberBLOB = @accountNumberBLOB
+       @accountNumberBLOB = @accountNumberBLOB,
+       @clobberKey1 = @clobberKey1Token
      end
     end
 -- VOUCHER   

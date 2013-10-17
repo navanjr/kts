@@ -64,16 +64,44 @@ begin
  while @@FETCH_STATUS = 0
  begin
 
+  declare @overrideKey1 varchar(5),
+          @objectA18 varchar(50),
+          @warrantFundCode varchar(100),
+          @slink varchar(20),
+          @newnumber varchar(50)
+
+  select @slink=slink from gldetail where id=@tokenId and left(slink,1)='o'
+  select @objectA18=isnull((select a18 from object where id = dbo.slinkId(@slink)),'')
+  select top 1 @warrantFundCode = ' a4 = '''+a.accountcode+''' ' from gldetail g, glaccounts a where g.accountcode=a.accountcode and g.slink = @slink and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+
+  if @objectA18 like '%Warrant%'  
+  begin
+   select @overrideKey1 = settingvalue from settings where settingname = 'site.warrantsHitLedgerWhenRegistered'  
+
+  end
+  else
+  begin
+   select @overrideKey1 = 'FALSE'
+  end
+
 -- if the item is already linked to THIS bank statement then unlink it
   if exists(select * from dbo.glDetail where id = @tokenId and accountId = @accountId and bsId = @bsId)
   begin
    update dbo.glDetail set bsId = Null, dateCleared = '' where id = @tokenId and accountId = @accountId and bsId = @bsId
+   if @overrideKey1 = 'TRUE'
+     update object set key1 = '00000' where id = dbo.slinkId(@slink) 
   end
   else
   begin
 -- link the item to the BankStatement only if it is not linked already
    if exists(select * from dbo.glDetail where id = @tokenId and accountId = @accountId and isnull(bsId,0) = 0)
     update dbo.glDetail set bsId = @bsId, dateCleared = @clearedDate where accountId = @accountId and id = @tokenId
+   if @overrideKey1 = 'TRUE'
+   begin
+    exec dbo.nextObjectAutoNumber 4771,@objectA18,@warrantFundCode,@newNumber = @newnumber output 
+    update object set key1=@newnumber where id = dbo.slinkId(@slink)
+   end
+
   end
 
   fetch next from ids into @tokenId
