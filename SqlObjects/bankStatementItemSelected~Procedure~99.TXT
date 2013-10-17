@@ -68,11 +68,13 @@ begin
           @objectA18 varchar(50),
           @warrantFundCode varchar(100),
           @slink varchar(20),
-          @newnumber varchar(50)
+          @newnumber varchar(50),
+          @fiscalYear varchar(50)
 
   select @slink=slink from gldetail where id=@tokenId and left(slink,1)='o'
   select @objectA18=isnull((select a18 from object where id = dbo.slinkId(@slink)),'')
-  select top 1 @warrantFundCode = ' a4 = '''+a.accountcode+''' ' from gldetail g, glaccounts a where g.accountcode=a.accountcode and g.slink = @slink and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+  select @fiscalYear = isnull((select c10 from object where id = dbo.slinkId(@slink)),'') 
+  select top 1 @warrantFundCode = ' a4 = '''+a.accountcode+''' and c10='''+rtrim(@fiscalYear)+''' ' from gldetail g, glaccounts a where g.accountcode=a.accountcode and g.slink = @slink and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
 
   if @objectA18 like '%Warrant%'  
   begin
