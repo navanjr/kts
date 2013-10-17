@@ -16,39 +16,71 @@ create function dbo.warrantExport(
  comments varchar(max)
 ) as 
 begin
- insert @rt
- select 
-  slink,
-  accountCode,
-  '',
-  '',
-  foreignNumber,
-  dbo.date112(contraPostDate),
-  naturalAmount,
-  0.00,
-  contraControlNumber,
-  payee,
-  dbo.date112(foreignDate),
-  comments
- from dbo.paymentreports('Warrant',@enddate,'TRUE')
- where contraPostDate >= @beginDate
-   and contraPostDate <= @enddate
-   and paymentType='warrant'
 
- update r set fiscalYear = dbo.stripChars(o.c10,'10,13') 
-  from @rt r, object o 
-   where dbo.slinkId(r.slink)=o.id
+ declare @warrantsHitLedgerWhenRegistered varchar(5)
 
- update @rt set 
-  fiscalYear = cast(cast(fiscalYear as int) + 1999 as varchar)
-   + '-' + cast(cast(fiscalYear as int) + 2000 as varchar)
-  where len(fiscalYear) = 2
+ select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
 
- update r set fund = c.key2
- from @rt r, glaccounts a, object c
-  where r.accountCode=a.accountCode
-    and c.typ = 4704
-    and c.a2=a.targetaccountCode
+ if @warrantsHitLedgerWhenRegistered = 'TRUE'
+  begin
+  insert @rt
+   select 
+    slink,
+    accountCode,
+    '',
+    '',
+    sourcekey3,
+    dbo.date112(dateCleared),
+    amount*-1 as amount,
+    0.00,
+    sourceKey1,
+    sourcea2,
+    dbo.date112(date),
+    ''
+   from dbo.gldetailreports 
+   where sourcetype='4771' 
+     and sourcea18='Warrant' 
+     and accounttype = 'BANK'
+     and dateCleared >= @beginDate
+     and dateCleared <= @enddate
+
+  end
+ else
+ begin
+  insert @rt
+   select 
+    slink,
+    accountCode,
+    '',
+    '',
+    foreignNumber,
+    dbo.date112(contraPostDate),
+    naturalAmount,
+    0.00,
+    contraControlNumber,
+    payee,
+    dbo.date112(foreignDate),
+    comments
+   from dbo.paymentreports('Warrant',@enddate,'TRUE')
+   where contraPostDate >= @beginDate
+     and contraPostDate <= @enddate
+     and paymentType='warrant'
+
+  update r set fiscalYear = dbo.stripChars(o.c10,'10,13') 
+   from @rt r, object o 
+    where dbo.slinkId(r.slink)=o.id
+
+  update @rt set 
+   fiscalYear = cast(cast(fiscalYear as int) + 1999 as varchar)
+    + '-' + cast(cast(fiscalYear as int) + 2000 as varchar)
+   where len(fiscalYear) = 2
+
+  update r set fund = c.key2
+  from @rt r, glaccounts a, object c
+   where r.accountCode=a.accountCode
+     and c.typ = 4704
+     and c.a2=a.targetaccountCode
+ end 
 
  return
 end
