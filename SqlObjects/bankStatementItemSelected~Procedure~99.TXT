@@ -73,8 +73,8 @@ begin
 
   select @slink=slink from gldetail where id=@tokenId and left(slink,1)='o'
   select @objectA18=isnull((select a18 from object where id = dbo.slinkId(@slink)),'')
-  select @fiscalYear = isnull((select c10 from object where id = dbo.slinkId(@slink)),'') 
-  select top 1 @warrantFundCode = ' a4 = '''+a.accountcode+''' and c10='''+rtrim(@fiscalYear)+''' ' from gldetail g, glaccounts a where g.accountcode=a.accountcode and g.slink = @slink and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+  select @fiscalYear = fiscalYear from dbo.fpinfo(dbo.clariondate(getdate())) 
+  select top 1 @warrantFundCode = ' a4 = '''+a.accountcode+''' and olink2='''+rtrim(@fiscalYear)+''' ' from gldetail g, glaccounts a where g.accountcode=a.accountcode and g.slink = @slink and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
 
   if @objectA18 like '%Warrant%'  
   begin
@@ -91,7 +91,7 @@ begin
   begin
    update dbo.glDetail set bsId = Null, dateCleared = '' where id = @tokenId and accountId = @accountId and bsId = @bsId
    if @overrideKey1 = 'TRUE'
-     update object set key1 = '00000' where id = dbo.slinkId(@slink) 
+     update object set key1 = '00000', olink2='' where id = dbo.slinkId(@slink) 
   end
   else
   begin
@@ -101,7 +101,7 @@ begin
    if @overrideKey1 = 'TRUE'
    begin
     exec dbo.nextObjectAutoNumber 4771,@objectA18,@warrantFundCode,@newNumber = @newnumber output 
-    update object set key1=@newnumber where id = dbo.slinkId(@slink)
+    update object set key1=@newnumber,olink2=@fiscalYear where id = dbo.slinkId(@slink)
    end
 
   end
