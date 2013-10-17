@@ -1,7 +1,6 @@
 import os
 import sys
 import pyodbc
-import dbf
 import subprocess
 import ConfigParser
 import ftplib
@@ -10,6 +9,11 @@ import urllib2
 import urllib
 import base64
 import json
+import cPickle as pickle
+try:
+    import dbf
+except ImportError:
+    pass
 
 def isnull(what,convertTo=''):
     if what is None:
@@ -1283,18 +1287,21 @@ class kps(ktsMenu):
     def __init__(self, parent):
         self.parent_ = parent
         self.taxRolls = {}
-        self.tally = {}
         self.results = {}
+        self.stats = {}
         self.c = commands()
         self.c.addCommand('initialize', ['initialize', 'init', 'i'], 'open foxdata and index', self.load)
         self.c.addCommand('info', ['info'], 'display the layout of one row', self.info)
         self.c.addCommand('send', ['send'], 'send the kps data to the api', self.send)
-        self.c.addCommand('results', ['results','r'], 'display the results', self.showResults)
+        self.c.addCommand('results', ['result', 'results', 'r'], 'display the results', self.showResults)
+        self.c.addCommand('save', ['save'], 'write kps stuff to disk', self.saveToDisk)
+        self.c.addCommand('load', ['load'], 'get kps stuff from disk', self.getFromDisk)
 
     def menu(self):
         if len(self.parent_.command) > 1:
             self.c.run(self.parent_.command[1])
         self.c.show()
+        self.info()
 
     def load(self):
         m = ktsMenu()
@@ -1303,26 +1310,49 @@ class kps(ktsMenu):
         table.use_deleted = False
         table.open()
         print '     please wait while we are creating an index...'
-        self.taxRolls = table.create_index(lambda rec: rec.taxyear+rec.itm_nbr)
-        self.tally = [0 for id, val in enumerate(self.taxRolls)]
+        scratch = table.create_index(lambda rec: rec.taxyear+rec.itm_nbr)
+        print '      ...mapping data...'
+        for id, record in enumerate(scratch):
+            mappedRow = self.taxRollMap(record)
+            self.taxRolls[mappedRow['tax_roll_link']] = {
+                'id': id,
+                'updated': 0,
+                'apiRow': mappedRow,
+            }
+        # self.tally = [0 for id, val in enumerate(self.taxRolls)]
+        self.saveToDisk()
 
-    def info(self, rowInt=None, showRecord=True, showResults=False):
-        if len(self.parent_.command) > 2:
-            rowInt = int(self.parent_.command[2])
-        rowInt = rowInt or 100
-        if len(self.taxRolls) >= int(rowInt):
-            print ' taxRoll Count:', len(self.taxRolls)
-            print 'api sent tally:', sum(1 for i in self.tally if i == 1)
-            if showRecord:
-                print self.taxRolls[int(rowInt)]
-            if showResults:
-                for key, value in self.results.items():
-                    print key, value
-        else:
-            print 'int:', rowInt, '-- not found in taxRolls.'
+    def saveToDisk(self):
+        print '      ...pickling data...'
+        file = open('..\\kps_data.pk', 'wb')
+        pickle.dump({'taxRolls': self.taxRolls, 'results': self.results}, file, pickle.HIGHEST_PROTOCOL)
+
+    def getFromDisk(self):
+        print '      ...opening data...'
+        file = open('..\\kps_data.pk', 'rb')
+        p = pickle.load(file)
+        self.taxRolls = p['taxRolls']
+        self.results = p['results']
+        print 'length of taxRolls', len(self.taxRolls)
+        print 'length of results', len(self.results)
+
+    def info(self, showResults=False):
+        self.gatherStats()
+        print
+        for key, value in self.stats.items():
+            print key, value
+        if showResults:
+            for key, value in self.results.items():
+                print key, value
+
+    def gatherStats(self):
+        self.stats['taxRoll'] = {
+            'count': len(self.taxRolls),
+            'updated': sum(1 for i in self.taxRolls.items() if i[1]['updated'] == 1),
+        }
 
     def showResults(self):
-        self.info(showRecord=False, showResults=True)
+        self.info(showResults=True)
 
     def send(self, rowIntArray=None):
         cmd = self.parent_.command
@@ -1350,58 +1380,66 @@ class kps(ktsMenu):
                         self.results[i] = self.sendCore(start, token)
                         i = i - 1
                         start = token + 1
-                    return
+            self.saveToDisk()
 
     def sendCore(self, start, end):
         if len(self.taxRolls) < 1:
             return
         dump = []
-        for i, record in enumerate(self.taxRolls[start:end]):
-            tempObj = {}
-            tempObj['site_id'] = 79
-            tempObj['tax_year'] = record['taxyear'].encode("ascii").strip()
-            tempObj['tax_roll_link'] = record['taxyear'].encode("ascii").strip().zfill(4) + record['itm_nbr'].encode("ascii").strip().zfill(6)
-            tempObj['tax_type'] = record['typ'].encode("ascii").strip()
-            tempObj['owner'] = record['name'].encode("ascii").strip()
-            tempObj['owner_address1'] = record['addl1'].encode("ascii").strip()
-            tempObj['owner_address2'] = record['addl2'].encode("ascii").strip()
-            tempObj['owner_city'] = record['city'].encode("ascii").strip()
-            tempObj['owner_state'] = record['state'].encode("ascii").strip()
-            tempObj['owner_postal'] = record['zip_1'].encode("ascii").strip()
-            tempObj['parcel'] = record['parcel'].encode("ascii").strip()
-            # tempObj['addition'] = record[''].encode("ascii").strip()
-            # tempObj['block'] = record[''].encode("ascii").strip()
-            # tempObj['lot'] = record[''].encode("ascii").strip()
-            tempObj['acres'] = record['acres']
-            tempObj['property_address1'] = record['proploc'].encode("ascii").strip()
-            # tempObj['property_address2'] = record[''].encode("ascii").strip()
-            # tempObj['property_city'] = record[''].encode("ascii").strip()
-            # tempObj['property_state'] = record[''].encode("ascii").strip()
-            # tempObj['property_postal'] = record[''].encode("ascii").strip()
-            # tempObj['assessed_gross'] = record[''].encode("ascii").strip()
-            tempObj['assessed_net'] = record['net_assd']
-            tempObj['assessed_improvements'] = record['g_imp']
-            tempObj['assessed_mobile_home'] = record['mobile_hm']
-            tempObj['assessed_exemption'] = record['exemp']
-            tempObj['millage_rate'] = record['c_cityc'].encode("ascii").strip()
-            tempObj['school_district'] = record['c_schn'].encode("ascii").strip()
-            tempObj['item_number'] = record['itm_nbr'].encode("ascii").strip()
-            tempObj['legal_description'] = record['leg_l1'].encode("ascii").strip()
-            # tempObj['tsvector'] = record[''].encode("ascii").strip()
-            tempObj['assessed_property'] = record['g_per']
-            # tempObj['assessed_miscellaneous'] = record[''].encode("ascii").strip()
-            tempObj['mortgage_code'] = record['treamort'].encode("ascii").strip()
-            tempObj['origin'] = 'nateTest'
-            dump.append(tempObj)
+        keys = []
+        for key, value in self.taxRolls.items()[start: end]:
+            dump.append(value['apiRow'])
+            keys.append(key)
 
         result = self.parent_.apiCall(resource="v2/treasurer/tax_rolls.json", data=dump)
         print result
 
         # update the result if completed successfully
         if result['updated'] + result['created'] == end - start:
-            i = start
-            while i <= end and i <= len(self.tally):
-                self.tally[i] = 1
-                i = i + 1
-        self.info(showRecord=False)
+            for key in keys:
+                self.taxRolls[key]['updated'] = 1
+            # i = start
+            # while i <= end and i <= len(self.tally):
+            #     self.tally[i] = 1
+            #     i = i + 1
+        self.info()
         return result
+
+    def taxRollMap(self, record):
+        tempObj = {}
+        tempObj['site_id'] = 79
+        tempObj['tax_year'] = record['taxyear'].encode("ascii").strip()
+        tempObj['tax_roll_link'] = record['taxyear'].encode("ascii").strip().zfill(4) + record['itm_nbr'].encode("ascii").strip().zfill(6)
+        tempObj['tax_type'] = record['typ'].encode("ascii").strip()
+        tempObj['owner'] = record['name'].encode("ascii").strip()
+        tempObj['owner_address1'] = record['addl1'].encode("ascii").strip()
+        tempObj['owner_address2'] = record['addl2'].encode("ascii").strip()
+        tempObj['owner_city'] = record['city'].encode("ascii").strip()
+        tempObj['owner_state'] = record['state'].encode("ascii").strip()
+        tempObj['owner_postal'] = record['zip_1'].encode("ascii").strip()
+        tempObj['parcel'] = record['parcel'].encode("ascii").strip()
+        # tempObj['addition'] = record[''].encode("ascii").strip()
+        # tempObj['block'] = record[''].encode("ascii").strip()
+        # tempObj['lot'] = record[''].encode("ascii").strip()
+        tempObj['acres'] = record['acres']
+        tempObj['property_address1'] = record['proploc'].encode("ascii").strip()
+        # tempObj['property_address2'] = record[''].encode("ascii").strip()
+        # tempObj['property_city'] = record[''].encode("ascii").strip()
+        # tempObj['property_state'] = record[''].encode("ascii").strip()
+        # tempObj['property_postal'] = record[''].encode("ascii").strip()
+        # tempObj['assessed_gross'] = record[''].encode("ascii").strip()
+        tempObj['assessed_net'] = record['net_assd']
+        tempObj['assessed_improvements'] = record['g_imp']
+        tempObj['assessed_mobile_home'] = record['mobile_hm']
+        tempObj['assessed_exemption'] = record['exemp']
+        tempObj['millage_rate'] = record['c_cityc'].encode("ascii").strip()
+        tempObj['school_district'] = record['c_schn'].encode("ascii").strip()
+        tempObj['item_number'] = record['itm_nbr'].encode("ascii").strip()
+        tempObj['legal_description'] = record['leg_l1'].encode("ascii").strip()
+        # tempObj['tsvector'] = record[''].encode("ascii").strip()
+        tempObj['assessed_property'] = record['g_per']
+        # tempObj['assessed_miscellaneous'] = record[''].encode("ascii").strip()
+        tempObj['mortgage_code'] = record['treamort'].encode("ascii").strip()
+        tempObj['origin'] = 'nateTest'
+        return tempObj
+
