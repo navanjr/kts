@@ -130,8 +130,40 @@ begin
  begin
 
 -- create the post data file then call the API
-  insert @wt select top (@batchSize)
-   id, REALTAXYEAR,OWNERNAME,
+declare @rt table (
+ taxrollId int,
+ taxYear int,
+ ownerName varchar(60),
+ acres money,
+ additionNumber varchar(20),
+ baseExemption varchar(20),
+ grossAssessed  varchar(20),
+ improvedAssessed  varchar(20),
+ landAssessed  varchar(20),
+ miscAssessed varchar(20),
+ mfgHomeAssessed varchar(20),
+ netAssessedValue varchar(20),
+ townshipBlock varchar(20),
+ rangeLot varchar(20),
+ totalTaxRate varchar(20),
+ address1 varchar(50),
+ address2 varchar(50),
+ city varchar(50),
+ zip1 varchar(20),
+ state varchar(4),
+ parcel varchar(30),
+ propLoc varchar(50),
+ schoolDistMain varchar(50),
+ recordType varchar(1),
+ itemNumber varchar(50),
+ mtgCode varchar(10),
+ blob varchar(max)
+)
+insert into @rt
+ select top (200)
+   a.ID, 
+   REALTAXYEAR,
+   OWNERNAME,
    acres,
    additionNumber,
    baseexemption, --assessed_exemption money,
@@ -150,20 +182,51 @@ begin
    zip1,
    state,
    fullPidNumber,
-   replace(proploc,char(0),''), --parcel_address1 varchar(50),
-   '', --parcel_address2 varchar(50),
-   '', --parcel_city varchar(50),
-   '', --parcel_postal varchar(50),
-   '', --parcel_state varchar(50),
+   rtrim(replace(replace(proploc,char(0),''),'   ','')), --parcel_address1 varchar(50),
    schoolDistrictMain,
    recordType,
-   '', -- blows up legalDescription,
    itemNumber,
-   case when treamort > '  0' then treamort else cast(mortgageCode as varchar) end
+   case when treamort > '  0' then treamort else cast(mortgageCode as varchar) end,
+   dbo.getTaxInvoiceBlob(i.ID)
 
-   from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
-    and isnull(apiUpdated,0) < modified
+   from adtax a join invoices i on i.TAXROLLID = a.ID where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and a.id > 0
+    and isnull(a.apiUpdated,0) < a.modified
    order by OWNERNAME, ITEMNUMBER  
+insert into @wt
+select
+   taxrollId, 
+   TAXYEAR,
+   dbo.readstring('@Name=',blob),
+   dbo.readstring('@acres=',blob),
+   
+   additionNumber,
+   dbo.readstring('@EXEMPTION3=',blob)baseexemption, --assessed_exemption money,
+      dbo.readstring('@GROSSASSESSED=',blob),
+   improvedAssessed, -- assessed improvements
+   landAssessed,
+   miscAssessed,
+   dbo.readstring('@MFGHOMEASSESSED=',blob),
+   dbo.readstring('@NETASSESSEDVALUE=',blob),
+   townshipBlock,
+   rangeLot,
+   totalTaxRate,
+   dbo.readstring('@address1=',blob),
+   dbo.readstring('@address2=',blob),
+   dbo.readstring('@city=',blob),
+   dbo.readstring('@zip1=',blob),
+   dbo.readstring('@state=',blob),
+   parcel,
+   propLoc,
+   '',
+   '',
+   '',
+   '',
+   dbo.readstring('@ORGSCHOOLDISTRICTMAIN=',blob),
+   recordType,
+   '',
+   itemNumber,
+   mtgCode
+ from @rt
 
 -- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
