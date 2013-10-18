@@ -1,47 +1,95 @@
 create function dbo.rpWarrantRegister(@begindate varchar(20),@enddate varchar(20)) returns @rt table(
-RegNo varchar(60),
-RegDateNo varchar(60),
-RegDate varchar(60),
-WarNo varchar(60),
-WarDateNo varchar(60),
-WarDate varchar(60),
-Payee varchar(60),
+RegNo varchar(160),
+RegDateNo varchar(160),
+RegDate varchar(160),
+WarNo varchar(160),
+WarDateNo varchar(160),
+WarDate varchar(160),
+Payee varchar(160),
 amount money,
-FundCode varchar(60),
-FundDesc varchar(60),
-PayNo varchar(60),
-PayDateNo varchar(60),
-PayDate varchar(60),
+FundCode varchar(160),
+FundDesc varchar(160),
+PayNo varchar(160),
+PayDateNo varchar(160),
+PayDate varchar(160),
 PayAmount money,
-fiscalYear varchar(60),
-debitCode varchar(60),
-reportOrder varchar(60)
+fiscalYear varchar(160),
+debitCode varchar(160),
+reportOrder varchar(160)
 )
 as begin
 
 declare @wt table(
-RegNo varchar(60),
-RegDateNo varchar(60),
-RegDate varchar(60),
-WarNo varchar(60),
-WarDateNo varchar(60),
-WarDate varchar(60),
-Payee varchar(60),
+RegNo varchar(160),
+RegDateNo varchar(160),
+RegDate varchar(160),
+WarNo varchar(160),
+WarDateNo varchar(160),
+WarDate varchar(160),
+Payee varchar(160),
 amount money,
-FundCode varchar(60),
-FundDesc varchar(60),
-PayNo varchar(60),
-PayDateNo varchar(60),
-PayDate varchar(60),
+FundCode varchar(160),
+FundDesc varchar(160),
+PayNo varchar(160),
+PayDateNo varchar(160),
+PayDate varchar(160),
 PayAmount money,
-fiscalYear varchar(60),
-debitCode varchar(60),
-reportOrder varchar(60)
+fiscalYear varchar(160),
+debitCode varchar(160),
+reportOrder varchar(160)
 )
 
+declare @warrantsHitLedgerWhenRegistered varchar(5)
+
+select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
 
 
+if @warrantsHitLedgerWhenRegistered = 'TRUE'
+begin
+insert @wt 
+select controlNumber
+      ,postDate
+      ,dbo.date1(postDate)
+      ,foreignNumber
+      ,foreignDate
+      ,dbo.date1(foreignDate)
+      ,payee
+      ,naturalAmount*-1
+      ,FundCode
+      ,FundDesc
+      ,case when contraPaymentType='Cleared Bank' then controlNumber else contraPaymentType end
+      ,contraPostDate
+      ,dbo.date1(contraPostDate)
+      ,case when contraPaymentType='Cleared Bank' then naturalAmount*-1 else 0 end
+      ,right(fiscalYear,2)
+      ,accountCode
+      ,ord 
+ from dbo.paymentReports('Bank',@enddate,'TRUE') 
+ where postDate <= @endDate
 
+insert @wt 
+select contraControlNumber
+      ,contraPostDate
+      ,dbo.date1(contraPostDate)
+      ,contraForeignNumber
+      ,contraForeignDate
+      ,dbo.date1(contraForeignDate)
+      ,case when isnull(contraPaymentType,'NULL') not in ('Cleared Bank','NULL') then contraPaymentType + ' ' + foreignNumber + ' ' + payee else payee end
+      ,contraAmount*-1
+      ,FundCode
+      ,FundDesc
+      ,''
+      ,''
+      ,''
+      ,0.00
+      ,right(fiscalYear,2)
+      ,accountCode
+      ,ord 
+ from dbo.paymentReports('Bank',@enddate,'TRUE') 
+ where contraPostDate <= @endDate and isnull(contraPaymentType,'NULL') not in ('Cleared Bank','NULL')
+end
+else
+begin
 insert @wt 
 select controlNumber
       ,postDate
@@ -83,7 +131,7 @@ select contraControlNumber
       ,ord 
  from dbo.paymentReports('Warrant',@enddate,'TRUE') 
  where contraPostDate <= @endDate and isnull(contraPaymentType,'NULL') not in ('Treasurers Check','NULL')
-
+end
 
 
 insert @rt

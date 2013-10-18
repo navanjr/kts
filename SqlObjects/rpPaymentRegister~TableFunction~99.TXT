@@ -24,8 +24,40 @@ create function dbo.rpPaymentRegister(
  origin int
 ) as 
 begin
+declare @warrantsHitLedgerWhenRegistered varchar(5)
+
+ select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
 
 -- detail
+if @warrantsHitLedgerWhenRegistered = 'TRUE'
+begin
+ insert @rt 
+ select
+  [foreignNumber],
+  [postDate],
+  dbo.date1([postDate]),
+  [foreignNumber],
+  [foreignDate],
+  dbo.date1([foreignDate]),
+  [Payee],
+  [naturalAmount]*-1,
+  ltrim(rtrim(FundCode)),
+  ltrim(rtrim(FundDesc)),
+  [controlNumber],
+  [contraPostDate],
+  dbo.date1([contraPostDate]),
+  [naturalAmount]*-1,
+  right([fiscalYear],4),
+  [fundCode],
+  rtrim(ltrim('b' + fundCode)),
+  [foreignNumber],
+  null,
+  1
+ from dbo.paymentReports('Bank',@enddate,'TRUE') where paymenttype='Warrant' and contrapaymentType='Cleared Bank'
+ and contraPostDate >= @beginDate and contraPostDate <= @endDate
+end
+else
+begin
  insert @rt 
  select
   [RegNo],
@@ -50,7 +82,7 @@ begin
   1
  from warrants 
  where PayDateNo >= @beginDate and PayDateNo <= @endDate
-
+end
 -- update ord for detail rows
  update @rt set
   ord = dbo.padRight(reportOrder,'0',11) + '_' + fiscalYear + '_' + dbo.padLeft(paydateno,'0',7)
