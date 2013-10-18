@@ -51,13 +51,12 @@ begin
   @warrantPayee varchar(50) = '',
   @vfiscalYear varchar(20),
   @pType varchar(50) = '',
-  @warrantsHitLedgerWhenRegistered varchar(5)
+  @warrantsHitLedgerWhenRegistered varchar(5) = dbo.settingsf('site.warrantsHitLedgerWhenRegistered','FALSE')
 
- select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname='site.warrantsHitLedgerWhenRegistered'
-
+ if @paymentType = 'warrant'
+   select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
+   
  select @postedStatus = status from dbo.glStatus(@slink)
-
-
 
  if @mode = 6 and isnull(@statusInput,'') in ('saved','abandoned')
  begin
