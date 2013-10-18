@@ -301,10 +301,13 @@
  gcimportId=0;
 '&choose(obj:c1+0=1,'',' and CAST(amount as money)<>0')&'
 \t114&Import;
-@getImportStats=
+@getImportStats=if(obj:c1+0=1),
+ d1select('select sum(amount)*-1 from gldetail where accountCode = '''&obj:key2&''' '),
+ gcAccountBalance=obj7:d1,
  lcMsgBlob=kp('select ''@count='' + cast(sum(case when postCheck = 0 then 1 else 0 end) as varchar) + '';'' + ''@amount='' + cast(sum(case when postCheck = 0 then cast(amount as money) else 0 end) as varchar) + '';'' + ''@red='' + cast(sum(case when postCheck <> 0 then 1 else 0 end) as varchar) + '';'' from dbo.'&choose(obj:c1+0=1,'voucherImportBRW','warrantImportBRW')&'('&obj:id&choose(obj:c1+0=1,',null,null',',null,'''&obj:key3&'''')&')'),
  lcCount=readstring(lcMsgBlob,'@count='),
  lcAmount=readstring(lcMsgBlob,'@amount='),
+ gcAmount=lcAmount,
  lcRed=readstring(lcMsgBlob,'@red=');
 @acc114=
  update,
@@ -316,6 +319,8 @@
 @importVouchers=
  m(choose(lcRed+0>0,'WARNING!!****There are '&lcRed&' '&lcType&' that will not be imported!!!!!||','')&lcCount&' '&lcType&' - '&format(lcAmount,@n$14.2)&'||Do you wish to insert these into the '&choose(obj:c1+0=1,clip(obj:a18),'warrant')&' register?','Insert '&lcType&'...','question.ico',6,4),
  break(gcretval<>2),
+ if(gcAmount+0>gcAccountBalance+0,m('WARNING !!!******There is not enough money in this official account to register these vouchers!!******','Not enough money! ',,6)),
+ break(gcAmount+0>gcAccountBalance+0 and gcretval+0<>2),
  importGuts=;
 
 @importWarrants=
