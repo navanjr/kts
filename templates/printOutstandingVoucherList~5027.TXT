@@ -191,6 +191,7 @@ tr(
 
 @printTreasMemorandumCredit=
   do(452,getSiteInfo=),
+  if(gcpurpose>' 0',lcwhere=' and cv.a14='''&gcpurpose&'''',lcwhere=''),
   lcLm=600,
   lcTm=350,
   lcM=1000,
@@ -206,16 +207,18 @@ tr(
     a.contraAmount*-1,
     a.contraPostDate,
     left(a.contraPaymentType,charindex('' '',a.contraPaymentType)),
-    cv.e1
+    cv.e1,
+    cv.a14
      from 
       (select * from dbo.paymentreports(''OFFICIAL'','&gcEndDate+0&',''TRUE'') where contraPostDate >= '&gcBeginDate+0&' and contraPostDate <= '&gcEndDate+0&' and paymenttype like ''%VOUCHER%'') a,
       object cv 
      where cv.typ=4771
       and cv.id=dbo.slinkId(a.contraSLink) 
       and ('''&gcOfficialName&'''< '' 0'' or fundAccount in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''') )
+      '&lcwhere&'
      order by a.fundAccount,a.postDate,a.foreignNumber ',   
   lcGrandTotal=0,
-tr(
+tr(landscape,
   prn(printed),
   prn(page),
   prn(gcReportName,t1),
@@ -225,13 +228,13 @@ tr(
   lcAccTotal=0,
   nl, 
   bnd('H','VOUCHER',600,'DATE',700,'',700,'TO WHOM ISSUED',1800,'WHOM DRAWN',1400,'AMOUNT',1000R,'COMMENT',800),
-  bnd('HU','  No.',600,'RGSTRD',700,'',700,'',2300,'',1700,'',1000R),
+  bnd('HU','  No.',600,'RGSTRD',700,'',700,'',2300,'',1700,'',1000R,'',1500),
   nl,
   grp(1,obj5:a4,do(
     bnd(,'OFFICIAL ACCOUNT: '&obj5:a4,5000),
     nl,nl,
      ), do(
-    bnd('O',,600,,700,'',700,'',2300,'',1700,'',1000R),
+    bnd('O',,600,,700,'',700,'',2300,'',1700,'',1000R,'',1500),
     prn(,,,11,bold,'courier new'),
     bnd(,'',4700,'Account Totals:',1200R,format(lcAccTotal,@n-14.2),1000R, '',200R,'',900R),
     lcAccTotal=0,
@@ -245,7 +248,8 @@ tr(
      left(format(obj5:a3,@s30),25),1800,
      left(format(obj5:a4,@s30),17),1400,
      format(obj5:a5,@n$-19.2),1000R,
-     obj5:a8,1000 ),
+     obj5:a8,1000,
+     obj5:a9,1500 ),
      lcAccTotal=lcAccTotal+obj5:a5,
      lcGrandTotal=lcGrandTotal+obj5:a5,
    edt,
