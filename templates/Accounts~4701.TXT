@@ -1,4 +1,3 @@
-@noins;
 @fastinsert;
 @save;
 @gfbnr=1;
@@ -14,13 +13,28 @@
 @format=100L(2)~Account Code~#1#|M150L(2)~Description~#2#|M75L(2)~Type~#5#|M75L(2)~Account#~#18#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Ledger Grp~#37#|M75L(2)~Report Order~#32#|M;
 @format2=150L(2)~Description~#2#|M100L(2)~Account Code~#1#|M75L(2)~Type~#5#|M75L(2)~Account#~#18#|M75L(2)~Daily Desc~#16#|M75R(2)~G/L Balance~@n-14.2b@#27#|M75L(2)~Ledger Grp~#37#|M75L(2)~Report Order~#32#|M;
 
-@bb1=&Insert,,WIZINS.ICO;
-@bbproc1=
- lcAcctType=choose(filter,'','BANK','SUSPENSE','SOURCE','FUND','','WARRANT','OFFICIAL','PURPOSE','SCHOOL','CITY'),
+@browseinsert=
+ insertAcct=;
+
+@setAcctVars=
+ if(filter+0>0,lcfilter=filter,lcFilter=gcFilter),
+ gcFilter='',
+ lcAcctType=choose(lcFilter,'','BANK','SUSPENSE','SOURCE','FUND','','WARRANT','OFFICIAL','PURPOSE','SCHOOL','CITY'),
  lcTypeDesc=kp('select key2 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
  lcTypeRptCode=kp('select key3 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
- lcDailyDesc=kp('select a1 from object where typ = 4702 and key1 = '''&lcAcctType&''''),
- new(4701,,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode,014=lcDailyDesc);
+ lcDailyDesc=kp('select a1 from object where typ = 4702 and key1 = '''&lcAcctType&'''');
+ 
+@setDefaultAcct=
+ setAcctVars=,
+ break(obj:a1>'  0'),
+ set(008,lcAcctType),
+ set(010,lcTypeDesc),
+ set(012,lcTypeRptCode),
+ set(014,lcDailyDesc);
+
+@insertAcct=
+ setAcctVars=,
+ new(4701,-2,008=lcAcctType,010=lcTypeDesc,012=lcTypeRptCode,014=lcDailyDesc);
 
 @bb2=Misc Deposit;
 @bbproc2=
@@ -34,8 +48,7 @@
  gcAmount=obj7:key3,
  d1select('exec dbo.miscDepositCRUD '''&gcBank&''','''&gcFund&''', '&gcAmount&', ''0'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Miscellaneous Deposit...')), 
- if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@jeId=')))
-;
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@jeId=')));
 
 @bb3=Misc Payment;
 @bbproc3=
@@ -44,8 +57,8 @@
  if(obj7:a1='FUND',gcFund=obj7:key1,gcFund=''),
  d1select('exec dbo.paymentCRUD @mode=0,@paymentType=''MISCELLANEOUS'',@debitAcct='''&gcFund&''',@creditAcct='''&gcBank&''',@postOverride=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Miscellaneous Payment...')), 
- if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')))
-;
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')));
+
 @bb4=&View G/L,,,cur:securitylevel>90;
 @bbproc4=acc109=;
 
@@ -55,8 +68,7 @@
  if(obj7:a1='BANK',gcBank=obj7:key1,gcBank=''),
  d1select('exec dbo.paymentCRUD @mode=0,@paymentType=''Transfer'',@debitAcct=''  '',@creditAcct='''&gcBank&''',@postOverride=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Transfer Check...')), 
- if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')))
-;
+ if(readstring(obj7:d1,'@code=')+0=0,change(readstring(obj7:d1,'@id=')));
 
 @bb6=&Print Account;  
 @bbproc6=gcAbortPrint='FALSE',
@@ -123,6 +135,7 @@ bbproc8=
 @key3=obj:a9;
 
 @loadwindow=
+ if(sub(obj:attributes,12,1)='C' and gcFilter>'  0',setDefaultAcct=),
  d1select('select stuff((select '','' + accountType from dbo.glbankfundtypes(''fund'') for XML path('''')),1,1,'''')'),
  lcBankFundtype=obj7:d1,
  create(151,12,200,15,'&In-Active',52),
