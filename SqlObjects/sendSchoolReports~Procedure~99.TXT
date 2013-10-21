@@ -35,8 +35,12 @@ begin
  if OBJECT_ID('tempdb..#schoolReports') is not null
   drop table #schoolReports
 
- select * into #schoolReports from dbo.apportionmentSchoolPagesDetailByFund(@startDate,@endDate,'FALSE') order by ord
+ select * into #schoolReports from dbo.apportionSchoolPagesSumByFund(@startDate,@endDate,'FALSE') order by ord
  exec dbo.logit @@procid, 'grabbed initial data... @@rowCount', @@rowCount
+
+select * from #schoolReports
+  where accountCode in (select accountCode from glAccounts where accountType = 'School')
+--  group by accountCode
 
  declare @codes table(
   code varchar(50),
@@ -61,19 +65,26 @@ begin
  while (@loopint <= 12)
  begin
   set @sql = 'select
-   replace(replace(ltrim(rtrim(coalesce(nullif(max(heading' + cast(@loopint as varchar) + '),''''),''unknown'
+   replace(replace(ltrim(rtrim(coalesce(nullif(max(head' + cast(@loopint as varchar) + '),''''),''unknown'
    + cast(@loopint as varchar) + '''))),''.'',''''),'' '',''_'') from #schoolReports'
   insert @headings (headingName) exec(@sql)
   set @loopint = @loopint + 1
  end
+
+-- Remove dashes to prevent crashes 
+ update @headings set headingname=replace(headingname,'-','_')
+
+select * from @codes
+select * from @headings
+
 
  while exists(select * from @codes where processFlag = 0)
  begin
   select @tokenCode = min(code) from @codes where processFlag = 0
 
   select
-   comment2 as Fund,currentTax,priorTax,backTax,
-   amount1,amount2,amount3,amount4,amount5,amount6,amount7,amount8,amount9,amount10,amount11,amount12
+   comment2 as Fund,cast(currentTax as money) as currentTax,cast(priorTax as money) as priorTax,cast(backTax as money) as backTax,
+   cast(amount1 as money) as amount1,cast(amount2 as money) as amount2,cast(amount3 as money) as amount3,cast(amount4 as money) as amount4,cast(amount5 as money) as amount5,cast(amount6 as money) as amount6,cast(amount7 as money) as amount7,cast(amount8 as money) as amount8,cast(amount9 as money) as amount9,cast(amount10 as money) as amount10,cast(amount11 as money) as amount11,cast(amount12 as money) as amount12
   into #reportPackage 
   from #schoolReports 
   where accountCode = @tokenCode 
@@ -129,10 +140,14 @@ begin
 
   update @codes set processFlag = 1, result = @dump where code = @tokenCode
 
+select * from  #reportPackage 
   if OBJECT_ID('tempdb..#reportPackage') is not null
    drop table #reportPackage
 
  end
+
+select * from @codes
+select * from @headings
 
  if OBJECT_ID('tempdb..#schoolReports') is not null
   drop table #schoolReports
