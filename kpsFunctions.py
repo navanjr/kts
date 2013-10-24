@@ -99,11 +99,12 @@ class pickler():
             for id, record in enumerate(scratch):
                 if record['taxyear'] in [str(y) for y in self.years] or not self.years:
                     mappedRow = foxMapper(record, map, self.apiSettings)
-                    self.blob['data'][mappedRow['tax_roll_link']] = {
-                        'id': id,
-                        'updated': 0,
-                        'apiRow': mappedRow,
-                    }
+                    if mappedRow['tax_roll_link'] > '  0':
+                        self.blob['data'][mappedRow['tax_roll_link']] = {
+                            'id': id,
+                            'updated': 0,
+                            'apiRow': mappedRow,
+                        }
             return True
         else:
             return False
