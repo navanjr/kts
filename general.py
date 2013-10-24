@@ -71,7 +71,10 @@ def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=F
             # print "INFO code = ", response.code
         except (urllib2.HTTPError, urllib2.URLError) as e:
             print 'Oops... error', e
-            print e
+            try:
+                print e.read()
+            except AttributeError:
+                pass
             return False, e
         try:
             decodedResponse = json.load(response)
