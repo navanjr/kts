@@ -13,6 +13,7 @@ begin
    @dumpOut nvarchar(max),
    @apiKey varchar(50),
    @apiCode varchar(50),
+   @apiUrl varchar(50),
    @filter varchar(500),
    @resource varchar(250) 
 
@@ -28,18 +29,19 @@ begin
  insert @fields select 'tax_grace','a20'
  insert @fields select 'tax_rate','b1'
 
- select top 1
-  @apiKey = b11,
-  @apiCode = b12,
-  @filter = 'code=' + b12
- from object where typ = 40 order by id
+ select
+  @apiKey = apiKey,
+  @apiCode = apiSiteCode,
+  @filter = 'code=' + apiSiteCode,
+  @apiUrl = apiUrl
+ from dbo.site
 
  if @method = 'GET'
  begin
 
   exec dbo.api
    @apiKey = @apiKey,
-   @apiHost = 'api.kellpro.com',
+   @apiHost = @apiURL,
    @method = @method,
    @resource = @resource,
    @filter = @filter,
@@ -74,7 +76,7 @@ begin
 
   exec dbo.api
    @apiKey = @apiKey,
-   @apiHost = 'api.kellpro.com',
+   @apiHost = @apiUrl,
    @method = @method,
    @resource = @resource,
    @filter = @postData,
