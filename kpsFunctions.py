@@ -222,7 +222,7 @@ class kps():
             'map': [
                 ['tax_roll_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
                 ['invoice_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
-                ['receipt_link', ['concatenate', ['nbr', 'key_suf'],[8, 2]]],
+                ['receipt_link', ['concatenate', ['nbr', 'key_suf'], [8, 2]]],
                 ['paid_date', 'datepaid'],
                 ['receipt_number', 'nbr'],
                 ['paid_fees', 'feespaid'],
@@ -333,7 +333,7 @@ class kps():
         if self.workingTable:
             print
             with pickler(self.foxData, self.workingTable) as p:
-                for row in p.get('data').items()[0:10]:
+                for row in sorted(p.get('data').items())[0:10]:
                     print row
 
     def displayKey(self):
@@ -465,13 +465,16 @@ class kps():
 
 def foxMapper(record, map, apiSettings):
     def mapHelper(mapItem, record):
-        def clean(dirtArray):
+        def clean(dirtArray, stripChar=None):
             if not type(dirtArray) == list:
                 dirtArray = [dirtArray]
             for dirt in dirtArray:
                 try:
                     if type(dirt) in [unicode]:
-                        return dirt.encode("ascii").strip()
+                        if stripChar:
+                            return dirt.encode("ascii").replace(stripChar, '').strip()
+                        else:
+                            return dirt.encode("ascii").strip()
                     else:
                         return dirt
                 except AttributeError, e:
@@ -485,10 +488,10 @@ def foxMapper(record, map, apiSettings):
             if verb in ['cat', 'concat', 'concatenate']:
                 if len(arguments) > 2:
                     for i, y in enumerate(arguments[0]):
-                        value += clean(record[y]).zfill(arguments[1][i])
+                        value += clean(record[y]).replace('.', '').zfill(arguments[1][i])
                 else:
                     for y in arguments[0]:
-                        value += clean(record[y])
+                        value += clean(record[y]).replace('.', '')
             if verb in ['joinWithSpace']:
                 vArray =[]
                 for y in arguments[0]:
