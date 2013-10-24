@@ -43,7 +43,7 @@ class pickler():
         self.dbfName = foxData['tables'][workingTable]['dbfName']
         self.verbose = verbose
         self.blob = {}
-        self.years = foxData['yearsToProcess']
+        self.years = foxData['yearsToProcess'] or []
         self.pathToDBFs = foxData['pathToDBFs']
 
     def __enter__(self):
