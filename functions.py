@@ -32,7 +32,7 @@ class ktsMenu():
             'origin': 'kpsMike',
         }
 
-        self.kpsTaxroll = kpsFunctions.kps(self, apiSettings=self.apiSettingsKps)
+        self.kpsTaxroll = kpsFunctions.kps(self, apiSettings=self.apiSettingsKps, pathToDBFs=self.settingsF('conversion.mikepathtax'))
 
         self.conversionSettings = [
             'conversion.mikepath',
