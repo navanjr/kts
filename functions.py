@@ -90,6 +90,7 @@ class ktsMenu():
         self.createCommand('fix',['f','fix'],'runs conversion fix routine requires the specific diagnostic number',[self.diagnostic_fix,'conversion'],'conversion')
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
+        self.createCommand('aamasterUpdate', ['aamasterUpdate', ], 'update adtax with data from aamaster', self.tpsAamasterUpdate, 'conversion')
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
@@ -740,7 +741,7 @@ class ktsMenu():
     def command_kpsShow(self):
         self.kpsTaxroll.info()
 
-    def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None):
+    def tpsSelect(self, sqlString, dbName, verbose=False, connDatabase=None, returnRowsInDictionary=False):
         if not connDatabase:
             aamasterpath = self.settingsF('conversion.aamasterpath')
             connDatabase = '%s\\%s.TPS' % (aamasterpath, dbName)
@@ -757,7 +758,14 @@ class ktsMenu():
         try:
             cursor.execute(sqlString)
             rows = cursor.fetchall()
-            package['rows'] = rows
+            if returnRowsInDictionary:
+                columns = [column[0] for column in cursor.description]
+                package['rows'] = []
+                for row in rows:
+                    package['rows'].append(dict(zip(columns, row)))
+            else:
+                package['rows'] = rows
+            package['description'] = cursor.description
         except (pyodbc.ProgrammingError, pyodbc.Error) as err:
             package['error'] = err
         connection.close()
@@ -1051,6 +1059,44 @@ class ktsMenu():
         print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
         print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
 
+    def tpsAamasterUpdate(self):
+        def joinWithSpace(data, fields):
+            a = []
+            for field in fields:
+                if not str(data[field]) == '0':
+                    a.append(str(data[field]))
+            return ' '.join(a).strip()
+
+        taxYear = areYouSure('enter the tax year please', boolean=False)
+        if areYouSure('are you sure you want to run with taxYear = %s?' % taxYear):
+            print 'Here we go... AAmaster Update...'
+            fields = {
+                'landAssessed': ['LANDASSESSEDVALUE'],
+                'improvedassessed': ['IMPROVEDASSESSEDVALUE'],
+                'miscAssessed': ['MISCELLANEOUSASSESSED'],
+                'propLoc': ['PHYSICALSTREETNUMBER', 'PHYSICALSTREET', 'PHYSICALTOWN'],
+            }
+            aaMasterFields = []
+            for key, fieldArray in fields.items():
+                for y in fieldArray:
+                    aaMasterFields.append(y)
+
+            sqlString = "select fullpidnumber, {fields} from aamaster where FULLPIDNUMBER > '  0'".format(fields=', '.join(aaMasterFields))
+            package = self.tpsSelect(sqlString, 'aamaster', returnRowsInDictionary=True)
+
+            tally = 0
+            if len(package['rows']) > 0:
+                for row in package['rows']:
+                    token = []
+                    for adtax, aaMasterArray in fields.items():
+                        token.append("%s='%s'" % (adtax,joinWithSpace(row, aaMasterArray)))
+                    setString = ', '.join(token)
+                    sqlString = "update adtax set %s where realTaxYear = '%s' and fullPidNumber = '%s'" % (setString, taxYear, row['fullpidnumber'])
+                    if self.sqlQuery(sqlString, True)['code'][0] == 0:
+                        tally += 1
+            print 'ok i sent %s updates' % tally
+
+
     def tpsAamasterCheck(self):
         columns, columnNames, uniqueColumns = self.aamasterCheckVariables()
         sqlString = "select {fields} from aamaster".format(fields=', '.join(columnNames))
@@ -1073,7 +1119,10 @@ class ktsMenu():
             print 'dbo.aamasterCheckInitialize...', self.sqlQuery('exec dbo.aamasterCheckInitialize', True)['code']
 
     def settingsF(self, name, default='unknown'):
-        value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
+        try:
+            value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
+        except KeyError:
+            return False
         return value
 
     def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, testConnection=False):
