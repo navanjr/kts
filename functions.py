@@ -6,6 +6,7 @@ import ftplib
 import shutil
 import kpsFunctions
 from general import *
+from kirc import *
 
 
 class ktsMenu():
@@ -91,6 +92,7 @@ class ktsMenu():
         self.createCommand('auto', ['a', 'auto'], 'runs a collection of conversion fix routines', self.diagnostic_auto, 'conversion')
         self.createCommand('aamasterCheck', ['aamasterCheck', ], 'copies some aamaster data into aamasterCheck for kts reports', self.tpsAamasterCheck, 'conversion')
         self.createCommand('aamasterUpdate', ['aamasterUpdate', ], 'update adtax with data from aamaster', self.tpsAamasterUpdate, 'conversion')
+        self.createCommand('aamasterKey', ['aamasterKey', ], 'print data from aamaster', self.tpsAamasterKey, 'conversion')
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
@@ -99,6 +101,9 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
+        self.irc = kirc()
+        self.irc.connect(room='kts_team')
+        self.irc.listen()
 
     def command_devup(self):
         self.sendCommand('set gitpath')
@@ -1059,6 +1064,30 @@ class ktsMenu():
         print 'drop aamasterCheck...', self.sqlQuery('drop table aamasterCheck', True)['code']
         print 'create aamasterCheck...', self.sqlQuery(sqlCreateTable, True)['code']
 
+    def tpsAamasterGetPackage(self):
+        fields = {
+            'landAssessed': [['LANDASSESSEDVALUE'], 'int'],
+            'improvedassessed': [['IMPROVEDASSESSEDVALUE'], 'int'],
+            'miscAssessed': [['MISCELLANEOUSASSESSED'], 'int'],
+            'propLoc': [['PHYSICALSTREETNUMBER', 'PHYSICALSTREET', 'PHYSICALTOWN'], 'string'],
+        }
+        aaMasterFields = []
+        for key, fieldArray in fields.items():
+            for y in fieldArray[0]:
+                aaMasterFields.append(y)
+
+        sqlString = "select fullpidnumber, {fields} from aamaster where FULLPIDNUMBER > '  0'".format(fields=', '.join(aaMasterFields))
+        package = self.tpsSelect(sqlString, 'aamaster', returnRowsInDictionary=True)
+        return package, fields
+
+    def tpsAamasterKey(self):
+        if len(self.command) > 2:
+            data, fields = self.tpsAamasterGetPackage()
+            print 'key', self.command[2]
+            for row in data['rows']:
+                if row['fullpidnumber'] == self.command[2]:
+                    print row
+
     def tpsAamasterUpdate(self):
         def joinWithSpace(data, fields):
             a = []
@@ -1070,26 +1099,24 @@ class ktsMenu():
         taxYear = areYouSure('enter the tax year please', boolean=False)
         if areYouSure('are you sure you want to run with taxYear = %s?' % taxYear):
             print 'Here we go... AAmaster Update...'
-            fields = {
-                'landAssessed': ['LANDASSESSEDVALUE'],
-                'improvedassessed': ['IMPROVEDASSESSEDVALUE'],
-                'miscAssessed': ['MISCELLANEOUSASSESSED'],
-                'propLoc': ['PHYSICALSTREETNUMBER', 'PHYSICALSTREET', 'PHYSICALTOWN'],
-            }
-            aaMasterFields = []
-            for key, fieldArray in fields.items():
-                for y in fieldArray:
-                    aaMasterFields.append(y)
-
-            sqlString = "select fullpidnumber, {fields} from aamaster where FULLPIDNUMBER > '  0'".format(fields=', '.join(aaMasterFields))
-            package = self.tpsSelect(sqlString, 'aamaster', returnRowsInDictionary=True)
-
+            package, fields = self.tpsAamasterGetPackage()
+            # testlist = [
+            #     '0000-06-02N-01E-0-010-00',
+            #     '0000-04-02N-02E-0-011-00',
+            # ]
             tally = 0
             if len(package['rows']) > 0:
                 for row in package['rows']:
                     token = []
                     for adtax, aaMasterArray in fields.items():
-                        token.append("%s='%s'" % (adtax,joinWithSpace(row, aaMasterArray)))
+                        if aaMasterArray[1] == 'string':
+                            token.append("%s='%s'" % (adtax, joinWithSpace(row, aaMasterArray[0])))
+                        if aaMasterArray[1] == 'int':
+                            intVal = str(joinWithSpace(row, aaMasterArray[0]))
+                            if intVal < '  0':
+                                intVal = '0'
+                            token.append("%s=%s" % (adtax, intVal))
+
                     setString = ', '.join(token)
                     sqlString = "update adtax set %s where realTaxYear = '%s' and fullPidNumber = '%s'" % (setString, taxYear, row['fullpidnumber'])
                     if self.sqlQuery(sqlString, True)['code'][0] == 0:
