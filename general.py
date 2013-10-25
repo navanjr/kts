@@ -64,7 +64,7 @@ def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=F
             # print "INFO method = ", req.get_method()
             # print "INFO data = ", req.get_data()
 
-            response = urllib2.urlopen(req, data, 10)
+            response = urllib2.urlopen(req, data, 20)
             # print response.read()
 
             # print "INFO url = ", response.geturl()
