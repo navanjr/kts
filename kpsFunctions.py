@@ -499,7 +499,6 @@ def foxMapper(record, map, apiSettings):
             for dirt in dirtArray:
                 try:
                     if type(dirt) in [unicode]:
-                        dirt = dirt.replace('\xab', '<<')
                         if stripChar:
                             return dirt.encode("ascii").replace(stripChar, '').strip()
                         else:
