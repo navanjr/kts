@@ -143,6 +143,7 @@ class kps():
         self.c.addCommand('reset', ['reset'], 'reset updated flag on table', self.reset)
         self.c.addCommand('test', ['test', 't'], 'test', self.test)
         self.c.addCommand('setTable', ['set', 'setTable', 'table'], 'set working table', self.setTable)
+        self.c.addCommand('maxUpdated', ['max', 'maxUpdated', 'maxupdated'], 'get max updated from the API', self.markUpdated)
 
         self.foxData['pathToDBFs'] = pathToDBFs
         self.foxData['yearsToProcess'] = yearsToProcess
@@ -242,6 +243,30 @@ class kps():
             'info': '',
             'results': {},
         }
+
+    def maxUpdated(self):
+        pass
+
+    def markUpdated(self, maxKey=None):
+        def core(data, maxKey, change):
+            tally = 0
+            for row in sorted(data.items()):
+                if row[1]['updated'] == 0 and row[0] <= maxKey:
+                    tally += 1
+                    if change:
+                        row[1]['updated'] = 1
+            return tally
+
+        if self.workingTable:
+            maxKey = areYouSure('enter key...', boolean=False)
+            with pickler(self.foxData, self.workingTable) as p:
+                pTable = p.get()
+                data = pTable['data']
+                if areYouSure('update %s keys as updated?' % core(data, maxKey, False)):
+                    print 'updated keys...(%s)' % core(data, maxKey, True)
+                    p.save()
+                    self.gatherStats()
+                    self.info()
 
     def setBatchSize(self):
         cmd = self.command
