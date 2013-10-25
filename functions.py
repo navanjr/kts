@@ -6,7 +6,7 @@ import ftplib
 import shutil
 import kpsFunctions
 from general import *
-from kirc import *
+# from kirc import *
 
 
 class ktsMenu():
@@ -101,9 +101,10 @@ class ktsMenu():
 
         self.git = {}
         self.gitVars()
-        self.irc = kirc()
-        self.irc.connect(room='kts_team')
-        self.irc.listen()
+
+        # self.irc = kirc()
+        # self.irc.connect(room='kts_team')
+        # self.irc.listen()
 
     def command_devup(self):
         self.sendCommand('set gitpath')
