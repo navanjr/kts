@@ -45,9 +45,29 @@ def runDos(command):
 
 
 def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=False):
+    def clean(dirt):
+        what = [
+            ['\xab', '<<'],
+            ['\xf8', ''],
+            ['\xa7', ''],
+        ]
+        for x in what:
+            dirt = str(dirt).replace(x[0], x[1])
+        return dirt
+
     url = 'http://%s/%s' % (host, resource)
     if data:
-        data = json.dumps(data, separators=(',', ':'))
+        # should be able to remove this CLEAN() proc
+        #  as we will be stripping some goofy characters during initial pull
+        for row in data:
+            for key, value in row.items():
+                row[key] = clean(value)
+        # ----------------------------------------------------------------------^
+        try:
+            data = json.dumps(data, separators=(',', ':'))
+        except UnicodeDecodeError, e:
+            print 'error encoding...', e
+            return False, e
         data = 'site_id=27&rows=%s' % urllib.quote(data)
     req = urllib2.Request(url, data)
     auth = 'Basic ' + base64.urlsafe_b64encode("%s:%s" % (apiKey, ''))
@@ -64,7 +84,7 @@ def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=F
             # print "INFO method = ", req.get_method()
             # print "INFO data = ", req.get_data()
 
-            response = urllib2.urlopen(req, data, 20)
+            response = urllib2.urlopen(req, data, 30)
             # print response.read()
 
             # print "INFO url = ", response.geturl()

@@ -37,6 +37,7 @@ class commands():
 class pickler():
     def __init__(self, foxData, workingTable, verbose=True):
         self.key = foxData['tables'][workingTable]['key']
+        self.countyName = foxData['countyName'] or 'unknown'
         self.map = foxData['tables'][workingTable]['map']
         self.picklePath = foxData['picklePath'] or '..'
         self.apiSettings = foxData['apiSettings']
@@ -56,7 +57,7 @@ class pickler():
         say(what, verbose=self.verbose)
 
     def save(self):
-        pickleFile = '%s\\kps_%s.pk' % (self.picklePath, self.key)
+        pickleFile = '%s\\kps_%s_%s.pk' % (self.picklePath, self.countyName, self.key)
         self.say('...Pickling Data...(%s)' % pickleFile)
         file = open(pickleFile, 'wb')
         try:
@@ -67,7 +68,7 @@ class pickler():
     def load(self):
         self.say('...opening data...(%s)' % self.key)
         try:
-            file = open('%s\\kps_%s.pk' % (self.picklePath, self.key), 'rb')
+            file = open('%s\\kps_%s_%s.pk' % (self.picklePath, self.countyName, self.key), 'rb')
         except IOError:
             self.say('pickle not found...')
             self.blob = {'data': {}, 'info': {}}
@@ -122,7 +123,7 @@ class pickler():
 
 
 class kps():
-    def __init__(self, parent=None, apiSettings=None, picklePath=None, yearsToProcess=None, pathToDBFs=None):
+    def __init__(self, parent=None, apiSettings=None, picklePath=None, yearsToProcess=None, pathToDBFs=None, countyName=None):
         self.parent_ = parent
         self.apiSettings = apiSettings
         self.command = []
@@ -145,6 +146,7 @@ class kps():
         self.c.addCommand('setTable', ['set', 'setTable', 'table'], 'set working table', self.setTable)
         self.c.addCommand('maxUpdated', ['max', 'maxUpdated', 'maxupdated'], 'get max updated from the API', self.markUpdated)
 
+        self.foxData['countyName'] = countyName
         self.foxData['pathToDBFs'] = pathToDBFs
         self.foxData['yearsToProcess'] = yearsToProcess
         self.foxData['picklePath'] = picklePath
@@ -497,6 +499,7 @@ def foxMapper(record, map, apiSettings):
             for dirt in dirtArray:
                 try:
                     if type(dirt) in [unicode]:
+                        dirt = dirt.replace('\xab', '<<')
                         if stripChar:
                             return dirt.encode("ascii").replace(stripChar, '').strip()
                         else:

@@ -1122,7 +1122,7 @@ class ktsMenu():
         try:
             value = self.sqlQuery("select dbo.settingsF('%s','%s')" % (name, default))['rows'][0][0]
         except KeyError:
-            return False
+            return None
         return value
 
     def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, testConnection=False):
