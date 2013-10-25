@@ -6,11 +6,13 @@ begin
 		@typ varchar,
 		@name varchar(50),
                 @asOf varchar(10),
-                @item varchar(50)
+                @item varchar(50),
+                @linkBackTaxByName varchar(10) = dbo.settingsf('site.statementBackTaxLinkName','TRUE')
 
 select @asOf = convert(char, GETDATE(),101)
                  --cast(dateadd(m,1,GETDATE()) as varchar)+'/15/'+cast(datepart(year,GETDATE()) as varchar)
                
+
 
 	
 	select	@parcel=parcel,
@@ -28,7 +30,7 @@ select @asOf = convert(char, GETDATE(),101)
 				i.taxyear,  
 				(i.invoiceDue*((dbo.penaltyPercent(i.ID,@asOf)/100)+1))+
 					isnull((select sum(invoicedue) from invoices where invoiceId=i.ID and TYP='f'),0)
-   		 	from invoices i where (i.parcel>'  0' and i.PARCEL = @parcel or name = @name or item = @item and taxyear>=2007) 
+   		 	from invoices i where (i.parcel>'  0' and i.PARCEL = @parcel or case when @linkBackTaxByName = 'True' or @typ <> 'R' then name else 'blahlbah' end = @name or item = @item and taxyear>=2007) 
                                                and i.TYP in ('r','i','o','s','p','b') and i.TAXYEAR<@year 
    	end
  /*
