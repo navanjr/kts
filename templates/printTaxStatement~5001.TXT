@@ -1,6 +1,6 @@
 @bb1=&Print;
 @bbproc1=
-taxStatementJnNew=;
+taxStatementGarvin=;
 
 
 @bb2=&Test; @bbproc2=
@@ -177,7 +177,7 @@ taxStatementBr=;
   lcsql='select alternateDescription,subdescription,amount from dbo.glDetailBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
   lcUnPaid=kp('select SUM(invoiceDue) from dbo.unpaidTFNew('&gcInvoiceId&') where trSection = 1 and trcode = ''Past Due'''),
   lcUnPaidTF1='select trcode,SUM(invoiceDue)from dbo.unpaidTF('&gcInvoiceId&',0) where trSection = 1 group by trcode,ord order by ord',
-  lcUnPaidTF2='select trcode,replace(dbo.formatCurr(cast(SUM(invoiceDue) as varchar)),''.'','' '') from dbo.unpaidTF('&gcInvoiceId&',0) where trSection  in (1) and trcode in (''Current Yr Tax'') group by trcode,ord order by ord',
+  lcUnPaidTF2='select trcode,SUM(invoiceDue) from dbo.unpaidTF('&gcInvoiceId&',0) where trSection  in (1) and trcode in (''Current Yr Tax'','''') group by trcode,ord order by ord',
   lcMobileHome=readstring(lcInvoiceBlob,'@MFGHOMEASSESSED='),
   lcLegal=kp('select dbo.getLegalDescription('&gcInvoiceId&')'),
   lcDetFont='Courier New',
@@ -230,7 +230,9 @@ taxStatementBr=;
    lcy=lcy+400,
   prn(,lcx-500,lcy-50,lcFontSize,,lcFont),
   det(lcUnPaidTF2),
-   bnd(,,5000,,400R,obj5:a2,1100R),
+   bnd(,,5000,,400R,format(obj5:a2,@n$-14.2),1100R),
+   nl,
+   if(obj5:a2+0>25),bnd(,,4600,'Half Tax:',800R,format(obj5:a2/2,@n$-14.2),1100R),
   edt,
   lcy=lcy+900,
   prn(,lcx,lcy,lcFontSize,,lcFont),
