@@ -155,7 +155,7 @@ if @typ='S'
  delete @rt where year > @year
 
 --Grand Total Section 1
- select @totalTax = sum(invoiceDue) from @rt
+ select @totalTax = sum(invoiceDue) from @rt where  trCode='Current Yr Tax' 
  insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
   select @totalTax, 'Total Tax',1,'sub total',4,@name,@parcel
 --Grand Total
@@ -163,9 +163,9 @@ if @typ='S'
   select @totalTax, 'Total Tax',2,'sub total',4,@name,@parcel
 
 --Half Tax Section 2
- if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25
+ if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25 and @typ<>'S'
   insert @rt (invoiceDue,trcode,trSection,origin,ord)
-   select sum(invoiceDue*halfRate), 'Half Tax',2,'sub total',5 from @rt where trcode != 'Total Tax'
+   select sum(invoiceDue*halfRate), 'Half Tax',2,'sub total',5 from @rt where trcode = 'Current Yr Tax'
  	
  return
 end
