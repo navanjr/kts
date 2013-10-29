@@ -46,7 +46,7 @@ begin
  where ID = @invoiceId
 
 -- get all the other related invoices by parcel or name
- if @typ = 'R'
+ if @typ in ('R','S')
   insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    i.ID,
@@ -61,7 +61,7 @@ begin
   from invoices i, adtax a
   where i.taxrollId = a.id
    and i.PARCEL = @parcel
-   and i.TYP in ('R','O','S')
+   and i.TYP in ('R','O','S') and case when i.id<>@invoiceId then taxyear+1 else taxyear end <= @year
    and i.invoiceDue != 0
    and i.id not in (select invoiceId from @rt)
    and @parcel > ' 0'
