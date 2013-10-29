@@ -1,7 +1,7 @@
 create proc dbo.apiTaxroll(
  @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
- @batchSize int = 10,
+ @batchSize int = null,
  @postFile varchar(50) = 'apiPostTaxroll.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
@@ -94,7 +94,7 @@ begin
 
  if @method = 'JOB'
  begin
-  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
   exec dbo.apiTaxroll @method = 'POST', @batchSize = @batchSize
  end
 
@@ -160,7 +160,7 @@ declare @rt table (
  blob varchar(max)
 )
 insert into @rt
- select top (200)
+ select top (@batchSize)
    a.ID, 
    REALTAXYEAR,
    OWNERNAME,

@@ -6,52 +6,57 @@ create function dbo.apiControlBRW() returns @rt table(
  rate money,
  blob varchar(1000),
  jobEnabled int,
+ batchSize int,
  ord varchar(50)
 ) as
 begin
  
- declare @apiControlString varchar(500)
- declare @apiControl table( resource varchar(50), batchSize int ) 
- select top 1 @apiControlString = b14 from object where typ = 40 order by id    
- insert @apiControl select dbo.splitF(data,':',1), dbo.splitF(data,':',2) from dbo.split(@apiControlString,',') 
  declare @receipts table(total int, stale int)
+ declare @tokenResource varchar(50)
 
 --taxrolls
+ set @tokenResource = 'taxroll'
  insert @rt
- select 'taxroll',
+ select @tokenResource,
   count(*),
   sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
   null,
-  '@resource=taxrolls;',
+  '@resource=' + @tokenResource + ';',
   null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'a' 
  from adtax
 
 --legal
+ set @tokenResource = 'Legal'
  insert @rt
- select 'legal',
+ select @tokenResource,
   count(*),
   sum(case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end),
   null,
-  '@resource=legal;',
+  '@resource=' + @tokenResource + ';',
   null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'b' 
  from adtax
  where ltrim(cast(legalDescription as varchar(max))) > '  0'
 
 --invoices
+ set @tokenResource = 'Invoices'
  insert @rt
- select 'invoices',
+ select @tokenResource,
   (select count(*) from invoices)
   + (select count(distinct slink) from apiDeleted where apiResource = 'invoices'),
   count(*),
   null,
-  '@resource=invoices;',
+  '@resource=' + @tokenResource + ';',
   null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'c'
  from dbo.apiInvoiceIds()
 
 --receipts
+ set @tokenResource = 'Receipts'
  insert @receipts
   select 
    (select COUNT(*) from object where typ=4502 and key3='TAX' and a17 = 'posted')
@@ -60,43 +65,45 @@ begin
   from dbo.apiReceiptIds()
 
  insert @rt
- select 'receipts',
+ select @tokenResource,
   sum(total),
   sum(stale),
   null,
-  '@resource=receipts;',
+  '@resource=' + @tokenResource + ';',
   null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'd'
  from @receipts
 
 --mortgageCodes
+ set @tokenResource = 'MortgageCodes'
  insert @rt
- select 'mortgagecodes',
+ select @tokenResource,
   count(id),
   sum(case when dbo.date112(lasteditDate) > isnull(k7,0) then 1 else 0 end),
   null,
-  '@resource=mortgagecodes;',
+  '@resource=' + @tokenResource + ';',
   null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'e'
  from object where typ=4030
 
 
 --mortgageLink
+ set @tokenResource = 'MortgageLinks'
  insert @rt
-  select 'mortgagelinks',
+ select @tokenResource,
    count(id),
    sum(case when modified>isnull(apiUpdated,0) then 1 else 0 end),
    null,
-  '@resource=mortgagelinks;',
+  '@resource=' + @tokenResource + ';',
    null,
+   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
    'f'
    from mortgageLinksImported 
 
-
-
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
- update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';' from @rt a, @apiControl b where a.resource = b.resource
-
+ update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';'
  update @rt set jobEnabled = 1 where 'kp.' + db_name() + '.api' + resource in (select name from scheduledTasks where status in ('ready','running'))
 
  return

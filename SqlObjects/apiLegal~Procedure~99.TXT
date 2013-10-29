@@ -1,7 +1,7 @@
 create proc dbo.apiLegal(
  @taxyear varchar(4) = null,
  @method varchar(50) = 'GET',
- @batchSize int = 100,
+ @batchSize int = null,
  @postFile varchar(50) = 'apiPostLegal.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
@@ -69,7 +69,7 @@ begin
 
  if @method = 'JOB'
  begin
-  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
   exec dbo.apiLegal @method = 'POST', @batchSize = @batchSize
  end
 

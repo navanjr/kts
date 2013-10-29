@@ -1,7 +1,7 @@
 create proc dbo.apiReceipts(
  @taxyear varchar(4) = 'ALL',
  @method varchar(50) = 'GET',
- @batchSize int = 10,
+ @batchSize int = null,
  @postFile varchar(50) = 'apiPostReceipts.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
@@ -68,7 +68,7 @@ begin
 
  if @method = 'JOB'
  begin
-  select @batchSize = dbo.readString('@batchSize=',blob) from dbo.apiControlBRW() where resource = @resource
+  select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
   exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
  end
 
