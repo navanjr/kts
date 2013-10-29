@@ -1,0 +1,58 @@
+create proc dbo.diagFix_missingSchoolDistricts(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(
+  district varchar(50)
+ )
+
+ insert @wt
+ select t.district
+ from dbo.taxratedetail t
+ group by t.district
+
+ if @method = 'GET'
+ begin 
+
+  select 
+   @class = 'tax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Tax School Districts are needed!'
+  from @wt
+  where district not in (select key1 from object where typ=4010)
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @wt
+  where district not in (select key1 from object where typ=4010)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  insert object (typ,key1)
+
+  select 4010,district 
+  from @wt
+  where district not in (select key1 from object where typ=4010)
+  return
+
+ end
+
+end

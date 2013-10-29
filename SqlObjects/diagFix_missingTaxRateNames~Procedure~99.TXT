@@ -1,0 +1,58 @@
+create proc dbo.diagFix_missingTaxRateNames(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(
+  ratename varchar(50)
+ )
+
+ insert @wt
+ select t.ratename
+ from dbo.taxratedetail t
+ group by t.ratename
+
+ if @method = 'GET'
+ begin 
+
+  select 
+   @class = 'tax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Tax Rate Names are needed!'
+  from @wt
+  where ratename not in (select key1 from object where typ=4011)
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @wt
+  where ratename not in (select key1 from object where typ=4011)
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  insert object (typ,key1)
+
+  select 4010,ratename 
+  from @wt
+  where ratename not in (select key1 from object where typ=4011)
+  return
+
+ end
+
+end
