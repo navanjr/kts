@@ -1,6 +1,6 @@
 create procedure dbo.apiMortgageLinks(
  @method varchar(50) = 'GET',
- @batchSize int = 200,
+ @batchSize int = null,
  @postFile varchar(50) = 'apiPostMortgageLink.json',
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
@@ -60,8 +60,8 @@ begin
 
  if @method = 'JOB'
  begin
-  select @batchSize = case when dbo.readString('@batchSize=',blob) = '' then @batchSize else dbo.readString('@batchSize=',blob) end from dbo.apiControlBRW() where resource = @resource
-  exec dbo.apiMortgageLinks @method = 'POST'
+  select @batchSize = coalesce(@batchSize, dbo.settingsF('api.mortgageLinks.batchSize', '50'))
+  exec dbo.apiMortgageLinks @method = 'POST', @batchSize = @batchSize
  end
  
  if @method = 'POST'
