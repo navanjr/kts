@@ -125,6 +125,7 @@
 
 @loadwindow=
  lcWarn4770='TRUE',
+ lcWarn4770C='TRUE',
  lcx=(gc4770+0)%2,
  lcy=(gc4770+1)%2,
  d1select('select fiscalyear from dbo.fpinfo('&today()+0&')'),
@@ -232,8 +233,30 @@
 \h041042obj:c1+0=0;r
 \h005006obj:c1+0=0 and gcwarrantsHitLedgerWhenRegistered <> 'TRUE';r
 \h043044obj:c1+0=0 and gcwarrantsHitLedgerWhenRegistered <> 'TRUE';r
-\t001Received From;  \l0024601,2;r002002004012006014042050044052;  @acc002=calcrecord(),if(len(clip(obj:e1))>0,clearmemo=),updateRegisterNumber=; @lf002='a17!=1';
+
+@sel002=lcCurRecFrom=obj:key1, lcCurAccount=obj:key2, lcCurBank=obj:key3;
+@sel004=sel002=;
+@sel006=sel002=;
+
+\t001Received From;  \l0024601,2;r002002004012006014042050044052; @lf002='a17!=1';
+ @acc002=
+ getImportStats=,
+ if(lcCount+0=0,finishChange=,warnChange=);,
+
+@warnChange=
+ m('|Warning... ||It appears you still have items to import.||Are you sure you want to switch to a different official?|','Are you sure?...','question.ico',6,2),
+ if(gcretval+0<>2,changeback=,finishChange=);
+
+@changeback=set(002,lcCurRecFrom), set(004,lcCurAccount), set(006,lcCurBank),update, tsc;
+
+@finishChange=
+ lcWarn4770C='TRUE',
+ calcrecord(),
+ if(len(clip(obj:e1))>0,clearmemo=),
+ updateRegisterNumber=; 
+
  \q002obj:c1+0=1;
+
 \t003Official Account; \l0044701;r004002042004; @lf004='a1=''OFFICIAL'' and b3!=1',2;
  \q004obj:c1+0=1;
  \t041OfficialAccountDesc; \h041; \d042; \x042184; \w042151;
