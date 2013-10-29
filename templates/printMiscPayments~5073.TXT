@@ -1,0 +1,48 @@
+@miscPaymentReportAll=
+  do(452,getSiteInfo=),
+  lcLm=600,
+  lcTm=1200,
+  lcBold=700,
+  lcItalics=4600,
+  lcLgFont=12,
+  lcRegular=400,
+  lcRegFont=10,
+
+  lcJournalTot=0,
+  lcJournalDebitTot=0,
+  lcJournalCreditTot=0,
+  lcJournalTot=0,
+
+  lcsql='select accountDesc, issueDate, debit, credit, payee, sourceKey1, DetailType from miscPaymentDetail where issueDate between '''&gcBeginDate&''' and '''&gcEndDate&''' order by issueDate,sourceKey1, id ',
+
+  tr(
+    prn(printed),
+    prn(page),
+    prn('Miscellaneous Payment Report',t1),
+    prn(gcCounty&' County',t2), 
+    prn(gcCity&', '&gcState,t3),    
+    prn('Payments between '&format(gcBeginDate,@d2)&' and '&format(gcEndDate,@d2),t4),
+    prn(,lcLm,lcTm+300),
+       
+    grp(1,obj5:a6&obj5:a2&obj5:a5, do(
+    bnd('HOU','Number: '&obj5:a6,1500,format(obj5:a2,@d2),1500,obj5:a5,2500),
+    nl,
+    bnd('H','Accnt Desc',2200,'Date',750,'Debit',1000,'Credit',1000,'',2000),
+    ),do(
+    bnd('H','Totals:',2800R,format(lcJournalDebitTot,@n$-14.2),1000,format(lcJournalCreditTot,@n$-14.2),1000),
+    lcJournalDebitTot=0,
+    lcJournalCreditTot=0,
+    nl,)
+    ),
+  
+    det(lcsql),
+     bnd('D',
+     format(obj5:a1,@s30),2200,
+     format(obj5:a2,@d2),750,
+     obj5:a3,1000,
+     obj5:a4,1000,
+     '',2000),
+     lcJournalDebitTot=lcJournalDebitTot+obj5:a3,
+     lcJournalCreditTot=lcJournalCreditTot+obj5:a4,
+    edt,
+);
