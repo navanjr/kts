@@ -32,7 +32,8 @@ begin
   @name varchar(50),
   @asOf varchar(10),
   @item numeric(9,1),
-  @totalTax money
+  @totalTax money,
+  @unPaid money
 
 -- get variables from our invoice
  select
@@ -154,8 +155,10 @@ if @typ='S'
 -- remove Future stuff
  delete @rt where year > @year
 
+ select @unPaid=SUM(invoiceDue) from dbo.unpaidTFNew(@invoiceId) where trSection = 1 and trcode = 'Past Due'
+
 --Grand Total Section 1
- select @totalTax = sum(invoiceDue) from @rt where  trCode='Current Yr Tax' 
+ select @totalTax = sum(invoiceDue) from @rt where  trCode=case when @unPaid>0 then trCode else 'Current Yr Tax' end
  insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
   select @totalTax, 'Total Tax',1,'sub total',4,@name,@parcel
 --Grand Total
