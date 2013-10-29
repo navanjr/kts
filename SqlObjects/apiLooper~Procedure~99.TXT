@@ -1,0 +1,53 @@
+create proc dbo.apiLooper(
+ @resource varchar(50)
+) as
+begin
+ 
+ declare
+  @continue varchar(5) = dbo.settingsF('api.looperEnabled','FALSE'),
+  @sql nvarchar(max),
+  @result varchar(max),
+  @method varchar(50) = 'JOB',
+  @dropRawFile varchar(5) = 'TRUE'
+
+ declare @availableResources table(
+  name varchar(50)
+ )
+ insert @availableResources select 'Invoices'
+ insert @availableResources select 'Taxroll'
+ insert @availableResources select 'Receipts'
+ insert @availableResources select 'Legal'
+ insert @availableResources select 'MortgageCodes'
+ insert @availableResources select 'MortgageLinks'
+
+
+ if @resource in (select name from @availableResources)
+ begin
+
+  set @sql = 'dbo.api' + @resource + ' @method=''JOB'', @dropRawFile=''True'''
+
+  while 1 = 1
+  begin
+   if @continue = 'FALSE'
+    break
+   
+   if @resource = 'Invoices'
+    exec dbo.apiInvoices @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+   if @resource = 'Taxroll'
+    exec dbo.apiTaxroll @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+   if @resource = 'Receipts'
+    exec dbo.apiReceipts @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+   if @resource = 'Legal'
+    exec dbo.apiLegal @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+   if @resource = 'MortgageCodes'
+    exec dbo.apiMortgageCodes @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+   if @resource = 'MortgageLinks'
+    exec dbo.apiMortgageLinks @method = @method, @dropRawFile = @dropRawFile, @result = @result OUTPUT
+
+   select @result
+  
+  end
+
+ end
+
+end
