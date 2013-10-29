@@ -110,23 +110,24 @@ if @pubFlag = 'FALSE'
 ---corrections
  declare @x varchar(max)
 
- declare @wtc table (id int,crtdate varchar(50),comments varchar(max))
+ declare @wtc table (id int,crtdate varchar(50),comments varchar(max), processcode int)
 
  insert @wtc
    select	
 	cast('-1'+cast(min(id) as varchar) as int),
 	date,
-	case when isnull(ini,'')>'  0' then ini + ' - ' + comment + ' - ' else comment + ' - ' end
+	case when isnull(ini,'')>'  0' then ini + ' - ' + case when len(comment)>1 then comment + ' - ' else '' end else comment + ' - ' end,
+        0
     from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) 
 	group by date,ini,comment
 
- while exists (select * from @wtc where comments='')
+ while exists (select * from @wtc where processcode=0)
   begin
    declare @tokenDate varchar(10)
-    select @tokenDate = crtdate from @wtc where comments='' order by crtdate
+    select @tokenDate = crtdate from @wtc where processcode=0 order by crtdate
      begin
       select @x = STUFF((select '|' + 'Field Name: '+rtrim(field)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and date=@tokenDate for XML path('')),1,1,'') 
-      update @wtc set comments = comments +'Correction: '+ replace(@x,'&amp;','&') where crtdate = @tokenDate
+      update @wtc set processcode=1,comments = comments +'Correction: '+ replace(@x,'&amp;','&') where crtdate = @tokenDate
      end
      
   end
