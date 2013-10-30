@@ -108,20 +108,33 @@ begin
 
  if @checkNumber<>'CASH RETURNED'
  begin
-  declare @overpayment money
+  declare @overpayment money, @returnPaycode varchar(60)
   select @overpayment = sum(amount) from gldetailstage where slink=@slink and accountId=0
   select @receiptBalanceDue = round(dbo.receiptBalanceDue(@receiptId)+.001,2)
+  select @returnPaycode = key1 from object where typ=4505 and a14='1'
 
 -- add or update CASH RETURNED
   set @changeAmount = case when isnull(@receiptBalanceDue,0) < isnull(@overpayment,0) then isnull(@receiptBalanceDue,0) else isnull(@overpayment,0) end
   if @changeAmount < -.006
   begin
    exec dbo.logit @@procid, 'Hang on, we are making change...'
-   if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
-    update paid set amount = round(@changeAmount,2) where checkno = 'CASH RETURNED' and slink = @slink
+   if exists(select * from paid where paycode = 'CASH' and slink = @slink) or not exists(select * from object where typ=4505 and a14='1')
+   begin
+    if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
+     update paid set amount = round(@changeAmount,2) where checkno = 'CASH RETURNED' and slink = @slink
+    else
+     insert paid (paycode,slink,amount,checkno)
+      select 'CASH', @slink, round(@changeAmount,2), 'CASH RETURNED'
+   end
    else
-    insert paid (paycode,slink,amount,checkno)
-     select 'CASH', @slink, round(@changeAmount,2), 'CASH RETURNED'
+   begin
+
+    if exists(select * from paid where checkno = @returnPaycode+' RETURNED' and slink = @slink)
+     update paid set amount = round(@changeAmount,2) where checkno = @returnPaycode+' RETURNED' and slink = @slink
+    else
+     insert paid (paycode,slink,amount,checkno)
+      select @returnPaycode, @slink, round(@changeAmount,2), @returnPaycode+' RETURNED'
+   end
   end
 
 -- add to the gl stage
