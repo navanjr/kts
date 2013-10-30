@@ -3033,6 +3033,14 @@ def retrieve_character(bytes, fielddef, memo, decoder):
     """
     Returns the string in bytes as fielddef[CLASS] or fielddef[EMPTY]
     """
+    badCharacters = [
+        "\xf8", "\xc2", "\xb0", "\xf8", "\xa7"
+    ]
+    def clean(badData):
+        for c in badCharacters:
+            badData = badData.replace(c, "")
+        return badData
+
     data = bytes.tostring()
     if not data.strip():
         cls = fielddef[EMPTY]
@@ -3041,7 +3049,11 @@ def retrieve_character(bytes, fielddef, memo, decoder):
         return cls(data)
     if fielddef[FLAGS] & BINARY:
         return data
-    return fielddef[CLASS](decoder(data)[0])
+    try:
+        retval = fielddef[CLASS](decoder(data)[0])
+    except UnicodeDecodeError, e:
+        return fielddef[CLASS](decoder(clean(data))[0])
+    return retval
 
 def update_character(string, fielddef, memo, decoder, encoder):
     """
