@@ -18,6 +18,13 @@ where a.accountcode=d.accountcode
 ,case when a.accounttype = 'FUND' then '' else case when isnull(comment2,'') like '%MIL%' then '4 MILL' when isnull(comment2,'')='' then 'GENERAL' else isnull(comment2,'') end end, reportOrder 
  having sum(amount)<>0.00
  order by case when contraAccountCode=d.AccountCode then ' Collection Account' else a.accounttype end, reportOrder
+
+insert @rt 
+select '','',sum(amount),accountType+' Total',accountType+' TOTAL','' from @rt group by accountType
  
+insert @rt 
+ select l.accountCode, l.accountDesc, l.endbalance, ' Collection Account', 'Ledger Balance', r.reportOrder from @rt r, dbo.dailyledgerdata(@enddate,@enddate) l where r.accountType=' Collection Account' and r.accountcode=l.accountcode
+
+
 return
 end
