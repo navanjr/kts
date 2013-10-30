@@ -1157,8 +1157,11 @@ class ktsMenu():
 
                     setString = ', '.join(token)
                     sqlString = "update adtax set %s where realTaxYear = '%s' and fullPidNumber = '%s'" % (setString, taxYear, row['fullpidnumber'])
-                    if self.sqlQuery(sqlString, True)['code'][0] == 0:
+                    q = self.sqlQuery(sqlString, True)
+                    if q['code'][0] == 0:
                         tally += 1
+                    else:
+                        print 'oops...', q
             print 'ok i sent %s updates' % tally
 
 
@@ -1210,7 +1213,7 @@ class ktsMenu():
 
         try:
             cursor.execute(sqlString)
-        except pyodbc.ProgrammingError, err:
+        except (pyodbc.DataError, pyodbc.ProgrammingError), err:
             package['code'] = [1, 'Error on Execute %s' % err]
             package['rows'] = [('', '')]
             connection.close()
