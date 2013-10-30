@@ -1,6 +1,6 @@
 @bb1=&Print;
 @bbproc1=
-taxStatementBr=;
+taxStatementGrant=;
 
 
 @bb2=&Test; @bbproc2=
@@ -13,6 +13,74 @@ taxStatementBr=;
 
 @taxStatmentBr=
 taxStatementBr=;
+
+@taxStatementGrant=
+ d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
+  lcContinue=obj7:d1,
+ break(lcContinue='False'),
+  lcInvoiceBlob=kp('select dbo.getTaxInvoiceBlob('&gcInvoiceId&')'),
+  lcName=readstring(lcInvoiceBlob,'@NAME='),
+  d1select('exec dbo.taxstatementAddressCheck '&gcInvoiceId),
+  lcAdd=obj7:d1,
+ if(lcAdd<'  0',failedProc=),
+ break(lcContinue='False'),
+  lcsql='select alternateDescription,subdescription,amount from dbo.statementBRW(''t'&gcInvoiceId&''',1) where id<0 order by ord',
+  lcUnPaid=kp('select SUM(invoiceDue) from dbo.unpaidTFNew('&gcInvoiceId&') where trSection = 1 and trcode = ''Past Due'''),
+  lcUnPaidTF1='select trcode,SUM(invoiceDue)from dbo.unpaidTF('&gcInvoiceId&',0) where trSection = 1 group by trcode,ord order by ord',
+  lcUnPaidTF2='select trcode,SUM(invoiceDue)from dbo.unpaidTF('&gcInvoiceId&',0) where trSection  in (1,2) and trcode in (''Half Tax'',''Current Yr Tax'') group by trcode,ord order by ord',
+  lcMobileHome=readstring(lcInvoiceBlob,'@MFGHOMEASSESSED='),
+  lcLegal=kp('select dbo.getLegalDescription('&gcInvoiceId&')'),
+  lcDetFont='Courier New',
+  lcFont='Arial',
+  lcFontSize=11,
+ tr(
+   lcMil=0,
+   lcTot=0,
+   lcy=1050,
+   lcx=1000,
+   prn(,,,lcFontSize,,'Arial'),
+   txt(lcName&chr(13)&chr(10)&lcAdd,lcx,lcy,4000,1000,1),
+   lcy=lcy+1200,
+   prn(,lcx-550,lcy,lcFontSize),
+   bnd(,readstring(lcInvoiceBlob,'@PARCEL='),3050C,readstring(lcInvoiceBlob,'@ITEM='),1300C,readstring(lcInvoiceBlob,'@TAXYEAR='),500,choose(readstring(lcInvoiceBlob,'@TYP=')='R','	REAL ESTATE','PERSONAL'),1350C,choose(lcMobileHome+0>0,'***MOBILE HOME***',''),925C),
+   lcy=lcy+700,
+   lcyMill=lcy,
+   prn(,,lcy),
+   bnd(,readstring(lcInvoiceBlob,'@GROSSASSESSED='),1850C,readstring(lcInvoiceBlob,'@EXEMPTION3='),1200C,readstring(lcInvoiceBlob,'@NETASSESSEDVALUE='),1900C,left(readstring(lcInvoiceBlob,'@SCHOOLDISTRICTTAXRATE='),9),600C,,1900C),
+   lcy=lcy+600,
+   lcLegalFont=choose(len(lcLegal)>500,lcFontSize-5,choose(len(lcLegal)>250,lcFontSize-3,lcFontSize-2)),
+   prn(,,lcy,lcLegalFont),
+   txt(lcLegal,lcx-550,lcy,3600,3000,0),
+   if(readstring(lcInvoiceBlob,'@ACRES=')+0>0),bnd(,1000,'ACRES',500,readstring(lcInvoiceBlob,'@ACRES='),500),
+   prn(,lcx+3425,lcy+250,lcFontSize-1),
+   det(lcSql),
+     bnd(,obj5:a1,1400,format(obj5:a2,@n-14.2),850C,format(obj5:a3,@n-14.2),1150R),
+     lcMil=lcMil+obj5:a2,
+     lcTot=lcTot+obj5:a3,
+     edt,
+   prn(,lcx+5300,lcyMill,lcFontSize),
+  bnd(,format(lcMil,@n-14.4b),1150C),
+  lcy=lcy+2050,
+  prn(,lcx,lcy),
+   lcy=lcy+1200,
+  prn(,,lcy),
+   bnd(,,6100,format(readstring(lcInvoiceBlob,'@CURRENTDUE='),@n$-14.2),800C),
+   lcy=lcy+650,
+  prn('*'&readstring(lcInvoiceBlob,'@TAXYEAR=')&readstring(lcInvoiceBlob,'@ITEM=')&'*',lcx-550,lcy,24,,'FREE 3 OF 9'),
+   lcy=lcy+280,
+  prn(,,lcy,lcFontSize,,lcFont),
+  bnd(,,1000,readstring(lcInvoiceBlob,'@TAXYEAR='),1000,'',500,readstring(lcInvoiceBlob,'@ITEM='),1000,,1000,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTTAXRATE=')), 
+   lcy=lcy+625,
+  prn(,,lcy,lcFontSize,,lcFont),
+  bnd(,,1300,readstring(lcInvoiceBlob,'@GROSSASSESSED='),800C,readstring(lcInvoiceBlob,'@EXEMPTION3='),800C,readstring(lcInvoiceBlob,'@NETASSESSEDVALUE='),800C,,1400,choose(readstring(lcInvoiceBlob,'@CURRENTDUE=')+0>25,format(readstring(lcInvoiceBlob,'@CURRENTDUE=')/2,@n$-14.2),''),1000C,format(readstring(lcInvoiceBlob,'@CURRENTDUE='),@n$-14.2),1000C),
+  prn(,,,lcLegalFont),
+  txt(lcLegal,lcx-550,lcy+170,3600,300,0),
+  lcy=lcy+1300,
+  prn(,lcx,lcy,lcFontSize,,lcFont),
+  prn(readstring(lcInvoiceBlob,'@PARCEL='),lcx+400,lcy,lcFontSize,,lcFont),
+  lcy=lcy+150,
+  txt(lcName&chr(13)&chr(10)&lcAdd,lcx+400,lcy,4000,1000,1));
+
 
 @taxStatementDefault=
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize'''),
