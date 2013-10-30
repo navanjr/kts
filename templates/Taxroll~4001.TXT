@@ -20,8 +20,9 @@ acc110=
 @adjusttozero=
   gcInvoiceId=obj:link2,
   break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
-  iw('\t001Description;'),
+  if(obj:d2>' 0',,iw('\t001Description;')),
   lcDesc=obj7:key1,
+  if(obj:d2>' 0',lcDesc=obj:d2),
   if(len(lcDesc)<2,lcDesc='VOID by Taxroll Correction - new statement issued.',lcDesc='VOID '&lcDesc),
   sql('exec invoiceUpdate '&gcInvoiceId+0),
   gcpaid=kp('select sum(amount)*-1 from dbo.invoiceGLTotalTF('&gcInvoiceId&') where left(slink,1) in (''l'',''o'') and accountType = ''RECEIVABLE'''),
@@ -111,6 +112,7 @@ lbrwclick160=
 @sel074=gcfieldnum='074',gclabel='Millage',gcoriginal=obj:b14,gctype='@n11.7;',gcinvoice=0,gcoptions='';
 @sel076=gcfieldnum='078',gclabel='Tax Due',gcoriginal=obj:b15,gctype='@n19.2;',gcinvoice=obj:link2,gcoptions='';
 @sel078=gcfieldnum='078',gclabel='Tax Due',gcoriginal=obj:c1,gctype='@n19.2;',gcinvoice=obj:link2,gcoptions='';
+@sel080=gcfieldnum='',gclabel='None',gcoriginal='',gctype='varchar',gcinvoice=0,gcoptions='';
 @sel082=gcfieldnum='082',gclabel='Certificate',gcoriginal=obj:c3,gctype='varchar',gcinvoice=0,gcoptions='';
 @sel084=gcfieldnum='084',gclabel='Paid Off',gcoriginal=obj:c4,gctype='@d2;',gcinvoice=0,gcoptions='';
 @sel086=gcfieldnum='086',gclabel='Lien Code 1',gcoriginal=obj:c5,gctype='varchar',gcinvoice=0,gcoptions='';
@@ -199,7 +201,7 @@ lbrwclick160=
 
 \h105tier=2 or instring('@group=publicuser',cur:options,1,1)>0;
 \t105Correct Info;
- @acc105=
+ @acc105=break(gclabel='None'),
   gcCorrectTaxyear=obj:key2,
   gcCorrectSchoolDist=obj:a18,
   if(len(obj:d2)< 2,docomment=),
@@ -277,7 +279,7 @@ tsc;
  do(4006,menuprocess=);
 
 @correctVarchar=
- iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; '&gcoptions),
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003'&gclabel&'; '&gcoptions),
  break(gcretval='esc'),
  gcvalue=obj7:key2,
  gccorrectiodate=obj7:key1,
@@ -285,7 +287,7 @@ tsc;
  sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&gcoriginal&''',@fieldData='''&gcvalue&''',@comment='''&obj:d2&''' ');
 
 @correctFormat=
- iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003New Value; \t004'&gctype&' '),
+ iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003'&gclabel&'; \t004'&gctype&' '),
  break(gcretval='esc'),
  gcvalue=obj7:key2,
  gccorrectiodate=obj7:key1,
@@ -294,7 +296,7 @@ tsc;
 
 @correctMemo=
  gcvalue='',
- iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),set(104,gcoriginal),update,tsc; \t103New Value; \w104200;'),
+ iw('\t001Date; \t002@d2; \w00250;  @afterloadwindow=set(002,today()),set(104,gcoriginal),update,tsc; \t103'&gclabel&'; \w104200;'),
  break(gcretval='esc'),
  gcvalue=clip(obj7:e2),
  gccorrectiodate=obj7:key1,
