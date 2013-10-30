@@ -7,26 +7,52 @@ as
 begin
  set nocount on
  
- exec dbo.logit @@procid, 'taxrollCRUD...'
+ exec dbo.logit @@procid, 'taxrollCRUD...','@method',@method
   
  declare
   @cmd varchar(8000),
   @cmdOutput varchar(8000),
-  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo')
+  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
+  @assessorSys varchar(50) = dbo.settingsf('taxroll.assessorSys','state')
+
+-- prep table for taxLevyCheck
+ if @method = 'prepTaxLevy'
+   begin
+    if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxLevyCheck]') and OBJECTPROPERTY(id, N'IsTable') = 1)    
+     delete from dbo.taxLevyCheck
+
+    if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxLevyCheck]') and OBJECTPROPERTY(id, N'IsTable') = 1)   
+     create table taxLevyCheck(
+      taxAreaCode varchar(10),
+      SchoolDistrict varchar(50),
+      TaxRate varchar(50))
+   end
+
+-- update adtaxcheck from taxlevyCheck school district and taxrate 
+ if @method = 'setLevy'
+  begin
+   if exists(select * from taxLevyCheck)
+     update a set 
+       a.ORGSCHOOLDISTRICTMAIN = left(l.schoolDistrict,20),
+       a.SCHOOLDISTRICTMAIN = left(l.schoolDistrict,20),
+       a.ORGSCHOOLDISTRICTTAXRATE = left(l.taxRate,20),
+       a.SCHOOLDISTRICTTAXRATE = left(l.taxRate,20)
+       from adtaxCheck a join taxLevyCheck l on l.taxAreaCode = a.pidSortNumber 
+  end
 
 
 -- import taxroll to adtaxCheck...
  if @method = 'importTax'
   begin
-   set @cmd = @gitRepo + '\kts.bat conv '+ case when dbo.settingsf('taxroll.assessorSys','state') = 'LandMark' then 'importGSITax'  else 'importTax' end
+   set @cmd = @gitRepo + '\kts.bat conv '+ case when @assessorSys = 'LandMark' then 'importGSITax'  else 'importTax' end
    exec dbo.logit @@procid, 'taxrollCRUD... @cmd', @cmd,'@method',@method
    exec @cmdOutput = master..xp_cmdshell @cmd, no_output
-   exec dbo.logit @@procid, 'Done!... @cmdOutput', @cmdOutput
+   exec dbo.logit @@procid, 'Done!... @cmdOutput', @cmdOutput 
 
   return
  end
 
--- clear adtaxCheck...
+-- clear adtaxCheck...a
  if @method = 'dropAdtaxCheck'
   begin
    exec dbo.logit @@procid, 'taxrollCRUD... @method',@method,'@taxYear',@taxYear
@@ -55,15 +81,15 @@ begin
       ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
       ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
       ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
-      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[origin])
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[origin],proploc,landAssessed,miscAssessed,improvedAssessed)
      select 
       [RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
       ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
       ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
       ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
-      ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,'',[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
       ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
-      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice'
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice',proploc,landAssessed,miscAssessed,improvedAssessed
       from adtaxcheck where 1=1 and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
     drop table adTaxCheck
   return

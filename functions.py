@@ -834,7 +834,6 @@ class ktsMenu():
             owner_LCT = row[314:320]
             geo_Number = row[320:350]
             other_ID = row[350:380]
-            millCodeSet = row[380:392]
             grossAssessed = row[392:401]
             landAssessed = row[401:410]
             improvAssessed = row[410:419]
@@ -845,7 +844,7 @@ class ktsMenu():
             millage = row[455:461]
             millCode = row[461:545]
             total_Tax = row[545:557]
-            streetNumber = row[557:567]
+            streetNumber = row[557:566]
             streetNoSufix = row[567:571]
             streetDirection = row[571:581]
             streetName = row[581:611]
@@ -871,6 +870,7 @@ class ktsMenu():
             legal = row[760:2760]
             advanceValue = row[2760:2770]
             advanceTax = row[2770:2780]
+            millCodeSet = row[380:392]
             return [
                 source_Type,
                 tax_Year,
@@ -927,7 +927,8 @@ class ktsMenu():
                 #advanceTax      #42
                 millage,
                 millCode,
-                total_Tax
+                total_Tax,
+                millCodeSet
             ]
         importFileRaw = self.settingsF('taxroll.importFile')
         if not  importFileRaw:
@@ -949,8 +950,8 @@ class ktsMenu():
             print 'how many? ', len(rows)
             print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
             columnNames = ['recordType','realTaxYear','itemNumber','ownerNumber','ownerName','address1','address2','address3','city','state','zip1','zip2']
-            columnNames = columnNames + ['country','fullPidNumber','grossAssessed','landAssessed','improvedAssessed','mfgHomeAssessed','miscAssessed','baseExemption','netAssessedValue','propLoc']
-            columnNames = columnNames + ['acres','additionNumber','townshipBlock','sectionNumber','rangeLot','qtrSectionNumber','legalDescription','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE']
+            columnNames = columnNames + ['country','fullPidNumber','grossAssessed','landAssessed','improvedAssessed','mfgHomeAssessed','miscAssessed','baseExemption','Exemption3','netAssessedValue','propLoc']
+            columnNames = columnNames + ['acres','additionNumber','townshipBlock','sectionNumber','rangeLot','qtrSectionNumber','legalDescription','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE','PIDSORTNUMBER']
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(rows):
@@ -964,6 +965,42 @@ class ktsMenu():
                         tally = tally + 1
             print 'ok i inserted %s records' % tally
 
+            def map(row):
+                taxAreaCode = row[0:8]
+                schoolDistrict = row[8:47]
+                taxRate = row[164:203]
+                return[
+                    taxAreaCode.strip(),
+                    schoolDistrict.strip(),
+                    taxRate.strip()
+                    ]
+            importFileRaw = self.settingsF('taxroll.taxLevyFile')
+            if not  importFileRaw:
+                print 'missing path to gsi levl file... fail!'
+                return
+            rows = []
+            with open( importFileRaw, 'r') as content_file:
+                rawData = content_file.read()
+            i = 0
+            for row in rawData.split('\n'):
+                rows.append(map(row))
+            if len(rows) > 0:
+                print 'how many? ', len(rows)
+                print 'Prep Tax Levy Table...dbo.taxrollCRUD', self.sqlQuery('exec dbo.taxrollCRUD @method=''prepTaxLevy''', True)['code']
+                columnNames = ['taxAreaCode','schoolDistrict','taxRate']
+                sqlInsert = "insert taxLevyCheck ({columns})".format(columns=', '.join(columnNames))
+                tally = 0
+                for id, row in enumerate(rows):
+                    formatedRow = [str(x).replace("'", "''") for x in row]
+                    sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                    #print sqlInsert
+                    #print sqlSelect
+                    if len(formatedRow) > 1:
+                        if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                            tally = tally + 1
+                print 'ok i inserted %s records' % tally
+                print 'update school district and tax rates...dbo.taxrollCRUD', self.sqlQuery('exec dbo.taxrollCRUD @method=''setLevy''', True)['code']
+
     def gsiFormatedRow(self,x):
         try:
             item = x[2]
@@ -972,7 +1009,7 @@ class ktsMenu():
             proploc = x[21]+' '+x[22]+' '+x[23]+' '+x[24]+' '+x[25]+' '+x[26] + '                                                        '
             proploc = proploc.strip()
             acres = format(float(x[27])*.001,'.2f')
-            return [x[0],x[1],item,x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[20],proploc,acres,x[28],x[32],x[31],x[33],x[34],x[35],m,t,t,t]#,x[37]]
+            return [x[0],x[1],item,x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[19],x[20],proploc,acres,x[28],x[32],x[31],x[33],x[34],x[35],m,t,t,t,x[39]]#,x[37]]
         except ValueError, e:
             print e
             return []

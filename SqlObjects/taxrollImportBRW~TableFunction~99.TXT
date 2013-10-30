@@ -9,17 +9,29 @@ begin
 declare 
  @path varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.importfile',''),'path'),
  @file varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.importfile',''),'file'),
+ @lvpath varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.taxLevyfile',''),'path'),
+ @lvFile varchar(1000) = dbo.pathFile(dbo.settingsF('taxroll.taxLevyfile',''),'file'),
  @adtaxCheck int = 0,
  @adtax int = 0,
  @missingTaxRates int =0
 
+ select 
+  @lvfile = case when dbo.settingsF('taxroll.assessorSys','STATE') = 'STATE' then @file else @lvfile end,
+  @lvpath = case when dbo.settingsF('taxroll.assessorSys','STATE') = 'STATE' then @path else @lvpath end
+
  insert @rt (display, ord) select '', 'b_'
  insert @rt (display, ord) select 'Taxroll Import Settings', 'b_0'
  insert @rt (brwid, display, ord)
-   select '7'+cast(id*-1 as varchar),' -'+description+':'+dbo.splitf(display,':',2)+dbo.splitf(display,':',3),'b_'+description from dbo.settingsBRW('taxroll')
+   select '7'+cast(id*-1 as varchar),' -'+description+':'+dbo.splitf(display,':',2)+dbo.splitf(display,':',3),'b_'+description from dbo.settingsBRW('taxroll') 
+    where ord <> case when dbo.settingsF('taxroll.assessorSys','STATE') = 'STATE' then 'taxroll.taxLevyFile' else '' end
+ insert @rt (brwid, display, ord)
+   select '7'+cast(id*-1 as varchar),' -'+description+':'+dbo.splitf(display,':',2)+dbo.splitf(display,':',3),'b_'+description from dbo.settingsBRW('conversion') 
+    where ord = case when dbo.settingsF('taxroll.assessorSys','STATE') = 'STATE' then 'conversion.aamasterpath' else '' end
+
+          
 
 ---Load Import
- if exists(select * from dbo.dirRead(@path) where name = @file)
+ if exists(select * from dbo.dirRead(@path) where name = @file) and exists(select * from dbo.dirRead(@lvpath) where name = @lvfile)
   begin
    insert @rt (display, ord) select '', 'c_'
    insert @rt (brwid,display, ord) select 81,'Load Import', 'c_0'
