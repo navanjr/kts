@@ -38,7 +38,7 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aa
     a.fullpidnumber = c.fullpidnumber,
     a.taxYear = @taxYear
   from aamasterCheck a
-  join invoices b on b.taxyear = @taxyear and b.item = a.autonumber and a.autonumber>'  0'
+  join invoices b on b.taxyear = @taxyear and cast(b.item as money) = cast(a.autonumber as money) and a.autonumber>'  0'
   join AdTax c on c.realtaxyear = @taxyear and b.TAXROLLID = c.ID
   exec dbo.logit @@procid, 'updated data from KTS... @@rowCount', @@ROWCOUNT
 
@@ -72,10 +72,10 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aa
   update aamasterCheck set reason = 'address'
   where (
 stuff(dbo.joinStr(@c,address1) + dbo.joinStr(@c,address2) + dbo.joinStr(@c,address3)
-     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,cast(cast(zip2 as int) as varchar)) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country)
+     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,zip2) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country)
      ,1,len(@c),'') !=
 stuff(dbo.joinStr(@c,ktsaddress1) + dbo.joinStr(@c,ktsaddress2) + dbo.joinStr(@c,ktsaddress3)
-     + dbo.joinStr(@c,ktscity) + dbo.joinStr(@c,ktsstate) + dbo.joinStr(@c,ktszip1) + dbo.joinStr(@c,cast(cast(ktszip2 as int) as varchar)) + dbo.joinStr(@c,ktszip3) + dbo.joinStr(@c,country)
+     + dbo.joinStr(@c,ktscity) + dbo.joinStr(@c,ktsstate) + dbo.joinStr(@c,ktszip1) + dbo.joinStr(@c,ktszip2) + dbo.joinStr(@c,ktszip3) + dbo.joinStr(@c,country)
      ,1,len(@c),'')
  )
    and isnull(reason,'') < '  0'
