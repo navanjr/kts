@@ -1,0 +1,28 @@
+create proc dbo.ktsBat(
+ @commandString varchar(max),
+ @output nvarchar(max) = null output
+) as
+begin
+
+-- run a kts.bat menu command...
+
+ set nocount on
+
+ declare
+  @cmd varchar(8000),
+  @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
+  @retInt int
+
+ declare @wt table(id int identity(1,1), data varchar(max))
+
+ set @cmd = @gitRepo + '\kts.bat ' + @commandString
+
+ exec dbo.logit @@procid, '@cmd', @cmd
+
+ insert @wt exec @retInt = master..xp_cmdshell @cmd
+
+ select top 1 @output = data from @wt order by id
+
+ exec dbo.logit @@procid, 'Done!... @retInt', @retInt, '@output', @output
+
+end

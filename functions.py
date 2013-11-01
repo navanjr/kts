@@ -6,6 +6,7 @@ import ftplib
 import shutil
 import kpsFunctions
 from general import *
+import importDBF
 # from kirc import *
 
 
@@ -96,6 +97,7 @@ class ktsMenu():
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
+        self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
 
         self.command = []
 
@@ -105,6 +107,18 @@ class ktsMenu():
         # self.irc = kirc()
         # self.irc.connect(room='kts_team')
         # self.irc.listen()
+
+    def importDBF(self):
+        if len(self.command) == 3:
+            tableName = self.command[2]
+            foxFile = self.settingsF('conversion.%s' % tableName, None)
+            if foxFile:
+                fox = importDBF.dbfClass(foxFile, tableName)
+                fox.load()
+                data = fox.get()
+                print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
+                for row in data['insertRows']:
+                    self.sqlQuery(row, True)
 
     def command_devup(self):
         self.sendCommand('set gitpath')

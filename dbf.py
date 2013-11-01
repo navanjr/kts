@@ -3034,7 +3034,7 @@ def retrieve_character(bytes, fielddef, memo, decoder):
     Returns the string in bytes as fielddef[CLASS] or fielddef[EMPTY]
     """
     badCharacters = [
-        "\xf8", "\xc2", "\xb0", "\xf8", "\xa7"
+        "\xab", "\xf8", "\xc2", "\xb0", "\xf8", "\xa7"
     ]
     def clean(badData):
         for c in badCharacters:

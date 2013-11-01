@@ -1,6 +1,6 @@
 @echo off
 pushd %~dp0
-python kts.py %1 %2
+python kts.py %1 %2 %3
 popd
 if ERRORLEVEL = 1 GOTO NoPython
 GOTO END
