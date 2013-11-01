@@ -1,11 +1,9 @@
+import binascii
 import cPickle as pickle
 import threading
 from datetime import datetime
 from general import *
-try:
-    import dbf
-except ImportError:
-    pass
+import dbf
 
 class commands():
     def __init__(self):
@@ -144,7 +142,8 @@ class kps():
         self.c.addCommand('reset', ['reset'], 'reset updated flag on table', self.reset)
         self.c.addCommand('test', ['test', 't'], 'test', self.test)
         self.c.addCommand('setTable', ['set', 'setTable', 'table'], 'set working table', self.setTable)
-        self.c.addCommand('maxUpdated', ['max', 'maxUpdated', 'maxupdated'], 'get max updated from the API', self.markUpdated)
+        self.c.addCommand('maxUpdated', ['max', 'maxUpdated', 'maxupdated'], 'get max updated from the API', self.maxUpdated)
+        self.c.addCommand('markUpdated', ['mark', 'markUpdated', 'markupdated'], 'mark max updated from the API', self.markUpdated)
 
         self.foxData['countyName'] = countyName
         self.foxData['pathToDBFs'] = pathToDBFs
@@ -369,21 +368,26 @@ class kps():
             key = self.command[1]
             with pickler(self.foxData, self.workingTable) as p:
                 try:
-                    apiRow = p.get('data')[key]['apiRow']
+                    apiRow = p.get('data')[key]
                     print
                     print apiRow
                     print
-                    for key, value in apiRow.items():
+                    for key, value in apiRow['apiRow'].items():
                         print key, value
                 except KeyError, e:
                     print 'sorry i could not find this key: %s' % key, e
 
     def gatherStats(self, data=None):
         def core(data, table, info=None):
+            maxKey = ''
+            for i in sorted(data.items()):
+                if i[1]['updated'] == 1:
+                    maxKey = i[0]
             st = self.foxData['tables'][table]
             st['stats'] = {
                 'count': len(data),
                 'updated': sum(1 for i in data.items() if i[1]['updated'] == 1),
+                'maxKey': maxKey
             }
             st['stats']['stale'] = st['stats']['count'] - st['stats']['updated']
             if info:
@@ -521,9 +525,18 @@ def foxMapper(record, map, apiSettings):
                     for y in arguments[0]:
                         value += clean(record[y]).replace('.', '')
             if verb in ['joinWithSpace']:
-                vArray =[]
+                vArray = []
                 for y in arguments[0]:
-                    vArray.append(clean(record[y]))
+                    if y in ('leg_l1', 'leg_l2', 'leg_l3', 'leg_l4', 'leg_l5', 'leg_l6'):
+                        try:
+                            vArray.append(clean(record[y]))
+                        except UnicodeDecodeError, e:
+                            print 'Unicode Decode Error... ', e
+                            print 'COLUMN: ', y, record['taxyear'], record['itm_nbr']
+                            testUtf8 = record[y].encode("utf-8")
+                            print "utf-8: ", testUtf8
+                    else:
+                        vArray.append(clean(record[y]))
                 value = ' '.join(vArray)
             elif 'math' in verb:
                 if 'add' in verb:

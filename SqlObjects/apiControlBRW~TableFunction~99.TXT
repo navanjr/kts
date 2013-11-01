@@ -7,7 +7,8 @@ create function dbo.apiControlBRW() returns @rt table(
  blob varchar(1000),
  jobEnabled int,
  batchSize int,
- ord varchar(50)
+ ord varchar(50),
+ loopProcSpid int
 ) as
 begin
  
@@ -24,7 +25,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'a' 
+  'a', null 
  from adtax
 
 --legal
@@ -37,7 +38,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'b' 
+  'b', null  
  from adtax
  where ltrim(cast(legalDescription as varchar(max))) > '  0'
 
@@ -52,7 +53,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'c'
+  'c', null 
  from dbo.apiInvoiceIds()
 
 --receipts
@@ -72,7 +73,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'd'
+  'd', null 
  from @receipts
 
 --mortgageCodes
@@ -85,7 +86,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'e'
+  'e', null 
  from object where typ=4030
 
 
@@ -99,12 +100,19 @@ begin
   '@resource=' + @tokenResource + ';',
    null,
    dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-   'f'
+   'f', null 
    from mortgageLinksImported 
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
  update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';'
  update @rt set jobEnabled = 1 where 'kp.' + db_name() + '.api' + resource in (select name from scheduledTasks where status in ('ready','running'))
+
+ update a set loopProcSpid = b.spid
+ from @rt a
+ join master.dbo.sysprocesses b on b.program_name = 'kts.bat.api.' + a.resource 
+  and b.spid > 50
+  and b.status not in ('background', 'sleeping')
+  and b.cmd not in ('AWAITING COMMAND','MIRROR HANDLER','LAZY WRITER','CHECKPOINT SLEEP','RA MANAGER')
 
  return
 end

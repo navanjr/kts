@@ -7,6 +7,7 @@ import shutil
 import kpsFunctions
 from general import *
 import importDBF
+import threading
 # from kirc import *
 
 
@@ -26,6 +27,7 @@ class ktsMenu():
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
+        self.apiLoopingResource = None
 
         self.apiSettingsKps = {
             'host': self.settingsF('site.apiurl'),
@@ -75,6 +77,9 @@ class ktsMenu():
         self.createCommand('api',['api', ],'run api job',self.command_api)
         self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
         self.createCommand('apiSettings',['settings','set' ],'return api settings',self.command_apiSettings, 'api')
+        self.createCommand('apiService',['service','serv' ],'toggle api service (api serv X)',self.command_apiService, 'api')
+        self.createCommand('apiLooper',['loop','looper' ],'fire up the api looper (api loop X)',self.command_apiLooper, 'api')
+        self.createCommand('apiReset',['reset', ],'reset all the rows for resource (api reset X)',self.command_apiReset, 'api')
 
         self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
@@ -108,6 +113,11 @@ class ktsMenu():
         # self.irc.connect(room='kts_team')
         # self.irc.listen()
 
+    def threadit(self, name, targetProc):
+        t = threading.Thread(name=name, target=targetProc)
+        t.setDaemon(True)
+        t.start()
+
     def importDBF(self):
         if len(self.command) == 3:
             tableName = self.command[2]
@@ -125,21 +135,105 @@ class ktsMenu():
         self.sendCommand('set gitcommitter TRUE')
         self.sendCommand('log on')
 
+    def apiStatus(self):
+        rows = self.sqlQuery("select abs(id),resource,total,stale,jobEnabled,batchSize,rate,loopProcSpid from dbo.apiControlBRW()")['rows']
+        obj = {}
+        for row in rows:
+            obj[row[0]] = {
+                'resource': row[1],
+                'total': row[2],
+                'stale': row[3],
+                'jobEnabled': row[4],
+                'batchSize': row[5],
+                'rate': row[6],
+                'loopProcSpid': row[7],
+            }
+        return obj
+
+    def apiShow(self, data):
+        print
+        print "      %s %s %s %s %s %s" % ('Resource'.ljust(15), '   Total', '   Stale', 'JobStatus', 'BatchSize', '    Rate')
+        print "      %s" % ("-" * 62)
+        for key, value in data.items():
+            status = 'on' if value['jobEnabled'] == 1 else 'off'
+            status = 'looper' if value['loopProcSpid'] else status
+            print "   %s %s %s %s %s %s %s" % (
+                str(key).ljust(2),
+                value['resource'].ljust(15),
+                str(value['total']).rjust(8),
+                str(value['stale']).rjust(8),
+                status.rjust(9),
+                str(value['batchSize']).rjust(9),
+                str(value['rate']).rjust(8),
+            )
+
     def command_api(self):
-        menuName = self.getMenuName(self.command[0],self.commands)
+        cmd = self.command
+        menuName = self.getMenuName(cmd[0], self.commands)
         subMenu = self.commands[menuName]['subMenu']
-        if len(self.command) == 1:
-            print subMenu
-        elif len(self.command) > 1:
-            self.runMenuFunction(self.command[1],subMenu)
-        if len(self.command) == 2:
-             print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
-             #pass
+        apiRows = self.apiStatus()
+        if len(cmd) < 2:
+            self.apiShow(apiRows)
+        if len(cmd) == 1:
+            self.menuShow(subMenu)
+        elif len(cmd) > 1:
+            self.runMenuFunction(cmd[1], subMenu)
+        if len(cmd) == 2 and cmd[1] in [value['resource'] for key, value in apiRows.items()]:
+            print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
+
+    def command_apiService(self):
+        def toggleService(resource):
+            print "toggling %s service..." % resource, self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource)['code']
+
+        cmd = self.command
+        apiRows = self.apiStatus()
+        if len(cmd) == 2:
+            if areYouSure('Are you sure you want to toggle all services?'):
+                for key, value in apiRows.items():
+                    toggleService(value['resource'])
+        elif len(cmd) == 3:
+            toggleService(apiRows[int(cmd[2])]['resource'])
+
+    def command_apiReset(self):
+        cmd = self.command[1:]
+        if len(cmd) == 2:
+            try:
+                opt = int(cmd[1])
+            except ValueError:
+                return
+            apiRows = self.apiStatus()
+            if opt in apiRows:
+                resource = apiRows[opt]['resource']
+                if areYouSure('are you sure you wish to reset all the row in resource: %s' % resource):
+                    print "Reseting api %s" % resource, self.sqlQuery("exec dbo.apiControl '%s', @method='reset'" % resource, True)['code']
+
+    def command_apiLooper(self):
+        cmd = self.command[1:]
+        if len(cmd) == 2:
+            if cmd[1] in ['stop', 'off']:
+                self.command_setSetting('api',settingName='looperEnabled', newValue='FALSE')
+                return
+            try:
+                opt = int(cmd[1])
+            except ValueError:
+                return
+            apiRows = self.apiStatus()
+            if opt in apiRows:
+                if areYouSure('are you sure you wish to start a looping thread'):
+                    self.command_setSetting('api',settingName='looperEnabled', newValue='TRUE')
+                    self.apiLoopingResource = apiRows[opt]['resource']
+                    self.threadit('api.%s' % self.apiLoopingResource, self.apiLoop)
+
+    def apiLoop(self):
+        resource = self.apiLoopingResource
+        appName = "kts.bat.api.%s" % resource
+        print "starting %s looper..." % resource, self.sqlQuery("exec dbo.apiLooper '%s'" % resource, True, appName=appName)['code']
 
     def command_apiSettings(self):
         settings = ['site.apiurl', 'site.apikey', 'site.apisitecode']
+        print
         for setting in settings:
-            print setting, self.settingsF(setting)
+            print "        %s %s" % (setting, self.settingsF(setting))
 
     def command_apiSite(self):
         host = self.apiSettingsKps['host']
@@ -216,7 +310,7 @@ class ktsMenu():
         except KeyError:
             self.git['ktsVersion'] = 'Unknown'
 
-    def menuShow(self,subMenu):
+    def menuShow(self, subMenu):
         print
         for x in subMenu.items():
             print x[0].rjust(20), '-', x[1]['description']
@@ -350,14 +444,14 @@ class ktsMenu():
 
     def ftp_show(self):
         files = self.ftpFiles()
-        menuName = self.getMenuName(self.command[0],self.commands)
+        menuName = self.getMenuName(self.command[0], self.commands)
         subMenu = self.commands[menuName]['subMenu']
         for file in files.items():
             print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
         if len(self.command) == 1:
             self.menuShow(subMenu)
         elif len(self.command) > 1:
-            self.runMenuFunction(self.command[1],subMenu)
+            self.runMenuFunction(self.command[1], subMenu)
 
     def configStuff(self, section, setting, method='GET', newValue=None):
         if method == 'GET':
@@ -667,56 +761,80 @@ class ktsMenu():
     def command_displayMenu(self):
         self.display()
 
-    def command_setSetting(self, prefix, defaultValue=None, settingsCRUD=True):
-        if not len(self.command) > 1:
-            return
-        if len(self.command) > 2:
-            newValue = self.command[2]
-        else:
+    def command_setSetting(self, prefix, defaultValue=None, newValue=None, settingsCRUD=True, settingName=None):
+        name = settingName or self.command[1]
+        if not newValue:
             if defaultValue:
                 print 'leave blank for default value (%s)' % defaultValue
             newValue = raw_input('Enter %s ==> ' % self.command[1]) or defaultValue
         if settingsCRUD:
-            self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, self.command[1], newValue), True)
+            self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, name, newValue), True)
         return newValue
         
     def command_serverSettings(self):
-        cmd = self.command[1]
         if len(self.command) < 2:
             return
+
+        setting = self.command[1]
+        value = None
+
         if len(self.command) > 2:
-            commandArguement = self.command[2]
-        else:
-            commandArguement = ''
-        if cmd in ('db','database'):
-            self.dbSettings(commandArguement)
-            self.configStuff('importDefaults', 'database', 'PUT', commandArguement)
-        elif cmd in ('user','username','uid'):
-            self.setVars('uid',commandArguement)
-            self.configStuff('importDefaults', 'uid', 'PUT', commandArguement)
-        elif cmd in ('pwd','pass','password'):
-            self.setVars('password',commandArguement)
-            self.configStuff('importDefaults', 'password', 'PUT', commandArguement)
-        elif cmd in ('server','location','url'):
-            self.setVars('server',commandArguement)
-            self.configStuff('importDefaults', 'server', 'PUT', commandArguement)
-        elif cmd == 'gitpath':
-            self.command_setSetting('git', defaultValue='c:\client\key\kts')
-        elif cmd == 'gitcommitter':
-            self.command_setSetting('git')
-        elif cmd in ('mikepath', 'mikepathtax'):
-            self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online')
-        elif cmd in ('taxyear','officialbankcode','initials','conversiondate','cutoffdate'):
-            self.command_setSetting('conversion')
-        elif cmd in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
-            if cmd == 'ftppath':
-                newValue = self.command_setSetting('ftp', defaultValue='c:\client\key\sqlBackup')
+            value = self.command[2]
+
+        if setting in ('db', 'database'):
+            self.dbSettings(setting)
+            self.configStuff('importDefaults', 'database', 'PUT', value)
+
+        elif setting in ('user', 'username', 'uid'):
+            self.setVars('uid', value)
+            self.configStuff('importDefaults', 'uid', 'PUT', value)
+
+        elif setting in ('pwd', 'pass', 'password'):
+            self.setVars('password', value)
+            self.configStuff('importDefaults', 'password', 'PUT', value)
+
+        elif setting in ('server', 'location', 'url'):
+            self.setVars('server', value)
+            self.configStuff('importDefaults', 'server', 'PUT', value)
+
+        elif setting == 'gitpath':
+            self.command_setSetting('git', defaultValue='c:\client\key\kts', newValue=value)
+
+        elif setting == 'gitcommitter':
+            self.command_setSetting('git', newValue=value)
+
+        elif setting in ('mikepath', 'mikepathtax'):
+            self.command_setSetting('conversion', defaultValue='c:\client\dosdata\ctpro\online', newValue=value)
+
+        elif setting in ('taxyear','officialbankcode','initials','conversiondate','cutoffdate'):
+            self.command_setSetting('conversion', newValue=value)
+
+        elif setting in ('ftphost', 'ftpuser', 'ftppassword', 'ftppath'):
+            if setting == 'ftppath':
+                newValue = self.command_setSetting('ftp', defaultValue='c:\client\key\sqlBackup', newValue=value)
             else:
-                newValue = self.command_setSetting('ftp')
-            self.configStuff('ftp', self.command[1].replace('ftp',''), 'PUT', newValue)
+                newValue = self.command_setSetting('ftp', newValue=value)
+            self.configStuff('ftp', self.command[1].replace('ftp', ''), 'PUT', newValue)
             self.ftpSettingsInit()
-        elif cmd in ('aamasterpath', 'gsipath'):
-            self.command_setSetting('conversion')
+
+        elif setting in ('aamasterpath', 'gsipath'):
+            self.command_setSetting('conversion', newValue=value)
+
+        elif setting.lower() == 'apiurl':
+            if not value:
+                value = areYouSure('Enter new apiUrl', boolean=False)
+            if areYouSure():
+                print "updating Site Setting...", self.sqlQuery("update object set b13 = '%s' where typ=40" % value, True)['code']
+        elif setting.lower() == 'apisitecode':
+            if not value:
+                value = areYouSure('Enter new apiSiteCode', boolean=False)
+            if areYouSure():
+                print "updating Site Setting...", self.sqlQuery("update object set b12 = '%s' where typ=40" % value, True)['code']
+        elif setting.lower() == 'apikey':
+            if not value:
+                value = areYouSure('Enter new apiKey', boolean=False)
+            if areYouSure():
+                print "updating Site Setting...", self.sqlQuery("update object set b11 = '%s' where typ=40" % value, True)['code']
 
     def command_logging(self):
         print self.command
@@ -1207,9 +1325,9 @@ class ktsMenu():
             return None
         return value
 
-    def sqlQuery(self,sqlString, isProc=False, alternateDatabase=None, testConnection=False):
+    def sqlQuery(self, sqlString, isProc=False, alternateDatabase=None, testConnection=False, appName='kts.bat'):
         connDatabase = alternateDatabase or self.settings['database']
-        connectionString = 'DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (self.settings['server'],connDatabase,self.settings['uid'],self.settings['password'])
+        connectionString = 'APP=%s;DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (appName, self.settings['server'], connDatabase, self.settings['uid'], self.settings['password'])
         package = {}
         package['connectionString'] = connectionString
         package['database'] = connDatabase
@@ -1217,7 +1335,7 @@ class ktsMenu():
         try:
             connection = pyodbc.connect(connectionString, autocommit=True)
         except (pyodbc.ProgrammingError, pyodbc.Error):
-            package['code'] = [1,'Failed to connect to %s' % connDatabase]
+            package['code'] = [1, 'Failed to connect to %s' % connDatabase]
 
         try:
             cursor = connection.cursor()
