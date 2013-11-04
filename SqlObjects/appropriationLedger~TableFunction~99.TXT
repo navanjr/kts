@@ -8,7 +8,7 @@ returns @rt table(FundDesc varchar(60),
                   fiscalYear varchar(20))
 as
 begin
-           
+ 
 insert @rt
  select 
   fundDesc,
@@ -16,7 +16,7 @@ insert @rt
   SUM(payments),
   SUM(budget),
   sum(balance),
-  right(fiscalYear,2)+fundDesc+accountnumber+'bbb',
+  left(right(fiscalYear,2)+rtrim(fundDesc)+rtrim(accountnumber),45)+'bbb',
   fiscalYear
   from dbo.appropriationLedgerDetail(@begindate,@enddate,@activeOnly,@noBalance) group by right(fiscalYear,2),fiscalYear,funddesc,accountNumber
 
@@ -27,18 +27,18 @@ insert @rt
   SUM(cast(warrants as money)),
   SUM(cast(budget as money)),
   sum(cast(balance as money)),
-  right(fiscalYear,2)+fundDesc+'zzzzz'+'ccc',
+  left(right(fiscalYear,2)+rtrim(fundDesc)+'zzzzz',45)+'ccc',
   fiscalYear from @rt group by right(fiscalYear,2),fiscalYear,FundDesc
 
 insert @rt (FundDesc,ord,fiscalyear)
   select 
   fundDesc,
-  right(fiscalYear,2)+fundDesc+'     '+'aaa',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear,FundDesc
+  left(right(fiscalYear,2)+rtrim(fundDesc)+'     ',45)+'aaa',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear,FundDesc
 
 insert @rt (FundDesc,ord,fiscalyear)
   select 
   'Fiscal Year: '+fiscalYear,
-  right(fiscalYear,2)+'          '+'aa1',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear
+  left(right(fiscalYear,2)+'          ',45)+'aa1',fiscalyear from @rt group by right(fiscalYear,2),fiscalYear
 
 
 update @rt
