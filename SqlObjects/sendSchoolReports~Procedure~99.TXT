@@ -38,10 +38,6 @@ begin
  select * into #schoolReports from dbo.apportionSchoolPagesSumByFund(@startDate,@endDate,'FALSE') order by ord
  exec dbo.logit @@procid, 'grabbed initial data... @@rowCount', @@rowCount
 
-select * from #schoolReports
-  where accountCode in (select accountCode from glAccounts where accountType = 'School')
---  group by accountCode
-
  declare @codes table(
   code varchar(50),
   processFlag int,
@@ -73,10 +69,6 @@ select * from #schoolReports
 
 -- Remove dashes to prevent crashes 
  update @headings set headingname=replace(headingname,'-','_')
-
-select * from @codes
-select * from @headings
-
 
  while exists(select * from @codes where processFlag = 0)
  begin
@@ -140,14 +132,10 @@ select * from @headings
 
   update @codes set processFlag = 1, result = @dump where code = @tokenCode
 
-select * from  #reportPackage 
   if OBJECT_ID('tempdb..#reportPackage') is not null
    drop table #reportPackage
 
  end
-
-select * from @codes
-select * from @headings
 
  if OBJECT_ID('tempdb..#schoolReports') is not null
   drop table #schoolReports
