@@ -27,7 +27,7 @@ set nocount on
  declare @m varchar(max)= '',
          @cblob varchar(max) = ''
    select @cblob = case when rtrim(a.treamort) > '0'  then 'MORTGAGECODE|' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
-   select @cblob = @cblob  + stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where ltrim(commentType) in ('Exempt','Bankrupt') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30 for xml path('')),1,1,'') 
+   select @cblob = @cblob  + stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,'') 
    
    if charindex('mortgagecode',@cblob)>0
      select @m = ' - A Mortgage code on it.||'  
@@ -73,8 +73,8 @@ set nocount on
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
    select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
    select @unPaidCnt = count(id) from invoices where 
-          invoiceDue>0 and
-          (@parcel > '  0' and parcel = @parcel and taxyear < @taxYear or name = @name and taxyear < @taxYear)
+          invoiceDue>0 and taxyear < @taxYear and
+          (@parcel > '  0' and parcel = @parcel or name = @name)
           and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    if @unPaidCnt>0
      select '@code=3;@message=There are unpaid paid back taxes!;'
