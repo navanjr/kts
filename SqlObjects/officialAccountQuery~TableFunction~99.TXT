@@ -54,7 +54,21 @@ insert @wt (accountcode,CancelVoid)
    and sourceDate<=@endDate
    and accounttype = 'OFFICIAL'
    and amount < 0.00
+   and left(sourcea18,4)<>'Void'
  group by accountcode
+
+insert @wt (accountcode,Vouchers)
+ select accountcode,sum(amount) 
+ from dbo.glDetailReports 
+ where 
+  sourceType='4771'
+   and sourceDate>=@beginDate 
+   and sourceDate<=@endDate
+   and accounttype = 'OFFICIAL'
+   and amount < 0.00
+   and left(sourcea18,4)='Void'
+ group by accountcode
+
 
 insert @wt (accountcode,Journals)
  select accountcode,sum(amount*-1) 
