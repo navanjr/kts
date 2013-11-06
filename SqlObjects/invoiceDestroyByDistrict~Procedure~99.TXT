@@ -1,0 +1,28 @@
+create proc dbo.invoiceDestroyByDistrict(
+ @taxyear int,
+ @district varchar(50),
+ @rateName varchar(50)
+) as
+begin
+
+ declare
+  @ids ids,
+  @tally int
+ 
+ insert @ids 
+ select i.id 
+ from invoices i 
+  join adtax a on a.id = i.taxrollid
+ where i.taxyear = @taxyear
+  and a.schooldistrictmain = @district
+  and a.schooldistricttaxrate = @rateName
+
+ select @tally = count(*) from @ids
+
+ exec dbo.logit @@procid, 'Destroing Invoices... @tally', @tally, '@taxyear', @taxyear, '@district', @district, '@rateName', @rateName
+
+ exec dbo.invoiceCRUD 3, @ids = @ids
+
+ exec dbo.logit @@procid, 'Done!'
+ 
+end

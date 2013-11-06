@@ -1,5 +1,5 @@
 @loadbrowse=
- gcTaxYear=2013,
+ gcTaxYear4000=2013,
  menuprocess=;
 
 @menuprocess=
@@ -11,18 +11,29 @@
 @loadwindow=
  gcvars=,
  brwstuff=,
- create(551,9,456,63,'&Print(F9)');
+ create(551,9,456,63,'&Print(F9)'),
+ create(552,9,456,83,'&Destroy Invoices');
 
-\v551120; \w55180;
+\v551552120;r \w55155280;r
 @acc551=
  trreport('adtaxdistrates',4000,'ratetrioreport=');
 
+@acc552=
+ lcblob=kp('select blob from taxyearTrioBRW('&gcTaxYear4000&') where id = '&kpbrwid(1)*-1),
+ lcdistrict=readstring(lcblob,'@district='),
+ lcratename=readstring(lcblob,'@taxRate='),
+ m('Are you sure you wish to destroy ALL invoices for ||district: '&lcdistrict&'|rate name: '&lcratename,'Destroy Invoices...','question.ico','&Destroy ALL!|E&xit'),
+ break(gcretval<>1),
+ d1select('exec dbo.invoiceDestroyByDistrict '&gcTaxYear4000&','''&lcdistrict&''','''&lcratename&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Taxroll Invoice Correction...')),
+ refreshbrw=;
+
 @gcvars=
- gcbrwsql4034='select id*-1,district,rateName,millTotal,adtaxBalanceDue,invoiceAmount,case when millTotal is null then  1 else 0 end from taxyearTrioBRW('&gcTaxYear4000&') order by ord';
+ gcbrwsql4034='select id*-1,district,rateName,millTotal,adtaxBalanceDue,invoiceAmount,case when millTotal is null then  1 else 0 end,count from taxyearTrioBRW('&gcTaxYear4000&') order by ord';
 
 @brwstuff=
  kpmo('Loading Initial Data...','Please Wait...'),
- brw(150,1,gcbrwsql4034,2,2,450,250,'115L(2)~District~#2#|M115L(2)~Rate Name~#3#|M60R(2)~Millages~@n12.4b@#4#|M80R(5)~Taxroll~@n-14.2b@#5#|M80L(20)~Invoiced~@n-14.2b@#6#|M'),
+ brw(150,1,gcbrwsql4034,2,2,450,250,'105L(2)~District~#2#|M105L(2)~Rate Name~#3#|M50R(2)~Millages~@n12.4b@#4#|M70R(5)~Taxroll~@n-14.2b@#5#|M70R(2)~Invoiced~@n-14.2b@#6#|M40L(2)~Count~#8#|M'),
  kpmc(),
  prop(150,'Color',16777215),
  prop(150,7c10h,'Verdana'),
