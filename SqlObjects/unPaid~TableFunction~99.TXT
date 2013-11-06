@@ -22,7 +22,7 @@ select @asOf = convert(char, GETDATE(),101)
                         @item=item
 		from invoices where ID=@invoiceId
 
- if @typ  in ('R','I','P','B')
+ if @typ  in ('R','I','P','B','U','M')
 	begin
 		insert into @rt
 			select  
@@ -31,7 +31,7 @@ select @asOf = convert(char, GETDATE(),101)
 				(i.invoiceDue*((dbo.penaltyPercent(i.ID,@asOf)/100)+1))+
 					isnull((select sum(invoicedue) from invoices where invoiceId=i.ID and TYP='f'),0)
    		 	from invoices i where (i.parcel>'  0' and i.PARCEL = @parcel or case when @linkBackTaxByName = 'True' or @typ <> 'R' then name else 'blahlbah' end = @name or item = @item and taxyear>=2007) 
-                                               and i.TYP in ('r','i','o','s','p','b') and i.TAXYEAR<@year 
+                                               and i.TYP in ('r','i','o','s','p','b','u','m') and i.TAXYEAR<@year 
    	end
  /*
  if @typ = 'P'
