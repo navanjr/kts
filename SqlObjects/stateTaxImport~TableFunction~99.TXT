@@ -32,9 +32,17 @@ declare @wt table(taxyear int,
   other5 money,
   contraAccount varchar(60))
 
+declare @currentYear int,
+        @priorYear int,
+        @backYear int
+
+select @currentYear = year from dbo.taxyears(dbo.clariondate(getdate())) where yearcode='Current'
+select @priorYear = year from dbo.taxyears(dbo.clariondate(getdate())) where yearcode='Prior'
+select top 1 @backYear = year from dbo.taxyears(dbo.clariondate(getdate())) where yearcode='Back' order by year desc
+
 insert @wt
 select taxyear, schdist, ltrim(taxrate), taxcoll, fourmill, cogen, cobuild, cosink, cohealth, schgen, schbuil, schsink, votgen, votbuil, votsink, other1,
-  other2, other3, other4, other5,case when taxyear=2012 then '2012_ADVALOREM' when taxyear=2013 then '2013_ADVALOREM' else '2011_ADVALOREM' end as contraAccount
+  other2, other3, other4, other5,case when taxyear=@priorYear then cast(@priorYear as varchar(4))+'_ADVALOREM' when taxyear=@currentYear then cast(@currentYear as varchar(4))+'_ADVALOREM' else cast(@backYear as varchar(4))+'_ADVALOREM' end as contraAccount
  from temp_appvwork
 
 declare @rt table(id int identity(1,1),
@@ -46,8 +54,6 @@ declare @rt table(id int identity(1,1),
  contraId int,
  schdist varchar(50),
  taxrate varchar(50))
-
-
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
 select 'ADA_'+cast(taxyear as varchar(4))+'_ACR', '4 MILL', sum(fourmill),contraAccount 
