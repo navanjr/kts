@@ -5,7 +5,9 @@ create function dbo.stateTaxImport()
  schoolpagescat varchar(50),
  amount money,
  contraAccountCode varchar(60),
- contraId int)
+ contraId int,
+ schdist varchar(50),
+ taxrate varchar(50))
 as
 begin
 declare @wt table(taxyear int,
@@ -41,7 +43,9 @@ declare @rt table(id int identity(1,1),
  schoolpagescat varchar(50),
  amount money,
  contraAccountCode varchar(60),
- contraId int)
+ contraId int,
+ schdist varchar(50),
+ taxrate varchar(50))
 
 
 
@@ -83,96 +87,96 @@ select key2, '', sum(cohealth),contraAccount
  group by contraAccount,key2
   having sum(cohealth) <> 0.00
  
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(votgen),contraAccount 
+  else key2 end, a13, sum(votgen),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTGEN' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
  having sum(votgen)<>0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(votbuil),contraAccount 
+  else key2 end, a13, sum(votbuil),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTBUIL' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
  having sum(votbuil)<>0.00
  
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(votsink),contraAccount 
+  else key2 end, a13, sum(votsink),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTSINK' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
  having sum(votsink)<>0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(other1),contraAccount 
+  else key2 end, a13, sum(other1),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER1' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
  having sum(other1) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(other2),contraAccount 
+  else key2 end, a13, sum(other2),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER2' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
  having sum(other2) <> 0.00
  
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(other3),contraAccount 
+  else key2 end, a13, sum(other3),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER3' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
  having sum(other3) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(other4),contraAccount 
+  else key2 end, a13, sum(other4),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER4' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
  having sum(other4) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
   when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
   when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
-  else key2 end, a13, sum(other5),contraAccount 
+  else key2 end, a13, sum(other5),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER5' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
  having sum(other5) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2+case when b10='1' then '_GENERAL' else '' end, 'GENERAL', sum(schgen),contraAccount 
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
+select key2+case when b10='1' then '_GENERAL' else '' end, 'GENERAL', sum(schgen),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
  group by contraAccount,schdist, key2, b10
  having sum(schgen) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2+case when b10='1' then '_BUILDING' else '' end, 'BUILDING', sum(schbuil),contraAccount 
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
+select key2+case when b10='1' then '_BUILDING' else '' end, 'BUILDING', sum(schbuil),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
  group by contraAccount,schdist, key2, b10
  having sum(schbuil) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2+case when b10='1' then '_SINKING' else '' end, 'SINKING', sum(schsink),contraAccount 
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
+select key2+case when b10='1' then '_SINKING' else '' end, 'SINKING', sum(schsink),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
@@ -181,7 +185,7 @@ select key2+case when b10='1' then '_SINKING' else '' end, 'SINKING', sum(schsin
 
 
 insert @rtf
- select r.accountcode,a.accountdesc,r.schoolpagescat,sum(amount),contraAccountCode,c.accountid
+ select r.accountcode,a.accountdesc,r.schoolpagescat,sum(amount),contraAccountCode,c.accountid,max(schdist),max(taxrate)
   from @rt r, glaccounts a, glaccounts c
   where r.accountcode=a.accountcode and c.accountcode=r.contraAccountCode
   group by r.accountcode,a.accountdesc,r.schoolpagescat,contraAccountCode,c.accountid
