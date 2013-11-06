@@ -1099,8 +1099,8 @@ class ktsMenu():
 
             def map(row):
                 taxAreaCode = row[0:8]
-                schoolDistrict = row[8:47]
-                taxRate = row[164:203]
+                taxRate = row[8:47]
+                schoolDistrict = row[164:203]
                 return[
                     taxAreaCode.strip(),
                     schoolDistrict.strip(),
