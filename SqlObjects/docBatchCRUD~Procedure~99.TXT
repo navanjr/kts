@@ -1,7 +1,7 @@
 create proc dbo.docBatchCRUD(
  @documentName varchar(50) = null,
  @batchSize int = null,
- @method varchar(10) = 'CREATE',
+ @method varchar(50) = 'CREATE',
  @documentDate int = null,
  @invTypeString varchar(50) = '',
  @taxyear varchar(4) = null,
@@ -12,8 +12,10 @@ create proc dbo.docBatchCRUD(
  @processCode varchar(50) = null,
  @switches varchar(10) = null,
  @dTypesBlob varchar(max) = null,
- @InvoiceId int = null
- ) as 
+ @InvoiceId int = null,
+ @district varchar(50) = null,
+ @rateName varchar(50) = null
+) as 
 begin
 
  declare
@@ -90,31 +92,54 @@ begin
   return
  end 
  
-  if @method = 'addOne'
-   begin
-    select 
-     @documentName = coalesce(@documentName, documentName),
-     @processCode = coalesce(@processCode, processCode),
-     @documentDate = coalesce(@documentDate,documentDate)
-     from dbo.docBRWDecoder(@brwId)
+ if @method = 'addOne'
+ begin
+  select 
+   @documentName = coalesce(@documentName, documentName),
+   @processCode = coalesce(@processCode, processCode),
+   @documentDate = coalesce(@documentDate,documentDate)
+   from dbo.docBRWDecoder(@brwId)
 
-   if exists (select * from documentProcessing where documentName = @documentName and invoiceid = @invoiceId)
-    begin
-     exec dbo.logit @@procId, '@code=1;@message=Tax Item is already in this batch!;'
-     select '@code=1;@message=Tax Item is already in this batch!;'
-     return
-    end
+  if exists (select * from documentProcessing where documentName = @documentName and invoiceid = @invoiceId)
+  begin
+   exec dbo.logit @@procId, '@code=1;@message=Tax Item is already in this batch!;'
+   select '@code=1;@message=Tax Item is already in this batch!;'
+   return
+  end
 
   declare @iBlob varchar(max) = dbo.getTaxInvoiceBlob(@invoiceId)    
 
   exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@processCode', @processCode, '@iBlob', @iBlob
 
-   insert dbo.documentProcessing 
-     select @invoiceId, @documentName, @documentDate, @processCode, dbo.readstring('@name=',@iBlob) + cast(dbo.readstring('@item=',@iBlob) as varchar), isnull(dbo.readstring('@ownerNumber=',@iBlob),0.0), dbo.readstring('@name=',@iBlob)
-         
+  insert dbo.documentProcessing 
+  select @invoiceId, @documentName, @documentDate, @processCode,
+   dbo.readstring('@name=',@iBlob) + cast(dbo.readstring('@item=',@iBlob) as varchar),
+   isnull(dbo.readstring('@ownerNumber=',@iBlob),0.0), dbo.readstring('@name=',@iBlob)
+  
+ end
 
-    
-   end
+ if @method = 'addDistrictRate' and isnull(@district,'') > '  0' and isnull(@ratename,'') > '  0' and isnull(@documentName,'') > '  0'
+ begin
 
- 
+  select
+   @documentDate = coalesce(@documentDate, dbo.clariondate(getdate())),
+   @initials = coalesce(@initials, dbo.readstring('@ini=',dbo.whoami()))
+
+  if exists(select * from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName)
+   select @processCode = @initials + '.' + right('000' +cast(cast(max(dbo.splitF(processCode,'.',2)) as int) + 1 as varchar),3)
+   from documentProcessing where dbo.splitF(processCode,'.',1) = @initials and documentName = @documentName
+  else
+   set @processCode = @initials + '.001'
+
+  insert dbo.documentProcessing
+  select 
+   i.id, @documentName, @documentDate, @processCode,  i.name + cast(i.item as varchar), a.ownernumber, i.name
+  from invoices i
+   join adtax a on i.taxrollId = a.id
+  where a.schooldistrictmain = @district and a.schooldistricttaxrate = @rateName
+
+  exec dbo.logit @@procId, 'Created records in documentProcessing... @@rowCount', @@rowCount, '@documentName', @documentName, '@method', @method, '@processCode', @processCode
+
+  
+ end
 end

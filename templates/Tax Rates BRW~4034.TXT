@@ -12,20 +12,33 @@
  gcvars=,
  brwstuff=,
  create(551,9,456,63,'&Print(F9)'),
- create(552,9,456,83,'&Destroy Invoices');
+ create(552,9,456,83,'&Destroy Invoices'),
+ create(553,9,456,103,'&Create Print Batch');
 
-\v551552120;r \w55155280;r
+\v551553120;r \w55155380;r
 @acc551=
  trreport('adtaxdistrates',4000,'ratetrioreport=');
 
-@acc552=
+@dipDandR=
  lcblob=kp('select blob from taxyearTrioBRW('&gcTaxYear4000&') where id = '&kpbrwid(1)*-1),
  lcdistrict=readstring(lcblob,'@district='),
- lcratename=readstring(lcblob,'@taxRate='),
+ lcratename=readstring(lcblob,'@taxRate=');
+
+@acc552=
+ dipDandR=,
  m('Are you sure you wish to destroy ALL invoices for ||district: '&lcdistrict&'|rate name: '&lcratename,'Destroy Invoices...','question.ico','&Destroy ALL!|E&xit'),
  break(gcretval<>1),
  d1select('exec dbo.invoiceDestroyByDistrict '&gcTaxYear4000&','''&lcdistrict&''','''&lcratename&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Taxroll Invoice Correction...')),
+ refreshbrw=;
+
+@acc553=
+ dipDandR=,
+ iw(',.t000Create Print Batch..., ,.t001Document., ,.l0024900.,'),
+ break(gcretval<>'OK'),
+ lcDocumentName=obj7:key1,
+ d1select('exec dbo.docBatchCRUD @method=''addDistrictRate'', @documentName='''&lcDocumentName&''', @district='''&lcdistrict&''', @rateName='''&lcratename&''''),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Create Print Batch...')),
  refreshbrw=;
 
 @gcvars=
