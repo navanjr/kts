@@ -108,6 +108,10 @@ key7 = apiUpdated
   brw(160,1,gcsql,3,146,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M18C(2)~Sel~#9#|M',7,1),
   kpmc();
 
+@setvar=
+ gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
+ gcUpdateSql='select parcel from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10-1&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''')';
+
 @brw1=
  lcClickedId=kpbrwid(1),
  lcMethod='tax',
@@ -159,6 +163,13 @@ key7 = apiUpdated
 @acc118=
  sql('exec dbo.taxrollSelected '&obj:id&','&kpbrwid(1)*-1&',''full'',''reset'''),
  refreshBRW=;
+
+\t119Apply Last Year;
+@acc119=
+ m('Are you sure you want to apply this MTG Code to the same parcels as last year?','Apply Mtg Codes',,6,2),
+ break(gcretval<>2),
+ d1select('update a set treamort='''&obj:key1&''' from adtax a where a.realtaxyear='&obj:a10&' and a.parcel in ('&gcUpdateSql&')');
+
 
 \t120Change &Mort Code;
  @acc120=
