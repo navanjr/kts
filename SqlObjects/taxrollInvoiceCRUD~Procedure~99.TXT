@@ -7,7 +7,8 @@ create procedure dbo.taxrollInvoiceCRUD(
  @debugMode varchar(10) = 'FALSE',
  @skipSQLTransaction varchar(5) = 'FALSE',
  @priorPayments money = 0.00,
- @correctionInvoice varchar(10) = 'FALSE'
+ @correctionInvoice varchar(10) = 'FALSE',
+ @verbose varchar(5) = 'TRUE'
 ) as
 begin
  set nocount on
@@ -21,8 +22,8 @@ begin
   @arAccountId int,
   @message varchar(500),
   @taxyear varchar(4),
-  @district varchar(15),
-  @rateName varchar(15),
+  @district varchar(20),
+  @rateName varchar(20),
   @accountBlob varchar(2000),
   @accrualcode varchar(50),
   @targetcode varchar(50),
@@ -258,7 +259,7 @@ exec dbo.logit @@procid, 'inserting receiptDetail'
   -- post to the gl
   declare @test int = substring(@slink,2,14)
   exec dbo.logit @@procid, 'prepare to glPost - @slink', @slink, '@test', @test
-  exec dbo.glPost @test, @styp, @smode, @updateInvoice, @skipSQLTransaction
+  exec dbo.glPost @test, @styp, @smode, @updateInvoice, @skipSQLTransaction , @verbose = @verbose
  
   -- Check glDetail for good data
   declare @postCheckVar int
