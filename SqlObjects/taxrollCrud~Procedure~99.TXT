@@ -15,6 +15,81 @@ begin
   @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
   @assessorSys varchar(50) = dbo.settingsf('taxroll.assessorSys','state')
 
+-- update adtax info from adtaxCheck
+ if @method = 'updateFromAdtaxCheck' and isnull(@taxyear,0) > 0 
+   begin
+    update a set
+	a.[RECORDTYPE] = c.[RECORDTYPE],
+	a.[ADDITIONNUMBER] = c.[ADDITIONNUMBER],
+	a.[TOWNSHIPBLOCK] = c.[TOWNSHIPBLOCK],
+	a.[RANGELOT] = c.[RANGELOT],
+	a.[SECTIONNUMBER] = c.[SECTIONNUMBER],
+	a.[QTRSECTIONNUMBER] = c.[QTRSECTIONNUMBER],
+	a.[PARCELNUMBER] = c.[PARCELNUMBER],
+	a.[PROPERTYSPLIT] = c.[PROPERTYSPLIT],
+	a.[FULLPIDNUMBER] = c.[FULLPIDNUMBER],
+	a.[PIDSORTNUMBER] = c.[PIDSORTNUMBER],
+	--a.[ITEMNUMBER] = c.[ITEMNUMBER],
+	--a.[REALTAXYEAR] = c.[REALTAXYEAR],
+	a.[OWNERNAME] = c.[OWNERNAME],
+	a.[BUSINESSNAME] = c.[BUSINESSNAME],
+	a.[ADDRESS1] = c.[ADDRESS1],
+	a.[ADDRESS2] = c.[ADDRESS2],
+	a.[ADDRESS3] = c.[ADDRESS3],
+	a.[CITY] = c.[CITY],
+	a.[STATE] = c.[STATE],
+	a.[ZIP1] = c.[ZIP1],
+	a.[ZIP2] = c.[ZIP2],
+	a.[ZIP3] = c.[ZIP3],
+	a.[COUNTRY] = c.[COUNTRY],
+	a.[ORGSCHOOLDISTRICTMAIN] = c.[ORGSCHOOLDISTRICTMAIN],
+	a.[SCHOOLDISTRICTMAIN] = c.[SCHOOLDISTRICTMAIN],
+	a.[ORGSCHOOLDISTRICTTAXRATE] = c.[ORGSCHOOLDISTRICTTAXRATE],
+	a.[SCHOOLDISTRICTTAXRATE] = c.[SCHOOLDISTRICTTAXRATE],
+	a.[FIREDISTRICT] = c.[FIREDISTRICT],
+	a.[MORTGAGECODE] = c.[MORTGAGECODE],
+	a.[OWNERNUMBER] = c.[OWNERNUMBER],
+	a.[ACRES] = c.[ACRES],
+	a.[LOTS] = c.[LOTS],
+	a.[MFGHOMEASSESSED] = c.[MFGHOMEASSESSED],
+	a.[GROSSASSESSED] = c.[GROSSASSESSED],
+	a.[FREEPORTEXEMPTION] = c.[FREEPORTEXEMPTION],
+	a.[BASEEXEMPTION] = c.[BASEEXEMPTION],
+	a.[DBLEXEMPTION] = c.[DBLEXEMPTION],
+	a.[EXEMPTION1] = c.[EXEMPTION1],
+	a.[EXEMPTION2] = c.[EXEMPTION2],
+	a.[EXEMPTION3] = c.[EXEMPTION3],
+	a.[NETASSESSEDVALUE] = c.[NETASSESSEDVALUE],
+	a.[TOTALTAXRATE] = c.[TOTALTAXRATE],
+	a.[ORIGINALTOTALDUE] = c.[ORIGINALTOTALDUE],
+	a.[TOTALDUE] = c.[TOTALDUE],
+	a.[BALANCEDUE] = c.[BALANCEDUE],
+	a.[CERTIFICATENUMBER] = c.[CERTIFICATENUMBER],
+	a.[PAIDOFFDATE] = c.[PAIDOFFDATE],
+	a.[PROPERTYLIENCODE1] = c.[PROPERTYLIENCODE1],
+	a.[PROPERTYLIENAMOUNT1] = c.[PROPERTYLIENAMOUNT1],
+	a.[PROPERTYLIENCODE2] = c.[PROPERTYLIENCODE2],
+	a.[PROPERTYLIENAMOUNT2] = c.[PROPERTYLIENAMOUNT2],
+	a.[LASTTRANDATE] = c.[LASTTRANDATE],
+	a.[TAXCORRECTIONDATE] = c.[TAXCORRECTIONDATE],
+	a.[TAXCORRECTIONINITIALS] = c.[TAXCORRECTIONINITIALS],
+	a.[FLAG1] = c.[FLAG1],
+	a.[FLAG2] = c.[FLAG2],
+	a.[FLAG3] = c.[FLAG3],
+	a.[LEGALDESCRIPTION] = c.[LEGALDESCRIPTION],
+	a.[proploc] = c.[proploc],
+	a.[LandAssessed] = c.[LandAssessed],
+	a.[ImprovedAssessed] = c.[ImprovedAssessed],
+	a.[MiscAssessed] = c.[MiscAssessed]
+    from adtax a
+     join adtaxCheck c on a.REALTAXYEAR = c.realtaxyear and a.ITEMNUMBER = c.itemnumber
+    where a.recordType > '  0'
+     and a.id not in (select i.taxrollid from invoices i where i.typ<>'s')
+     and a.REALTAXYEAR = @taxyear
+
+   exec dbo.logit @@procid, 'updated adtax from adtaxCheck... @@rowCount', @@rowCount
+  end
+
 -- prep table for taxLevyCheck
  if @method = 'prepTaxLevy'
    begin
