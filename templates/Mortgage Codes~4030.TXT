@@ -1,8 +1,9 @@
+@defaultbrowsekey=3;
+
 @format=35L(2)~Code~#1#|M50L(2)~CompanyNumber~#29#|M150L(2)~Name~#3#|M100L(2)~Address~#5#|M100L(2)~~#6#|100L(2)~City~#7#|M;
 @key2=obj:a17;
 @key3=obj:key3;
 @ordername=Code,CompanyNumber,Company;
-
 
 key7 = apiUpdated
 
@@ -103,8 +104,7 @@ key7 = apiUpdated
 
 @createbrw=
   kpmo('Selecting Mortgage Code Data...'),
-  obj:b9, 
-  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
+  setvar=,
   brw(160,1,gcsql,3,146,505,120,'100L(2)~Name~#2#|M100L(2)~Parcel~#4#|M20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M35L(2)~Mort CD~#12#|M45R(2)~Tax~@n14.2b@#7#|M45R(2)~Unpaid~@n14.2b@#8#|M35R(2)~Fees~@n14.2b@#10#|M35R(2)~Penalty~@n14.2b@#11#|M18C(2)~Sel~#9#|M',7,1),
   kpmc();
 
@@ -127,7 +127,7 @@ key7 = apiUpdated
  refreshBRW=;
 
 @refreshBRW=
- gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
+ setvar=,
  brwreload(1,gcsql);
 
 @alreadylinked=m('This tax item is already linked to another receipt in progress. Would you like to edit that receipt?','Edit Linked Receipt.',,6),
@@ -166,9 +166,10 @@ key7 = apiUpdated
 
 \t119Apply Last Year;
 @acc119=
- m('Are you sure you want to apply this MTG Code to the same parcels as last year?','Apply Mtg Codes',,6,2),
- break(gcretval<>2),
- d1select('update a set treamort='''&obj:key1&''' from adtax a where a.realtaxyear='&obj:a10&' and a.parcel in ('&gcUpdateSql&')');
+ m('Are you sure you want to apply MTG Code '&obj:key1&' to the '&obj:a10&' tax items that were coded with '&obj:key1&' for '&obj:a10-1&'?','Apply Mtg Codes',,6,2),
+ break(gcretval<>2 or obj:a10+0=0),
+ d1select('update a set treamort='''&obj:key1&''' from adtax a where a.realtaxyear='&obj:a10&' and a.FULLPIDNUMBER in ('&gcUpdateSql&') and treamort in ('''',''0'')'),
+ refreshBRW=;
 
 
 \t120Change &Mort Code;
