@@ -1,0 +1,76 @@
+create procedure dbo.importAppvwork as 
+begin
+declare @return varchar(max)
+
+--drop table temp_appvwork
+--select * from temp_appvwork
+--exec dbo.ktsBat 'conv importDBF appvwork', @output=@return OUTPUT
+
+if @return not like '%ok%'
+begin
+ select '@code=1;@message=IMPORT FAILED!;'
+ return
+end
+
+insert object (typ,key1)
+select distinct 4010,schdist from temp_appvwork where schdist not in (select key1 from object where typ=4010)
+
+insert object (typ,key1)
+select distinct 4011,ltrim(taxrate) from temp_appvwork where ltrim(taxrate) not in (select key1 from object where typ=4011)
+
+declare @tempAppvworkLabels table(label varchar(50))
+
+insert @tempAppvworkLabels
+ select 'COGEN' 
+  union select 'COBUILD' 
+  union select 'COSINK'  
+  union select 'COHEALTH'  
+  union select 'VOTGEN' 
+  union select 'VOTBUIL' 
+  union select 'VOTSINK'
+  union select 'OTHER1'
+  union select 'OTHER2'
+  union select 'OTHER3'
+  union select 'OTHER4'
+  union select 'OTHER5'
+  union select 'SCHGEN'
+  union select 'SCHBUIL'
+  union select 'SCHSINK'
+
+if exists(select * from @tempAppvworkLabels where label not in (select key1 from object where TYP = 4035))
+begin
+ insert object (Typ,key1)
+  select 4035,label from @tempAppvworkLabels where label not in (select key1 from object where TYP = 4035)
+end
+  
+declare @wt table(id int,
+ accountcode varchar(60),
+ accountdesc varchar(50),
+ schoolpagescat varchar(50),
+ amount money,
+ contraAccountCode varchar(60),
+ contraId int,
+ schdist varchar(50),
+ taxrate varchar(50))
+ 
+declare @appvworksum money,
+        @wtsum money
+
+insert @wt
+select * from dbo.stateTaxImport() 
+
+select @appvworksum = sum(taxcoll) from temp_appvwork
+select @wtsum = sum(amount) from @wt
+
+if @appvworksum <> @wtsum
+begin
+ select '@code=1;@message=Does Not Balance, additional setup needed;'
+ return
+end
+else 
+begin
+ select '@code=0;@message=Import Successful;'
+ return
+end
+
+end
