@@ -110,7 +110,7 @@ key7 = apiUpdated
 
 @setvar=
  gcsql='select invoiceId,name,taxyear,parcel,item,taxType,amount,due,selectedFlag,fees,penalty,treamort from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''') order by ord',
- gcUpdateSql='select parcel from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10-1&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''')';
+ gcUpdateSql='select item from dbo.mortgageCodeBRW('&obj:id&','''&obj:a10-1&''','''&obj:b9&''','''&obj:b13+0&obj:b14+0&obj:b12+0&'000'&''')';
 
 @brw1=
  lcClickedId=kpbrwid(1),
@@ -166,9 +166,10 @@ key7 = apiUpdated
 
 \t119Apply Last Year;
 @acc119=
- m('Are you sure you want to apply MTG Code '&obj:key1&' to the '&obj:a10&' tax items that were coded with '&obj:key1&' for '&obj:a10-1&'?','Apply Mtg Codes',,6,2),
+ lcCnt=kp('select dbo.splitf(dbo.formatcurr(count(id)),''.'',1) from adtax a where a.realtaxyear='&obj:a10&' and a.itemnumber in ('&gcUpdateSql&') and treamort in ('''',''0'')'),
+ m('There are '&lcCnt&' tax items that match the filter for tax year '&obj:a10&' that were coded with '&obj:key1&' for tax year '&obj:a10-1&'.||Are you sure you want to apply MTG Code '&obj:key1&' to these '&lcCnt&' items?','Apply Mtg Codes',,6,2),
  break(gcretval<>2 or obj:a10+0=0),
- d1select('update a set treamort='''&obj:key1&''' from adtax a where a.realtaxyear='&obj:a10&' and a.FULLPIDNUMBER in ('&gcUpdateSql&') and treamort in ('''',''0'')'),
+ d1select('update a set treamort='''&obj:key1&''' from adtax a where a.realtaxyear='&obj:a10&' and a.itemnumber in ('&gcUpdateSql&') and treamort in ('''',''0'')'),
  refreshBRW=;
 
 
@@ -180,8 +181,9 @@ key7 = apiUpdated
   if(lcinvoiceType='S' or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
   break(lcinvoiceType='S' or gcInvoiceId>9000000),
   gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
-  iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&';'),
+  iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004N;'),
   break(gcretval='esc'),
   sql('update a set treamort='''&obj7:key1&''' from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
+  if(obj7:key2='Y',sql('update a set treamort='''&obj7:key1&''' from adtax a,invoices i, receiptlink r where r.invoiceId=i.id and r.receiptId='&obj:id&' and a.id=i.taxrollId')),
   refreshBRW=;
 
