@@ -12,10 +12,13 @@ import threading
 
 
 class ktsMenu():
-    def __init__(self, database=None):
+    def __init__(self, database=None, basePath=None):
         self.settings = {}
         self.ftpSettings = {}
-        self.defaultFileName = "..\\ktsConfig.ini"
+        if basePath:
+            self.defaultFileName = "%s\\..\\ktsConfig.ini" % basePath
+        else:
+            self.defaultFileName = "..\\ktsConfig.ini"
         if database:
             self.dbSettings(database)
         else:
@@ -24,6 +27,8 @@ class ktsMenu():
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
+
+        self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -50,10 +55,10 @@ class ktsMenu():
 
         self.commands = {}
         self.createCommand('exit',['x','exit','q','quit'],'exit ktsMenu',self.command_exit)
-        self.createCommand('help',['h','help'],'',self.command_help)
+        self.createCommand('help',['h','help'],'',self.command_help, chatFunction=self.chat_help)
         self.createCommand('testConnection',['test','t','testconnection'],'tests the connection to your sql server',self.command_testConnection)
         self.createCommand('serverSettings',['set'],'modify server settings',self.command_serverSettings)
-        self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu)
+        self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu,chatFunction=self.chat_displayMenu)
         self.createCommand('gitCommands',['git'],'run git command',self.command_git)
         self.createCommand('logging',['logging','log','logit'],'modify log settings',self.command_logging)
         self.createCommand('import',['i','import'],'import from repo into your database',self.command_import)
@@ -73,6 +78,7 @@ class ktsMenu():
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
+        self.createCommand('nateTest',['nate'],'test menu option',self.nateTest)
 
         self.createCommand('api',['api', ],'run api job',self.command_api)
         self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
@@ -113,6 +119,32 @@ class ktsMenu():
         # self.irc.connect(room='kts_team')
         # self.irc.listen()
 
+    def nateTest(self):
+        print self.chatKeywords()
+
+    def chatCommands(self):
+        cmds = []
+        for key, value in self.commands.items():
+            if value['chatFunction']:
+                cmds.append(key)
+        return cmds
+
+    def chatKeywords(self):
+        keywords = []
+        for key in self.chatCommands():
+            keywords += [keyword for keyword in self.commands[key]['keywords'] if len(keyword) > 1]
+        return keywords
+
+    def chatCommandFromKeyword(self, keyword):
+        for key in self.chatCommands():
+            if keyword in self.commands[key]['keywords']:
+                return key
+
+    def chatCommand(self, keyword):
+        cmd = self.chatCommandFromKeyword(keyword)
+        if cmd:
+            return self.commands[cmd]['chatFunction']()
+
     def threadit(self, name, targetProc):
         t = threading.Thread(name=name, target=targetProc)
         t.setDaemon(True)
@@ -136,7 +168,7 @@ class ktsMenu():
         self.sendCommand('log on')
 
     def apiStatus(self):
-        rows = self.sqlQuery("select abs(id),resource,total,stale,jobEnabled,batchSize,rate,loopProcSpid from dbo.apiControlBRW()")['rows']
+        rows = self.sqlQuery("select abs(id),resource,total,stale,jobEnabled,batchSize,rate,loopProcSpid,ageMinutes,lastLog from dbo.apiControlBRW()")['rows']
         obj = {}
         for row in rows:
             obj[row[0]] = {
@@ -147,24 +179,28 @@ class ktsMenu():
                 'batchSize': row[5],
                 'rate': row[6],
                 'loopProcSpid': row[7],
+                'ageMinutes': row[8],
+                'lastLog': row[9],
             }
         return obj
 
     def apiShow(self, data):
         print
-        print "      %s %s %s %s %s %s" % ('Resource'.ljust(15), '   Total', '   Stale', 'JobStatus', 'BatchSize', '    Rate')
-        print "      %s" % ("-" * 62)
+        print "      %s %s %s %s %s %s %s %s" % ('Resource'.ljust(15), '   Total', '   Stale', 'Status', 'Size', '    Rate', 'ageMin', 'log')
+        print "      %s" % ("-" * 72)
         for key, value in data.items():
             status = 'on' if value['jobEnabled'] == 1 else 'off'
             status = 'looper' if value['loopProcSpid'] else status
-            print "   %s %s %s %s %s %s %s" % (
+            print "   %s %s %s %s %s %s %s %s %s" % (
                 str(key).ljust(2),
                 value['resource'].ljust(15),
                 str(value['total']).rjust(8),
                 str(value['stale']).rjust(8),
-                status.rjust(9),
-                str(value['batchSize']).rjust(9),
+                status.rjust(6),
+                str(value['batchSize']).rjust(4),
                 str(value['rate']).rjust(8),
+                str(value['ageMinutes']).rjust(6),
+                str(value['lastLog']),
             )
 
     def command_api(self):
@@ -645,11 +681,11 @@ class ktsMenu():
             objName = self.command[1]
             print 'importing %s' % objName, self.sqlQuery("exec dbo.keySQLObjectUpdateFromRepo '%s'" % objName,True)
 
-    def createCommand(self,commandName,keywords,description='',function='',parentMenu=None):
+    def createCommand(self,commandName,keywords,description='',function='',parentMenu=None, chatFunction=None):
         if parentMenu is None:
-            self.commands[commandName] = {'keywords':keywords,'description':description,'function':function,'subMenu':{}}
+            self.commands[commandName] = {'keywords':keywords,'description':description,'function':function,'chatFunction':chatFunction,'subMenu':{}}
         else:
-            self.commands[parentMenu]['subMenu'][commandName] = {'keywords':keywords,'description':description,'function':function}
+            self.commands[parentMenu]['subMenu'][commandName] = {'keywords':keywords,'description':description,'function':function,'chatFunction':chatFunction}
             
     def commandCheck(self,targetCommand):
         if self.command[0] in self.commands[targetCommand]['keywords']:
@@ -748,6 +784,9 @@ class ktsMenu():
            self.printRows(rows,'no git settings found')
         return result
 
+    def chat_help(self):
+        return self.chatCommands()
+
     def command_help(self):
         print
         for help in self.commands.items():
@@ -760,6 +799,10 @@ class ktsMenu():
 
     def command_displayMenu(self):
         self.display()
+
+    def chat_displayMenu(self):
+        self.gitVars()
+        return self.git
 
     def command_setSetting(self, prefix, defaultValue=None, newValue=None, settingsCRUD=True, settingName=None):
         name = settingName or self.command[1]

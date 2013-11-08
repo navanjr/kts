@@ -45,23 +45,18 @@ def runDos(command):
 
 
 def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=False):
-    def clean(dirt):
-        what = [
-            ['\xab', '<<'],
-            ['\xf8', ''],
-            ['\xa7', ''],
-        ]
-        for x in what:
-            dirt = str(dirt).replace(x[0], x[1])
-        return dirt
-
     url = 'http://%s/%s' % (host, resource)
     if data:
         # should be able to remove this CLEAN() proc
         #  as we will be stripping some goofy characters during initial pull
         for row in data:
             for key, value in row.items():
-                row[key] = clean(value)
+                if key in ('receipt_link', 'receipt_number') and value < '  0':
+                    row[key] = '000000'
+                elif key in ('paid_date') and len(value) == 7:
+                    row[key] = value[0:4]+'0'+value[4:]
+                else:
+                    row[key] = value
         # ----------------------------------------------------------------------^
         try:
             data = json.dumps(data, separators=(',', ':'))
