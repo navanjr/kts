@@ -8,7 +8,10 @@ create function dbo.apiControlBRW() returns @rt table(
  jobEnabled int,
  batchSize int,
  ord varchar(50),
- loopProcSpid int
+ loopProcSpid int,
+ lastTime datetime,
+ lastLog varchar(max),
+ ageMinutes int
 ) as
 begin
  
@@ -25,7 +28,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'a', null 
+  'a', null, null, null, null
  from adtax
 
 --legal
@@ -38,7 +41,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'b', null  
+  'b', null, null, null, null
  from adtax
  where ltrim(cast(legalDescription as varchar(max))) > '  0'
 
@@ -53,7 +56,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'c', null 
+  'c', null, null, null, null
  from dbo.apiInvoiceIds()
 
 --receipts
@@ -73,7 +76,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'd', null 
+  'd', null, null, null, null 
  from @receipts
 
 --mortgageCodes
@@ -86,7 +89,7 @@ begin
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-  'e', null 
+  'e', null, null, null, null 
  from object where typ=4030
 
 
@@ -100,12 +103,18 @@ begin
   '@resource=' + @tokenResource + ';',
    null,
    dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
-   'f', null 
+   'f', null, null, null, null 
    from mortgageLinksImported 
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
  update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';'
  update @rt set jobEnabled = 1 where 'kp.' + db_name() + '.api' + resource in (select name from scheduledTasks where status in ('ready','running'))
+ update a set
+  a.lastLog = (select top 1 b.message from keyLog b where b.procName = 'api' + a.resource order by b.id desc),
+  a.lastTime = (select top 1 b.time from keyLog b where b.procName = 'api' + a.resource order by b.id desc)
+ from @rt a
+
+ update @rt set ageMinutes = datediff(minute,lastTime,getdate())
 
  update a set loopProcSpid = b.spid
  from @rt a
