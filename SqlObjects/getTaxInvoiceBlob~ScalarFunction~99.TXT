@@ -28,7 +28,8 @@ begin
   + '@FEE=' + rtrim(sum(case when typ in ('F','A') then invoiceAmount else 0 end)) + ';'
   + '@CURRENTDUE=' + rtrim(sum(invoiceDue)) + ';'
   + '@QUEUE=' + rtrim(isnull(@queue,'')) + ';'
-  + '@printOrder=' + rtrim(isnull(@printOrder,'')) + ';',
+  + '@printOrder=' + rtrim(isnull(@printOrder,'')) + ';'
+  + '@FULLTYP=' + case rtrim(max(case when invoiceId>0 then '' else TYP end)) when 'R' then 'REAL ESTATE' when 'S' then 'SPECIAL ASSESSEMENT' ELSE 'PERSONAL' END + ';',
   @invoiceType = rtrim(max(case when invoiceId>0 then '' else TYP end)) 
   from invoices where (ID=@InvId or invoiceId=@InvId) 
   group by case when invoiceId>0 then invoiceId else ID end
@@ -55,7 +56,7 @@ if @invoiceType='S'
 
   if exists (select * from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S')
   select top 1 @retval = @retval + @addressblobtoken + '@LEGALDESCRIPTION=' + rtrim(replace(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxrollId,'102') as varchar(4000)),'''','`')) + ';' from adtax where id = @taxrollId
-
+ 
  end
   else
  
@@ -68,13 +69,12 @@ begin
 
 
 select @retval = @retval 
- 
  + '@GROSSASSESSED=' + dbo.taxCorrectionsSF(GROSSASSESSED,@taxrollId,'058') + ';'
  + '@EXEMPTION3=' + rtrim(EXEMPTION3) + ';'
  + '@NETASSESSEDVALUE=' + dbo.taxCorrectionsSF(NETASSESSEDVALUE,@taxrollId,'072') + ';'
  + '@MFGHOMEASSESSED=' + dbo.taxCorrectionsSF(MFGHOMEASSESSED,@taxrollId,'056') + ';'
  + '@SCHOOLDISTRICTMAIN=' + dbo.taxCorrectionsSF(SCHOOLDISTRICTMAIN,@taxrollId,'042') + ';'
- + '@SCHOOLDISTRICTTAXRATE=' + dbo.taxCorrectionsSF(SCHOOLDISTRICTTAXRATE,@taxrollId,'046') + ';'
+ + '@SCHOOLDISTRICTTAXRATE=' + dbo.taxCorrectionsSF(SCHOOLDISTRICTTAXRATE,@taxrollId,'046')+ ';' 
  + '@ACRES=' + dbo.taxCorrectionsSF(ACRES,@taxrollId,'036') + ';'
  + '@TWP=' + rtrim(TOWNSHIPBLOCK) + ';'
  + '@SEC=' + rtrim(SECTIONNUMBER) + ';'

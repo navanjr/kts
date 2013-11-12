@@ -8,6 +8,7 @@ import kpsFunctions
 from general import *
 import importDBF
 import threading
+import time
 # from kirc import *
 
 
@@ -15,8 +16,9 @@ class ktsMenu():
     def __init__(self, database=None, basePath=None):
         self.settings = {}
         self.ftpSettings = {}
-        if basePath:
-            self.defaultFileName = "%s\\..\\ktsConfig.ini" % basePath
+        self.basePath = basePath
+        if self.basePath:
+            self.defaultFileName = "%s\\..\\ktsConfig.ini" % self.basePath
         else:
             self.defaultFileName = "..\\ktsConfig.ini"
         if database:
@@ -80,12 +82,13 @@ class ktsMenu():
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
         self.createCommand('nateTest',['nate'],'test menu option',self.nateTest)
 
-        self.createCommand('api',['api', ],'run api job',self.command_api)
+        self.createCommand('api',['api', ],'run api job',self.command_api, chatFunction=self.chat_api)
         self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
         self.createCommand('apiSettings',['settings','set' ],'return api settings',self.command_apiSettings, 'api')
-        self.createCommand('apiService',['service','serv' ],'toggle api service (api serv X)',self.command_apiService, 'api')
+        self.createCommand('apiResourceControl',['resource','res' ],'toggle api service (api res X)',self.command_apiResourceControl, 'api')
         self.createCommand('apiLooper',['loop','looper' ],'fire up the api looper (api loop X)',self.command_apiLooper, 'api')
         self.createCommand('apiReset',['reset', ],'reset all the rows for resource (api reset X)',self.command_apiReset, 'api')
+        self.createCommand('apiService',['service', 'serv'],'start the api Service Event Loop',self.command_apiService, 'api')
 
         self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
@@ -115,9 +118,13 @@ class ktsMenu():
         self.git = {}
         self.gitVars()
 
-        # self.irc = kirc()
-        # self.irc.connect(room='kts_team')
-        # self.irc.listen()
+        self.apiService = {
+            'running': False,
+            'eventRunning': False,
+            'odometer': 0
+        }
+
+        self.chatObj = {}
 
     def nateTest(self):
         print self.chatKeywords()
@@ -140,7 +147,8 @@ class ktsMenu():
             if keyword in self.commands[key]['keywords']:
                 return key
 
-    def chatCommand(self, keyword):
+    def chatCommand(self, keyword, chatObj=None):
+        self.chatObj = chatObj
         cmd = self.chatCommandFromKeyword(keyword)
         if cmd:
             return self.commands[cmd]['chatFunction']()
@@ -184,7 +192,39 @@ class ktsMenu():
             }
         return obj
 
+    def chat_api(self):
+        cmd = self.chatObj['chatString'].split()
+        if len(cmd) == 1:
+            apiStatus = [self.apiService]
+            for key, value in self.apiStatus().items():
+                if value['jobEnabled'] == 1:
+                    apiStatus.append({
+                        value['resource']: {
+                            'stale': value['stale'],
+                            'batchSize': value['batchSize'],
+                            'ageMinutes': value['ageMinutes'],
+                            # 'jobEnabled': value['jobEnabled'],
+                        }
+                    })
+            return apiStatus
+        elif cmd[1] in ('serv', 'service'):
+            if len(cmd) == 3:
+                if cmd[2] == 'on':
+                    self.apiServiceControl(enableService=True)
+                    return [self.apiService]
+                elif cmd[2] == 'off':
+                    self.apiServiceControl(enableService=False)
+                    return [self.apiService]
+            else:
+                return 'huh?... im expecting "api service on" or "api service off"'
+        elif cmd[1] in ('resource', 'res'):
+            return self.apiStatus()
+        else:
+            return 'huh?... '
+
     def apiShow(self, data):
+        print
+        print "        Api Service: %s" % self.apiService
         print
         print "      %s %s %s %s %s %s %s %s" % ('Resource'.ljust(15), '   Total', '   Stale', 'Status', 'Size', '    Rate', 'ageMin', 'log')
         print "      %s" % ("-" * 72)
@@ -217,14 +257,73 @@ class ktsMenu():
         if len(cmd) == 2 and cmd[1] in [value['resource'] for key, value in apiRows.items()]:
             print "exec api job...", self.sqlQuery("exec dbo.%s @method='job', @dropRawFile='TRUE'" % self.command[1])['code']
 
+    def apiServiceControl(self, enableService=False):
+        s = self.apiService
+        if enableService:
+            self.threadit('apiService', self.bulletProofApiServiceEventLoop)
+        else:
+            s['running'] = False
+
     def command_apiService(self):
+        s = self.apiService
+        print 'api Service running: %s (%s)' % (s['running'], s['odometer'])
+        if s['running']:
+            if areYouSure('do you want to turn this service off?'):
+                self.apiServiceControl(enableService=False)
+        else:
+            if areYouSure('do you want to turn this service on?'):
+                self.apiServiceControl(enableService=True)
+
+    def bulletProofApiServiceEventLoop(self):
+        s = self.apiService
+        # bail if service is already running
+        if s['running']:
+            return
+
+        s['running'] = True
+
+        while True:
+            if not s['running']:
+                break
+
+            try:
+                self.apiServiceEvent()
+            except:
+                s['eventRunning'] = False
+
+        # turn the lights off when going out the door
+        s['running'] = False
+
+    def apiServiceEvent(self):
+        s = self.apiService
+        # bail if event is already running
+        if s['eventRunning']:
+            return
+        # test when raising exception
+        # if s['odometer'] == 3:
+        #     raise Exception('test')
+
+        s['eventRunning'] = True
+
+        qOutput = self.sqlQuery("select top 1 resource from dbo.apiControlBRW() where jobEnabled = 1 and stale > 0 order by lastTime")
+        if qOutput['rows']:
+            print 'here is what i found [rows]: %s' % qOutput['rows']
+            resource = qOutput['rows'][0][0]
+            self.sqlQuery("dbo.api%s @method='JOB'" % resource)
+            s['odometer'] += 1
+        else:
+            time.sleep(60)
+        # turn the lights off when going out the door
+        s['eventRunning'] = False
+
+    def command_apiResourceControl(self):
         def toggleService(resource):
-            print "toggling %s service..." % resource, self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource)['code']
+            print "toggling %s resource..." % resource, self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource, True)['code']
 
         cmd = self.command
         apiRows = self.apiStatus()
         if len(cmd) == 2:
-            if areYouSure('Are you sure you want to toggle all services?'):
+            if areYouSure('Are you sure you want to toggle all resources?'):
                 for key, value in apiRows.items():
                     toggleService(value['resource'])
         elif len(cmd) == 3:
@@ -334,6 +433,8 @@ class ktsMenu():
 
     def gitVars(self):
         try:
+            if self.basePath:
+                os.chdir(os.path.join(os.path.abspath(sys.path[0]), self.basePath))
             self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
             self.git['status'] = subprocess.check_output("git status", shell=True)
             self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
@@ -802,7 +903,7 @@ class ktsMenu():
 
     def chat_displayMenu(self):
         self.gitVars()
-        return self.git
+        return {'ktsVersion': self.git['ktsVersion'], 'repoVersion': self.git['repoVersion']}
 
     def command_setSetting(self, prefix, defaultValue=None, newValue=None, settingsCRUD=True, settingName=None):
         name = settingName or self.command[1]

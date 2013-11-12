@@ -12,37 +12,53 @@ begin
   @serverName nvarchar(1000) = @@servername,
   @jobStatus int,
   @taskName varchar(max) = 'api' + @resource,
-  @command varchar(max) = 'kts api api' + @resource
+  @command varchar(max) = 'kts api api' + @resource,
+  @switchName varchar(50) = 'api.' + @resource + '.enabled'
 
  if @method = 'toggle'
  begin
 
+/*
 -- if not found run again with a @method = create else call with a @method = delete
   If not exists(select * from scheduledTasks where name like '%' + @taskName)
    exec dbo.apiJobs @resource, 'create'
   else
    exec dbo.apiJobs @resource, 'delete'
+*/
+
+  if dbo.settingsF(@switchName, 'FALSE') = 'FALSE'
+   exec dbo.settingsCRUD @switchName, 'TRUE'
+  else
+   exec dbo.settingsCRUD @switchName, 'FALSE'
 
  end
 
  if @method = 'create' 
  begin
 
+  exec dbo.settingsCRUD @switchName, 'TRUE'
+
+/*
   exec dbo.scheduledTasksControl
    @method = @method,
    @name = @taskName,
    @frequency = 'minute',
    @time = 5,
    @command = @command
+*/
 
  end
 
  if @method = 'delete' 
  begin
 
+  exec dbo.settingsCRUD @switchName, 'FALSE'
+
+/*
   exec dbo.scheduledTasksControl
    @method = @method,
    @name = @taskName
+*/
 
  end
  
