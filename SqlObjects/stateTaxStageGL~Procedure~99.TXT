@@ -1,0 +1,129 @@
+create procedure dbo.stateTaxStageGL(@objectId int=999999, @date int=null)
+as
+begin
+declare @wt table(id int,
+ accountcode varchar(60),
+ accountdesc varchar(50),
+ schoolpagescat varchar(50),
+ amount money,
+ contraAccountCode varchar(60),
+ contraId int,
+ schdist varchar(50),
+ taxrate varchar(50))
+ 
+declare @appvworksum money,
+        @wtsum money,
+        @slink varchar(20) = 'o'+cast(@objectId as varchar)
+
+if isnull(@date,0)=0
+select @date = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
+
+
+insert @wt
+select * from dbo.stateTaxImport() 
+
+select @appvworksum = sum(taxcoll) from temp_appvwork
+select @wtsum = sum(amount) from @wt
+
+if @appvworksum <> @wtsum
+begin
+ select '@code=1;@message=Does Not Balance, additional setup needed;'
+ return
+end
+
+declare @ct table(id int identity(1,1),
+                  comment varchar(100),
+                  sourceCode varchar(60),
+                  sourceDesc varchar(50),
+                  fundCode varchar(60),
+                  fundDesc varchar(50),
+                  ACRCode varchar(60),
+                  contraId int,
+                  amount money)
+
+declare @pt table(id int identity(1,1),
+                  comment varchar(100),
+                  sourceCode varchar(60),
+                  sourceDesc varchar(50),
+                  fundCode varchar(60),
+                  fundDesc varchar(50),
+                  ACRCode varchar(60),
+                  contraId int,
+                  amount money,
+                  glbalance money)
+
+insert @ct
+select comment,sourcecode,'','','',accountCode,contraId,SUM(amount) 
+ from gldetail 
+ where [date]<=@date 
+  and ISNULL(bsId,0)=0 
+  and contraId in (select contraId from @wt)
+  and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
+ group by comment,sourcecode,accountCode,contraId
+ 
+ update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
+ update c set fundCode = targetAccountCode from @ct c, glAccounts a where ACRCode=accountcode
+ update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
+ 
+insert @pt
+select 'Tax Amount','','','','',
+ 'State Tax '
+ +cast(YEAR(dbo.date1(@date)) as varchar)
+ +cast(MONTH(dbo.date1(@date)) as varchar)
+ +cast(DAY(dbo.date1(@date)) as varchar)
+ +' '
+ +ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')+'_ACR',
+ contraId,SUM(amount),ISNULL((select sum(amount) from gldetail where [date]<=@date and accountcode=(select accountcode from glaccounts where accountid=w.contraId)),0)
+ from @wt w
+ group by contraId
+
+declare @accountStage table(id int identity(1,1),
+                            accountcode varchar(60),
+                            comment varchar(50),
+                            sourceCode varchar(60),
+                            contraId int,
+                            amount money,
+                            pamount money)
+
+insert @accountStage
+ select ACRCode,comment,sourceCode,contraId,amount*-1,ISNULL((select sum(p.amount) from @pt p where p.contraId=c.contraId),0) from @ct c where fundCode = ''
+
+insert @accountStage
+ select sourcecode,comment,'',null, (pamount+amount)*-1,0 from @accountStage where pamount+amount <> 0.00
+
+update p set sourceCode = c.sourceCode from @pt p, @ct c where c.fundCode='' and c.contraId=p.contraId
+
+delete from @ct where fundCode=''
+
+insert @accountStage
+ select ACRCode,'',sourceCode,contraId, amount,0 from @pt 
+
+delete from receiptDetail where slink=@slink
+delete from gldetailStage where slink=@slink
+
+insert receiptDetail (description,sourceCode,fundCode,amount,altContraId,slink,subdescription)
+select comment,sourceCode,fundCode,amount,contraId,@slink,ACRCode from @ct
+insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
+select accountCode,comment,sourcecode,contraId,amount,@slink from @accountStage
+
+delete from object where TYP=4022 and Key1 in (select LEFT(ACRCode,LEN(ACRCode)-4) from @pt)
+
+insert object (Typ,Key1,Key2,Key3,a1,k2)
+select 4022,LEFT(p.ACRCode,LEN(p.ACRCode)-4),w.accountcode,cast(w.amount as varchar(50)),w.schoolpagescat,left(rtrim(LEFT(p.ACRCode,LEN(p.ACRCode)-4))+w.accountcode,29) 
+ from @wt w, @pt p where p.contraId=w.contraId
+
+declare @accountcodeToken varchar(60)
+while exists(select * from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode from glaccounts))
+begin
+ select top 1 @accountcodeToken=rtrim(key1) from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode from glaccounts)
+ exec dbo.apportionTableFundReceivableVerification @accountcodeToken
+end
+
+update g set accountid=a.accountid, accountdesc=a.accountdesc 
+ from gldetailStage g, glAccounts a 
+ where g.accountCode=a.accountCode 
+  and slink=@slink
+
+ select '@code=0;@message=Tax Information staged for Import;'
+
+end
