@@ -6,10 +6,10 @@ import select
 import types
 
 def log(message):
-    file = open("c:\\client\\key\\notice.log", "a")
-    file.write("%s\n" % message)
-    file.close()
-
+    # file = open("c:\\client\\key\\notice.log", "a")
+    # file.write("%s\n" % message)
+    # file.close()
+    pass
 
 class kirc:
     def __init__(self, network='irc.freenode.net', port=6667, menu=None):
