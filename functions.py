@@ -193,8 +193,7 @@ class ktsMenu():
         return obj
 
     def chat_api(self):
-        cmd = self.chatObj['chatString'].split()
-        if len(cmd) == 1:
+        def getApiStatus():
             apiStatus = [self.apiService]
             for key, value in self.apiStatus().items():
                 if value['jobEnabled'] == 1:
@@ -207,6 +206,10 @@ class ktsMenu():
                         }
                     })
             return apiStatus
+
+        cmd = self.chatObj['chatString'].split()
+        if len(cmd) == 1:
+            return getApiStatus()
         elif cmd[1] in ('serv', 'service'):
             if len(cmd) == 3:
                 if cmd[2] == 'on':
@@ -217,8 +220,10 @@ class ktsMenu():
                     return [self.apiService]
             else:
                 return 'huh?... im expecting "api service on" or "api service off"'
-        elif cmd[1] in ('resource', 'res'):
-            return self.apiStatus()
+        elif cmd[1] in ('toggle', 'tog'):
+            if len(cmd) == 3:
+                self.apiResourceToggle(cmd[2])
+                return getApiStatus()
         else:
             return 'huh?... '
 
@@ -312,22 +317,26 @@ class ktsMenu():
             self.sqlQuery("dbo.api%s @method='JOB'" % resource)
             s['odometer'] += 1
         else:
-            time.sleep(60)
+            time.sleep(int(dbo.settingF('api.sleepSeconds', '300')))
         # turn the lights off when going out the door
         s['eventRunning'] = False
 
-    def command_apiResourceControl(self):
-        def toggleService(resource):
-            print "toggling %s resource..." % resource, self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource, True)['code']
+    def apiResourceToggle(self, resource, verbose=True):
+        resources = [value['resource'] for key, value in self.apiStatus().items()]
+        if resource in resources:
+            qOutput = self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource, True)['code']
+            if verbose:
+                print "toggling %s resource..." % resource, qOutput
 
+    def command_apiResourceControl(self):
         cmd = self.command
         apiRows = self.apiStatus()
         if len(cmd) == 2:
             if areYouSure('Are you sure you want to toggle all resources?'):
                 for key, value in apiRows.items():
-                    toggleService(value['resource'])
+                    self.apiResourceToggle(value['resource'])
         elif len(cmd) == 3:
-            toggleService(apiRows[int(cmd[2])]['resource'])
+            self.apiResourceToggle(apiRows[int(cmd[2])]['resource'])
 
     def command_apiReset(self):
         cmd = self.command[1:]
