@@ -8,6 +8,7 @@ import win32event
 import servicemanager
 import socket
 import os
+import subprocess
 from functions import *
 
 class AppServerSvc (win32serviceutil.ServiceFramework):
@@ -46,6 +47,7 @@ class AppServerSvc (win32serviceutil.ServiceFramework):
 
             if not s.listen():
                 break
+        subprocess.Popen('sleep 5 & sc start %s' % self._svc_name_, shell=True)
 
 if __name__ == '__main__':
     win32serviceutil.HandleCommandLine(AppServerSvc)
