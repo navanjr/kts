@@ -6,10 +6,12 @@ import select
 import types
 
 def log(message):
-    # file = open("c:\\client\\key\\notice.log", "a")
-    # file.write("%s\n" % message)
-    # file.close()
-    pass
+    try:
+        file = open("c:\\client\\key\\notice.log", "a")
+        file.write("%s\n" % message)
+        file.close()
+    except IOError:
+        pass
 
 class kirc:
     def __init__(self, network='irc.freenode.net', port=6667, menu=None):
@@ -63,11 +65,13 @@ class kirc:
 
     def listen(self, socketTimeout=3):
         cont = True
+        restartService = True
         ready = select.select([self.irc], [], [], socketTimeout)
         if ready[0]:
             self.data = self.irc.recv(4096)
 
-            log("raw data: %s" % self.ircMessageDecoder(self.data))
+            # log("raw data: %s" % self.ircMessageDecoder(self.data))
+            log("raw data: %s" % self.data)
 
             brainResponse = self.brain.stimulate(self.ircMessageDecoder(self.data))
 
@@ -82,8 +86,9 @@ class kirc:
             if brainResponse["chatCommand"]:
                 self.send(brainResponse["chatCommand"])
             cont = brainResponse["continueChat"]
+            restartService = brainResponse["restartService"]
 
-        return cont
+        return cont, restartService
 
 
 class personalResponses:
@@ -94,6 +99,7 @@ class personalResponses:
         self.consciousness = {}
         self.subConsciousness = {}
         self.add("quit", "alrighty then... cya.", False, "QUIT")
+        self.add("shutdown", "ok ill leave and wont return... cya.", False, "QUIT", restartService=False)
         self.add("marco", "polo")
         self.add("hi", "I already said hi...")
         self.add("hello", "I already said hi... :)")
@@ -102,11 +108,12 @@ class personalResponses:
         self.add("PING", chatCommand="PONG {split1}", forSubConscious=True)
         self.add("KICK", chatCommand="JOIN #%s" % self.myRoom, forSubConscious=True)
 
-    def add(self, keyword, pSendResponse=None, continueChat=True, chatCommand=None, forSubConscious=False):
+    def add(self, keyword, pSendResponse=None, continueChat=True, chatCommand=None, forSubConscious=False, restartService=True):
         item = {
             "psend": pSendResponse,
             "continueChat": continueChat,
-            "chatCommand": chatCommand
+            "restartService": restartService,
+            "chatCommand": chatCommand,
         }
         if not forSubConscious:
             item["cortex"] = "conscious"
@@ -115,8 +122,8 @@ class personalResponses:
             item["cortex"] = "subConscious"
             self.subConsciousness[keyword] = item
 
-    def dialect(self, psend=None, continueChat=True, chatCommand=None, cortex=None):
-        return {"psend": psend, "continueChat": continueChat, "chatCommand": chatCommand, "cortex": cortex}
+    def dialect(self, psend=None, continueChat=True, chatCommand=None, cortex=None, restartService=True):
+        return {"psend": psend, "continueChat": continueChat, "chatCommand": chatCommand, "cortex": cortex, "restartService": restartService}
 
     def stimulate(self, chatObj):
         if chatObj['to'] == self.myNickname:

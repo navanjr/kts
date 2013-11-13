@@ -39,15 +39,21 @@ class AppServerSvc (win32serviceutil.ServiceFramework):
         s = kirc(menu=m)
         s.connect(room='#kts_notice', nickname=m.settings['noticeName'])
 
+        cont, restart = True, True
+
         while True:
             rc = win32event.WaitForSingleObject(self.hWaitStop, self.timeout)
             if rc == win32event.WAIT_OBJECT_0:
                 # Stop signal encountered
+                restart = False
                 break
 
-            if not s.listen():
+            cont, restart = s.listen()
+            if not cont:
                 break
-        subprocess.Popen('sleep 5 & sc start %s' % self._svc_name_, shell=True)
+
+        if restart:
+            subprocess.Popen('sleep 5 & sc start %s' % self._svc_name_, shell=True)
 
 if __name__ == '__main__':
     win32serviceutil.HandleCommandLine(AppServerSvc)

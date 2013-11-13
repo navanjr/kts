@@ -322,8 +322,8 @@ class ktsMenu():
         s['eventRunning'] = False
 
     def apiResourceToggle(self, resource, verbose=True):
-        resources = [value['resource'] for key, value in self.apiStatus().items()]
-        if resource in resources:
+        resources = [value['resource'].lower() for key, value in self.apiStatus().items()]
+        if resource.lower() in resources:
             qOutput = self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource, True)['code']
             if verbose:
                 print "toggling %s resource..." % resource, qOutput
@@ -355,7 +355,7 @@ class ktsMenu():
         cmd = self.command[1:]
         if len(cmd) == 2:
             if cmd[1] in ['stop', 'off']:
-                self.command_setSetting('api',settingName='looperEnabled', newValue='FALSE')
+                self.command_setSetting('api', settingName='looperEnabled', newValue='FALSE')
                 return
             try:
                 opt = int(cmd[1])
