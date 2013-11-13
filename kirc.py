@@ -98,7 +98,7 @@ class personalResponses:
         self.menu = menu
         self.consciousness = {}
         self.subConsciousness = {}
-        self.add("quit", "alrighty then... cya.", False, "QUIT")
+        self.add("quit", "alrighty then... cya.", False, "QUIT", restartService=True)
         self.add("shutdown", "ok ill leave and wont return... cya.", False, "QUIT", restartService=False)
         self.add("marco", "polo")
         self.add("hi", "I already said hi...")
