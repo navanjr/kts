@@ -66,7 +66,7 @@ select comment,sourcecode,'','','',accountCode,contraId,SUM(amount)
  update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
  
 insert @pt
-select 'Tax Amount','','','','',
+select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),'')+' Tax','','','','',
  'State Tax '
  +cast(YEAR(dbo.date1(@date)) as varchar)
  +cast(MONTH(dbo.date1(@date)) as varchar)
@@ -96,15 +96,19 @@ update p set sourceCode = c.sourceCode from @pt p, @ct c where c.fundCode='' and
 delete from @ct where fundCode=''
 
 insert @accountStage
- select ACRCode,'',sourceCode,contraId, amount,0 from @pt 
+ select ACRCode,comment,sourceCode,contraId, amount,0 from @pt 
 
 delete from receiptDetail where slink=@slink
-delete from gldetailStage where slink=@slink
+delete from gldetailStage where slink=@slink and isnull(comment2,'')<>'Adjusted'
 
 insert receiptDetail (description,sourceCode,fundCode,amount,altContraId,slink,subdescription)
 select comment,sourceCode,fundCode,amount,contraId,@slink,ACRCode from @ct
 insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
 select accountCode,comment,sourcecode,contraId,amount,@slink from @accountStage
+
+update g set accounttype=a.accounttype from gldetailstage g, glaccounts a where g.accountcode=a.accountcode and slink=@slink
+update g set sourceid=a.accountid from gldetailstage g, glaccounts a where g.sourcecode=a.accountcode and slink=@slink and g.sourcecode>' 0'
+
 
 delete from object where TYP=4022 and Key1 in (select LEFT(ACRCode,LEN(ACRCode)-4) from @pt)
 

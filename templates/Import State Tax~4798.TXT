@@ -1,0 +1,84 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@menuprocess=
+ lcid=kp('select min(id) from object where typ = 4798'),
+ if(lcid+0>0,change(lcid),new(4798));
+
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+
+@loadwindow=
+ sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
+ gcvars=,
+ brwstuff=;
+
+@afterloadwindow=refreshDetail=;
+
+@refreshDetail=d1select('exec dbo.stateTaxStageGL '&obj:id+0&', '''&gcenddate+0&''''),refreshBrw=;
+
+@gcvars=
+ gcbrwsq4798='select brwid,display,amount from dbo.stateTaxImportBRW('&obj:id&') order by ord';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsq4798,2,2,320,262,'230L(5)~~#2#|M70R(2)~~@n-19.2b@#3#M'),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier'),
+ prop(150,7c11h,9),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0);
+
+@refreshBrw=
+ brwreload(1);
+
+@gfwindow=
+ refreshBrw=;
+
+@lbrw1color=obj7:c10='5',13499135,obj7:c10='3',2350115,obj7:c10='2',13499135; 13499135; 2157055; 2350115; 7467519
+
+@brw1=lbrwclick150=;
+
+@lbrwclick150=
+ bustItUp=,
+ if(lcMode+0=5,5Options=),
+ if(lcMode+0=6,6Options=),
+ if(lcMode+0=7,7Options=),
+ if(lcMode+0=8,8Options=),
+ if(lcMode+0=9,9Options=);
+
+@bustItUp=
+ if(kpbrwid(1)=0,bustItUpReset=),
+ lcMode=left(kpbrwid(1)*-1,1),
+ lcId=sub(kpbrwid(1)*-1,2,10);
+
+@bustItUpReset=
+ lcMode=0,
+ lcId=0;
+
+@5Options=
+ m(obj:key1&' Penalty and Cost options...','Penalty and Cost','question.ico','&Adjust amount|&Cancel'),
+ break(gcretval>5),
+ if(gcretval=1,adjustfee=),
+ refreshbrw=;
+
+@adjustfee=
+ gcid=lcid,
+  lcinvoicetype=kp('select description from receiptDetail where id='&gcid+0),
+  m('Would you like to adjust the '&lcinvoicetype&' amount for this month?','Adjust amount?',,6),
+  break(gcretval<>2),
+  iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
+  resetfocus(),
+  break(gcretval='esc'),
+  lcnewamount=obj7:key1,
+  sql('exec stateTaxAdjustCRUD 1,'&gcid&', '&lcnewamount+0&','''&gcenddate+0&''''),
+  refreshDetail=; ;
+
+\t109Post Taxes;
+@acc109=postTax=;
+
+@postTax=
+  m('Would you like to post your taxes for this month?','Post Taxes?',,6),
+  break(gcretval<>2),
+  sql('exec stateTaxAdjustCRUD 0,'&obj:id&', 0,'''&gcenddate+0&''''),
+  refreshDetail=; ;

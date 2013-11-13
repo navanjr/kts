@@ -1,0 +1,108 @@
+create procedure dbo.stateTaxAdjustCRUD(
+ @mode int,
+ @receiptDetailId int = 0,
+ @refundAmount money = 0,
+ @enddate varchar(20),
+ @debugMode varchar(5) = 'FALSE',
+ @newJeId int = 0 output,
+ @blob varchar(8000)=''
+) as
+/*
+ remember
+  C = 0
+  R = 1
+  U = 2
+  D = 3
+*/
+begin
+  exec dbo.logit @@procid, '@mode',@mode
+
+if isnull(@enddate,'')<'00'
+begin
+select @enddate = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
+
+end
+
+  declare @jeType varchar(50),
+          @accountDesc varchar(50) = '',
+          @resultCode varchar(50) = '',
+          @resultMessage varchar(1000) = '',
+          @newId int = '',
+          @slink varchar(20),
+          @detailAmount money,
+          @detailDescription varchar(100),
+          @detailACRCode varchar(60),
+          @detailsourceCode varchar(60),
+          @detailContraId int,
+          @objectSLink varchar(20) = 'o'+cast(@receiptDetailId as varchar)
+
+
+
+if @mode = 1
+begin
+   -- create new JE
+   select  @jeType = 'State Tax', 
+           @accountDesc = 'Adjust ' + description,
+           @detailAmount = amount,
+           @detailDescription = description,
+           @detailACRCode = subDescription,
+           @detailsourceCode = sourceCode,
+           @detailContraId = altContraId
+       from receiptDetail 
+       where id = @receiptDetailId         
+           
+           
+    exec dbo.journalEntryCRUD
+          @mode = 0,
+          @description = @accountDesc,
+          @jeType = @jeType,
+          @postDate = @enddate,
+          @resultCode = @resultCode output,
+          @resultMessage = @resultMessage output,
+          @newId = @newId output
+
+     select @slink = 'o' + cast(@newId as varchar)
+
+     -- create gldetailstage linked to je
+     insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId,sourcecode,comment)
+       select a.accountId,a.accountCode,a.accountDesc,@refundAmount-@detailAmount,
+           @slink,@detailContraId,@detailsourceCode,@detailDescription
+        from glaccounts a 
+        where a.accountcode = @detailACRCode
+                         
+     insert into gldetailstage (accountId,accountCode,accountDesc,amount,slink)
+       select a.accountId,a.accountCode,a.accountDesc,@detailAmount-@refundAmount,
+           @slink
+        from glaccounts a 
+        where a.accountcode = @detailsourceCode
+
+   exec glPost @newId, 'o'
+end
+
+if @mode = 0
+begin
+
+   -- create new JE
+   select  @jeType = 'State Tax', 
+           @accountDesc = 'Monthly Taxes'
+           
+           
+    exec dbo.journalEntryCRUD
+          @mode = 0,
+          @description = @accountDesc,
+          @jeType = @jeType,
+          @postDate = @enddate,
+          @resultCode = @resultCode output,
+          @resultMessage = @resultMessage output,
+          @newId = @newId output
+
+     select @slink = 'o' + cast(@newId as varchar)
+
+     -- move gldetailstage to je
+     update gldetailstage set slink = @slink where slink = @objectSLink
+
+   exec glPost @newId, 'o'
+end
+
+
+end

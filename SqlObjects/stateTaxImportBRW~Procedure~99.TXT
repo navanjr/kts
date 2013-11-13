@@ -1,0 +1,42 @@
+create function dbo.stateTaxImportBRW(@objectId int) returns @rt table(
+  brwid int,
+  display varchar(max),
+  amount money,
+  blob varchar(max),
+  ord varchar(50)
+) 
+as 
+begin
+
+declare @slink varchar(20)='o'+cast(@objectId as varchar)
+
+ insert @rt (display, ord) select '', 'b_'
+ insert @rt (display, ord) select 'Penalties and Costs', 'b_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-5'+cast(id as varchar) as int),
+    ' '+description+': ',amount,
+    'b_'+description 
+    from receiptDetail where slink=@slink
+
+---Staged GL Detail Adjusted
+ if exists(select * from gldetailStage where slink=@slink and isnull(comment2,'')='Adjusted' and isnull(contraId,0)<>0)
+ begin
+   insert @rt (display, ord) select '', 'c_'
+   insert @rt (brwid,display, ord) select 0,'Staged GL Detail Adjusted', 'c_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-6'+cast(id as varchar) as int),' '+accountdesc+': ',amount,'c_'+accountdesc 
+     from gldetailStage where slink=@slink
+       and isnull(contraId,0)<>0
+       and isnull(comment2,'')='Adjusted'
+ end
+---Staged GL Detail Imported
+   insert @rt (display, ord) select '', 'd_'
+   insert @rt (brwid,display, ord) select 0,'Staged GL Detail Imported', 'd_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-7'+cast(id as varchar) as int),' '+comment+': ',amount,'d_'+accountdesc 
+     from gldetailStage where slink=@slink
+       and accounttype = 'ACCRUED RECEIVABLE' and amount > 0 and isnull(contraId,0)<>0
+       and isnull(comment2,'')=''
+
+ return
+end
