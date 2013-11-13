@@ -1,0 +1,20 @@
+@loadbrowse=indexByOwnerNumber=;
+
+@indexByOwnerNumber=
+ lcReportTotal=0,
+ lcCountTotal=0,
+ tr(
+  prn(printed),
+  prn(page),
+  prn('Taxroll Index By Owner Number',t1),
+  prn('Tax Year:'&gcRpYear,t2),
+  prn('Min Rows:'&gcCustomInt,t3),
+  bnd('HU','Owner #',500,'Name',2000,'Count',-500,'Amount Due',-1000),
+  det('select dbo.padLeft(cast(a.OWNERNUMBER as varchar),''0'',9), min(i.name), COUNT(a.id), sum(i.invoiceDue) from AdTax a join invoices i on a.ID = i.TAXROLLID where REALTAXYEAR = '&gcRpYear&' and i.invoiceDue != 0 group by a.OWNERNUMBER having COUNT(a.id) >='&gcCustomInt&' order by ownernumber'),
+   bnd('D',obj5:a1,500,obj5:a2,2000,obj5:a3,-500,format(obj5:a4,@n$14.2),-1000),
+   lcReportTotal=lcReportTotal+obj5:a4,
+   lcCountTotal=lcCountTotal+obj5:a3,
+  edt,
+  nl,
+  bnd('H',,500,'Report Totals',2000,lcCountTotal,-500,format(lcReportTotal,@n$14.2),-1000),
+ );
