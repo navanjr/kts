@@ -128,7 +128,20 @@ class ktsMenu():
         self.chatObj = {}
 
     def nateTest(self):
-        print self.chatKeywords()
+        cmd = self.command[1:]
+        print "I should listen to %s" % cmd[0]
+        print self.shouldIListenToThisGuy(cmd[0])
+
+    def shouldIListenToThisGuy(self, who):
+        host = self.apiSettingsKps['host']
+        apiKey = self.apiSettingsKps['key']
+        try:
+            if who in [x['name'] for x in apiGet(host, apiKey, resource="v2/kts/administrators")['response']]:
+                return True, "sure!"
+            else:
+                return False, "Sorry, I don't know who you are."
+        except:
+            return False, "Sorry, I don't know who you are, And I can't check my sources at the moment."
 
     def chatCommands(self):
         cmds = []
@@ -214,6 +227,9 @@ class ktsMenu():
             return getApiStatus()
         elif cmd[1] in ('serv', 'service'):
             if len(cmd) == 3:
+                securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+                if not securityCheck:
+                    return [message]
                 if cmd[2] == 'on':
                     self.apiServiceControl(enableService=True)
                     return [self.apiService]
@@ -223,6 +239,9 @@ class ktsMenu():
             else:
                 return 'huh?... im expecting "api service on" or "api service off"'
         elif cmd[1] in ('toggle', 'tog'):
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
             if len(cmd) == 3:
                 self.apiResourceToggle(cmd[2])
                 return getApiStatus()
@@ -877,6 +896,9 @@ class ktsMenu():
 
     def chat_gitCheckout(self):
         cmd = self.chatObj['cmd'][1:]
+        securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+        if not securityCheck:
+            return [message]
         return self.gitCheckout(cmd[0])
 
     def gitCheckout(self, tag):

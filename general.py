@@ -44,6 +44,29 @@ def runDos(command):
     run.wait()
 
 
+def apiGet(host, apiKey, resource="v2/treasurer/sites.json", data=None):
+    returnObj = {}
+    returnObj['url'] = 'http://%s/%s' % (host, resource)
+    req = urllib2.Request(returnObj['url'], data)
+    auth = 'Basic ' + base64.urlsafe_b64encode("%s:%s" % (apiKey, ''))
+    req.add_header('Authorization', auth)
+    try:
+        response = urllib2.urlopen(req, data, 30)
+    except (urllib2.HTTPError, urllib2.URLError) as e:
+        try:
+            returnObj['urllib.error'] = e.read()
+        except AttributeError:
+            returnObj['urllib.error'] = 'unknown error'
+        return returnObj
+
+    try:
+        returnObj['response'] = json.load(response)
+    except ValueError as e:
+        returnObj['jsonDecode.error'] = response.headers
+
+    return returnObj
+
+
 def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=False):
     url = 'http://%s/%s' % (host, resource)
     if data:
