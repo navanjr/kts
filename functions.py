@@ -81,6 +81,7 @@ class ktsMenu():
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
         self.createCommand('nateTest',['nate'],'test menu option',self.nateTest)
+        self.createCommand('checkoutTag',['checkout'],'fetch and checkout tag',self.command_gitCheckout, chatFunction=self.chat_gitCheckout)
 
         self.createCommand('api',['api', ],'run api job',self.command_api, chatFunction=self.chat_api)
         self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
@@ -149,6 +150,7 @@ class ktsMenu():
 
     def chatCommand(self, keyword, chatObj=None):
         self.chatObj = chatObj
+        self.chatObj['cmd'] = self.chatObj['chatString'].split()
         cmd = self.chatCommandFromKeyword(keyword)
         if cmd:
             return self.commands[cmd]['chatFunction']()
@@ -322,8 +324,8 @@ class ktsMenu():
         s['eventRunning'] = False
 
     def apiResourceToggle(self, resource, verbose=True):
-        resources = [value['resource'] for key, value in self.apiStatus().items()]
-        if resource in resources:
+        resources = [value['resource'].lower() for key, value in self.apiStatus().items()]
+        if resource.lower() in resources:
             qOutput = self.sqlQuery("exec dbo.apiJobs '%s', @method='toggle'" % resource, True)['code']
             if verbose:
                 print "toggling %s resource..." % resource, qOutput
@@ -355,7 +357,7 @@ class ktsMenu():
         cmd = self.command[1:]
         if len(cmd) == 2:
             if cmd[1] in ['stop', 'off']:
-                self.command_setSetting('api',settingName='looperEnabled', newValue='FALSE')
+                self.command_setSetting('api', settingName='looperEnabled', newValue='FALSE')
                 return
             try:
                 opt = int(cmd[1])
@@ -447,10 +449,12 @@ class ktsMenu():
             self.git['branch'] = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
             self.git['status'] = subprocess.check_output("git status", shell=True)
             self.git['repoVersion'] = subprocess.check_output("cat templates\key~1.TXT|grep ktsTag=", shell=True).replace('@ktsTag=','').replace(';','')
+            self.git['lastLog'] = subprocess.check_output("git log -1", shell=True)
         except subprocess.CalledProcessError:
             self.git['branch'] = ''
             self.git['status'] = ''
             self.git['repoVersion'] = ''
+            self.git['lastLog'] = ''
         try:
             self.git['ktsVersion'] = self.sqlQuery("select dbo.readKeyCode(1,'@ktsTag=')")['rows'][0][0]
         except KeyError:
@@ -864,6 +868,22 @@ class ktsMenu():
                     runFix()
                 printStatus()
 
+    def command_gitCheckout(self):
+        cmd = self.command[1:]
+        if len(cmd) == 1:
+            if areYouSure():
+                for x in self.gitCheckout(cmd[0]):
+                    print x
+
+    def chat_gitCheckout(self):
+        cmd = self.chatObj['cmd'][1:]
+        return self.gitCheckout(cmd[0])
+
+    def gitCheckout(self, tag):
+        fetchResponse = subprocess.check_output("git fetch --all", shell=True)
+        checkoutResonse = subprocess.check_output("git checkout %s" % tag, shell=True)
+        return [fetchResponse, checkoutResonse]
+
     def command_gitpush(self):
         self.sendCommand('git push origin %s' % self.git['branch'])
         self.sendCommand('git push github %s' % self.git['branch'])
@@ -912,7 +932,11 @@ class ktsMenu():
 
     def chat_displayMenu(self):
         self.gitVars()
-        return {'ktsVersion': self.git['ktsVersion'], 'repoVersion': self.git['repoVersion']}
+        return [
+            {'server': self.settings['server'], 'database': self.settings['database']},
+            {'ktsVersion': self.git['ktsVersion'], 'repoVersion': self.git['repoVersion']},
+            self.git['lastLog'],
+        ]
 
     def command_setSetting(self, prefix, defaultValue=None, newValue=None, settingsCRUD=True, settingName=None):
         name = settingName or self.command[1]

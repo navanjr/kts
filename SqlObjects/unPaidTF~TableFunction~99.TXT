@@ -17,9 +17,9 @@ create function [dbo].[unpaidTF](
  trcode varchar(50),
  trSection int,
  ord int,
-name varchar(50),
-parcel varchar(50),
-realname varchar(50)
+ name varchar(50),
+ parcel varchar(50),
+ realname varchar(50)
 )
 
 as
@@ -33,7 +33,8 @@ begin
   @asOf varchar(10),
   @item numeric(9,1),
   @totalTax money,
-  @unPaid money
+  @unPaid money,
+  @LimitType varchar(10) = dbo.settingsf('site.LimitPastDueOnSType','FALSE')
 
 -- get variables from our invoice
  select
@@ -45,8 +46,8 @@ begin
  from invoices 
  where ID = @invoiceId
 
--- get all the other related invoices by parcel or name
- if @typ in ('R','S')
+-- get all the other related invoices by parcel
+ if @typ in ('R','S') 
   insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    i.ID,
@@ -58,16 +59,21 @@ begin
    i.invoiceId,
    1,1,
    i.name,i.parcel
-  from invoices i, adtax a
-  where i.taxrollId = a.id
-   and i.PARCEL = @parcel
-   and i.TYP in ('R','O','S') and case when i.id<>@invoiceId then taxyear+1 else taxyear end <= @year
+  from invoices i left outer join adtax a
+  on i.taxrollId = a.id
+   where
+    i.PARCEL = @parcel
+   and i.TYP in ('R','O','S')
+   and case when i.id<>@invoiceId then taxyear+1 else taxyear end <= @year
    and i.invoiceDue != 0
    and i.id not in (select invoiceId from @rt)
    and @parcel > ' 0'
 
- 
- if @typ in ('P','B','I','O','S','M','U')
+if @LimitType='TRUE'
+  delete from @rt where recordType<>@typ
+
+-- get all the other related invoices by name
+ if @typ in ('P','B','I','O','M','U')
   insert into @rt (invoiceId,origin,year,recordType,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    ID,
@@ -132,9 +138,9 @@ if @documentId>0
 */
 
  update @rt set  trcode = 'Fire District',halfRate = .5,ord = 2 where recordType = 'O' and year = @year
- update @rt set trcode = 'Fee', halfRate = 1, ord = 3 where recordType in ('O','S') and isnull(perTyp,'') != 'F' 
+ update @rt set trcode = 'Fee', halfRate = 1, ord = 3 where recordType in ('O') and isnull(perTyp,'') != 'F' 
  update @rt set trcode = 'Current Yr Tax', halfRate = .5, ord = 1 where invoiceid = @invoiceId 
- update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('O','P','I','B','R') and year < @year
+ update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where recordType in ('O','P','I','B','R','S') and year < @year
  update @rt set trcode = 'Fee', halfRate = 1, ord = 2 where origin = 'fee search'
  update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'fee search' and year < @year
  update @rt set trcode = 'Past Due', halfRate = 0, ord = 3 where origin = 'penalty'
