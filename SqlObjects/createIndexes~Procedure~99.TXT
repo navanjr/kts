@@ -31,6 +31,18 @@ ON [dbo].[taxRollDetail] ([dtype])
 INCLUDE ([id],[parcelNumber],[name],[itemNumber],[taxYear],[Stamp],[businessName],[address1],[address2],[address3],[city],[state],[zip1],[zip2])
 
 
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[taxRollDetail]') AND name = N'stamp,dcoumentName') 
+CREATE NONCLUSTERED INDEX [stamp,dcoumentName]
+ON [dbo].[taxRollDetail] ([Stamp],[documentName])
+INCLUDE ([invoiceLinkId],[documentDateTime],[printOrder])
+
+---documentProcessing
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[documentProcessing]') AND name = N'documentName, processCode')
+CREATE NONCLUSTERED INDEX [documentName, processCode]
+ON [dbo].[documentProcessing] ([documentName],[processCode])
+INCLUDE ([invoiceId],[documentDate],[printOrder],[ownerNumber])
+
+
 ------Paid
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[paid]') AND name = N'id')
  CREATE INDEX [id] ON [dbo].[paid] ([id])
@@ -77,7 +89,6 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Ob
    INCLUDE ( [Key1],
              [Key2])
 
-
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Object]') AND name = N'link1')
    CREATE NONCLUSTERED INDEX [link1] ON [dbo].[Object] 
        ([Link1] ASC) 
@@ -110,8 +121,13 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[re
    CREATE NONCLUSTERED INDEX [fundCode include slink] ON [dbo].[receiptDetail] ([fundCode]) INCLUDE ([slink])
 
 ------Invoices
-IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'item')
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'printed,queue include invoiceId,invoiceamount')
 
+CREATE NONCLUSTERED INDEX [printed,queue include invoiceId,invoiceamount]
+ON [dbo].[invoices] ([printed],[queue])
+INCLUDE ([invoiceId],[invoiceAmount])
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[invoices]') AND name = N'item')
 CREATE NONCLUSTERED INDEX [item]
 ON [dbo].[invoices] ([ITEM])
 
