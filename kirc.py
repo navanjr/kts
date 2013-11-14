@@ -50,7 +50,11 @@ class kirc:
             'sample': sample,
         }
         if len(sample.split()) > 4:
-            obj['from'] = sample.split()[0]
+            tokenFrom = sample.split()[0]
+            try:
+                obj['from'] = tokenFrom[1:tokenFrom.rindex(chr(126))-1]
+            except:
+                obj['from'] = tokenFrom
             obj['type'] = sample.split()[1]
             obj['room'] = sample.split()[2]
             obj['to'] = sample.split()[3].replace(':', '')
@@ -98,8 +102,8 @@ class personalResponses:
         self.menu = menu
         self.consciousness = {}
         self.subConsciousness = {}
-        self.add("quit", "alrighty then... cya.", False, "QUIT", restartService=True)
-        self.add("shutdown", "ok ill leave and wont return... cya.", False, "QUIT", restartService=False)
+        self.add("quit", "alrighty then... cya.", False, "QUIT", restartService=True, secured=True)
+        self.add("shutdown", "ok ill leave and wont return... cya.", False, "QUIT", restartService=False, secured=True)
         self.add("marco", "polo")
         self.add("hi", "I already said hi...")
         self.add("hello", "I already said hi... :)")
@@ -108,12 +112,13 @@ class personalResponses:
         self.add("PING", chatCommand="PONG {split1}", forSubConscious=True)
         self.add("KICK", chatCommand="JOIN #%s" % self.myRoom, forSubConscious=True)
 
-    def add(self, keyword, pSendResponse=None, continueChat=True, chatCommand=None, forSubConscious=False, restartService=True):
+    def add(self, keyword, pSendResponse=None, continueChat=True, chatCommand=None, forSubConscious=False, restartService=True, secured=False):
         item = {
             "psend": pSendResponse,
             "continueChat": continueChat,
             "restartService": restartService,
             "chatCommand": chatCommand,
+            "secured": secured,
         }
         if not forSubConscious:
             item["cortex"] = "conscious"
@@ -151,7 +156,15 @@ class personalResponses:
 
             for key, value in self.consciousness.items():
                 if key in chatObj['chatString']:
-                    return value
+                    if value['secured']:
+                        log('secured request: %s' % chatObj)
+                        secCheck, secMessage = self.menu.shouldIListenToThisGuy(chatObj['from'])
+                        if secCheck:
+                            return value
+                        else:
+                            return self.dialect(psend=secMessage)
+                    else:
+                        return value
             return None
 
     def stimulate_subConscious(self, chatObj):

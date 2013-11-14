@@ -60,7 +60,7 @@ class ktsMenu():
         self.createCommand('help',['h','help'],'',self.command_help, chatFunction=self.chat_help)
         self.createCommand('testConnection',['test','t','testconnection'],'tests the connection to your sql server',self.command_testConnection)
         self.createCommand('serverSettings',['set'],'modify server settings',self.command_serverSettings)
-        self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu,chatFunction=self.chat_displayMenu)
+        self.createCommand('displayMenu',['m','menu','display','displayMenu','refresh'],'redraw menu',self.command_displayMenu, chatFunction=self.chat_displayMenu)
         self.createCommand('gitCommands',['git'],'run git command',self.command_git)
         self.createCommand('logging',['logging','log','logit'],'modify log settings',self.command_logging)
         self.createCommand('import',['i','import'],'import from repo into your database',self.command_import)
@@ -70,7 +70,7 @@ class ktsMenu():
         self.createCommand('diagnostics',['d','diag','diagnostic','diagnostics'],'access all diagnostic options',self.command_diagnostics)
         self.createCommand('conversion',['c','conv','conversion'],'access all the conversion tools',[self.command_diagnostics,'conversion'])
         self.createCommand('restore',['restore'],'restore sql data to existing db',self.command_restore)
-        self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup)
+        self.createCommand('backup',['backup','back'],'back up sql data',self.command_backup, chatFunction=self.chat_backup)
         self.createCommand('backupNow',['backupNow',],'back up sql data without an "are you sure" prompt',self.command_backupNow)
         self.createCommand('users',['user','users'],'display or define default users',self.command_users)
         self.createCommand('gitstatus',['gitstatus','status','s'],'preform a git status',[self.command_git,['git','status']])
@@ -660,17 +660,23 @@ class ktsMenu():
     def command_backupNow(self):
         self.command_backup(True)
 
-    def command_backup(self, bypassConfirmation=False):
-        def doit():
-            print "back up SQL data...", self.sqlQuery("exec dbo.sqlBackup @returnRows='FALSE'", isProc=True, testConnection=True)['code']
+    def chat_backup(self):
+        securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+        if not securityCheck:
+            return [message]
+        return self.backupSQLData()
 
+    def backupSQLData(self):
+        return "back up SQL data... %s" % self.sqlQuery("exec dbo.sqlBackup @returnRows='FALSE'", isProc=True, testConnection=True)['code']
+
+    def command_backup(self, bypassConfirmation=False):
         if bypassConfirmation:
-            doit()
+            self.backupSQLData()
         else:
             backupFileName = self.sqlQuery("select path from dbo.paths() where name = 'backup'")['rows'][0][0]
             print "do you wish to backup the DB to..."
             if self.ask("%s?" % backupFileName) in ('yes', 'y'):
-                doit()
+                self.backupSQLData()
 
     def command_restore(self):
         files = self.ftpFiles()
