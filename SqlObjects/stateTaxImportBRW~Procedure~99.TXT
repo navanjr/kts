@@ -68,6 +68,9 @@ end
     'b_'+description 
     from receiptDetail where slink=@slink
 
+
+if not exists(select * from object where typ=4512 and key2=@enddate and a18='State Tax' and key3='Monthly Taxes')
+begin
 ---Staged GL Detail Imported
    insert @rt (display, ord) select '', 'd_'
    insert @rt (brwid,display, ord) select 0,'Staged GL Detail Imported', 'd_0'
@@ -76,7 +79,12 @@ end
      from gldetailStage where slink=@slink
        and accounttype = 'ACCRUED RECEIVABLE' and amount > 0 and isnull(contraId,0)<>0
        and isnull(comment2,'')=''
-
+end
+else
+begin
+   insert @rt (display, ord) select '', 'd_'
+   insert @rt (brwid,display, ord) select 0,'Taxes Imported for '+dbo.date1(@enddate), 'd_0'
+end
 
 
  return

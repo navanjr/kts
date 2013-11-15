@@ -11,7 +11,9 @@
  runw('.\kts\kts.Bat conv importDBF appvwork'),
  sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
  gcvars=,
- brwstuff=;
+ brwstuff=,
+ d1select('select count(*) from object where typ=4512 and key2='&gcenddate+0&' and a18=''State Tax'' and key3=''Monthly Taxes'''),
+ if(obj7:d1+0>0,gcAlreadyPosted='TRUE',gcAlreadyPosted='FALSE');
 
 @afterloadwindow=refreshDetail=;
 
@@ -75,7 +77,8 @@
   sql('exec stateTaxAdjustCRUD 1,'&gcid&', '&lcnewamount+0&','''&gcenddate+0&''''),
   refreshDetail=; ;
 
-\t109Post Taxes;
+\h109gcAlreadyPosted='TRUE';
+\t109Import Taxes;
 @acc109=postTax=;
 
 \t111Setup Appor;
@@ -85,4 +88,5 @@
   m('Would you like to post your taxes for this month?','Post Taxes?',,6),
   break(gcretval<>2),
   sql('exec stateTaxAdjustCRUD 0,'&obj:id&', 0,'''&gcenddate+0&''''),
-  refreshDetail=; ;
+  refreshDetail=,
+  m('Taxes Posted');
