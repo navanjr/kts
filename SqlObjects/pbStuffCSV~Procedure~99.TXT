@@ -1,6 +1,7 @@
 create procedure dbo.pbStuffCSV (@taxYear varchar(10) = null,@fileName varchar(1000) = 'c:\client\pbstuff.txt')
 as
 begin
+set nocount on
 declare @det varchar(max) ='',
 		@det2 varchar(max) ='',
 		@tokenId varchar(20),
@@ -119,14 +120,15 @@ insert @rt (id,name,taxRollItemNumber,parcelNumber,taxyear,taxType,countyName,co
     where i.TAXYEAR=@taxYear and i.invoiceDue>0 and isnull(coalesce(nullif(cast(a.treamort as varchar),''),cast(a.mortgageCode as varchar)),'0') = '0' 
     order by a.OWNERNUMBER,i.item
 
-declare @wt table (id int)
+declare @wt table (id int,ownerNumber numeric(14,2))
  insert @wt
-  select id from @rt order by ownerId
- 
+  select id,ownerId  from @rt order by cast(ownerId as numeric(14,2))
+
+-- select * from @wt order by cast(ownerNumber as numeric(14,2))
  
 while exists (select ID from @wt)
  begin		
- select top 1 @tokenId = ID from @wt  order by id desc
+ select top 1 @tokenId = ID from @wt  order by ownernumber
  if @tokenId>0
   begin
    select @det = '',@det2 = ''
@@ -229,6 +231,7 @@ while exists (select ID from @wt)
    from @rt where id = @tokenId
 
    exec spOverwriteTextFile @fileName,@text,@append = 'TRUE'
+--    print @text
     
     delete from @wt where ID = @tokenId
   end
