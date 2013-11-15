@@ -1119,7 +1119,7 @@ class ktsMenu():
         package['connectionString'] = connectionString
         package['database'] = connDatabase
         package['sqlString'] = sqlString
-        for k, v in package:
+        for k, v in package.items():
             print k, v
         if verbose:
             for key, value in package.items():
