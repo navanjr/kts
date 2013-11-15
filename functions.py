@@ -9,6 +9,7 @@ from general import *
 import importDBF
 import threading
 import time
+import zipfile
 # from kirc import *
 
 
@@ -81,6 +82,7 @@ class ktsMenu():
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
         self.createCommand('nateTest',['nate'],'test menu option',self.nateTest)
+        self.createCommand('compressFile',['compress','compressFile'],'test menu option',self.command_compress)
         self.createCommand('checkoutTag',['checkout'],'fetch and checkout tag',self.command_gitCheckout, chatFunction=self.chat_gitCheckout)
 
         self.createCommand('api',['api', ],'run api job',self.command_api, chatFunction=self.chat_api)
@@ -128,9 +130,33 @@ class ktsMenu():
         self.chatObj = {}
 
     def nateTest(self):
-        cmd = self.command[1:]
-        print "I should listen to %s" % cmd[0]
-        print self.shouldIListenToThisGuy(cmd[0])
+        fileName = self.command[1:][0]
+        self.compressFile(fileName)
+
+    def command_compress(self):
+        if len(self.command) == 2:
+            fileName = self.command[1:][0]
+            compressResult, sizeOfZip = self.compressFile(fileName)
+            if compressResult:
+                print "congrats, you compressed %s to %s bytes" % (fileName, sizeOfZip)
+            else:
+                print "sorry, something went wrong compressing %s..." % fileName
+
+
+    def compressFile(self, fileName, eraseOriginalFile=True):
+        file2Zip = '%s\%s' % (self.ftpSettings['path'], fileName)
+        zipFile = '%s\%s.%s' % (self.ftpSettings['path'], fileName.split('.')[0], 'zip')
+        try:
+            with zipfile.ZipFile(zipFile, 'w', zipfile.ZIP_DEFLATED) as theZipFile:
+                theZipFile.write(file2Zip)
+        except:
+            return False, 0
+
+        sizeOfZipFile = os.path.getsize(zipFile)
+        if sizeOfZipFile > 1000 and eraseOriginalFile:
+            os.remove(file2Zip)
+
+        return True, sizeOfZipFile
 
     def shouldIListenToThisGuy(self, who):
         host = self.apiSettingsKps['host']
@@ -1093,6 +1119,8 @@ class ktsMenu():
         package['connectionString'] = connectionString
         package['database'] = connDatabase
         package['sqlString'] = sqlString
+        for k, v in package:
+            print k, v
         if verbose:
             for key, value in package.items():
                 print key, value
