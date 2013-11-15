@@ -1,4 +1,4 @@
-create function dbo.stateTaxImportBRW(@objectId int) returns @rt table(
+create function dbo.stateTaxImportBRW(@objectId int, @enddate varchar(20)) returns @rt table(
   brwid int,
   display varchar(max),
   amount money,
@@ -7,9 +7,59 @@ create function dbo.stateTaxImportBRW(@objectId int) returns @rt table(
 ) 
 as 
 begin
-
 declare @slink varchar(20)='o'+cast(@objectId as varchar)
 
+declare @contraAccounts table(accountId int, accountcode varchar(60), accountdesc varchar(50), glBalance money, accrued money, diff money)
+
+if isnull(@enddate,'')<'00'
+begin
+select @enddate = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
+
+end
+
+
+insert @contraAccounts (accountid)
+ select distinct contraId from gldetailStage where slink=@slink
+       and accounttype = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<>0
+
+update c set accountcode = a.accountcode, 
+             accountdesc = a.accountdesc,
+             glBalance = b.amount,
+             accrued = acr.amount+s.amount,
+             diff = acr.amount-b.amount+s.amount
+   from @contraAccounts c, 
+        glaccounts a, 
+        (select accountCode,SUM(amount*-1) as amount from gldetail where [date]<=@enddate group by accountCode) b,
+        (select contraId,SUM(amount) as amount from gldetail 
+ where [date]<=@enddate 
+   and ISNULL(bsId,0)=0
+   and ISNULL(contraId,0)>0
+   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
+ group by contraId) acr,
+        (select contraId,SUM(amount) as amount from gldetailstage 
+ where ISNULL(contraId,0)>0
+   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
+   and slink = @slink
+ group by contraId) s
+
+   where c.accountId=a.accountId
+     and a.accountcode=b.accountcode
+     and acr.contraId = c.accountId
+     and s.contraId = c.accountId
+
+---GL Balances
+if exists(select * from @contraAccounts where diff <> 0.00)
+begin
+ insert @rt (display, ord) select '', 'a_'
+ insert @rt (display, ord) select 'Accounts Out of Balance', 'a_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-4'+cast(accountid as varchar) as int),
+    ' '+accountDesc+': ',diff,
+    'a_'+accountDesc 
+    from @contraAccounts
+end
+
+---Staged Receipt Detail
  insert @rt (display, ord) select '', 'b_'
  insert @rt (display, ord) select 'Penalties and Costs', 'b_0'
  insert @rt (brwid, display, amount, ord)
