@@ -136,7 +136,7 @@ while exists (select ID from @wt)
    select @address=dbo.parseAddress(@invoiceBlob)
    select @det = @det + alternateDescription+':'+subdescription+':'+cast(amount as varchar)+'|' from dbo.statementBRW('t'+@tokenId,1)  where amount>0 order by alternateDescription
    select @half2 = cast(SUM(case when trcode='half tax' and trSection = 2 then invoiceDue else 0 end) as varchar),@total2 = cast(SUM(case when trcode='Current Yr Tax' and trSection = 1 then invoiceDue else 0 end) as varchar)  from dbo.unpaidTFNew(@tokenId)
-   select @det2 = @det2 + cast(sum(invoiceDue + penalty) as varchar) + ':' + cast(year as varchar) + '|' from dbo.unpaidTF(@tokenId,@DocumentId) where trcode = 'Past Due' and year is not null group by year
+   select @det2 = @det2 + cast(sum(isnull(invoiceDue,0) + isnull(penalty,0)) as varchar) + ':' + cast(year as varchar) + '|' from dbo.unpaidTF(@tokenId,@DocumentId) where trcode = 'Past Due' and isnull(year,0)>0 group by year
     
    if len(@invoiceBlob)>0
    update @rt set
