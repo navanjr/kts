@@ -144,11 +144,15 @@ class ktsMenu():
 
 
     def compressFile(self, fileName, eraseOriginalFile=True):
-        file2Zip = '%s\%s' % (self.ftpSettings['path'], fileName)
-        zipFile = '%s\%s.%s' % (self.ftpSettings['path'], fileName.split('.')[0], 'zip')
+        if ':\\' in fileName:
+            file2Zip = fileName
+            zipFile = "%s.%s" % (fileName.split('.')[0], 'zip')
+        else:
+            file2Zip = '%s\%s' % (self.ftpSettings['path'], fileName)
+            zipFile = '%s\%s.%s' % (self.ftpSettings['path'], fileName.split('.')[0], 'zip')
         try:
             with zipfile.ZipFile(zipFile, 'w', zipfile.ZIP_DEFLATED) as theZipFile:
-                theZipFile.write(file2Zip)
+                theZipFile.write(file2Zip, os.path.basename(file2Zip))
         except:
             return False, 0
 
@@ -1119,8 +1123,6 @@ class ktsMenu():
         package['connectionString'] = connectionString
         package['database'] = connDatabase
         package['sqlString'] = sqlString
-        for k, v in package.items():
-            print k, v
         if verbose:
             for key, value in package.items():
                 print key, value
@@ -1497,7 +1499,7 @@ class ktsMenu():
             for field in fields:
                 if not str(data[field]) == '0':
                     a.append(str(data[field]))
-            return ' '.join(a).strip()
+            return ' '.join(a).strip().replace("'", "")
 
         taxYear = areYouSure('enter the tax year please', boolean=False)
         if areYouSure('are you sure you want to run with taxYear = %s?' % taxYear):

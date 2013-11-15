@@ -64,24 +64,8 @@ begin
 -- windows Compression
   if dbo.settingsF('backup.windowsCompression','FALSE') = 'TRUE' and @useSqlCompression != 'TRUE'
   begin
-   declare @zipFile varchar(max) = replace(@backupFile,'.bak','.zip')
-   exec dbo.logit @@procid, 'Windows Compression underway...'
--- run compression script
-   select @cmd = 'cscript ' + path + '\zip.vbs ' + @backupFile + ' ' + @zipFile
-   from dbo.paths() where name = 'gitrepo'
-   exec dbo.logit @@procid, 'running command.... ', @cmd
-   exec @cmdOutput = master..xp_cmdshell @cmd, no_output
--- check to see if it worked
-   select @backupFolder = path From dbo.paths() where name = 'backupPath'
-   select @fileSize = fileSize from dbo.dirFiles(@backupFolder,null) where pathAndFileName = @zipFile
-   exec dbo.logit @@procid, 'Done.... @zipFile', @zipFile, '@fileSize', @fileSize
-   if isnull(@fileSize,0) > 1000
-   begin
-    set @cmd = 'del ' + @backupFile
-    exec dbo.logit @@procid, '@cmd', @cmd
-    exec @cmdOutput = master..xp_cmdshell @cmd, no_output
-    exec dbo.logit @@procid, '@cmdOutput', @cmdOutput
-   end
+   set @cmd = 'compress ' + @backupFile
+   exec dbo.ktsBat @cmd
   end
 
 --- remove unretained backups
