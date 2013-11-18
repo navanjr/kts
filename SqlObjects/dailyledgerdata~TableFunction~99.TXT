@@ -1,4 +1,4 @@
-create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50))
+create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50),@showDetail varchar(5))
  returns @rt table(
  accountCode varchar(50),
  accountDesc varchar(50),
@@ -298,6 +298,9 @@ update @wt2 set
  paid=paid*-1 
 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
+if @showDetail = 'FALSE'
+begin
+
 -- Grouping begins
 declare @currentTaxYear varchar(4),
         @priorTaxYear varchar(4),
@@ -341,10 +344,34 @@ insert @rt
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX')
   and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
  group by accountType, ledgerGroup
-
  update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
  update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
  update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND') union select 'BACK TAX')
+
+
+end
+else
+begin
+insert @rt
+ select * from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BOTH') where accounttype <> 'SUSPENSE')
+
+ insert @rt
+ select 
+  case when isnull(ledgerGroup,'')>'0' then ledgerGroup else accounttype end,
+  accountType + case when accountType <> 'BACK TAX' then 'S' else '' end + ' ' + rtrim(ledgerGroup),
+  sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin),
+  sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits),
+  sum(endbalance), accountType, ledgerGroup,
+  '',min(case when reportOrder > '  0' then reportOrder else 'xxxxx' end), 2  -- maybe this will be useful 
+ from @wt2
+ where accountType = 'SUSPENSE'
+ group by accountType, ledgerGroup
+ update @rt set accountDesc = 'PENDING DEPOSITS' where accountType = 'SUSPENSE'
+ update @rt set ledgerGroup = accountType where ledgerGroup < ' 0' and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
+ update @rt set accountType='BANK' where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+ update @rt set accountType='FUND' where accountType in (select accountType from dbo.glBankFundTypes('FUND') union select 'BACK TAX')
+
+end
 
 -- here is where we set the report order
 /*
