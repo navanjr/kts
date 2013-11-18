@@ -14,6 +14,9 @@ create function dbo.depositBalanceTF(@d1 int,@d2 int,@deputy varchar(50),@deposi
                         payor varchar(50))
 as
 begin
+declare @bankDesc varchar(50) 
+
+select @bankDesc = accountdesc from glaccounts where accountcode=@bankAccount
 
 if @depositId = 0
  begin
@@ -41,6 +44,7 @@ if @depositId = 0
      and receiptType = case when @recTyp!='0' then @recTyp else receiptType end
      and receipttype in (select code from receiptType where depositAccount = case when @bankAccount>'  0' then @bankAccount else depositAccount end)
      and receiptPostDate between @d1 and @d2
+     and isnull(depositId,0) not in (select id from object where typ=4513 and a1<> @bankDesc)
      order by receiptType, deputy, paycode, receiptNo
 
 
