@@ -29,7 +29,7 @@ begin
   balanceAsOf*-1,
   case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' when 'Cancel Warrant' then 'C' else left(contraPaymentType,1) end,
   dbo.date1(contraPostDate),
-  fundaccount+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b',
+  left(fundaccount,20)+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b',
   dbo.slinkId(slink)
  from dbo.paymentReports('Bank',@endDate,null) 
   where isnull(paymentType,'') like '%'+@paymentType+'%' 
@@ -42,7 +42,7 @@ begin
  insert @rt (toWhom,ord,fundAccount,fundAccountCode)
  select 
   fundaccount,
-  fundaccount+'   a',
+  left(fundaccount,20)+'   a',
   fundaccount,
   fundaccountCode
  from @rt where fundAccount>'  0' group by fundaccount,fundaccountCode
@@ -50,7 +50,7 @@ begin
 --group footer
  insert @rt (toWhom,paidAmount,ord,fundAccount,fundAccountCode)
  select 
-  fundaccount+' Total',
+  left(fundaccount,20)+' Total',
   sum(cast(paidAmount as money)),
   fundaccount+'c',
   fundAccount,fundAccountCode
