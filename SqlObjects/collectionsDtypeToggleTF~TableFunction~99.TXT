@@ -29,7 +29,7 @@ begin
 
  if @dtype = 'RESALE'
   insert @rt(id,taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
-  select  d.id, d.id, d.parcelNumber, d.parcelNumber, 0.0,
+   select  d.id, d.id, d.parcelNumber, d.parcelNumber, 0.0,
    max(i.taxYear),
    min(i.taxYear),
    COUNT(i.id),
@@ -46,13 +46,13 @@ begin
       + isnull(ii.subInvoiceDue,0) 
       + isnull(ii.taxRuleDue,0) as varchar)
     from invoices ii
-    where ii.PARCEL = d.parcelNumber and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
+    where (ii.PARCEL = d.parcelNumber /* or ii.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach')*/) and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
     order by ii.taxyear desc
     for xml path('')
    ),1,1,''),
    0   
   from taxrollDetail d
-  left outer join invoices i on d.parcelNumber = i.parcel and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
+  left outer join invoices i on (i.PARCEL = d.parcelNumber or i.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach'))  and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
   where dbo.clariondate(d.creationDateTime) between @date and @date+@days and d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.parcelNumber
  
