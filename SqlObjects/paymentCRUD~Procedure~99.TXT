@@ -468,6 +468,7 @@ begin
 
    exec dbo.logit @@procid, '@paymentType', @paymentType, 'stamped the original instrument with details... @@rowCount', @@rowCount
 
+
   end
   
   if @paymentType='Warrant'
@@ -574,6 +575,32 @@ begin
    exec dbo.logit @@procid, 'this is a test'
    select '@code=2;@message=Created Treasurers Check with Payment #: ' + @nextVoucherNumber + ';@caption=Buying Warrants...;'
   end
+
+  if @paymentType in ('Void Voucher','Cancel Voucher','Void Warrant','Cancel Warrant','Void Miscellaneous','Cancel Miscellaneous')
+  begin
+
+-- Auto Clear Cancelled Payemnts and Their Parents
+   declare @bsId int = null,
+           @checkDate varchar(20) = coalesce(nullif(@postDate,''),cast(dbo.clarionToday() as varchar)),
+           @creditAcctId int
+
+   select @creditAcctId = accountid from glaccounts where accountcode=@creditAcct
+
+   select @bsId = id from object o where o.typ = 4780 and o.link1 = @creditAcctId and @checkDate between o.a1 and o.a2
+
+   if not isnull(@bsId,0) > 0
+   begin
+    exec dbo.bankStatementCRUD @checkDate, @creditAcctId, @newBSId = @bsId output
+   end
+
+   update gldetail set bsId = @bsId, datecleared = @checkDate where slink in ('o'+cast(@id as varchar),'o'+cast(@newId as varchar)) and accountcode=@creditAcct
+
+   exec dbo.logit @@procid, '@id', @id, '@newId', @newId, '@creditAcct', @creditAcct, '@checkDate', @checkDate
+
+
+  end
+
+
   return
  end
 
@@ -607,7 +634,6 @@ begin
   exec dbo.logit @@procid, 'glPost - @postResult', @postResult
 
  end
-
 
  return
 end
