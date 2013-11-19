@@ -1,0 +1,66 @@
+create procedure dbo.taxInvoicePaymentAdjust(@invoiceId int, @amount money, @comment varchar(max) = '')
+as begin
+
+declare @postDate varchar(20) = dbo.clariondate(getdate()),
+        @newJeId int, 
+        @newjlinkId int,
+        @contraId int,
+        @expAccountCode varchar(60),
+        @arAccountCode varchar(60),
+        @ACRAccountCode varchar(60)
+
+select top 1 @arAccountCode = accountCode,
+       @expAccountCode = LEFT(accountCode,LEN(accountcode)-3)+'_EXP',
+       @contraId = ISNULL((select a.accountId from glaccounts a where a.accountcode=LEFT(gldetail.accountCode,LEN(gldetail.accountcode)-3)),0)
+  from gldetail 
+  where slink='t'+CAST(@invoiceId as varchar)
+   and accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
+
+select top 1 @ACRAccountCode = accountCode+'_ACR'
+  from gldetail 
+  where 
+   slink='t'+CAST(@invoiceId as varchar)
+   and accountcode in (select accountCode from glAccounts where accountType='SOURCE')
+
+--Insert JE
+exec dbo.journalEntryCRUD 0,
+  @postdate = @postDate,
+  @description='Show Payment Made on MISC Receipt.',
+  @jeType='Tax Payment Adjust',
+  @comment=@comment,
+  @newId=@newJeId output
+
+--Insert journallink
+insert journalLink (invoiceId,jeId)
+ select @invoiceId, @newJeId
+
+select @newjlinkId = ID from journalLink where invoiceId=@invoiceId and jeId = @newJeId
+
+--Insert gldetailstage linked to journallink
+insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
+ select accountId, accountcode, accountdesc, @amount*-1,'j'+CAST(@newjlinkId as varchar)
+  from gldetail g
+  where slink='t'+CAST(@invoiceId as varchar)
+   and accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
+
+insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
+ select top 1 a.accountId, a.accountcode, a.accountdesc, @amount,'j'+CAST(@newjlinkId as varchar)
+  from glAccounts a
+  where a.accountCode=@ACRAccountCode
+   
+--insert gldetailstage linked to JE
+insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
+ select top 1 a.accountId, a.accountcode, a.accountdesc, @amount*-1,'o'+CAST(@newJeId as varchar)
+  from glAccounts a
+  where a.accountCode=@ACRAccountCode
+   
+insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
+ select top 1 a.accountId, a.accountcode, a.accountdesc, @amount,'o'+CAST(@newJeId as varchar)
+  from glAccounts a
+  where a.accountCode=@expAccountCode
+   
+exec glPost @newJeId, 'o'
+
+exec invoiceUpdate @invoiceId
+
+end

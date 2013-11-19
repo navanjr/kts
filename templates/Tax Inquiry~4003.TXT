@@ -206,17 +206,29 @@
 
 @moreOptions=
  if(cur:securitylevel=100,lcdel='|Delete Invoice',lcdel=''),
- m('options...','Taxroll options...',,'Reset API|&Show Detail|Co&llections'&lcdel&'|View Fees|Print Comments|&Cancel'),
+ m('options...','Taxroll options...',,'Reset API|&Show Detail|Co&llections'&lcdel&'|View Fees|Print Comments|Adjust Payment|&Cancel'),
  if(gcretval=1,resetAPI=),
  if(gcretval=2,showFeePenalty=),
  if(gcretval=3,collections=),
  if(gcretval=4 and cur:securitylevel=100,delInvoice=),
  if(gcretval=5 and cur:securitylevel=100,feeBrw=),
  if(gcretval=6 and cur:securitylevel=100,printComment=),
+ if(gcretval=7 and cur:securitylevel=100,adjustPayment=),
  if(gcretval=4 and cur:securitylevel<>100,feeBrw=),
  if(gcretval=5 and cur:securitylevel<>100,printComment=),
+ if(gcretval=6 and cur:securitylevel<>100,adjustPayment=),
  break((gcretval=5 and cur:securitylevel=100) or (gcretval=4 and cur:securitylevel<>100)),
  refreshBRW=;
+
+@adjustPayment=
+  gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  iw(',.t000Adjust Payment?!!!., ,.t001Comment., ,.t003Amount., ,.t004@n-19.2.,'),
+  break(gcretval='esc'),
+  lcamount=obj7:key2,
+  lcDesc=kpfq(obj7:key1),
+  sql('exec dbo.taxInvoicePaymentAdjust '&gcInvoiceId&', '&lcamount+0&', '''&lcDesc&''''),
+  refreshBRW=;
 
 @resetAPI=
  d1select('exec dbo.apiReset '&lcId),
