@@ -298,6 +298,17 @@ printReceiptList=
   bnd('H','',700,'',700,'Report Total',2500R,format(lcPaid,@n-14.2),800R,format(lcPenFees,@n-14.2),800R,format(lcTotPaid,@n-14.2),800R))
  ;
 
+@printBookReceiptListDeputyStation=
+ do(452,getSiteInfo=),
+ gcPrintDetail='Y',
+ d1select('select a17 from object where typ=40'),
+ lcReportType='Deputy,Station',
+ lcReportSort=2,
+ if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
+ if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
+ if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
+  lcsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by Deputy, Station, recType, recNum  ',
+ if(lcReceiptType='TAX',BookTax=,BookOther=);
 
 /**Honors date range and receipt type. Deputy, Station and Print Detail are ignored**/
 /**Receipt Type = Tax prints parcel detail; Receipt Type = blank returns all rec types**/
@@ -342,7 +353,7 @@ printReceiptList=
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
- if(lcReportSort=1),do(
+ if(lcReportSort+0=1),do(
     bnd('H','Rec No',600,'Post Date',700,'Received From',2400,'Amt Paid',900R,'Fees',800R,'Total Amt Pd',900R,'Type',400C),
     if(curpag=1),
      grp(1,obj5:a14,
@@ -352,7 +363,7 @@ printReceiptList=
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
-  if(lcReportSort=0),do(
+  if(lcReportSort+0=0 or lcReportSort+0=2),do(
      bnd('H','Rec No',600,'Post Date',700,'Received From',2400,'Amt Paid',900R,'Fees',800R,'Total Amt Pd',900R,'Type',400C),
      if(curpag=1),
      grp(1,obj5:a15,
@@ -362,11 +373,20 @@ printReceiptList=
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
+  if(lcReportSort+0=2),do(
+     if(curpag=1),
+     grp(2,obj5:a15&obj5:a14,
+      do(bnd('H','Station: '&obj5:a14,1000)),
+      do(bnd('H',,600,'',700,'Station Total',2400R,format(lcusAmtPaid,@n-14.2),900R,format(lcusFees,@n-14.2),800R,format(lcusTotAmt,@n-14.2),900R),
+      nl,
+      lcusAmtPaid=0,
+      lcusFees=0,
+      lcusTotAmt=0))),
   nl,
   det(lcsql),
      if(lcReportSort=1),do(
      bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
-     if(lcReportSort=0),do(
+     if(lcReportSort=0 or lcReportSort+0=2),do(
      bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
      lcAmtPaid=lcAmtPaid+obj5:a7,
      lcFees=lcFees+obj5:a9,
@@ -374,6 +394,9 @@ printReceiptList=
      lcgAmtPaid=lcgAmtPaid+obj5:a7,
      lcgFees=lcgFees+obj5:a9,
      lcgTotAmt=lcgTotAmt+obj5:a6,
+     lcusAmtPaid=lcusAmtPaid+obj5:a7,
+     lcusFees=lcusFees+obj5:a9,
+     lcusTotAmt=lcusTotAmt+obj5:a6,
   edt,
   nl,
   bnd('H','',600,'',700,'Report Totals',2400R,format(lcAmtPaid,@n-14.2),900R,format(lcFees,@n-14.2),800R,format(lcTotAmt,@n-14.2),900R)
@@ -408,7 +431,7 @@ printReceiptList=
   prn(,lcx+150,,lcFontSize,,lcFont),
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
-  if(lcReportSort=1),do(
+  if(lcReportSort+0=1),do(
     bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C),
     if(curpag=1),
      grp(1,obj5:a14,
@@ -419,7 +442,7 @@ printReceiptList=
       lcgFees=0,
       lcgPenalty=0,
       lcgTotAmt=0))),
-  if(lcReportSort=0),do(
+  if(lcReportSort+0=0 or lcReportSort+0=2),do(
      bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C),
      if(curpag=1),
      grp(1,obj5:a15,
@@ -430,13 +453,23 @@ printReceiptList=
       lcgFees=0,
       lcgPenalty=0,
       lcgTotAmt=0))),
+  if(lcReportSort+0=2),do(
+     if(curpag=1),
+     grp(2,obj5:a15&obj5:a14,
+      do(bnd('H','Station: '&obj5:a14,1000)),
+      do(bnd('H',,600,'',700,'Station Total',2000R,format(lcusAmtPaid,@n-14.2),800R,format(lcusFees,@n-14.2),700R,format(lcusPenalty,@n-14.2),700R,format(lcusTotAmt,@n-14.2),800R),
+      nl,
+      lcusAmtPaid=0,
+      lcusFees=0,
+      lcusPenalty=0,
+      lcusTotAmt=0))),
   nl,
   det(lcsql),
-     if(lcReportSort=1),do(
+     if(lcReportSort+0=1),do(
         bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400),
         if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                           ),
-         if(lcReportSort=0),do(
+         if(lcReportSort+0=0 or lcReportSort+0=2),do(
        bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400)
        if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                               ),
@@ -448,6 +481,10 @@ printReceiptList=
      lcgFees=lcgFees+obj5:a9,
      lcgTotAmt=lcgTotAmt+obj5:a6,
      lcgPenalty=lcgPenalty+obj5:a8,
+     lcusAmtPaid=lcusAmtPaid+obj5:a7,
+     lcusFees=lcusFees+obj5:a9,
+     lcusTotAmt=lcusTotAmt+obj5:a6,
+     lcusPenalty=lcusPenalty+obj5:a8,
   edt,
   nl,
   bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n-14.2),800R,format(lcFees,@n-14.2),700R,format(lcPenalty,@n-14.2),700R,format(lcTotAmt,@n-14.2),800R)
