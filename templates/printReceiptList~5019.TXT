@@ -19,7 +19,15 @@ printBookReceiptList=;
 
 @printReceiptListMowing=gcWhere=' where assessmentCityCode > ''  0'' ',
  gcReceiptType='TAX',
- printReceiptList=;
+ printReceiptList=,
+ gcWhere='';
+
+@printReceiptListTIFF=gcWhere=' where rate in (select key1 from object where typ=4011 and b10=''1'')',
+ gcReceiptType='TAX',
+ gcTIFF='TRUE',
+ printReceiptList=,
+ gcTIFF='FALSE',
+ gcWhere='';
 
 @printReceiptList=
  do(452,getSiteInfo=),
@@ -34,7 +42,7 @@ printBookReceiptList=;
  if(gcBankAccount>'  0',lcWhere=lcWhere&choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''') and recId not in (select dbo.slinkid(slink) from paid where 
  depositid in (select d.id from object d, glaccounts a where d.typ = 4513 and d.link1=a.accountid and accountcode <> '''&gcBankAccount&''') 
  and dbo.slinktype(slink)=''o'')',lcWhere=lcWhere),
- lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
