@@ -73,7 +73,7 @@ begin
    set @processCode = @initials + '.001'
 
   insert dbo.documentProcessing 
-   select top (@batchSize) id, @documentName, @documentDate, @processCode, case when dbo.settingsf('site.printBatchbyOwnerNum','FALSE') = 'TRUE' then cast(dbo.padLeft(ownerNumber,'0',14) as varchar) else name end +'_'+ cast(item as varchar), isnull(ownerNumber,0.0), name
+   select top (@batchSize) id, @documentName, @documentDate, @processCode, case when dbo.settingsf('site.printBatchbyOwnerNum','FALSE') = 'TRUE' then cast(dbo.padLeft(ownerNumber,'0',9) as varchar) else name end +'_'+ cast(item as varchar), isnull(ownerNumber,0.0), name
    from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
     order by name, item
