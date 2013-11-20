@@ -33,4 +33,41 @@ select
  c10 as fiscalYear,
  'o' + cast(id as varchar) as slink,
  isnull((select max(isnull(dateCleared,'')) from gldetail where slink='o' + cast(object.id as varchar) ),0) as dateCleared
-from object where typ = 4771
+from object where typ = 4771 and id not in (select link1 from object where typ=4771)
+
+union all
+
+select 
+ c.id,
+ c.typ,
+ p.key1 as treasurersNumber,
+ p.key2 as dateRegistered,
+ p.key3 as clerksNumber,
+ p.a1 as clerksDate,
+ ltrim(p.a2) as payee,
+ isnull((select sum(amount) from gldetail where slink='o' + cast(c.id as varchar) and accountCode=c.a4),0) as amount,
+ c.a4 as debitAccountCode,
+ c.b3 as debitAccountDesc,
+ c.a5 as creditAccountCode,
+ c.b4 as creditAccountDesc,
+ c.a6 as purposeAccountCode,
+ c.b5 as purposeAccountDesc,
+ c.a7 as official,
+ c.a8 as depositAccountCode,
+ c.a9 as bankAccountCode,
+ c.c9 as detailAmount,
+ c.a12 as createdIni,
+ c.a13 as createdStation,
+ c.a14 as reasonCanceled,
+ c.a17 as status,
+ c.a18 as paymentType,
+ c.a19 treasurersWarrant,
+ c.a20 as printStatus,
+ c.e1 as comment,
+ c.link1 as warrantLinkId,
+ case when c.a18 = 'Treasurers Check' then c.c5 else '' end as warrantPayee,
+ case when c.a18 = 'WARRANT' then c.a4 else c.a8 end as dailyDataAccountLinkCode,
+ c.c10 as fiscalYear,
+ 'o' + cast(c.id as varchar) as slink,
+ isnull((select max(isnull(dateCleared,'')) from gldetail where slink='o' + cast(c.id as varchar) ),0) as dateCleared
+from object p, object c where p.typ = 4771 and c.typ=4771 and p.link1=c.id
