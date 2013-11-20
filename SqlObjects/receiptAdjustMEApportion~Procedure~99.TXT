@@ -1,0 +1,101 @@
+create procedure dbo.receiptAdjustMEApportion(@receiptId int,
+        @detailid int,
+        @newDesc varchar(120),
+        @newSourceCode varchar(50),
+        @newFundCode varchar(50))
+as
+begin        
+ 
+ declare @originalFundCode varchar(60),
+         @originalACRCode varchar(60),
+         @originalSourceCode varchar(60),
+         @originalDescription varchar(120),
+         @newACRCode varchar(60),
+         @contraId int,
+         @slink varchar(16)='o'+cast(@receiptId as varchar),
+         @amount money,
+         @newSlink varchar(20)
+         
+select @originalFundCode = fundCode, 
+       @originalSourceCode = sourceCode,
+       @originalDescription = [description],
+       @amount = amount 
+       from receiptDetail where ID=@detailid
+
+if @originalFundCode in (select accountcode from glAccounts where accountType='ACCRUED RECEIVABLE')
+begin
+ select @originalACRCode=@originalFundCode 
+end
+else
+begin
+ select @originalACRCode = dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(@originalFundCode,'ACCRUED RECEIVABLE'))
+end
+
+if @newFundCode in (select accountcode from glAccounts where accountType='ACCRUED RECEIVABLE')
+begin
+ select @newACRCode=@newFundCode 
+end
+else
+begin
+ select @newACRCode = dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(@newFundCode,'ACCRUED RECEIVABLE'))
+end
+
+if @newSourceCode not in (select accountcode from glaccounts where accounttype='SOURCE')
+begin
+ select '@code=1;@message=Invalid Source.;'
+ return
+end
+
+if @newFundCode not in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('FUND') union select 'ACCRUED RECEIVABLE'))
+begin
+ select '@code=1;@message=Invalid Fund.;'
+ return
+end
+
+
+
+select top 1 @contraId = contraId 
+  from gldetail 
+ where slink=@slink 
+   and comment = @originalDescription
+   and sourcecode = @originalSourceCode
+   and accountCode = @originalACRCode
+
+   -- create new JE
+   declare  @jeType varchar(50), 
+           @accountDesc varchar(50),
+           @resultCode varchar(max),
+           @resultmessage varchar(max),
+           @newId int
+           
+	select  @jeType = 'Adjust Apportionment', @accountDesc = 'Adjust Apportionment Receipt #'+cast(key1 as varchar) from object where id = @receiptId 
+            exec dbo.journalEntryCRUD
+                 @mode = 0,
+                 @description = @accountDesc,
+                 @jeType = @jeType,
+                 @resultCode = @resultCode output,
+                 @resultMessage = @resultMessage output,
+                 @newId = @newId output
+
+                 select @newSlink = 'o' + cast(@newId as varchar)
+
+
+         -- create journalLinks
+                insert into journalLink
+                  select @newId,0,0,@receiptId  
+
+    insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
+     select @originalACRCode, @originalDescription, @originalSourceCode, @contraId,@amount*-1,@newSlink    
+     
+    insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
+     select @newACRCode, @newDesc, @newSourceCode, @contraId,@amount,@newSlink         
+
+update g set accountid=a.accountid, accountdesc=a.accountdesc 
+ from gldetailStage g, glAccounts a 
+ where g.accountCode=a.accountCode 
+  and slink=@newSlink
+     
+   exec glPost @newId, 'o'
+   
+ return
+end
