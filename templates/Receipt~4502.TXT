@@ -7,7 +7,6 @@
 @save;
 lmode=2;
 @format=50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M;
-
 @filtername=All,All Un-Posted,All Query,Miscellaneous,Mortgage,Tax,Trust,Individual Redemption;
 @filter='id>0',
 'a17<>''Posted''',
@@ -17,21 +16,10 @@ lmode=2;
 'typ=4502 and key3=''TAX'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''TRUST'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''INDIV'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ';
-
-@closebrowse=
- gcDashRecType='';
-
 @loadbrowse=
- altFormat=,
  prop(016,'color',65280),
  prop(017,'color',65280),
  prop(023,'color',65280);
-
-@gfbrowse=
- altFormat=;
-
-@altFormat=
- format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
 key7=apiUpdate
@@ -39,7 +27,9 @@ key7=apiUpdate
 @ordername=Receipt No Only,Date Newest on Top;
 
 @menuprocess=
- insertSelections=;
+     insertSelections=;
+
+
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
@@ -98,7 +88,6 @@ close('ok');
  lccheck=kp('select id from object where typ = 4504 and a1=''MTG'' and key1 like ''%FEE%'''),
  if(lccheck+0=0,addfeecode=),
  d1select('exec dbo.receiptNew ''MTG'''),
- if(readstring(obj7:d1,'@code=')='1',m(readstring(obj7:d1,'@message='))),
  change(obj7:d1);
 
 @newTrust=
@@ -133,10 +122,10 @@ close('ok');
 
 
 @browsedelete=
- if(obj:a17='Posted',lcDeleteMessage='You can only delete receipts that are Un-Posted.',lcDeleteMessage='Are you sure you wish to delete this Receipt?'),
- m(lcDeleteMessage,'Delete...','EXCLEM.ICO',choose(obj:a17='Posted','',6),choose(obj:a17='Posted','',4)),
+ if(obj:a17='Posted',lcDeleteMessage='This record has been posted and can only be deleted if the fiscal period is not locked.|Do you wish to continue with this attempt to delete this Receipt?',lcDeleteMessage='Are you sure you wish to delete this Receipt?'),
+ m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
  break(gcretval<>2),
- sql('exec dbo.receiptCRUD 3, @receiptId='&obj:id);&',@deletePosted=''TRUE'''
+ sql('exec dbo.receiptCRUD 3, @receiptId='&obj:id&',@deletePosted=''TRUE''');
 
 @loadwindow=
  if(obj:a17='Posted',prop(165,'7C65H',1)),
@@ -167,7 +156,7 @@ close('ok');
 @brwstuff=
  set(-69,0),
  if(obj:key3='TAX' or obj:key3='MISC',create(550,12,5,100,'show &Funds',-69),),
- if(obj:key3='MTG',create(551,12,5,124,'Exempt',-70),),
+ create(551,12,5,124,'Exempt',-70),
  lcShowGL=readstring(cur:options,'@showgl='),
  gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
  brw(150,1,gcbrw1sql,65,81,320,200,'138L(2)~~#2#M120L(2)~~#3#M60R(2)~Amount~@n-14.2b@#4#M',7,1),
@@ -245,7 +234,7 @@ close('ok');
 \t007Received From;  \l0084601,2;r008004; @lf008='a17!=1'; @nopop008; \d008obj:a17='Posted' and gcCheckDeposited='TRUE'; \w008200;
 
 \t009detailId;\d009010;r \h009010;r
-\t011new detail; \l0124504,3;r012002014004016006-73-03; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
+\t011new detail; \l0124504,3;r012002014004016006; @nopop012; @lf012='typ=4504 and (a1='''&obj:key3&''' or ('''&obj:key3&'''=''MISC'' and a1<'' 0''))',1,2;
 \t013Source;  \l0144701; @lf014='typ=4701 and a1=''SOURCE'' and (a9<>''M'' or '''&obj:key3&'''=''SUMMARY'') and b3!=1',2;
 \t015Fund;  \l0164701;r016002050004; @lf016='typ=4701 and (((a1 in (select accountType from dbo.glBankFundTypes(''FUND'') where accounttype <> ''OFFICIAL'') and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or (id in (select id from dbo.latestReceivables())) and '''&obj:key3&''' not in (''OFFICIAL'',''TRUST'')) or ('''&obj:key3&'''=''TRUST'' and a1=''PURPOSE'')) and b3!=1 and b10!=1',2,2;
  @acc016=if(obj:key3='OFFICIAL',update);
@@ -419,8 +408,11 @@ close('ok');
  lccheck=kp('select count(*) from receiptlink where receiptId='&obj:id),
  if(obj:key3='TAX' and lccheck+0 < 1,m('No Statements Linked please retry receipt.')),
  break(obj:key3='TAX' and lccheck+0 < 1),
- if(obj:a17='Posted' or readstring(gcSiteBlob,'@recNoPost?=')=1,postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
- if(gcretval=2,postAndPrint=);
+ if(obj:a17='Posted' or readstring(gcSiteBlob,'@recNoPost?=')=1,postAndPrint=,dopostquestion=),
+ ;
+
+@dopostquestion=m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4),
+if(gcretval=2,postAndPrint=);
 
 \h112(obj:key3<>'TRUST' and obj:b15<>'PROTEST') or obj:b7+0.00<0.01;
 \t112Write Voucher;
@@ -507,8 +499,7 @@ close('ok');
  d1select('exec dbo.receiptVoid '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  refreshDetail=,
- update,
- close('ok');
+ update;
 
 \t110Deposit Now; @acc110=gccontinue='',gcmessage='deposit',
   if(obj:a17<>'Posted',dounposted=),
@@ -595,7 +586,7 @@ close('ok');
  update,
  sql('exec dbo.logit null, ''receiptDetailCRUD '&obj:id&','&obj:type&''''),
  break(obj:a3<'  0'),break(obj:a4<'  0' and obj:key3<>'TRUST' and obj:key3<>'OFFICIAL'),break(obj:a5<'  0' and obj:key3<>'OFFICIAL'),
- d1select('exec receiptDetailCRUD '&obj:id&','&obj:type&', @altContraId='&obj:type1+0),
+ d1select('exec receiptDetailCRUD '&obj:id&','&obj:type),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
  break(readstring(obj7:d1,'@code=')=1),
  blankEm=,
@@ -727,7 +718,6 @@ gcPrintOneTaxReceiptId=0,
   m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
   break(gcretval<>2),
   iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
-  resetfocus(),
   break(gcretval='esc'),
   lcnewamount=obj7:key1,
   sql('exec subInvoiceAdjust '&gcid&', '&lcnewamount+0&','&obj:id),
@@ -781,8 +771,8 @@ gcPrintOneTaxReceiptId=0,
  printRec=,
  checkCert=,
  gccertId=0,
- lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
- if(lccheck+0 > 0,dodecal=),
+ gcmobhome=kp('select dbo.mobileHomeCheck('&obj:id&')'),
+ if(gcmobhome+0 > 0,dodecal=),
  if(readstring(obj:e2,'@autoDeposit=')='TRUE',depositNow=)
  ;
 
@@ -790,7 +780,7 @@ gcPrintOneTaxReceiptId=0,
  break(gcretval+0<>2),
  dodecal2=;
 
-@dodecal2=browse(1,4301,'link1='&obj:id,1,obj:id);
+@dodecal2=sql('exec dbo.mobileHomeAdd '&obj:id&','&gcmobhome+0),browse(1,4301,'link1='&obj:id,1,obj:id);
 
 @getRecNum=
  if(obj:key3='TAX',sql('exec dbo.taxReceiptNumber '&obj:id)),
