@@ -7,7 +7,8 @@ begin
          @taxrollId int,
          @queue varchar(50),
          @printOrder varchar(50),
-         @addressblobtoken varchar(max)
+         @addressblobtoken varchar(max),
+         @revised varchar(10) = dbo.settingsf('site.printStatementRevised','FALSE')
 
   select
    @queue = processCode,
@@ -94,6 +95,10 @@ end
 select @retval = @retval
  + '@HideMrtgMsg=' + c2 + ';'
  from object where typ=4030 and key1=dbo.readstring('@MortgageCode=',@retval)
+
+if @revised = 'TRUE'
+ select @retval = @retval + '@revised=TRUE;'
+
 
  return @retval
 
