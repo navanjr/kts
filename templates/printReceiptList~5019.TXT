@@ -17,6 +17,10 @@ printBookReceiptList=;
 /**Receipt Type = Tax prints parcel detail; Receipt Type = blank prints all types including Tax w/o parcel detail**/
 /**returns receipts for all users sorted by receipt type, shows owner per suspense method**/
 
+@printReceiptListMowing=gcWhere=' where assessmentCityCode > ''  0'' ',
+ gcReceiptType='TAX',
+ printReceiptList=;
+
 @printReceiptList=
  do(452,getSiteInfo=),
  d1select('select a17 from object where typ=40'),
@@ -26,11 +30,11 @@ printBookReceiptList=;
  lcReportType=choose(lcSusMethod='S','Station','Deputy'),
  lcReportSort=choose(lcSusMethod='S',1,0),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
- if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
+ if(gcReceiptType>'  0',lcWhere=gcWhere&choose(gcWhere>'  0',' and ',' where ')&' left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=gcWhere),
  if(gcBankAccount>'  0',lcWhere=lcWhere&choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''') and recId not in (select dbo.slinkid(slink) from paid where 
  depositid in (select d.id from object d, glaccounts a where d.typ = 4513 and d.link1=a.accountid and accountcode <> '''&gcBankAccount&''') 
  and dbo.slinktype(slink)=''o'')',lcWhere=lcWhere),
- lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,

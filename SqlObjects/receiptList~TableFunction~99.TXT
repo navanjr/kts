@@ -33,7 +33,9 @@ returns @wt table(id int identity(1,1),
                   SAtyp varchar(50),
                   station varchar(60),
                   recStatus varchar(50),
-                  parentInvoiceSlink varchar(15))
+                  parentInvoiceSlink varchar(15),
+                  assessmentCityCode varchar(60),
+                  assessmentCityDesc varchar(50))
                   
 as 
 begin                  
@@ -74,7 +76,9 @@ if dbo.settingsf('site.receiptListUseOwnerName','FALSE') = 'TRUE'
  set paid = amount, 
      taxYear = apyear, 
      school = apdistrict, 
-     rate = aprate 
+     rate = aprate,
+     assessmentCityCode = case when invoiceType in ('S','O') then (select top 1 accountCode from dbo.targetFund(b.accountcode) order by apportionPercent desc) else ''  end,
+     assessmentCityDesc = case when invoiceType in ('S','O') then (select top 1 accountDesc from dbo.targetFund(b.accountcode) order by apportionPercent desc) else '' end
  from @wt w,gldetail a, glaccounts b 
  where a.accountCode=b.accountCode 
    and b.accountType='ACCRUED RECEIVABLE' 
@@ -226,7 +230,7 @@ delete from @wt where parentInvoiceId>0
 
 update @wt set
   recType=recType+' '+isnull(taxYear,''),
-  taxType = case when invoiceType not in ('B','I','R','P','A') then case when perTyp!='F' then 'Special' else 'Fire' end else '' end,
+  taxType = case when invoiceType not in ('B','I','R','P','A') then case when perTyp!='F' then 'Special - '+assessmentCityDesc else 'Fire' end else '' end,
   SAtyp = case when invoiceType not in ('B','I','R','P', 'A')  then case when perTyp!='F' then 'Weed' else 'Fire' end else '' end
 where recType='TAX'
 
