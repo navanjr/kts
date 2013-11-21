@@ -16,7 +16,12 @@ begin
   @keyFieldName varchar(50),
   @invoiceTyp varchar(10),
   @taxYear varchar(10),
-  @ini varchar(20) = dbo.readstring('@ini=',dbo.whoAmI())
+  @ini varchar(20) = dbo.readstring('@ini=',dbo.whoAmI()),
+  @curyear varchar(4) = year(getdate()),
+  @lastCertNo varchar(20),
+  @nextCertNo varchar(20),
+  @adtaxId int
+ 
 
  select
   @keyFieldName = case when @dtype = 'RESALE' then 'parcel' else 'item' end
@@ -114,6 +119,20 @@ begin
    insert taxRollDetail (parcelNumber, dtype, comments) select @parcel, @dtype, @ini + ' - Sent to Abstracter: ' + @mode
   return
  end
+
+  if @dtype = 'CERT'
+  begin
+   select @parcel = parcel, @taxyear = taxyear, @adtaxId = taxrollId from invoices where id=@invoiceId
+   
+   select top 1 @lastCertNo = substring(stamp,5,4) from taxrolldetail where dtype='CERT' and left(stamp,4) like right(@curyear,2)+'C-' order by stamp desc
+   select @nextCertNo = isnull(right('0000'+cast(cast(@lastCertNo as int)+1 as varchar),4),'0001')
+
+   if not exists(select * from taxrollDetail where adtaxId=@adtaxid and dtype = @dtype) and @adtaxId > 0
+    insert taxRollDetail (adtaxId, taxyear, parcelNumber, dtype, stamp) select @adtaxId, @taxyear, @parcel, @dtype, right(@curyear,2)+'C-'+@nextCertNo
+   return
+  end
+
+ 
  
  if @mode = 'ATTACH' and @parcel>'  0'
    begin

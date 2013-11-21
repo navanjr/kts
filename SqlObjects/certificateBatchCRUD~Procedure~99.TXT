@@ -1,0 +1,96 @@
+create proc dbo.certificateBatchCRUD(
+ @batchId int,
+ @invoiceId int = 0,
+ @status varchar(50)='STAGEALL',
+ @lcContinue varchar(50) = '',
+ @invoiceDate int = null,
+ @debugMode varchar(5) = 'FALSE',
+ @dType varchar(50) = '',
+ @documentId int = 0,
+ @verbose varchar(5) = 'FALSE',
+ @date int = null,
+ @days int = null,
+ @taxRollDetailId int = 0
+ 
+) as
+begin
+
+ set nocount on
+
+ declare @invoicesToProcess table(id int)
+
+ declare @wt table(
+  id int identity(1,1),
+  invoiceId int,
+  parcel varchar(50),
+  school varchar(50)
+ )
+
+ declare
+  @tally int,
+  @tokenId int,
+  @tokenInvoiceId int,
+  @tokenInvoiceDate int,
+  @tokenParcel varchar(50),
+  @tokenSchool varchar(50),
+  @parcel varchar(50),
+  @Item numeric(7,1),
+  @blob varchar(max)
+
+
+ if @status in ('ALL','STAGEALL')
+ begin
+-- get all the invoices
+
+   insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
+    where due<>0 and invoiceId not in (select id from invoices where TAXROLLID in 
+    (select adtaxid from taxrolldetail where dtype='CERT') )
+ 
+  select @tally = count(id) from @invoicesToProcess
+
+  exec dbo.logit @@procId, '@status', @status, '@batchId', @batchId, '@invoiceId', @invoiceId, '@tally', @tally
+
+  if @status = 'STAGEALL'
+  begin
+   
+   select '@code=0;@message=;@tally=' + cast(@tally as varchar) + ';'
+   return
+  end
+
+  insert @wt
+  select
+   i.id,
+   inv.parcel,
+   dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],a.id,'042') 
+  from @invoicesToProcess i, invoices inv, AdTax a
+  where i.id=inv.ID
+   and inv.TAXROLLID=a.ID
+  
+  
+
+  select @tally = @@rowcount
+
+  if @debugMode = 'TRUE'
+  begin
+   select * from @wt
+   return
+  end
+
+  while exists(select * from @wt)
+  begin
+   select top 1 
+    @tokenId = id,
+    @tokenParcel = parcel,
+    @tokenSchool = school,
+    @tokenInvoiceId = invoiceId
+   from @wt order by parcel
+   exec dbo.dtypeCommentCRUD '','CERT',@invoiceId=@tokenInvoiceId
+ 
+
+   delete @wt where id = @tokenId
+   set @tally = @tally - 1
+  end   
+
+ end
+
+end

@@ -101,6 +101,12 @@ if @pubFlag = 'FALSE'
    from taxrollDetail where (itemNumber > 0 and itemNumber = @item  or parcelNumber > '  0' and parcelNumber = @parcel) and dtype in ('BANKRUPT','EXEMPT')
     and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
 
+---dtype CERT records
+  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), 'Certificate: '+stamp, ' '+dtype,5,1
+   from taxrollDetail where parcelNumber = @parcel and taxyear=@taxyear and dtype = ('CERT')
+    and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
+
+
 ---collection notes
   insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, dtype,5,0
    from taxrollDetail where (itemNumber > 0 and itemNumber = @item  or parcelNumber > '  0' and parcelNumber = @parcel) and dtype in ('print')
