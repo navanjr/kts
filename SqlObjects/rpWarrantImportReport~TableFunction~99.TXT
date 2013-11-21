@@ -57,13 +57,13 @@ select @bankcode=key3 from object where id=@ImportId
  group by fundCode, fundDesc
 
  insert @rt (c1,c3,ord,origin)
- select fundDesc + ' Total:', dbo.formatCurr(sum(importBalance)), 'BB' + fundCode + 'Z', 1111
+ select fundDesc + ' Total:', dbo.formatCurr(sum(isnull(importBalance,0))), 'BB' + fundCode + 'Z', 1111
  from @rt
  where origin = 1
  group by fundCode, fundDesc
 
  insert @rt (c1,c3,ord,origin)
- select 'Warrants to Import Total:', dbo.formatCurr(sum(importBalance)), 'BB' + 'Z', 1111
+ select 'Warrants to Import Total:', dbo.formatCurr(sum(isnull(importBalance,0))), 'BB' + 'Z', 1111
  from @rt
  where origin = 1
 
@@ -96,7 +96,7 @@ select @bankcode=key3 from object where id=@ImportId
   fundCode,
   fundDesc,
   debitAcct,
-  sum(importBalance),
+  sum(isnull(importBalance,0)),
   'CD' + fundDesc,
   2
  from @rt
@@ -104,8 +104,8 @@ select @bankcode=key3 from object where id=@ImportId
  group by fundCode,fundDesc,debitAcct
 
  update r set
-  glbalance = (select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode),
-  OSWarrants = (select sum(amount) from gldetailreports where accountCode=r.debitAcct)
+  glbalance = isnull((select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode),0),
+  OSWarrants = isnull((select sum(amount) from gldetailreports where accountCode=r.debitAcct),0)
  from @rt r
  where origin = 2
  update @rt set available = glbalance - OSWarrants - importBalance where origin = 2
