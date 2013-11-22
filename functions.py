@@ -234,6 +234,7 @@ class ktsMenu():
             if foxFieldsCSV:
                 foxFields = foxFieldsCSV.split(',')
             if foxFile:
+                print "My Fox Fields: ", foxFields
                 fox = importDBF.dbfClass(foxFile, tableName, foxFields)
                 fox.load()
                 data = fox.get()
