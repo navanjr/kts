@@ -4,6 +4,8 @@ import threading
 import win32event
 import select
 import types
+import sys
+import os
 
 def log(message):
     try:
@@ -77,7 +79,22 @@ class kirc:
             # log("raw data: %s" % self.ircMessageDecoder(self.data))
             log("raw data: %s" % self.data)
 
-            brainResponse = self.brain.stimulate(self.ircMessageDecoder(self.data))
+            try:
+                brainResponse = self.brain.stimulate(self.ircMessageDecoder(self.data))
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                brainResponse = {
+                    "continueChat": True,
+                    "restartService": True,
+                    "chatCommand": None,
+                    "psend": [
+                        "houston we have a problem",
+                        "%s - %s line:%s" % (exc_type, fname, exc_tb.tb_lineno),
+                        e.__doc__,
+                        e.message,
+                    ],
+                }
 
             log("response from my brain: %s" % brainResponse)
 

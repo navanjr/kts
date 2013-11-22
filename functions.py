@@ -225,6 +225,7 @@ class ktsMenu():
             tableName = self.command[2]
             foxFile = self.settingsF('conversion.%s' % tableName, None)
             foxFieldsCSV = self.settingsF('conversion.%s.fields' % tableName, None)
+            foxFields = None
             if foxFieldsCSV:
                 foxFields = foxFieldsCSV.split(',')
             if foxFile:

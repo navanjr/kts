@@ -21,7 +21,10 @@ class dbfClass():
 
         s = d['structure']
         for column in dbfTable.structure():
-            if column.split()[0] in self.fieldsArray:
+            if self.fieldsArray:
+                if column.split()[0] in self.fieldsArray:
+                    s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
+            else:
                 s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
 
         r = d['rows']

@@ -437,6 +437,7 @@ class kps():
                     try:
                         if passedKeys:
                             nKeys = passedKeys
+                            print data
                         else:
                             nKeys = self.nextXKeys(data)
                         minutes = (i * seconds)/60
