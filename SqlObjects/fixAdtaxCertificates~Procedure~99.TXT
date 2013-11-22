@@ -1,0 +1,18 @@
+create procedure dbo.fixAdtaxCertificates(@countyName varchar(50))
+as 
+begin
+if ISNULL(@countyName,'') < ' 0'
+begin
+select 'Please specify a county name.'
+return
+end
+
+declare @runcode varchar(250)
+select @runcode = 'update a set certificatenumber=t.cert_asgn
+from KPS2KTS.dbo.temp_'+@countyName+'taxroll t, AdTax a 
+ where t.taxyear=a.REALTAXYEAR
+   and t.itm_nbr=a.ITEMNUMBER
+   and t.cert_asgn<>a.certificatenumber'
+   
+exec (@runcode)
+end
