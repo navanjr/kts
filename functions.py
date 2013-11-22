@@ -85,8 +85,8 @@ class ktsMenu():
         self.createCommand('compressFile',['compress','compressFile'],'test menu option',self.command_compress)
         self.createCommand('checkoutTag',['checkout'],'fetch and checkout tag',self.command_gitCheckout, chatFunction=self.chat_gitCheckout)
 
-        self.createCommand('api',['api', ],'run api job',self.command_api, chatFunction=self.chat_api)
-        self.createCommand('apiSite',['site', ],'return site info from the api',self.command_apiSite, 'api')
+        self.createCommand('api', ['api', 'API', ], 'run api job',self.command_api, chatFunction=self.chat_api)
+        self.createCommand('apiSite', ['site', ],'return site info from the api',self.command_apiSite, 'api')
         self.createCommand('apiSettings',['settings','set' ],'return api settings',self.command_apiSettings, 'api')
         self.createCommand('apiResourceControl',['resource','res' ],'toggle api service (api res X)',self.command_apiResourceControl, 'api')
         self.createCommand('apiLooper',['loop','looper' ],'fire up the api looper (api loop X)',self.command_apiLooper, 'api')
@@ -130,8 +130,26 @@ class ktsMenu():
         self.chatObj = {}
 
     def nateTest(self):
-        fileName = self.command[1:][0]
-        self.compressFile(fileName)
+        print self.doWeNeedToRunTheBackUp()
+
+    def doWeNeedToRunTheBackUp(self):
+        todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
+        lastBackupDateTime = convertSettingTime(self.settingsF('backup.lastBackupDate'))
+        # print 'last  ', lastBackupDateTime
+        # print 'todays', todaysBackupDatetime
+        # print 'now   ', currentDatetime()
+
+        #return false if backup is older than todays backup time
+        if lastBackupDateTime > todaysBackupDatetime:
+            return False
+        #return false if its not time to run the backup yet
+        elif todaysBackupDatetime > currentDatetime():
+            return False
+        #return true if it is past the time to run the backup
+        elif todaysBackupDatetime < currentDatetime():
+            return True
+        else:
+            return True
 
     def command_compress(self):
         if len(self.command) == 2:
@@ -141,7 +159,6 @@ class ktsMenu():
                 print "congrats, you compressed %s to %s bytes" % (fileName, sizeOfZip)
             else:
                 print "sorry, something went wrong compressing %s..." % fileName
-
 
     def compressFile(self, fileName, eraseOriginalFile=True):
         if ':\\' in fileName:
@@ -207,13 +224,19 @@ class ktsMenu():
         if len(self.command) == 3:
             tableName = self.command[2]
             foxFile = self.settingsF('conversion.%s' % tableName, None)
+            foxFieldsCSV = self.settingsF('conversion.%s.fields' % tableName, None)
+            if foxFieldsCSV:
+                foxFields = foxFieldsCSV.split(',')
             if foxFile:
-                fox = importDBF.dbfClass(foxFile, tableName)
+                fox = importDBF.dbfClass(foxFile, tableName, foxFields)
                 fox.load()
                 data = fox.get()
                 print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
                 for row in data['insertRows']:
-                    self.sqlQuery(row, True)
+                    try:
+                        self.sqlQuery(row, True)
+                    except:
+                        print row
 
     def command_devup(self):
         self.sendCommand('set gitpath')
@@ -272,6 +295,14 @@ class ktsMenu():
             securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
             if not securityCheck:
                 return [message]
+            if len(cmd) == 3 and cmd[2].lower() == 'alloff':
+                for key, value in self.apiService.items():
+                    pass
+
+                    # self.apiResourceToggle(value['resource'])
+                return getApiStatus()
+            if len(cmd) == 3 and cmd[2].lower() == 'allon':
+                pass
             if len(cmd) == 3:
                 self.apiResourceToggle(cmd[2])
                 return getApiStatus()
@@ -336,16 +367,25 @@ class ktsMenu():
         if s['running']:
             return
 
+        # turn on the lights
         s['running'] = True
 
         while True:
+            # check to see if someone turned off the light
             if not s['running']:
                 break
 
+            # API Services
             try:
                 self.apiServiceEvent()
             except:
                 s['eventRunning'] = False
+
+            # daily backup
+            if self.doWeNeedToRunTheBackUp():
+                self.command_backup(True)
+
+            # check IRC Connection
 
         # turn the lights off when going out the door
         s['running'] = False

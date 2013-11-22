@@ -3,13 +3,14 @@ import dbf
 
 
 class dbfClass():
-    def __init__(self, originalFile, tableName):
+    def __init__(self, originalFile, tableName, fieldsArray=None):
         self.data = {}
         self.data['structure'] = []
         self.data['rows'] = []
         self.data['insertRows'] = []
         self.data['tableName'] = "temp_%s" % tableName
         self.data['originalFile'] = originalFile
+        self.fieldsArray = fieldsArray
 
     def load(self):
         d = self.data
@@ -20,7 +21,8 @@ class dbfClass():
 
         s = d['structure']
         for column in dbfTable.structure():
-            s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
+            if column.split()[0] in self.fieldsArray:
+                s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
 
         r = d['rows']
         ir = d['insertRows']

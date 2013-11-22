@@ -3,7 +3,19 @@ import urllib2
 import urllib
 import base64
 import json
+from datetime import datetime
 
+
+def convertSettingTime(setting, format='%Y-%m-%d %H:%M:%S.%f', addTheDay=False):
+    if addTheDay:
+        strDateTime = '%s %s' % (str(datetime.now().date()), setting)
+    else:
+        strDateTime = setting
+    date = datetime.strptime(strDateTime, format)
+    return date
+
+def currentDatetime():
+    return datetime.now()
 
 def areYouSure(question='are you sure?', force=False, boolean=True):
     try:
