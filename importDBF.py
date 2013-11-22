@@ -10,7 +10,7 @@ class dbfClass():
         self.data['insertRows'] = []
         self.data['tableName'] = "temp_%s" % tableName
         self.data['originalFile'] = originalFile
-        self.fieldsArray = fieldsArray
+        self.data['fieldsArray'] = fieldsArray
 
     def load(self):
         d = self.data
@@ -21,8 +21,8 @@ class dbfClass():
 
         s = d['structure']
         for column in dbfTable.structure():
-            if self.fieldsArray:
-                if column.split()[0] in self.fieldsArray:
+            if self.data['fieldsArray']:
+                if column.split()[0] in self.data['fieldsArray']:
                     s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
             else:
                 s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
@@ -49,12 +49,15 @@ class dbfClass():
                     nValues.append(str(row[column[0]] or 0))
             r.append(obj)
             sql = "insert %s ({nColumns},{vColumns}) select {nValues},'{vValues}'" % d['tableName']
-            ir.append(sql.format(
+            sql = sql.format(
                 nColumns=",".join(nColumns),
                 vColumns=",".join(vColumns),
                 nValues=",".join(nValues),
                 vValues="','".join(vValues)
-            ))
+            )
+            sql = sql.replace("(,", "(")
+            sql = sql.replace("select ,", "select ")
+            ir.append(sql)
 
         tb = d['tableName']
         st = ["%s %s" % (x[0], x[1]) for x in s]

@@ -130,7 +130,12 @@ class ktsMenu():
         self.chatObj = {}
 
     def nateTest(self):
-        print self.doWeNeedToRunTheBackUp()
+        fox = importDBF.dbfClass("C:\\client\\DOSDATA\\grant\\tax\\taxroll.dbf", "nateTest", 'itm_nbr,taxyear'.split(','))
+        fox.load()
+        data = fox.get()
+        print 'fields array', data['fieldsArray']
+        for x in data['insertRows'][0:10]:
+            print x
 
     def doWeNeedToRunTheBackUp(self):
         todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
