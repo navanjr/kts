@@ -1,0 +1,48 @@
+create proc dbo.diagFix_countyCertificates(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'Collections',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(*),
+   @message = 'missing county certificate record.'
+  from adtax
+  where certificatenumber > '  0'
+   and id not in (select adtaxId from taxrollDetail where dtype='CERT')
+ 
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+
+
+  insert taxRollDetail (adtaxId, taxyear, parcelNumber, dtype, stamp) 
+  select a.id, 
+       dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'), 
+       dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006'), 
+       'CERT', 
+       dbo.taxCorrectionsSF(isnull([CERTIFICATENUMBER],''),a.id,'082')
+  from AdTax a 
+  where dbo.taxCorrectionsSF(isnull([CERTIFICATENUMBER],''),a.id,'082')>' 0'
+   and dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') > ' 0'
+   and a.ID not in (select adtaxId from taxRollDetail where dtype='CERT')
+  return
+ end
+
+
+end
