@@ -23,6 +23,7 @@ class dbfClass():
         for column in dbfTable.structure():
             if self.data['fieldsArray']:
                 if column.split()[0] in self.data['fieldsArray']:
+                    print "found %s in fieldsArray" % column.split()[0], column
                     s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])
             else:
                 s.append([column.split()[0], column.split()[1].replace("C", "varchar").replace("N", "numeric")])

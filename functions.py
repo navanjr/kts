@@ -133,7 +133,7 @@ class ktsMenu():
         fox = importDBF.dbfClass("C:\\client\\DOSDATA\\grant\\tax\\taxroll.dbf", "nateTest", 'itm_nbr,taxyear'.split(','))
         fox.load()
         data = fox.get()
-        print 'fields array', data['fieldsArray']
+        print data['dropAndCreateTableSQL']
         for x in data['insertRows'][0:10]:
             print x
 
@@ -237,6 +237,7 @@ class ktsMenu():
                 fox = importDBF.dbfClass(foxFile, tableName, foxFields)
                 fox.load()
                 data = fox.get()
+                print "structure: ", data['structure']
                 print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
                 for row in data['insertRows']:
                     try:
