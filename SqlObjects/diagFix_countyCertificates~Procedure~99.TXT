@@ -20,17 +20,28 @@ begin
    @code = case when count(*) > 0  then 1 else 0 end,
    @tally = COUNT(*),
    @message = 'missing county certificate record.'
-  from adtax
+  from adtax a
   where certificatenumber > '  0'
+   and dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') > ' 0'
    and id not in (select adtaxId from taxrollDetail where dtype='CERT')
  
   return
  end
 
+ if @method = 'SHOW'
+ begin  
+  select *
+  from adtax a
+  where certificatenumber > '  0'
+   and dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') > ' 0'
+   and id not in (select adtaxId from taxrollDetail where dtype='CERT')
+ 
+  return
+ end
+
+
  if @method = 'FIX'
  begin  
-
-
   insert taxRollDetail (adtaxId, taxyear, parcelNumber, dtype, stamp) 
   select a.id, 
        dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'), 

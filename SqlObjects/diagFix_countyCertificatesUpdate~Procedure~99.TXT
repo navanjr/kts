@@ -1,0 +1,53 @@
+create proc dbo.diagFix_countyCertificatesUpdate(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'Collections',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(*),
+   @message = 'taxroll items missing a county certificate where the parcel has a certificate in the previous year.'
+  from AdTax a
+   where dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') 
+    in (select PARCELNUMBER from taxRollDetail where dtype='CERT' and ISNULL(actiondate,0)=0)
+    and ID not in (select adTaxId from taxRollDetail where dtype='CERT')  return
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+  select * from AdTax a
+   where dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') 
+    in (select PARCELNUMBER from taxRollDetail where dtype='CERT' and ISNULL(actiondate,0)=0)
+    and ID not in (select adTaxId from taxRollDetail where dtype='CERT')  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert taxRollDetail (adtaxId, taxyear, parcelNumber, dtype, stamp) 
+  select a.id, 
+       dbo.taxCorrectionsSF([REALTAXYEAR],a.id,'004'), 
+       dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006'), 
+       'CERT', 
+       isnull((select top 1 stamp from taxRollDetail where dtype='CERT' and ISNULL(actiondate,0)=0 and parcelnumber = dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') order by stamp desc),'')
+  from AdTax a
+   where dbo.taxCorrectionsSF([FULLPIDNUMBER],a.id,'006') 
+    in (select PARCELNUMBER from taxRollDetail where dtype='CERT' and ISNULL(actiondate,0)=0)
+    and ID not in (select adTaxId from taxRollDetail where dtype='CERT')  return
+  return
+ end
+
+end

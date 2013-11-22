@@ -1,0 +1,57 @@
+create proc dbo.diagFix_countyCertificatesCompleted(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+  select 
+   @class = 'Collections',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0  then 1 else 0 end,
+   @tally = COUNT(*),
+   @message = 'county certificates not showing completed yet nothing is due.'
+  from taxRollDetail 
+   where dtype='CERT' 
+     and isnull(actionDate,0) = 0
+     and adTaxId not in (select taxrollid from invoices where invoicedue > 0) 
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+
+  select * 
+  from taxRollDetail 
+   where dtype='CERT' 
+     and isnull(actionDate,0) = 0
+     and adTaxId not in (select taxrollid from invoices where invoicedue > 0) 
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+
+
+  update taxRollDetail set actionDate=dbo.clariondate(GETDATE())
+   where dtype='CERT' 
+     and isnull(actionDate,0) = 0
+     and adTaxId not in (select taxrollid from invoices where invoicedue > 0)
+  return
+ end
+
+
+end
