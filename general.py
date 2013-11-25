@@ -84,12 +84,15 @@ def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=F
     if data:
         # should be able to remove this CLEAN() proc
         #  as we will be stripping some goofy characters during initial pull
+        # ----------------------------------------------------------------------^
         for row in data:
             for key, value in row.items():
                 if key in ('receipt_link', 'receipt_number') and value < '  0':
                     row[key] = '000000'
                 elif key in ('paid_date') and len(value) == 7:
                     row[key] = value[0:4]+'0'+value[4:]
+                elif key in ('legal_description'):
+                    row[key] = base64.urlsafe_b64encode(value)
                 else:
                     row[key] = value
         # ----------------------------------------------------------------------^
