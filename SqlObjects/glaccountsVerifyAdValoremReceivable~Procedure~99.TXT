@@ -1,0 +1,21 @@
+create procedure dbo.glaccountsVerifyAdValoremReceivable
+as
+begin
+
+declare @funds table(accountcode varchar(60)) 
+
+declare @tokenFundCode varchar(60),
+        @tokenReceivableCode varchar(60)
+
+insert @funds
+ select accountcode from glaccounts where accounttype='FUND' and accountcode like '%ADVALOREM'
+
+while exists(select * from @funds)
+begin
+ select top 1 @tokenFundCode = accountcode, @tokenReceivableCode = rtrim(accountcode)+'_AR' from @funds
+  exec dbo.glAccountVerification @tokenReceivableCode,'RECEIVABLE','CREATE',@targetAccountCode=@tokenFundCode 
+ delete from @funds where accountcode = @tokenFundCode
+end
+
+
+end
