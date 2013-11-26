@@ -45,8 +45,9 @@ create function [dbo].[taxReceiptPrintRange](@d1 int,@d2 int) returns
                         remainingTaxDue money,
                         remainingFeeDue money,             
                         remainingTaxDueTot money,
-                        remainingFeeDueTot money  )             
+                        remainingFeeDueTot money)             
 begin		
+
 
   declare @wt table (receiptId int)
 
@@ -54,6 +55,18 @@ begin
         select id from object where typ=4502 and key3='TAX' and b10 between @d1 and @d2
 
   declare @recId int
+
+  insert @rt (recId,taxyear,receiptNo,schoolDistrict,legal,parcel,blk,sec,twp,rng,recof,comments)
+   select w.receiptId,i.taxyear,l.receiptNumber,'VOID','VOID','VOID','VOID','VOID','VOID','VOID','VOID','VOID' 
+    from @wt w,invoices i,receiptlink l,object r
+    where r.typ = 4502 and r.id = w.receiptId
+      and l.receiptId = r.id
+      and l.invoiceId = i.id
+      and r.a17='VOID'
+
+  delete from @wt where receiptid in (select recId from @rt)    
+
+
 
 
  while exists (select * from @wt)
