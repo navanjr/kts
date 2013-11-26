@@ -471,7 +471,7 @@ begin
 
   end
   
-  if @paymentType='Warrant'
+  if @paymentType in ('Warrant')
   begin
 
 
@@ -487,48 +487,47 @@ begin
     begin
      if @accountNumberBLOB > ' 0' and @fiscalYear > ' 0' and @targetFundCodeToken > ' 0'
      begin
-      declare @budgetAccounts table(id int identity(1,1),
+        declare @budgetAccounts table(id int identity(1,1),
                                   accountNumber varchar(50),
                                   budgetAccountCode varchar(50),
                                   budgetFundCode varchar(50),
                                   amount money,
                                   processCode int
                                   )
-      insert @budgetAccounts (accountNumber,amount,processCode)
-       select rtrim(dbo.splitf(data,':',1)),cast(dbo.splitf(data,':',2) as money),0 from dbo.split(@accountNumberBLOB,'|')
+        insert @budgetAccounts (accountNumber,amount,processCode)
+         select rtrim(dbo.splitf(data,':',1)),cast(dbo.splitf(data,':',2) as money),0 from dbo.split(@accountNumberBLOB,'|')
     
-      delete from @budgetAccounts where len(accountnumber) < 1
+        delete from @budgetAccounts where len(accountnumber) < 1
 
-      declare @budgetIdToken int,
+        declare @budgetIdToken int,
             @budgetAccountNumberToken varchar(50),
             @budgetAccountCodeToken varchar(50),
             @budgetFundCodeToken varchar(50)
       
       
-      while exists(select * from @budgetAccounts where processCode = 0)
-      begin
-       select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts where processCode = 0
+        while exists(select * from @budgetAccounts where processCode = 0)
+        begin
+         select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts where processCode = 0
      
-       exec dbo.budgetAccountVerification
+         exec dbo.budgetAccountVerification
             @budgetAccountNumberToken, 
             @fiscalYear, 
             @targetFundCodeToken, 
             @budgetAccountCode = @budgetAccountCodeToken output,
             @budgetFundCode = @budgetFundCodeToken output
      
-       update @budgetAccounts 
-        set budgetAccountCode = @budgetAccountCodeToken,
-          budgetFundCode = @budgetFundCodeToken,
-          processCode = 1
-        where id = @budgetIdToken
+         update @budgetAccounts 
+          set budgetAccountCode = @budgetAccountCodeToken,
+            budgetFundCode = @budgetFundCodeToken,
+            processCode = 1
+          where id = @budgetIdToken
 
-      end
+        end
 
-     insert @stageRows 
-       select budgetAccountCode, sum(amount), 'budgetAccountCode' from @budgetAccounts group by budgetAccountCode
-      union all
-       select budgetFundCode, sum(amount) * -1, 'budgetFundCode' from @budgetAccounts group by budgetFundCode
-
+       insert @stageRows 
+         select budgetAccountCode, sum(amount), 'budgetAccountCode' from @budgetAccounts group by budgetAccountCode
+        union all
+         select budgetFundCode, sum(amount) * -1, 'budgetFundCode' from @budgetAccounts group by budgetFundCode
 
 
      end
@@ -549,6 +548,17 @@ begin
   select b.accountId, b.accountCode, b.accountDesc, @voucherDate, a.amount, @newslink, case when isnull(@id,0)>0 then 'o' + cast(@id as varchar) else null end
    from @stageRows a, glAccounts b 
    where a.acctCode = b.accountCode
+
+
+--Fix the appropriation ledger for cancelled warrants
+  if @paymentType = 'Cancel Warrant'
+  begin
+   insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink,slink2)
+   select accountId, accountCode, accountDesc, @voucherDate, amount*-1, @newslink, case when isnull(@id,0)>0 then 'o' + cast(@id as varchar) else null end
+    from gldetail
+     where slink = @slink and accountcode in (select accountcode from glaccounts where accounttype='Budget')
+  end      
+
 
   commit transaction    
   exec dbo.logit @@procid, 'commit SQL Transaction! and fire glPost - 2; @skipSQLTransaction', @skipSQLTransactionOnGlPost
