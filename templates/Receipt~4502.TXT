@@ -630,9 +630,28 @@ close('ok');
  if(lcTyp+0=7,donewinvoice=),
  lcid=kp('select substring(slink,2,25) from receiptdetail where id='&lcrdId+0),
  if(lcTyp+0=5,donewinvoice=),
- if(lcTyp+0=6,donewpenalty=),
+ if(lcTyp+0=6,taxitemchoose=),
  if(lcTyp+0=3,donewtaxreceiptno=)
 ;
+
+@taxitemchoose=m('','Add a new?',,'PENALTY|FEE'),
+if(gcretval+0=1,donewpenalty=),
+if(gcretval+0=2,donewfee=),
+refreshDetail=
+;
+
+@donewfee=
+ lcSearchId=lcrdId,
+ break(lcSearchId+0<1),
+  gcRecType='TAX',
+  iw('\t001Date; \t002@d2; \f002=c; \w00250; \t003Description;\l0044504;r004002006004008006; @lf004=''a1=''''tax'''''',1,2; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE'''' and b3!=1'',2; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND'''' and b3!=1'',2; \t009Amount; \t010@n21.2; \w01050;'),
+  gcTaxDescrip='',
+  break(gcretval<>'OK'),
+  d1select('exec dbo.taxReceiptAddFee '&lcSearchId&','''&obj7:key1&''','''&obj7:key2&''','''&obj7:key3&''','''&obj7:a1&''',''F'','&obj7:a2&',@recId='&obj:id&' ,@blob = ''Add Fee:'&obj7:key2&': '&format(obj7:a2,@n14.2)&''''),
+  gctempmess=obj7:d1,
+  if(readstring(gctempmess,'@code=')=1,m(gctempmess)),
+  gctempmess='',
+ refreshDetail=;
 
 @donewtaxreceiptno=
  lcReceiptLinkId=lcrdId, 

@@ -1,0 +1,22 @@
+CREATE procedure [dbo].[taxReceiptAddFee](
+ @mainInvoiceId int,
+ @invoiceDate varchar(10),
+ @description varchar(60),
+ @sourceCode varchar(50),
+ @fundCode varchar(50),
+ @subInvoiceType varchar(1) = 'F',
+ @amount money,
+ @blob varchar(max) = '',
+ @recId int = null)
+as 
+begin
+
+declare @invoiceId int
+
+exec dbo.subinvoiceCRUD @mainInvoiceId, @invoiceDate, @description, @sourceCode, @fundCode, @subInvoiceType, @amount, @blob=@blob, @newinvoiceId = @invoiceId output
+
+  insert receiptLink (receiptId,invoiceId,methodRate)
+   select @recId, @invoiceId, 1.00 
+
+end
+
