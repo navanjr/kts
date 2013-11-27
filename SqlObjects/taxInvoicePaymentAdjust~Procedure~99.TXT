@@ -7,7 +7,11 @@ declare @postDate varchar(20) = dbo.clariondate(getdate()),
         @contraId int,
         @expAccountCode varchar(60),
         @arAccountCode varchar(60),
-        @ACRAccountCode varchar(60)
+        @ACRAccountCode varchar(60),
+        @SourceAccountCode varchar(60),
+        @year varchar(4),
+        @district varchar(50),
+        @rate varchar(50)
 
 select top 1 @arAccountCode = accountCode,
        @expAccountCode = LEFT(accountCode,LEN(accountcode)-3)+'_EXP',
@@ -16,12 +20,29 @@ select top 1 @arAccountCode = accountCode,
   where slink='t'+CAST(@invoiceId as varchar)
    and accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
 
-select top 1 @ACRAccountCode = accountCode+'_ACR'
+select top 1 @SourceAccountCode = accountcode, 
+             @ACRAccountCode = accountCode+'_ACR'
   from gldetail 
   where 
    slink='t'+CAST(@invoiceId as varchar)
    and accountcode in (select accountCode from glAccounts where accountType='SOURCE')
 
+if @ACRAccountCode not in (select accountcode from glaccounts where accounttype='ACCRUED RECEIVABLE')
+begin
+ select @year = apyear,
+        @district = apdistrict,
+        @rate = aprate
+   from glaccounts where accountcode=@SourceAccountCode
+
+ exec dbo.pilotFundReceivableVerification @year, @district, @rate, '' 
+end
+
+if @ACRAccountCode not in (select accountcode from glaccounts where accounttype='ACCRUED RECEIVABLE')
+begin
+ select '@code=1;@message=Accrued Receivable does not exist Posting Failed!;'
+ return
+end
+begin transaction
 --Insert JE
 exec dbo.journalEntryCRUD 0,
   @postdate = @postDate,
@@ -60,6 +81,16 @@ insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
   where a.accountCode=@expAccountCode
    
 exec glPost @newJeId, 'o'
+
+
+ if exists(select * from object where id=@newJeId and a17='Posted')
+  begin
+   commit transaction
+  end
+ else
+  begin
+   rollback transaction 
+  end
 
 exec invoiceUpdate @invoiceId
 
