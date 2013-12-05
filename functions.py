@@ -234,11 +234,11 @@ class ktsMenu():
             if foxFieldsCSV:
                 foxFields = foxFieldsCSV.split(',')
             if foxFile:
-                print "My Fox Fields: ", foxFields
+                #print "My Fox Fields: ", foxFields
                 fox = importDBF.dbfClass(foxFile, tableName, foxFields)
                 fox.load()
                 data = fox.get()
-                print "structure: ", data['structure']
+                #print "structure: ", data['structure']
                 print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
                 for row in data['insertRows']:
                     try:
