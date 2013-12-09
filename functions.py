@@ -438,10 +438,22 @@ class ktsMenu():
 
             # so every hour, check in with IRC let everyone know whats going on.
             #   but only if notice is enabled
-            if checkinTimer.elaps() > 3600:
+            if checkinTimer.elaps() > 36:
                 if self.settings['noticeEnabled'] == 'TRUE':
-                    apiStat = self.chat_api()
-                    self.irc.psend(["Hi there, I'm just checking in..."] + apiStat)
+                    apiStatus = [self.apiService]
+                    for key, value in self.apiStatus().items():
+                        if value['jobEnabled'] == 1:
+                            apiStatus.append({
+                                value['resource']: {
+                                    'stale': value['stale'],
+                                    'batchSize': value['batchSize'],
+                                    'ageMinutes': value['ageMinutes'],
+                                    # 'jobEnabled': value['jobEnabled'],
+                                }
+                            })
+                    self.irc.psend("Hi there, I'm just checking in...")
+                    for row in apiStatus:
+                        self.irc.psend(row)
                 checkinTimer.reset()
 
         # turn the lights off when going out the door
