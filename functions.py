@@ -20,8 +20,10 @@ class ktsMenu():
         self.basePath = basePath
         if self.basePath:
             self.defaultFileName = "%s\\..\\ktsConfig.ini" % self.basePath
+            self.logFile = "%s\\..\\notice.log" % self.basePath
         else:
             self.defaultFileName = "..\\ktsConfig.ini"
+            self.logFile = "..\\notice.log"
         if database:
             self.dbSettings(database)
         else:
@@ -32,6 +34,8 @@ class ktsMenu():
         self.settings['password'] = self.configStuff('importDefaults', 'password')
 
         self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
+        self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
+        self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -138,8 +142,18 @@ class ktsMenu():
             print x
 
     def doWeNeedToRunTheBackUp(self):
-        todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
-        lastBackupDateTime = convertSettingTime(self.settingsF('backup.lastBackupDate'))
+        if not self.settingsF('backup.aaaEnabled', 'TRUE') == 'TRUE':
+            return False
+        try:
+            todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
+        except ValueError:
+            self.log('the backup.dailyBackupTime setting is invalid')
+            return False
+        try:
+            lastBackupDateTime = convertSettingTime(self.settingsF('backup.lastBackupDate'))
+        except ValueError:
+            lastBackupDateTime = convertSettingTime('2000-01-01', format='%Y-%m-%d')
+
         # print 'last  ', lastBackupDateTime
         # print 'todays', todaysBackupDatetime
         # print 'now   ', currentDatetime()
@@ -369,11 +383,21 @@ class ktsMenu():
             if areYouSure('do you want to turn this service on?'):
                 self.apiServiceControl(enableService=True)
 
+    def log(self, message):
+        try:
+            file = open(self.logFile, "a")
+            file.write("%s\n" % message)
+            file.close()
+        except IOError:
+            pass
+
     def bulletProofApiServiceEventLoop(self):
         s = self.apiService
         # bail if service is already running
         if s['running']:
             return
+
+        checkinTimer = stopWatch()
 
         # turn on the lights
         s['running'] = True
@@ -386,17 +410,23 @@ class ktsMenu():
             # API Services
             try:
                 self.apiServiceEvent()
-            except:
+            except Exception as e:
+                self.log(e)
                 s['eventRunning'] = False
 
-            # daily backup
-            if self.doWeNeedToRunTheBackUp():
-                self.command_backup(True)
-
-            # check IRC Connection
+            # so every hour, check in with IRC let everyone know whats going on.
+            #   but only if notice is enabled
+            if checkinTimer.elaps() > 3600:
+                if self.settings['noticeEnabled'] == 'TRUE':
+                    apiStat = self.chat_api()
+                    self.irc.psend(["Hi there, I'm just checking in..."] + apiStat)
+                checkinTimer.reset()
 
         # turn the lights off when going out the door
         s['running'] = False
+
+    def setIRC(self, irc):
+        self.irc = irc
 
     def apiServiceEvent(self):
         s = self.apiService

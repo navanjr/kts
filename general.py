@@ -4,6 +4,7 @@ import urllib
 import base64
 import json
 import copy
+import time
 from datetime import datetime
 
 
@@ -144,3 +145,13 @@ def apiCall(host, apiKey, resource="v2/treasurer/sites.json", data=None, debug=F
     else:
         print 'debug', req
 
+
+class stopWatch:
+    def __init__(self):
+        self.start = time.time()
+
+    def elaps(self):
+        return time.time() - self.start
+
+    def reset(self):
+        self.start = time.time()
