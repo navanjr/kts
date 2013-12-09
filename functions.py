@@ -438,7 +438,7 @@ class ktsMenu():
 
             # so every hour, check in with IRC let everyone know whats going on.
             #   but only if notice is enabled
-            if checkinTimer.elaps() > 36:
+            if checkinTimer.elaps() > 3600:
                 if self.settings['noticeEnabled'] == 'TRUE':
                     apiStatus = [self.apiService]
                     for key, value in self.apiStatus().items():
