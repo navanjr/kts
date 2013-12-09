@@ -96,6 +96,7 @@ class ktsMenu():
         self.createCommand('apiLooper',['loop','looper' ],'fire up the api looper (api loop X)',self.command_apiLooper, 'api')
         self.createCommand('apiReset',['reset', ],'reset all the rows for resource (api reset X)',self.command_apiReset, 'api')
         self.createCommand('apiService',['service', 'serv'],'start the api Service Event Loop',self.command_apiService, 'api')
+        self.createCommand('apiLog',['log', ],'display api Service log',self.command_apiLog, 'api')
 
         self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
@@ -134,12 +135,7 @@ class ktsMenu():
         self.chatObj = {}
 
     def nateTest(self):
-        fox = importDBF.dbfClass("C:\\client\\DOSDATA\\grant\\tax\\taxroll.dbf", "nateTest", 'itm_nbr,taxyear'.split(','))
-        fox.load()
-        data = fox.get()
-        print data['dropAndCreateTableSQL']
-        for x in data['insertRows'][0:10]:
-            print x
+        self.command_apiLog()
 
     def doWeNeedToRunTheBackUp(self):
         if not self.settingsF('backup.aaaEnabled', 'TRUE') == 'TRUE':
@@ -328,6 +324,14 @@ class ktsMenu():
             if len(cmd) == 3:
                 self.apiResourceToggle(cmd[2])
                 return getApiStatus()
+        elif cmd[1] in ('log', ):
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
+            if len(cmd) == 3:
+                log = self.apiLog(cmd[2])['rows']
+                logArray = [x for x in log]
+                return logArray
         else:
             return 'huh?... '
 
@@ -372,6 +376,24 @@ class ktsMenu():
             self.threadit('apiService', self.bulletProofApiServiceEventLoop)
         else:
             s['running'] = False
+
+    def command_apiLog(self):
+        c = self.command[2:]
+        if len(c) == 1:
+            log = self.apiLog(c[0])
+            if len(log['rows']) > 0:
+                for row in log['rows']:
+                    print "%s" % row[0]
+
+    def apiLog(self, resource):
+        q = "select top 10 " \
+            "CONVERT(varchar, time, 112)" \
+            " + '-' + dbo.padLeft(cast(datepart(HH,time) as varchar),'0',2)" \
+            " + ':' + dbo.padLeft(cast(datepart(MINUTE,time) as varchar),'0',2)" \
+            " + ':' + dbo.padLeft(cast(datepart(SECOND,time) as varchar),'0',2)" \
+            " + ' ' + message from keylog where procname = 'api%s' order by id desc" % resource
+        log = self.sqlQuery(q)
+        return log
 
     def command_apiService(self):
         s = self.apiService
