@@ -81,7 +81,7 @@ class ktsMenu():
         self.createCommand('gitstatus',['gitstatus','status','s'],'preform a git status',[self.command_git,['git','status']])
         self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
-        self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
+        self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show, chatFunction=self.chat_ftp)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
@@ -133,9 +133,10 @@ class ktsMenu():
         }
 
         self.chatObj = {}
+        self.putFileName = None
 
     def nateTest(self):
-        self.command_apiLog()
+        pass
 
     def doWeNeedToRunTheBackUp(self):
         if not self.settingsF('backup.aaaEnabled', 'TRUE') == 'TRUE':
@@ -702,29 +703,36 @@ class ktsMenu():
         for x in self.ftpSettings:
             print x, self.ftpSettings[x]
 
+    def theFTPPutConsoleThread(self):
+        print '     Sending %s to %s.....' % (self.putFileName, self.ftpSettings['host'])
+        print self.theFTPPut()[1]
+
+    def theFTPPut(self):
+        fileName = self.putFileName
+        ftpSet = self.ftpSettings
+        try:
+            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
+        except Exception as e:
+            return False, e
+        try:
+            file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
+        except IOError:
+            session.quit()
+            return False, 'Failed to locate %s' % fileName
+        session.storbinary('STOR %s' % fileName, file)
+        file.close()
+        session.quit()
+        return True, 'Done :) ... Have a nice day.'
+
     def ftp_put(self, fileName=None):
         files = self.ftpFiles()
-
-        def thePut(fileName):
-            ftpSet = self.ftpSettings
-            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
-            print '     Sending %s to %s.....' % (fileName, ftpSet['host'])
-            try:
-                file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
-            except IOError:
-                session.quit()
-                print '     Failed to locate %s' % fileName
-                return
-            session.storbinary('STOR %s' % fileName, file)
-            file.close()
-            session.quit()
-            print '     Done :) ... Have a nice day.'
-
         if len(self.command) == 3:
             fileId = int(self.command[2])
-            thePut(files[fileId]['name'])
+            self.putFileName = files[fileId]['name']
+            self.threadit("ftp", self.theFTPPutConsoleThread)
         elif fileName:
-            thePut(fileName)
+            self.putFileName = fileName
+            self.threadit("ftp", self.theFTPPutConsoleThread)
 
     def cp(self):
         cmd = self.command
@@ -753,12 +761,38 @@ class ktsMenu():
             files[id + 1] = fileToken
         return files
 
-    def ftp_show(self):
+    def ftpFilesDisplay(self):
+        fileDisplay = []
         files = self.ftpFiles()
+        for file in files.items():
+            fileDisplay.append('%s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10)))
+        return fileDisplay
+
+    def chat_ftp(self):
+        cmd = self.chatObj['chatString'].split()
+        if len(cmd) == 1:
+            return self.ftpFilesDisplay()
+        if len(cmd) == 3 and cmd[1] == 'put':
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
+            files = self.ftpFiles()
+            fileId = int(cmd[2])
+            self.putFileName = files[fileId]['name']
+            self.threadit("ftp", self.theFTPPutChatThread)
+
+    def theFTPPutChatThread(self):
+        self.irc.psend("Ok, i have started a background thread to send you %s..." % self.putFileName)
+        self.irc.psend("ill let ya know when im done.")
+        ftpResult = self.theFTPPut()
+        self.irc.psend("Hey there, FTP update...")
+        self.irc.psend("here is the result... %s" % ftpResult[1])
+
+    def ftp_show(self):
         menuName = self.getMenuName(self.command[0], self.commands)
         subMenu = self.commands[menuName]['subMenu']
-        for file in files.items():
-            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
+        for row in self.ftpFilesDisplay():
+            print '     %s' % row
         if len(self.command) == 1:
             self.menuShow(subMenu)
         elif len(self.command) > 1:
