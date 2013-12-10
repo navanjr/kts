@@ -134,6 +134,7 @@ class ktsMenu():
 
         self.chatObj = {}
         self.putFileName = None
+        self.ftpThreadOn = False
 
     def nateTest(self):
         pass
@@ -782,11 +783,19 @@ class ktsMenu():
             self.threadit("ftp", self.theFTPPutChatThread)
 
     def theFTPPutChatThread(self):
+        if self.ftpThreadOn:
+            self.irc.psend("Sorry FTP Thread already running...")
+            return
+        self.ftpThreadOn = True
         self.irc.psend("Ok, i have started a background thread to send you %s..." % self.putFileName)
         self.irc.psend("ill let ya know when im done.")
-        ftpResult = self.theFTPPut()
+        try:
+            ftpResult = self.theFTPPut()
+        except Exception as e:
+            ftpResult = (False, e)
         self.irc.psend("Hey there, FTP update...")
         self.irc.psend("here is the result... %s" % ftpResult[1])
+        self.ftpThreadOn = False
 
     def ftp_show(self):
         menuName = self.getMenuName(self.command[0], self.commands)
