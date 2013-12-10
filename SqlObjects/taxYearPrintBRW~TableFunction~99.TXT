@@ -22,15 +22,16 @@ begin
  end
 
 -- un-invoiced
- if exists(select * from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices))
- begin
-  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','Count','Amount'
   insert @rt 
-   select 'a1'+recordType+pertyp,'   Type: ' + recordType+','+pertyp,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices) 
+    select 'a1'+recordType+pertyp,'   Type: ' + recordType+','+pertyp,'',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices where typ<>'s') 
    group by recordType,pertyp
 
+ if exists(select * from @rt where left(ord,2)='a1')
+ begin
+  insert @rt (ord,code,tally,amount) select 'a0 ','Un-Invoiced','Count','Amount'
+
   insert @rt 
-   select 'a2','      Total','',count(*),0,sum(balanceDue), '' from adtax where realtaxyear = @taxyear and id not in (select taxrollid from invoices)
+   select 'a2','      Total','',count(*),0,sum(cast(amount as money)), '' from @rt where left(ord,2)='a1'
  end
 
 -- all invoices
@@ -63,9 +64,9 @@ begin
 
  insert @rt 
   select 'ad3','Ready to Print','',count(I.id),sum(case when I.printed > '  0' then 1 else 0 end),sum(case when isnull(I.printed,'') in ('Failed','') then 1 else 0 end), '@mode=batch;@scope=all;'    
-    from invoices i, adtax x 
-    where i.taxrollid = x.id
-     and case when x.treamort > '  0' then x.treamort else cast(x.mortgageCode as varchar) end <= '0'
+    from invoices i join adtax x on  i.taxrollid = x.id
+    where
+     case when x.treamort > '  0' then x.treamort else cast(x.mortgageCode as varchar) end <= '0'
      and i.taxyear = @taxyear
      and i.invoiceId = 0
      and i.typ not in ('O')

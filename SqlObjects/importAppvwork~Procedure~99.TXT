@@ -1,10 +1,12 @@
 create procedure dbo.importAppvwork as 
 begin
 declare @return varchar(max)
+set nocount on
 
 if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_appvwork]') and OBJECTPROPERTY(id, N'IsTable') = 1)
  drop table temp_appvwork
-exec dbo.ktsBat 'conv importDBF appvwork', @output=@return OUTPUT
+
+ exec dbo.ktsBat 'conv importDBF appvwork', @output=@return OUTPUT
 
 if @return not like '%ok%'
 begin
@@ -42,7 +44,7 @@ begin
  insert object (Typ,key1)
   select 4035,label from @tempAppvworkLabels where label not in (select key1 from object where TYP = 4035)
 end
-  
+/*  
 declare @wt table(id int,
  accountcode varchar(60),
  accountdesc varchar(50),
@@ -57,7 +59,7 @@ declare @appvworksum money,
         @wtsum money
 
 insert @wt
-select * from dbo.stateTaxImport() 
+ select * from dbo.stateTaxImport() 
 
 select @appvworksum = sum(taxcoll) from temp_appvwork
 select @wtsum = sum(amount) from @wt
@@ -72,5 +74,5 @@ begin
  select '@code=0;@message=Import Successful;'
  return
 end
-
+*/
 end

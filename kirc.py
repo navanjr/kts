@@ -7,13 +7,13 @@ import types
 import sys
 import os
 
-def log(message):
-    try:
-        file = open("c:\\client\\key\\notice.log", "a")
-        file.write("%s\n" % message)
-        file.close()
-    except IOError:
-        pass
+# def log(message):
+#     try:
+#         file = open("c:\\client\\key\\notice.log", "a")
+#         file.write("%s\n" % message)
+#         file.close()
+#     except IOError:
+#         pass
 
 class kirc:
     def __init__(self, network='irc.freenode.net', port=6667, menu=None):
@@ -77,7 +77,7 @@ class kirc:
             self.data = self.irc.recv(4096)
 
             # log("raw data: %s" % self.ircMessageDecoder(self.data))
-            log("raw data: %s" % self.data)
+            # self.menu.log("raw data: %s" % self.data)
 
             try:
                 brainResponse = self.brain.stimulate(self.ircMessageDecoder(self.data))
@@ -96,7 +96,7 @@ class kirc:
                     ],
                 }
 
-            log("response from my brain: %s" % brainResponse)
+            self.menu.log("response from my brain: %s" % brainResponse)
 
             if brainResponse["psend"]:
                 if isinstance(brainResponse["psend"], types.ListType):
@@ -166,7 +166,7 @@ class personalResponses:
             # consciousness responses intended for me
             keyword = [keyword for keyword in self.menu.chatKeywords() if keyword in chatObj['chatString']]
 
-            log('I am stimulated... keyword: %s' % keyword)
+            self.menu.log('I am stimulated... keyword: %s' % keyword)
 
             if len(keyword) > 0:
                 return self.dialect(psend=self.menu.chatCommand(keyword[0], chatObj))
@@ -174,7 +174,7 @@ class personalResponses:
             for key, value in self.consciousness.items():
                 if key in chatObj['chatString']:
                     if value['secured']:
-                        log('secured request: %s' % chatObj)
+                        self.menu.log('secured request: %s' % chatObj)
                         secCheck, secMessage = self.menu.shouldIListenToThisGuy(chatObj['from'])
                         if secCheck:
                             return value

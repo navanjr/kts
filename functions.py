@@ -20,8 +20,10 @@ class ktsMenu():
         self.basePath = basePath
         if self.basePath:
             self.defaultFileName = "%s\\..\\ktsConfig.ini" % self.basePath
+            self.logFile = "%s\\..\\notice.log" % self.basePath
         else:
             self.defaultFileName = "..\\ktsConfig.ini"
+            self.logFile = "..\\notice.log"
         if database:
             self.dbSettings(database)
         else:
@@ -32,6 +34,8 @@ class ktsMenu():
         self.settings['password'] = self.configStuff('importDefaults', 'password')
 
         self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
+        self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
+        self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -77,7 +81,7 @@ class ktsMenu():
         self.createCommand('gitstatus',['gitstatus','status','s'],'preform a git status',[self.command_git,['git','status']])
         self.createCommand('gitpull',['pull','p'],'preform a git log',[self.command_git,['git','pull']])
         self.createCommand('gitpush',['push'],'preform a git push ',self.command_gitpush)
-        self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show)
+        self.createCommand('ftp',['ftp'],'put a file to the support server',self.ftp_show, chatFunction=self.chat_ftp)
         self.createCommand('gitstatusporcelain',['gsp'],'preform a porcelain git status',self.command_importSpecial)
         self.createCommand('devup',['devup','devon'],'set all developer defaults on your database',self.command_devup)
         self.createCommand('kps',['kps'],'kps upload to API',self.kpsTaxroll.menu)
@@ -92,6 +96,7 @@ class ktsMenu():
         self.createCommand('apiLooper',['loop','looper' ],'fire up the api looper (api loop X)',self.command_apiLooper, 'api')
         self.createCommand('apiReset',['reset', ],'reset all the rows for resource (api reset X)',self.command_apiReset, 'api')
         self.createCommand('apiService',['service', 'serv'],'start the api Service Event Loop',self.command_apiService, 'api')
+        self.createCommand('apiLog',['log', ],'display api Service log',self.command_apiLog, 'api')
 
         self.createCommand('schtasks',['tasks', 'task'],'display all kts tasks',self.cp)
         self.createCommand('auto',['auto','a'],'setup all needed schedules',self.tasks.auto,'schtasks')
@@ -128,18 +133,24 @@ class ktsMenu():
         }
 
         self.chatObj = {}
+        self.putFileName = None
 
     def nateTest(self):
-        fox = importDBF.dbfClass("C:\\client\\DOSDATA\\grant\\tax\\taxroll.dbf", "nateTest", 'itm_nbr,taxyear'.split(','))
-        fox.load()
-        data = fox.get()
-        print data['dropAndCreateTableSQL']
-        for x in data['insertRows'][0:10]:
-            print x
+        pass
 
     def doWeNeedToRunTheBackUp(self):
-        todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
-        lastBackupDateTime = convertSettingTime(self.settingsF('backup.lastBackupDate'))
+        if not self.settingsF('backup.aaaEnabled', 'TRUE') == 'TRUE':
+            return False
+        try:
+            todaysBackupDatetime = convertSettingTime(self.settingsF('backup.dailyBackupTime'), format='%Y-%m-%d %I%p', addTheDay=True)
+        except ValueError:
+            self.log('the backup.dailyBackupTime setting is invalid')
+            return False
+        try:
+            lastBackupDateTime = convertSettingTime(self.settingsF('backup.lastBackupDate'))
+        except ValueError:
+            lastBackupDateTime = convertSettingTime('2000-01-01', format='%Y-%m-%d')
+
         # print 'last  ', lastBackupDateTime
         # print 'todays', todaysBackupDatetime
         # print 'now   ', currentDatetime()
@@ -234,11 +245,11 @@ class ktsMenu():
             if foxFieldsCSV:
                 foxFields = foxFieldsCSV.split(',')
             if foxFile:
-                print "My Fox Fields: ", foxFields
+                #print "My Fox Fields: ", foxFields
                 fox = importDBF.dbfClass(foxFile, tableName, foxFields)
                 fox.load()
                 data = fox.get()
-                print "structure: ", data['structure']
+                #print "structure: ", data['structure']
                 print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
                 for row in data['insertRows']:
                     try:
@@ -314,6 +325,14 @@ class ktsMenu():
             if len(cmd) == 3:
                 self.apiResourceToggle(cmd[2])
                 return getApiStatus()
+        elif cmd[1] in ('log', ):
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
+            if len(cmd) == 3:
+                log = self.apiLog(cmd[2])['rows']
+                logArray = [x for x in log]
+                return logArray
         else:
             return 'huh?... '
 
@@ -359,6 +378,24 @@ class ktsMenu():
         else:
             s['running'] = False
 
+    def command_apiLog(self):
+        c = self.command[2:]
+        if len(c) == 1:
+            log = self.apiLog(c[0])
+            if len(log['rows']) > 0:
+                for row in log['rows']:
+                    print "%s" % row[0]
+
+    def apiLog(self, resource):
+        q = "select top 10 " \
+            "CONVERT(varchar, time, 112)" \
+            " + '-' + dbo.padLeft(cast(datepart(HH,time) as varchar),'0',2)" \
+            " + ':' + dbo.padLeft(cast(datepart(MINUTE,time) as varchar),'0',2)" \
+            " + ':' + dbo.padLeft(cast(datepart(SECOND,time) as varchar),'0',2)" \
+            " + ' ' + message from keylog where procname = 'api%s' order by id desc" % resource
+        log = self.sqlQuery(q)
+        return log
+
     def command_apiService(self):
         s = self.apiService
         print 'api Service running: %s (%s)' % (s['running'], s['odometer'])
@@ -369,11 +406,21 @@ class ktsMenu():
             if areYouSure('do you want to turn this service on?'):
                 self.apiServiceControl(enableService=True)
 
+    def log(self, message):
+        try:
+            file = open(self.logFile, "a")
+            file.write("%s\n" % message)
+            file.close()
+        except IOError:
+            pass
+
     def bulletProofApiServiceEventLoop(self):
         s = self.apiService
         # bail if service is already running
         if s['running']:
             return
+
+        checkinTimer = stopWatch()
 
         # turn on the lights
         s['running'] = True
@@ -386,17 +433,35 @@ class ktsMenu():
             # API Services
             try:
                 self.apiServiceEvent()
-            except:
+            except Exception as e:
+                self.log(e)
                 s['eventRunning'] = False
 
-            # daily backup
-            if self.doWeNeedToRunTheBackUp():
-                self.command_backup(True)
-
-            # check IRC Connection
+            # so every hour, check in with IRC let everyone know whats going on.
+            #   but only if notice is enabled
+            if checkinTimer.elaps() > 3600:
+                if self.settings['noticeEnabled'] == 'TRUE':
+                    apiStatus = [self.apiService]
+                    for key, value in self.apiStatus().items():
+                        if value['jobEnabled'] == 1:
+                            apiStatus.append({
+                                value['resource']: {
+                                    'stale': value['stale'],
+                                    'batchSize': value['batchSize'],
+                                    'ageMinutes': value['ageMinutes'],
+                                    # 'jobEnabled': value['jobEnabled'],
+                                }
+                            })
+                    self.irc.psend("Hi there, I'm just checking in...")
+                    for row in apiStatus:
+                        self.irc.psend(row)
+                checkinTimer.reset()
 
         # turn the lights off when going out the door
         s['running'] = False
+
+    def setIRC(self, irc):
+        self.irc = irc
 
     def apiServiceEvent(self):
         s = self.apiService
@@ -638,29 +703,36 @@ class ktsMenu():
         for x in self.ftpSettings:
             print x, self.ftpSettings[x]
 
+    def theFTPPutConsoleThread(self):
+        print '     Sending %s to %s.....' % (self.putFileName, self.ftpSettings['host'])
+        print self.theFTPPut()[1]
+
+    def theFTPPut(self):
+        fileName = self.putFileName
+        ftpSet = self.ftpSettings
+        try:
+            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
+        except Exception as e:
+            return False, e
+        try:
+            file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
+        except IOError:
+            session.quit()
+            return False, 'Failed to locate %s' % fileName
+        session.storbinary('STOR %s' % fileName, file)
+        file.close()
+        session.quit()
+        return True, 'Done :) ... Have a nice day.'
+
     def ftp_put(self, fileName=None):
         files = self.ftpFiles()
-
-        def thePut(fileName):
-            ftpSet = self.ftpSettings
-            session = ftplib.FTP(ftpSet['host'], ftpSet['user'], ftpSet['password'])
-            print '     Sending %s to %s.....' % (fileName, ftpSet['host'])
-            try:
-                file = open('%s\%s' % (ftpSet['path'], fileName), 'rb')
-            except IOError:
-                session.quit()
-                print '     Failed to locate %s' % fileName
-                return
-            session.storbinary('STOR %s' % fileName, file)
-            file.close()
-            session.quit()
-            print '     Done :) ... Have a nice day.'
-
         if len(self.command) == 3:
             fileId = int(self.command[2])
-            thePut(files[fileId]['name'])
+            self.putFileName = files[fileId]['name']
+            self.threadit("ftp", self.theFTPPutConsoleThread)
         elif fileName:
-            thePut(fileName)
+            self.putFileName = fileName
+            self.threadit("ftp", self.theFTPPutConsoleThread)
 
     def cp(self):
         cmd = self.command
@@ -689,12 +761,38 @@ class ktsMenu():
             files[id + 1] = fileToken
         return files
 
-    def ftp_show(self):
+    def ftpFilesDisplay(self):
+        fileDisplay = []
         files = self.ftpFiles()
+        for file in files.items():
+            fileDisplay.append('%s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10)))
+        return fileDisplay
+
+    def chat_ftp(self):
+        cmd = self.chatObj['chatString'].split()
+        if len(cmd) == 1:
+            return self.ftpFilesDisplay()
+        if len(cmd) == 3 and cmd[1] == 'put':
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
+            files = self.ftpFiles()
+            fileId = int(cmd[2])
+            self.putFileName = files[fileId]['name']
+            self.threadit("ftp", self.theFTPPutChatThread)
+
+    def theFTPPutChatThread(self):
+        self.irc.psend("Ok, i have started a background thread to send you %s..." % self.putFileName)
+        self.irc.psend("ill let ya know when im done.")
+        ftpResult = self.theFTPPut()
+        self.irc.psend("Hey there, FTP update...")
+        self.irc.psend("here is the result... %s" % ftpResult[1])
+
+    def ftp_show(self):
         menuName = self.getMenuName(self.command[0], self.commands)
         subMenu = self.commands[menuName]['subMenu']
-        for file in files.items():
-            print '     %s. %-*s %s mb' % (str(file[0]).rjust(3), 30, file[1]['name'], str(round(file[1]['size'] / 1024.0 / 1024.0, 2)).rjust(10))
+        for row in self.ftpFilesDisplay():
+            print '     %s' % row
         if len(self.command) == 1:
             self.menuShow(subMenu)
         elif len(self.command) > 1:
