@@ -62,11 +62,13 @@ select 'ADA_'+cast(taxyear as varchar(4))+'_ACR', '4 MILL', sum(fourmill),contra
  group by taxyear,contraAccount
   having sum(fourmill) <> 0.00
 
-insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select SCHDIST, '4 MILL', sum(fourmill), contraAccount 
- from @wt 
+insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
+select key2, '4 MILL', sum(fourmill), contraAccount,SCHDIST 
+ from @wt, object tsd 
  where schdist in (select key1 from object where typ=4010 and B12='1')
- group by contraAccount,schdist
+  and tsd.typ=4010 
+   and tsd.key1=schdist
+ group by contraAccount,schdist,key2
   having sum(fourmill) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
