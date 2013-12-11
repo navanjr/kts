@@ -417,6 +417,8 @@ taxStatementBr=;
    prn(,,,lcFontSize,,'Arial'),
    txt(lcName&chr(13)&chr(10)&lcAdd,lcx,lcy,4000,1000,1),
    lcy=lcy+1300,
+   if(readstring(lcInvoiceBlob,'@propLoc=')>'  0'),
+   prn(readstring(lcInvoiceBlob,'@propLoc='),1000,lcy-225,lcFontSize), 
    prn(,lcx-550,lcy,lcFontSize),
    bnd(,readstring(lcInvoiceBlob,'@ITEM='),1300C,readstring(lcInvoiceBlob,'@PARCEL='),3050C,readstring(lcInvoiceBlob,'@TAXYEAR='),500,choose(readstring(lcInvoiceBlob,'@TYP=')='R','	REAL ESTATE','PERSONAL'),1350C,,925C),
    lcy=lcy+675,
@@ -424,8 +426,10 @@ taxStatementBr=;
    bnd(,readstring(lcInvoiceBlob,'@GROSSASSESSED='),1850C,readstring(lcInvoiceBlob,'@EXEMPTION3='),1200C,readstring(lcInvoiceBlob,'@NETASSESSEDVALUE='),1700C,readstring(lcInvoiceBlob,'@SCHOOLDISTRICTTAXRATE='),550C,,1900C),
    lcy=lcy+600,
    lcLegalFont=choose(len(lcLegal)>500,lcFontSize-5,choose(len(lcLegal)>250,lcFontSize-3,lcFontSize-2)),
-   prn(,,lcy,lcLegalFont),
-   txt(lcLegal,lcx-550,lcy,3600,3000,1),
+   if(readstring(lcInvoiceBlob,'@ACRES=')>0),
+   do(prn('ACRES',lcx+2000,lcy,lcLegalFont),
+   prn(readstring(lcInvoiceBlob,'@ACRES='),lcx+2000,lcy+130,lcLegalFont)),
+   txt(lcLegal,lcx-550,lcy,3600,2500,1),
    prn(,lcx+3075,lcy,lcFontSize-1),
    det(lcSql),
      bnd(,obj5:a1,1400,format(obj5:a2,@n-14.2),850C,format(obj5:a3,@n-14.2),1150R),
@@ -462,7 +466,7 @@ taxStatementBr=;
   lcy=lcy+150,
   txt(lcName&chr(13)&chr(10)&lcAdd,lcx+400,lcy,4000,1000,1));
 
-@@taxStatementOttawa2nd=
+@taxStatementOttawa2nd=
  d1select('exec dbo.taxStatementStatus '&gcInvoiceId&',''initialize''')
   lcContinue=obj7:d1,
  break(lcContinue='False'),
