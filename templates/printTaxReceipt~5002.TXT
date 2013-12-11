@@ -23,7 +23,7 @@ group by case when treamort = '''' then mortgagecode else treamort end) data'),
   lcCountMortgageCodes=obj7:d1,
   if(lcCountMortgageCodes+0=1,getMortInfo=),
   if(gcPrintOneTaxReceiptId+0>1,lcPrintOne=' where invoiceid='&gcPrintOneTaxReceiptId,lcPrintOne=''),
-  lcsql4506='select taxyear,receiptNo,item,parcel,schoolDistrict,legal,acres,TaxDue,TaxPaid,penalty,other,TotPaid,ckoth,cash,change,repTotalrec,repTotalDue,paidBy,case when typ=''O'' and pertyp=''F'' then ''FIRE DIST'' else '''' end,recCount,ownername,checkno,GrandTotal,remainingTaxDueTot,case when paidby like ''%Treasurer%'' then ''NO'' else ''YES'' end  from dbo.taxReceiptPrint('&gcRecId&','&gcPrintOneTaxReceiptId+0&') order by parcel, taxyear',
+  lcsql4506='select taxyear,receiptNo,item,parcel,schoolDistrict,legal,acres,TaxDue,TaxPaid,penalty,other,TotPaid,ckoth,cash,change,repTotalrec,repTotalDue,paidBy,case when typ=''O'' and pertyp=''F'' then ''FIRE DIST'' else '''' end,recCount,ownername,checkno,GrandTotal,remainingTaxDueTot,noRecOf  from dbo.taxReceiptPrint('&gcRecId&','&gcPrintOneTaxReceiptId+0&') order by parcel, taxyear',
   if(gcPrintOneTaxReceiptId+0>1,lcsql5002Det='select '''' as recType,0.00 as amount',lcsql5002Det='select * from dbo.receiptPayments('''&gcRecId&''')'),
   lcRecStatus=kp('select a17 from object where id = '&gcRecId),
   break(lcRecStatus<'  0'),
@@ -102,8 +102,6 @@ group by case when treamort = '''' then mortgagecode else treamort end'),gcMortC
      edt,
     if(lcCountMortgageCodes+0=1 and gcMortCode<>'0'),
     lcAddress=gcMortInfo,
-    if(lcPrintRecOf='NO'),
-    lcAddress='',
     prn(,lcLm+4100,lcy,lcHeaderFontSize-4,bold),
      det(lcsql5002Det),
      bnd(,obj5:a1,lcM+300,left(format(obj5:a2,@n$-14.2b)),lcM),
@@ -120,14 +118,12 @@ group by case when treamort = '''' then mortgagecode else treamort end'),gcMortC
      if(gcPrintOneTaxReceiptId+0<1),
      bnd(,'Tax Amount Due:',lcM+100,format(lcTaxOwed,@n$-14.2b),lcM),
      prn(,lcLm+300,lcy),
-     if(gcPrintOneTaxReceiptId+0<1),
-     bnd(,'Receipt Of:',lcM),
-     if(gcPrintOneTaxReceiptId+0<1),
-     txt(lcAddress,lcLm+300,lcy+130,4000,1000,1),
+     if(gcPrintOneTaxReceiptId+0<1 and lcPrintRecOf<>'NO'),
+     do(bnd(,'Receipt Of:',lcM),
+     txt(lcAddress,lcLm+300,lcy+130,4000,1000,1)),
      nl,
      bnd(,'Paid By:'&' '&lcPaidBy,lcCw*2)
-     
-);
+ );
 
  @bb5=Test;
 

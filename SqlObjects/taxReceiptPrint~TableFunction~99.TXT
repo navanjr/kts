@@ -45,7 +45,8 @@ create function [dbo].[taxReceiptPrint](@recId varchar(50),@invoiceId int) retur
                         remainingTaxDue money,
                         remainingFeeDue money,             
                         remainingTaxDueTot money,
-                        remainingFeeDueTot money  )             
+                        remainingFeeDueTot money,
+                        noRecOf varchar(10))             
 
 as 
 begin
@@ -79,7 +80,6 @@ if isnull(@invoiceId,0) >0
 begin
  delete from @rt where InvoiceId <> @InvoiceId 
 end 
-
 	
 	update @rt set 
                                 receiptDate = Key2,
@@ -125,7 +125,6 @@ end
 			taxPaid = dbo.taxReceiptTaxPaid(recid,invoiceId,2),
                         TotPaid = dbo.taxReceiptTaxPaid(recid,invoiceId,2) + isnull(Penalty,0) + isnull(mail,0) + isnull(lien,0) + isnull(adv,0) + isnull(mowing,0) + isnull(other,0) 
 
-
 declare @wt1 table(invoiceId int, due money, feedue money, process int)
 declare
    @due money = 0,
@@ -147,21 +146,16 @@ while exists(select * from @wt1 where process=0)
    where status='Posted'
 
   update @rt set 
-                        remainingTaxDue = @due,
-                        remainingFeeDue = @feeDue
+      remainingTaxDue = @due,
+      remainingFeeDue = @feeDue
      where invoiceId = @invoiceIdToken
 
   update @wt1 set process=1 where invoiceId=@invoiceIdToken
  end
 
 
-
-
 --TODO: checkno calculation is incorrect
-
-
 --Update Paid
- 
 
 	declare @paidBlob varchar(max) 
 			select @paidBlob = isnull(@paidBlob,'') 
@@ -171,9 +165,6 @@ while exists(select * from @wt1 where process=0)
 
 		                      from paid where slink = 'o'+@recid 
                                          group by case when paycode='Cash' then paycode else 'Check' end
-
-
-
 
         declare @pt table(id int identity(1,1),paycode varchar(60), amount money, checkno varchar(60), processcount int)
          insert @pt
@@ -186,7 +177,6 @@ while exists(select * from @wt1 where process=0)
         begin
           select top 1 @idToken = id, @checkno = left(isnull(@checkno,'')+' '+rtrim(checkno),249) from @pt where paycode='Check' and processcount=0
          
-          
           update @pt set processcount=1 where id=@idToken
         end
 			
@@ -199,8 +189,6 @@ while exists(select * from @wt1 where process=0)
                         r.taxAmt = isnull(r.taxAmt,0) - isnull(r.taxPaid,0)
 		from @rt r, paid p where 'o'+r.recId = p.slink 
 
-
-
 --set record Count
    
    declare @recCount int,
@@ -208,13 +196,15 @@ while exists(select * from @wt1 where process=0)
            @reptotalRec money,
            @remainTaxDueTot money,
            @remainFeeDueTot money,
-           @grandTotal money
+           @grandTotal money,
+           @uniqueItemCount int
    
      select @recCount = count(recid), 
             @repTotalDue = sum(isnull(TaxDue,0)),
             @remainTaxDueTot = sum(isnull(remainingTaxDue,0)),
             @remainFeeDueTot = sum(isnull(remainingFeeDue,0)),
-            @grandTotal = sum(isnull(totPaid,0))
+            @grandTotal = sum(isnull(totPaid,0)),
+            @uniqueItemCount = count(distinct item)
 
           from @rt
       
@@ -223,7 +213,8 @@ while exists(select * from @wt1 where process=0)
                     remainingTaxDueTot = @remainTaxDueTot,
                     remainingFeeDueTot = @remainFeeDueTot,
                     reptotalRec = isnull(ckoth,0)+isnull(cash,0),
-                    grandtotal = @grandTotal			
+                    grandtotal = @grandTotal,
+                    noRecOf = case when @uniqueItemCount>1 or paidby like '%Treasurer%' then 'NO' else 'YES' end			
 
  return					
 end
