@@ -65,6 +65,7 @@ begin
   @paidTotal money,
   @idToken int,
   @dueToken money,
+  @specificApplyAmountToken money,
   @amountToken money,
   @taxId int,
   @currTaxId int,
@@ -267,6 +268,32 @@ begin
  exec dbo.logit @@procid, '@ETRPaid = ', @ETRPaid, @level = 2 
  exec dbo.logit @@procid, '@OtherPercent = ', @OtherPercent, @level = 2 
  exec dbo.logit @@procid, '@ETRPercent = ', @ETRPercent, @level = 2 
+
+ while exists(select * from @wt where processFlag = 0 and methodRate > 1.0)
+ begin
+  select top 1 @idToken = id, @dueToken = case when methodrate > due then due else methodrate end from @wt where processFlag = 0 and methodRate > 1.0 order by methodRate desc, payord, due, linkId
+
+  exec dbo.logit @@procid, '@paidTotal = ', @paidTotal, @level = 2 
+
+-- @paidTotal > 0 are normal items...
+  if @paidTotal > 0
+  begin
+   if @dueToken <= @paidTotal
+    update @wt set applyAmount = @dueToken where id = @idToken
+   else
+    update @wt set applyAmount = @paidTotal where id = @idToken
+
+   exec dbo.logit @@procid, '@dueToken = ', @dueToken, @level = 2 
+
+   if @dueToken <= @paidTotal
+    set @paidTotal = @paidTotal - @dueToken
+   else
+    set @paidTotal = 0
+
+  end
+  update @wt set processFlag = 1 where id = @idToken
+ end
+
 
  while exists(select * from @wt where processFlag = 0 and methodRate = 1.0)
  begin

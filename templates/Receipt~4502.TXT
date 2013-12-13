@@ -634,11 +634,22 @@ close('ok');
  if(lcTyp+0=3,donewtaxreceiptno=)
 ;
 
-@taxitemchoose=m('','Add a new?',,'PENALTY|FEE'),
+@taxitemchoose=m('','Add a new?',,'NEW PENALTY|NEW FEE|APPLY AMOUNT|CANCEL'),
 if(gcretval+0=1,donewpenalty=),
 if(gcretval+0=2,donewfee=),
-refreshDetail=
+if(gcretval+0=3,changeapplyamount=),
+acc551=
 ;
+
+@changeapplyamount=
+ lcSearchId=lcrdId,
+ break(lcSearchId+0<1),
+ iw(\t001Apply Amount; \t002@n-19.2; \w00250;),
+ lcapplyamount=obj7:key1,
+ break(lcapplyamount+0<=0),
+ break(gcretval='esc'),
+ sql('update receiptlink set methodrate = '&lcapplyamount+0&' where invoiceid='&lcSearchId+0&' and receiptid='&obj:id+0),
+ refreshDetail=;
 
 @donewfee=
  lcSearchId=lcrdId,
