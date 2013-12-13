@@ -2,7 +2,8 @@ CREATE function [dbo].[receiptBalanceDue](@receiptId int) returns money
 as 
 begin
  declare @totalDue money,
-         @receiptType varchar(50)
+         @receiptType varchar(50),
+         @posted varchar(5)
  
  
  declare @wt table(
@@ -21,13 +22,13 @@ begin
   @credit money,
   @due money
 
-select @receiptType = key3 from object where id = @receiptId
+select @receiptType = key3, @posted = case when a17 = 'Posted' then 'TRUE' else 'FALSE' end from object where id = @receiptId
 
 if @receiptType = 'TAX'
  begin
 -- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, methodRate,mainInvoiceId,invoiceType)
-  select a.id, a.invoiceId, case when a.methodRate > 1.0 then 1.0 else a.methodRate end,b.invoiceId,b.typ
+  select a.id, a.invoiceId, case when a.methodRate > 1.0 then 1.0 when @posted = 'TRUE' then 1.00 else a.methodRate end,b.invoiceId,b.typ
   from receiptLink a, invoices b 
   where a.invoiceId = b.id and a.receiptId = @receiptId
 
