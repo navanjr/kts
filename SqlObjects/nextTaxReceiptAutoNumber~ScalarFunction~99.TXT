@@ -15,11 +15,21 @@ begin
 
  select @keyCodeOptions = dbo.readKeyCode(4502,'\0002')
 
- select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
-  from receiptLink a, invoices b
-  where a.invoiceId = b.id
-   and b.taxYear = @taxYear 
-   and (b.typ=@invoiceTyp or @invoiceTyp='')
+ if isnull(@invoiceTyp,'NULL')='NULL'
+  begin
+   select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
+    from receiptLink a, invoices b
+    where a.invoiceId = b.id
+     and b.taxYear = @taxYear 
+  end
+ else
+  begin
+   select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
+    from receiptLink a, invoices b
+    where a.invoiceId = b.id
+     and b.taxYear = @taxYear 
+     and (b.typ=@invoiceTyp or @invoiceTyp not in ('O','S'))
+  end
 
  if isnull(cast(@lastReceiptNumber as int),0) > isnull(cast(@retval as int),0)
   set @retval = @lastReceiptNumber
