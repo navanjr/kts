@@ -79,6 +79,17 @@ begin
    and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
    and a3 like '%'+@searchString+'%' --and i.id not in (select invoiceId from @rt)
 
+  if isnumeric(@searchString)=1
+  begin
+   insert @rt
+   select 
+    i.id
+   from invoices i
+   where i.invoiceId = 0 
+    and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
+    and (i.invoiceAmount=cast(@searchString as money) or i.invoiceDue=cast(@searchString as money))
+  end
+
 end
 
 return
