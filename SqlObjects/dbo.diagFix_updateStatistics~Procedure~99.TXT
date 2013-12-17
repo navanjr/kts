@@ -1,0 +1,44 @@
+create proc dbo.diagFix_updateStatistics(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+
+ if @method = 'GET'
+ begin 
+
+  select 
+   @class = 'maintenance',
+   @guide = 'GET|SHOW|FIX',
+   @code = 1,
+   @tally = 1,  
+   @message = 'Stats Updated: '+convert(varchar(20),max(STATS_DATE(OBJECT_ID, index_id)),101)
+   FROM sys.indexes
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select  'Stats Updated: '+convert(varchar(20),max(STATS_DATE(OBJECT_ID, index_id)),101)
+   FROM sys.indexes
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  --exec DBCC FREEPROCCACHE 
+  exec sp_updatestats
+  --return
+
+ end
+
+end
