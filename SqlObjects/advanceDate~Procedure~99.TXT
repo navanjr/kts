@@ -1,15 +1,26 @@
 create procedure dbo.advanceDate(@receiptType varchar(50),@date int = 0) as
 
 begin
+  declare @advancePaymentDateWithReceipts varchar(5)
+ 
+  select @advancePaymentDateWithReceipts = dbo.settingsf('site.advancePaymentDateWithReceipts','TRUE')
+
   if @date = 0 
      select @date = dbo.nextbusinessdate(dbo.clariondate(getdate()))
+
+  declare @settingName varchar(100) = 'dashboard.' + dbo.readstring('@station=',dbo.whoami()) + '.paymentDate' 
 
 -- update the payment date for vouchers and warrants
   if @receiptType = 'payments' and @date > 0
   begin
-   declare @settingName varchar(100) = 'dashboard.' + dbo.readstring('@station=',dbo.whoami()) + '.paymentDate' 
    exec dbo.settingsCRUD @settingName, @date
    return
+  end
+
+-- update the payment date for vouchers and warrants when all dates is chosen
+  if @advancePaymentDateWithReceipts = 'TRUE' and @date > 0 and @receiptType = 'All' 
+  begin
+   exec dbo.settingsCRUD @settingName, @date
   end
 
 -- update receipt dates
