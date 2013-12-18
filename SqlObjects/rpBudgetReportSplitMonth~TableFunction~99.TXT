@@ -1,0 +1,191 @@
+create function dbo.rpBudgetReportSplitMonth(@beginDate varchar(20),
+        @endDate varchar(20),
+        @fundCode varchar(20),
+        @includeSpecialAssessment varchar(5))
+
+returns @rt table(accountCode varchar(60) default '',
+                  accountDesc varchar(50) default '',
+                  sourceSECA varchar(60) default '',
+                  sourceDesc varchar(60) default '',
+                  July varchar(60) default '',
+                  August varchar(60) default '',
+                  September varchar(60) default '',
+                  October varchar(60) default '',
+                  November varchar(60) default '',
+                  December varchar(60) default '',
+                  December2 varchar(60) default '',
+                  January varchar(60) default '',
+                  January2 varchar(60) default '',
+                  February varchar(60) default '',
+                  February2 varchar(60) default '',
+                  March varchar(60) default '',
+                  March2 varchar(60) default '',
+                  April varchar(60) default '',
+                  May varchar(60) default '',
+                  June varchar(60) default '',
+                  Total varchar(60) default '',
+                  ord varchar(250)  default ''                
+                  )
+as
+begin
+
+declare @wt table(id int identity,
+                   apportionmonth int,
+                   apportionday int,
+                   accountCode varchar(60),
+                   accountDesc varchar(50),
+                   sourceCode varchar(60),
+                   sourceDesc varchar(60),
+                   sourceSECA varchar(50),
+                   amount money)
+        
+
+declare @det table(apportionmonth int,
+                   apportionday int,
+                   accountCode varchar(60),
+                   accountDesc varchar(50),
+                   sourceCode varchar(60),
+                   sourceDesc varchar(60),
+                   sourceSECA varchar(50),
+                   journalDesc varchar(50),
+                   amount money)
+
+declare @exclude varchar(max) = ''
+ select @exclude= @exclude + accountcode from glaccounts where bsSummary like '%Ad Val%'
+
+
+insert @det
+select month(dbo.date1(apportiondate)) as apportionmonth,day(dbo.date1(apportiondate)) as apportionday,accountCode,'' as accountDesc,sourceCode,sourceDesc,sourceSECA,case when isnull(apportioncontracode,'')> '0' then apportioncontracode else journalDesc end,sum(case when charindex(accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
+from dbo.rpMonthEndDetail(
+ @beginDate,
+ @endDate,
+ 'FALSE')
+ where (journalType='APPORTIONMENT' or (isnull(@includeSpecialAssessment,'')='TRUE' and left(journalType,13)='APPORTIONMENT'))
+       and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
+       and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+       and isnull(apportionContraCode,'NULL')<>accountcode
+      -- and accountcode not in (select accountcode from glaccounts where bsSummary like '%Ad Val%')
+group by 
+ month(dbo.date1(apportiondate)),day(dbo.date1(apportiondate)),accountCode,sourceCode,sourceDesc,sourceSECA,case when isnull(apportioncontracode,'')> '0' then apportioncontracode else journalDesc end
+
+insert @det
+select month(dbo.date1(sourcedate)) as apportionmonth,day(dbo.date1(sourcedate)) as apportionday,accountCode,'' as accountDesc,sourcea18,sourcea18+' JOURNAL','JOURNAL',sourcea18,sum(case when charindex(accountcode,@exclude)=0 and accountCode not in ('MISCTAX','MORTTAX') then amount else 0 end*-1) 
+from dbo.gldetailreports
+ where sourcetype='4512'
+       and (accountcode=@fundCode or len(isnull(@fundCode,''))=0)
+       and accounttype in (select accounttype from dbo.glbankfundtypes('FUND'))
+       and left(sourcea18,13)<>'APPORTIONMENT'
+       and sourcea18<>'Tax Refund'
+       and sourcedate >= @beginDate
+       and sourcedate <= @endDate
+group by 
+ month(dbo.date1(sourcedate)),day(dbo.date1(sourcedate)),accountCode,sourcea18
+
+
+delete from @det where amount=0
+
+
+update d set accountdesc = a.accountdesc from @det d, glaccounts a where d.accountcode=a.accountcode
+update d set sourcedesc = a.accountdesc, sourceSECA = SECA from @det d, glaccounts a where d.sourcecode=a.accountcode
+ 
+declare @years table(id int identity(1,1),yearCode varchar(50),journalDesc varchar(50),ord varchar(50))
+insert @years (yearcode,journalDesc)
+ select yearcode,[year]+'_ADVALOREM' from dbo.taxyears(@endDate)
+  union
+ select yearcode,[year]+'_PROTEST' from dbo.taxyears(@endDate)
+
+update @years set ord='0001' where yearcode = 'Current'
+update @years set ord='0002' where yearcode = 'Prior'
+update @years set ord='0003' where yearcode = 'Back'
+update @years set yearcode = yearcode+' Tax'
+
+
+update d set sourceCode = upper(y.yearcode),sourceDesc = upper(y.yearcode), sourceSECA = y.ord from @det d, @years y where d.journalDesc=y.journalDesc
+
+insert @wt (apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
+ select apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
+  group by apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA
+  
+
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,July,August,September,October,November,December,December2,January,January2,February,February2,March,March2,April,May,June,Total,ord)
+ select accountCode,accountDesc,sourceSECA,sourceDesc,
+  sum(case when apportionmonth=7 then amount else 0 end),
+  sum(case when apportionmonth=8 then amount else 0 end),
+  sum(case when apportionmonth=9 then amount else 0 end),
+  sum(case when apportionmonth=10 then amount else 0 end),
+  sum(case when apportionmonth=11 then amount else 0 end),
+  sum(case when apportionmonth=12 and apportionday<20 then amount else 0 end),
+  sum(case when apportionmonth=12 and apportionday>=20 then amount else 0 end),
+  sum(case when apportionmonth=1 and apportionday<20 then amount else 0 end),
+  sum(case when apportionmonth=1 and apportionday>=20 then amount else 0 end),
+  sum(case when apportionmonth=2 and apportionday<20 then amount else 0 end),
+  sum(case when apportionmonth=2 and apportionday>=20 then amount else 0 end),
+  sum(case when apportionmonth=3 and apportionday<20 then amount else 0 end),
+  sum(case when apportionmonth=3 and apportionday>=20 then amount else 0 end),
+  sum(case when apportionmonth=4 then amount else 0 end),
+  sum(case when apportionmonth=5 then amount else 0 end),
+  sum(case when apportionmonth=6 then amount else 0 end),
+  SUM(amount),
+  accountCode+rtrim(accountDesc)+sourceSECA+'b' 
+  from @wt -- where accountDesc='general' and sourceDesc in ('current tax','prior tax','back tax')
+   group by accountCode,accountDesc,sourceSECA,sourceDesc
+
+insert @rt (accountcode,accountdesc,sourceDesc, ord)
+ select accountcode,accountdesc,
+  rtrim(accountdesc)+'     ',
+  accountcode+rtrim(accountdesc)+'       a'
+  from @rt
+  group by accountcode,accountdesc
+
+
+insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,november,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
+ select accountcode,accountdesc,
+  'Total Revenue Rec''d',
+  sum(cast(July as money)),
+  sum(cast(August as money)),
+  sum(cast(September as money)),
+  sum(cast(october as money)),
+  sum(cast(november as money)),
+  sum(cast(december as money)),
+  sum(cast(december2 as money)),
+  sum(cast(January as money)),
+  sum(cast(January2 as money)),
+  sum(cast(february as money)),
+  sum(cast(february2 as money)),
+  sum(cast(march as money)),
+  sum(cast(march2 as money)),
+  sum(cast(april as money)),
+  sum(cast(may as money)),
+  sum(cast(june as money)),
+  sum(cast(total as money)),
+  accountcode+rtrim(accountdesc)+'zzzzzzzzzz'
+  from @rt
+  group by accountcode,accountdesc
+
+insert @rt (sourceDesc,july,august,september,october,november,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
+ select 
+  'Grand Total Revenue Rec''d',
+  sum(cast(July as money)),
+  sum(cast(August as money)),
+  sum(cast(September as money)),
+  sum(cast(october as money)),
+  sum(cast(november as money)),
+  sum(cast(december as money)),
+  sum(cast(december2 as money)),
+  sum(cast(January as money)),
+  sum(cast(January2 as money)),
+  sum(cast(february as money)),
+  sum(cast(february2 as money)),
+  sum(cast(march as money)),
+  sum(cast(march2 as money)),
+  sum(cast(april as money)),
+  sum(cast(may as money)),
+  sum(cast(june as money)),
+  sum(cast(total as money)),
+  'zzzzzzzzzz'
+  from @rt
+  where sourceDesc='Total Revenue Rec''d'
+
+
+return
+end
