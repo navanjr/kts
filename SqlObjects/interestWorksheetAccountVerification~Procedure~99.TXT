@@ -8,17 +8,20 @@ begin
                   formulaAmount money,
                   schPagesCat varchar(50),
                   tableType varchar(50),
-                  yearMonth varchar(10)
+                  yearMonth varchar(10),
+                  acrName varchar(60)
                   )
                   
  insert @wt
  select left(rtrim(apyear)+right('00'+rtrim(apmonth),2)+' '+TableType,50) as Name,accountCode as fund,amount as formulaAmount,comment2 as schpagescat,
-   'Interest '+case when left(tableType,7)='Balance' then left(tableType,len(tableType)-len(bankdesc)) else tableType end as TableType,rtrim(apyear)+right('00'+rtrim(apmonth),2) as yearmonth 
+   'Interest '+case when left(tableType,7)='Balance' then left(tableType,len(tableType)-len(bankdesc)) else tableType end as TableType,rtrim(apyear)+right('00'+rtrim(apmonth),2) as yearmonth, '' 
    from dbo.interestWorkSheetDetail(@date, @split)
+
+ update @wt set acrName=name+'_ACR'
 
  if @overWrite='TRUE' 
  begin
-  update object set typ=-4022 where typ=4022 and key1 in (select name from @wt)
+  update object set typ=-4022 where typ=4022 and key1 in (select name from @wt where acrName not in (select distinct accountcode from gldetail))
  end
 
  if not exists(select * from object where typ=4022 and key1 in (select name from @wt))
