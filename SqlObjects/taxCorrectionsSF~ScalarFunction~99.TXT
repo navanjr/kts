@@ -22,6 +22,18 @@ select top 1
 
 if @x is null
  set @x = rtrim(@adTaxValue)
+
+if @crLabel = '082'
+begin
+ declare @iCert varchar(50), @parcel varchar(50)
+ select @parcel = dbo.taxCorrectionsSF([FULLPIDNUMBER],@taxrollId,'006') from adtax where id=@taxrollId
+ select @iCert = a4 from object where typ=4100 and key2='A' and key1=@parcel
+ if isnull(@iCert,'') > ''
+ begin
+  set @x = rtrim(@iCert)
+ end 
+end
+
 return @x
 
 end

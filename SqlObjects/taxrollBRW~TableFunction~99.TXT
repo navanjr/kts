@@ -56,7 +56,7 @@ set @searchString=replace(@searchstring,'~{','''')
     select 
      a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,dbo.formatcurr(invoiceAmount),round(dbo.formatcurr(invoiceDue) * b.methodRate,2),
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_'+cast(item as varchar)+cast(taxyear as varchar),case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed,
-     case when isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],x.id,'056'),0) > 0 then 3 else 1 end
+     case when isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],x.id,'056'),0) > 0 then 3 when a.parcel in (select key1 from object where typ=4100 and key2='A') then 4 else 1 end
     from dbo.invoices a 
     join receiptLink b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id

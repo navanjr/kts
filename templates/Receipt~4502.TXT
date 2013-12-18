@@ -421,7 +421,7 @@ close('ok');
  if(obj:key3='TAX' and lccheck+0 < 1,m('No Statements Linked please retry receipt.')),
  break(obj:key3='TAX' and lccheck+0 < 1),
  if(obj:a17='Posted' or readstring(gcSiteBlob,'@recNoPost?=')=1,postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
- if(gcretval=2,postAndPrint=);
+ if(gcretval=2 and obj:a17<>'Posted' and readstring(gcSiteBlob,'@recNoPost?=')<>1,postAndPrint=);
 
 \h112(obj:key3<>'TRUST' and obj:b15<>'PROTEST') or obj:b7+0.00<0.01;
 \t112Write Voucher;
@@ -837,9 +837,14 @@ gcPrintOneTaxReceiptId=0,
  gccertId=0,
  lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
  if(lccheck+0 > 0,dodecal=),
-- if(readstring(obj:e2,'@autoDeposit=')='TRUE',depositNow=);
+ if(obj:key3='INDIV' and obj:b4 > ' 0',markcert=),
+ if(readstring(obj:e2,'@autoDeposit=')='TRUE',depositNow=);
 
  if(obj:a17<>'Posted',set(4,kp('select dbo.depositDate('''&gcRecType&''')'))),
+
+@markcert=m('Would you like for me to mark this certificate as redeemed?','Mark Certificate',,6),
+break(gcretval<>2),
+sql('update object set key2=''I'' where typ=4100 and key1='''&obj:b4&'''');
 
 @dodecal=m('There appears to be at least one mobile home related to this receipt would you like to record decal(s)?','Record Decals?',,6),
  break(gcretval+0<>2),
