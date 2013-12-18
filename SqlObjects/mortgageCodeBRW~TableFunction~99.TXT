@@ -53,6 +53,15 @@ select @mortcode = key1 from object where id = @mtgCodeId
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and taxrollId in (select id from adtax where case when treamort>'  0' then treamort else cast(mortgagecode as varchar) end = @mortcode)  
 
+---Selected back taxes
+      insert @rt
+       select 
+        i.id*-1,i.name,i.parcel,i.taxYear,i.item,i.typ,i.invoiceAmount,i.invoiceDue,'t'+cast(i.id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then i.name else i.parcel end,case when i.invoiceDue != 0 then i.subInvoiceDue else 0.00 end,0,0,'',i.taxrollId
+       from dbo.invoices i, receiptlink r
+       where 
+        i.id=r.invoiceid 
+        and r.receiptId = @mtgCodeId
+        and i.taxrollId not in (select taxrollId from @rt)
 
 -- Set Mortgage Codes
    update @rt set
