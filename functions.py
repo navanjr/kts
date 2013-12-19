@@ -1,4 +1,5 @@
 import os
+import os.path
 import sys
 import pyodbc
 import ConfigParser
@@ -10,6 +11,8 @@ import importDBF
 import threading
 import time
 import zipfile
+import urllib
+import urlparse
 # from kirc import *
 
 
@@ -326,14 +329,44 @@ class ktsMenu():
             if len(cmd) == 3:
                 self.apiResourceToggle(cmd[2])
                 return getApiStatus()
-        elif cmd[1] in ('log', ):
+        elif cmd[1] in ('log', 'json', 'result') and len(cmd) == 3:
+            verb = cmd[1]
+            resource = cmd[2]
             securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
             if not securityCheck:
                 return [message]
-            if len(cmd) == 3:
-                log = self.apiLog(cmd[2])['rows']
+            if verb == 'log':
+                log = self.apiLog(resource)['rows']
                 logArray = [x for x in log]
                 return logArray
+            elif verb in ('json', 'result'):
+                if verb == 'json':
+                    fileBase = ["apiPost", "json"]
+                elif verb == 'result':
+                    fileBase = ["apiResult", "tmp"]
+                if self.basePath:
+                    jsonFileName = "%s\\..\\%s%s.%s" % (self.basePath, fileBase[0], resource, fileBase[1])
+                else:
+                    jsonFileName = "..\\%s%s.%s" % (fileBase[0], resource, fileBase[1])
+                try:
+                    jsonFile = open(jsonFileName, "r")
+                    jsonDump = jsonFile.read()
+                    jsonFileDateTime = time.ctime(os.path.getmtime(jsonFileName))
+                    jsonDecoded = urlparse.parse_qs(jsonDump) if verb == 'json' else jsonDump
+                    self.irc.psend([jsonFileDateTime, 'Size:%s' % len(jsonDump)])
+                    return jsonDecoded
+                except Exception as e:
+                    return e
+
+        elif cmd[1] in ('batchsize') and len(cmd) == 4:
+            resource = cmd[2]
+            newSize = cmd[3]
+            securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+            if not securityCheck:
+                return [message]
+            self.command_setSetting('api', newValue=newSize, settingName="%s.batchsize" % resource)
+            return "right on man! your batchsize for %s is now %s" % (resource, self.settingsF("api.%s.batchsize" % resource))
+
         else:
             return 'huh?... '
 
