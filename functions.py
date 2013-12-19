@@ -364,7 +364,8 @@ class ktsMenu():
             securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
             if not securityCheck:
                 return [message]
-            self.setVars('api.%s.batchSize' % resource, newSize)
+            self.command_setSetting('api', newValue=newSize, settingName="%s.batchsize" % resource)
+            return "right on man! your batchsize for %s is now %s" % (resource, self.settingsF("api.%s.batchsize" % resource))
 
         else:
             return 'huh?... '
