@@ -4,6 +4,7 @@
  prop(104,'7C02H',63),
  prop(104,'7C03H',54);
 
+@nolock;
 @dk1;
 @format=55R(2)~Statement Date~@d2@#5#|M150L(2)~Account~#2#|M70R(2)~Beginning Balance~@n-14.2@#32#|M70R(2)~Ending Balance~@n-14.2@#33#|M50R(2)~Bank Variance~@n-12.2@#22#|M;
 @key2=999999-obj:a1&obj:key1;
@@ -204,7 +205,7 @@
 
 @gcvars=
  lcShowFlag=obj:c1,
- gcsql='select id,0,description,subDescription,dbAmount,crAmount,dbo.date2(dateCleared),selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&','&obj:b15+0&','&obj:b14+0&','&obj:b13+0&') order by ord';
+ gcsql='select id,0,description,subDescription,dbAmount,crAmount,dbo.date2(dateCleared),selectedFlag,rowType from dbo.bankStatementBRW('&obj:id&','&obj:link1&','&obj:c1+0&','&obj:c2+0&','&obj:c3+0&','&obj:b15+0&','&obj:b14+0&','&obj:b13+0&','''&cur:ini&''') order by ord';
 
 @brw1=
  bustItUp=,
@@ -225,7 +226,7 @@
  if(lcMode=9,warrOptions=);
 
 @sumOptions=
- e1select('select dbo.bankStatementBRWRightClickBlob('&obj:id&','&obj:link1&','&kpbrwid(1)&','&obj:c1+0&')'),
+ e1select('select dbo.bankStatementBRWRightClickBlob('&obj:id&','&obj:link1&','&kpbrwid(1)&','&obj:c1+0&','''&cur:ini&''')'),
  lcSumString=obj7:e1,
  lcMessage=readstring(lcSumString,'@message='),
  lcTotal=readstring(lcSumString,'@total='),
@@ -246,7 +247,7 @@
  if(lcPicked=15,cancelIt=);
  
 @warrOptions=
- d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&',@method=''QUERY'''),
+ d1select('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&',@method=''QUERY'', @ini='''&cur:ini&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Warrant Options...')),
  lcAmount=readstring(obj7:d1,'@amount='),
  lcTotal=readstring(obj7:d1,'@total='),
@@ -291,7 +292,7 @@
  do(4771,cancelProcedure=);
 
 @bwWarrabtToggle=
- sql('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)),
+ sql('exec dbo.bankStatementWarrantClicked '&obj:id&','&kpbrwid(1)&', @ini='''&cur:ini&''''),
  refreshBRW=;
 @bsToggle=
  d1select('exec dbo.bankStatementItemSelected '&lcid&', '&obj:id&', @clearedDate='&obj:a5),

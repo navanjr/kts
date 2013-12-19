@@ -35,10 +35,14 @@ begin
 
  select
   @accountId = link1,
-  @warrantsBlob = e1,
   @showAllWarrants = b13
  from object
  where id = @bankStatementId 
+
+ select
+  @warrantsBlob = e1
+ from object
+ where typ=4782 and link1 = @bankStatementId and key1=@ini
 
  insert @buyWt
  select
@@ -98,7 +102,7 @@ if (select COUNT(*) from @warrants) = 1
 
    delete @warrants where id = @tokenId
 -- remove warrant from the warrants blob
-   exec dbo.bankStatementWarrantClicked @bankStatementId = @bankStatementId, @brwId = @tokenBrwId
+   exec dbo.bankStatementWarrantClicked @bankStatementId = @bankStatementId, @brwId = @tokenBrwId, @ini = @ini
   end
 
 
@@ -110,7 +114,7 @@ if (select COUNT(*) from @warrants) = 1
   select
    @total = SUM(isnull(dbAmount,0) - isnull(crAmount,0)),
    @amount = SUM(case when id = @brwid then isnull(dbAmount,0) - isnull(crAmount,0) else 0 end)
-  from dbo.bankStatementBRW(@bankStatementid,@accountId,0,1,0,0,0,@showAllWarrants)
+  from dbo.bankStatementBRW(@bankStatementid,@accountId,0,1,0,0,0,@showAllWarrants,@ini)
   where id in (select brwid from @buyWt)
   select @log = '@code=0;'
    + '@total=' + cast(@total as varchar) + ';'
@@ -158,7 +162,17 @@ if (select COUNT(*) from @warrants) = 1
    + rtrim(fundCode) + ':'
    + rtrim(paymentNumber) + '|'
   from @buyWt
-  update object set e1 = @warrantsBlob where id = @bankStatementId
+
+  if exists (select * from object where typ=4782 and link1 = @bankStatementId and key1=@ini)
+   begin
+    update object set e1 = @warrantsBlob where typ=4782 and link1 = @bankStatementId and key1=@ini
+   end
+  else
+   begin
+    insert object (typ,link1,key1,e1)
+     select 4782, @bankStatementId, @ini, @warrantsBlob
+   end
+
   exec dbo.logit @@procid, '@brwid', @brwid, 'action', @log, '@objectId', @bankStatementId, '@warrantsBlob', @warrantsBlob
 
   return
