@@ -13,9 +13,21 @@ create function dbo.taxrollCollectionReport(@year int,@endDate int)
   apportAmt varchar(50),
   pendApport varchar(50),
   apportPct varchar(50),
+  pendingRefunds varchar(50),
   DistrictRate varchar(200),
   ord varchar(max))
  as begin
+
+ declare @pendingRefunds table(invoiceId int, apdistrict varchar(50), aprate varchar(50), apyear varchar(50), amount money, date int)
+
+ insert @pendingRefunds (invoiceId,amount,date)
+  select minPaymentId, amount*-1, dbo.clariondate(getdate()) from dbo.pendingRefundsTF() where minPaymentId > 0
+
+ update pr set apdistrict = a.apdistrict, aprate = a.aprate, apyear = a.apyear 
+  from @pendingRefunds pr, gldetail d, glaccounts a 
+  where 't'+cast(pr.invoiceId as varchar(15)) = d.slink
+    and d.accountcode = a.accountcode
+    and a.accounttype='SOURCE'
 
 
  insert @rt
@@ -33,9 +45,14 @@ create function dbo.taxrollCollectionReport(@year int,@endDate int)
    sum(case when LEFT(auditorigin,1)='6' then amount else 0 end)*-1 as apportAmt,
    sum(case when LEFT(auditorigin,1)='8' then amount else 0 end) as pendApport,
    '',
+   sum(case when auditorigin='Pending Refunds' then amount else 0 end) as pendingRefunds,
    apdistrict+'|'+aprate,
    'b'+apdistrict+'|'+aprate
-  from dbo.taxrollAuditDetail
+  from (
+  select apdistrict, aprate, apyear,auditorigin,amount,date from dbo.taxrollAuditDetail
+   union all
+  select apdistrict, aprate, apyear,'Pending Refunds',amount,date from @pendingRefunds
+  ) data 
    where apyear = @year  and date <= @endDate
   group by apdistrict,aprate,apyear
   order by apyear,apdistrict,aprate
@@ -44,7 +61,7 @@ create function dbo.taxrollCollectionReport(@year int,@endDate int)
  update @rt set unPaid = cast(curTax as money) - cast(taxPaid as money) + cast(recAdjust as money)
 
  insert @rt 
-  select '','Total','',SUM(cast(origTax as money)),SUM(cast(taxAdj as money)),SUM(cast(curTax as money)),SUM(cast(taxPaid as money)),SUM(cast(recAdjust as money)),SUM (cast(unpaid as money)),SUM(cast(protest as money)),SUM(cast(apportAmt as money)),SUM(cast(pendApport as money)),'','Total','zTotal'
+  select '','Total','',SUM(cast(origTax as money)),SUM(cast(taxAdj as money)),SUM(cast(curTax as money)),SUM(cast(taxPaid as money)),SUM(cast(recAdjust as money)),SUM (cast(unpaid as money)),SUM(cast(protest as money)),SUM(cast(apportAmt as money)),SUM(cast(pendApport as money)),'',SUM(cast(pendingRefunds as money)),'Total','zTotal'
   from @rt
 
  update @rt set apportPct =  case when cast(curTax as money)<>0 then cast(cast(((cast(apportAmt as money) + cast(pendApport as money))/cast(curTax as money))*100 as money) as varchar)+'%' else '' end
@@ -58,7 +75,8 @@ create function dbo.taxrollCollectionReport(@year int,@endDate int)
   unPaid = dbo.formatCurr(unPaid),
   protest = dbo.formatCurr(protest),
   apportAmt = dbo.formatCurr(apportAmt),
-  pendApport = dbo.formatCurr(pendApport)
+  pendApport = dbo.formatCurr(pendApport),
+  pendingRefunds = dbo.formatCurr(pendingRefunds)
   from @rt
  
 
