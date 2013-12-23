@@ -1,0 +1,32 @@
+create function dbo.pendingRefundsTF() returns @rt table(
+ minPaymentId int,
+ tally int,
+ amount money,
+ message varchar(max)
+) as 
+begin
+
+   insert @rt
+   select
+    id,
+    1,
+    invoiceDue,
+    name+case when parcel > ' 0' then ' - '+parcel else '' end
+    from invoices where isnull(invoiceid,0)=0 and invoiceDue<0
+
+ if (select count(*) from @rt) > 0 
+ begin
+   insert @rt
+   select
+    0,
+    count(*),
+    sum(amount),
+    ' --> There are [' + CAST(count(*) as varchar) + '] pending refunds'
+    from @rt
+
+
+ end
+
+ return
+
+end

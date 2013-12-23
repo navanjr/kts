@@ -56,9 +56,32 @@
 
 @menu3=
  lcEVBlob=kp('select blob from dbo.dailyData('&gcStartDate&','&gcDays&','''&gcFilterString&''') where id = -3'&lcid),
+ if(readstring(lcEVBlob,'@PendingRefunds=')=1,refundInvoice=),
+ break(readstring(lcEVBlob,'@PendingRefunds=')=1),
+ if(readstring(lcEVBlob,'@IncompleteRefunds=')=1,incompleterefund=),
+ break(readstring(lcEVBlob,'@IncompleteRefunds=')=1),
  m('There are ['&readstring(lcEVBlob,'@tally=')&'] Expired Outstanding Vouchers?','Expired Vouchers...','question.ico','&Cancel Expired Vouchers|&Show Expired Vouchers|E&xit'),
  if(gcretval=1,cancelExpVouchers=),
  if(gcretval=2,showExpiredVouchers=);
+
+@refundInvoice=
+ gcInvoiceId=lcid,
+ break(gcInvoiceId+0<1),
+ lccheck=kp('select invoiceDue*-1 from invoices where id='&gcInvoiceId),
+ iw('\t000Refund Balance?; \t001Refund Amount; \w00250; \f002'&lccheck&';\t002@n-19.2; @loadwindow=create(150,12,3,15,''Refund Fees/Penalties'',48);'),
+ lcrefundAmount=obj7:key1,
+ lcrefundfees=obj7:b1+0,
+ break(gcretval='esc' or lcrefundAmount+0 <= 0),
+ gcreceiptId=kp('select top 1 receiptId from receiptlink where invoiceId='&gcInvoiceId+0),
+ lccheck=kp('select count(*) from receiptlink where invoiceId='&gcInvoiceId+0),
+ if(lccheck+0>1,pickreceipt=),
+ d1select('exec dbo.receiptCRUD @mode=1, @receiptId='&gcreceiptId+0&', @invoiceId='&gcInvoiceId+0&', @refundAmount='&lcrefundAmount+0&', @voidFees='&lcrefundfees+0),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
+ if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
+ if(lcjeId>0,change(lcjeId,,1)),
+ sql('exec invoiceUpdate '&gcInvoiceId+0),
+ refreshBRW=;
+
 
 @cancelExpVouchers=
  iw(',.t003Reason., ,.l0044773., ,.t097Comment., ,.y097=001., ,.y098=002., ,.x097=001., ,.x098=002., ,.w098200., ,.o004098., ,[select=098.,'),
@@ -165,7 +188,6 @@
 
 @lbrw1forecolor=obj7:c10='3',255;
 @lbrw1color=obj7:c10='1',7467519,obj7:c10='2',1959605,obj7:c10='3',7467519,obj7:c10='4',15658746; 2350115; 2157055; 1959605; 
-1959605,obj7:c10='2',13499135; 2157055; 1959605; 2350115; 7467519
 
 @refreshBRW=
  gcvar=,
@@ -179,7 +201,11 @@
  if(lcTyp=8,click8=),
  if(lcTyp=6,click6=),
  if(lcTyp=5,click6=),
+ if(lcTyp=0,click0=),
  if(lcTyp=1,click1=);
+
+@incompleterefund=
+ browse(1,4512,'a17 <> ''Posted'' and a18=''Tax Refund'''));
 
 @menu8=
  break(lcid<1),

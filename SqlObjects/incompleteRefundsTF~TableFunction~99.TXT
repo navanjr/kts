@@ -1,0 +1,51 @@
+create function dbo.incompleteRefundsTF() returns @rt table(
+ minPaymentId int,
+ tally int,
+ amount money,
+ message varchar(max),
+ slinks varchar(max)
+) as 
+begin
+
+ declare
+  @minPaymentId int,
+  @days int = dbo.settingsF('site.voucherExpireDays','0'),
+  @date int = dbo.clarionToday(),
+  @tally int,
+  @amount money,
+  @slinks varchar(max)
+
+ declare @slink table(slink varchar(16))
+
+ if not @days = 0
+ begin
+
+  select
+   @minPaymentId = min(id),
+   @amount = sum(amount)
+  from gldetailStage where slink in (select 'o'+CAST(id as varchar) from object where TYP=4512 and a18 = 'Tax Refund' and A17<>'Posted')
+
+ insert @slink
+  select distinct slink from gldetailStage where slink in (select 'o'+CAST(id as varchar) from object where TYP=4512 and a18 = 'Tax Refund' and A17<>'Posted')
+
+  select 
+   @tally = count(*)
+  from @slink
+
+
+  select @slinks = stuff((select ',' + slink from gldetailstage where slink in (select 'o'+CAST(id as varchar) from object where TYP=4512 and a18 = 'Tax Refund' and A17<>'Posted') for xml path('')),1,1,'')
+
+  if isnull(@tally,0) > 0
+   insert @rt
+   select
+    @minPaymentId,
+    @tally,
+    @amount,
+    'There are [' + CAST(@tally as varchar) + '] incomplete refunds',
+    @slinks
+
+ end
+
+ return
+
+end

@@ -103,6 +103,27 @@ begin
    from dbo.vouchersExpiredTF()
   end
 
+-- Incomplete Refunds
+   insert @rt 
+   select
+    '-3',
+    'IncompleteRefunds',
+    dbo.padRight(' --> ' + message,' ',65)
+    + dbo.padLeft(dbo.formatCurr(amount),' ',15),'glBalanceString','rowstring1','sourceNo',tally,amount,3,
+    '@tally=' + cast(tally as varchar) + ';@amount=' + cast(amount as varchar) + ';@slinks=' + slinks + ';@IncompleteRefunds=1;'
+   from dbo.incompleteRefundsTF()
+
+-- Pending Refunds
+   insert @rt 
+   select
+    case when minPaymentId = 0 then '0' else '-3'+cast(minPaymentId as varchar) end,
+    'PendingRefunds'+cast(minPaymentId as varchar),
+    dbo.padRight(message,' ',65)
+    + dbo.padLeft(dbo.formatCurr(amount),' ',15),'glBalanceString','rowstring1','sourceNo',tally,amount,3,
+    '@tally=' + cast(tally as varchar) + ';@amount=' + cast(amount as varchar) + ';@PendingRefunds=1;'
+   from dbo.pendingRefundsTF()
+
+
 -- Lock Fiscal Calendar
   if dbo.settingsF('site.autoLockFiscalCalendar','FALSE') = 'TRUE'
    and exists(select * from dbo.fiscalCalendar where endDate < dbo.clarionToday() and locked != '1')
