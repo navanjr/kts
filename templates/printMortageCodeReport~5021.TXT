@@ -8,7 +8,48 @@
  m('Coming Soon');
 ;
 
+
+
+
+
 @print=
+ m('What do you want to do?',,,'&Print|&Export|&Cancel'),
+ if(gcretval=1,printIt=),
+ if(gcretval=2,exportIt=),
+ break(gcretval>2);
+
+
+@exportIt=
+ lcfile='c:\'&gcMortCode&'-'&gctaxyear&'mtgCodes.csv',
+ kpmo('exporting...'),
+ sqlexport(gcsql,lcfile,5),
+ kpmc(),
+ start(lcfile);
+ 
+@printIt=
+ do(452,getSiteInfo=),
+ lca3=0,
+ lcid=kp('select id from object where typ=4030 and key1='''&gcMortCode&''''),
+ tr(
+  prn(printed),
+  prn(page),
+  prn('Mortgage Code Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn(gcCity&', '&gcState,t3), 
+  prn('Tax Year: '&gcTaxYear,t4),
+  bnd('H','Mortgage Code:',1000R,gcMortCode,2000), 
+  nl,
+  bnd('HU','Name',3000,'Parcel',2000,'taxYear',500,'Amount Due',700R),
+  det(gcsql),
+   bnd('D',obj5:a2,3000,obj5:a4,2000,obj5:a3,500,format(obj5:a8,@n14.2b),700R),
+   lca3=lca3+obj5:a3,
+  edt,
+  nl,
+  bnd('H',,3000,'Report Total',2000R,format(lca3,@n$14.2b),700R), 
+ );
+
+
+@printold=
  do(452,getSiteInfo=),
  lca3=0,
  lcid=kp('select id from object where typ=4030 and key1='''&gcMortCode&''''),
@@ -35,3 +76,6 @@
   nl,
   bnd('H',,3000,'Report Total',2000R,format(lca3,@n$14.2b),700R), 
  );
+
+
+
