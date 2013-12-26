@@ -6,6 +6,14 @@ create proc dbo.glAccountVerificationByAccountType (
 begin
  set nocount on
 
+ if @glAccountType = @accountType
+ begin
+  exec dbo.logit @@procId, 'Aborting verification by type.', @glAccountType
+  select '@code=1;@message=Aborting because accounttype and target type are the same.;'  
+
+  return
+ end
+
  exec dbo.logit @@procId, 'Running Account Verification on G/L Acct Type', @glAccountType
 
  declare @accounts table(accountCode varchar(50))
