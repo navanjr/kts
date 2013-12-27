@@ -2,7 +2,8 @@ create procedure dbo.apportionCollections(
  @accountId int, 
  @apportionToDate int = 99999, 
  @postDate int,
- @postOverride int
+ @postOverride int,
+ @gldetailId int = null
 ) as
 begin
 
@@ -55,7 +56,7 @@ begin
 -- create stage 
  insert glDetailStage ( accountId, accountCode, accountDesc, amount, slink, comment, comment2, sourceCode, apportionContraCode)
  select accountId, accountCode, accountDesc, amount, @slink, comment, comment2, sourceCode, contraAccountCode
-  from dbo.apportionCollectionsBRW( @accountId, @apportionToDate )
+  from dbo.apportionCollectionsBRW( @accountId, @apportionToDate, @gldetailId )
 
 
  if @postOverride <> 1
@@ -73,17 +74,8 @@ begin
 -- link origional apportion postngs to this JE
   update glDetail set bsId = @newId
   where 
-    id in (select id from dbo.apportionCollectionsWTIds(@accountId, @apportionToDate,'FALSE',null,null)) 
+    id in (select id from dbo.apportionCollectionsWTIds(@accountId, @apportionToDate,'FALSE',@gldetailId,null)) 
 
-/* if @accountType = 4502
- begin
-  update glDetail set bsId = @newId
-  where 
-    contraId > 0
-    and slink in (select slink from dbo.receiptSLinks(@accountId))
-    and ISNULL(bsId,0) = 0
- end
- */
  
  return
 end

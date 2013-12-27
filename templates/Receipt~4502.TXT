@@ -724,13 +724,31 @@ acc551=
  lcid=sub(lcid,2,25),
  if(lcTyp+0=5 or lcTyp+0=6 or lcTyp+0=7,doprint1=),
  if(lcTyp+0=4,change(lcid)),
- if(lcTyp+0=9,doChangeApportionment=),
+ if(lcTyp+0=9,doPostedMenu9=),
  break(lcTyp<>8),
  lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
  break(lcCheckDeposited='TRUE'),
  iw('\t000Enter the Correct Information...; \t001Paycode; \l0024505; \w00250; @lmode002=2; \t003Check #; \w00450; \t005Bank Drawn On; \w00650; \l0064509;r006002008004; @lf006=,2; lmode006=2; @nopop006; \t007Location; \w00850;'),
  if(gcretval<>'esc',updatepaid=);
+
+
+@doPostedMenu9=m('Do You Want To','Do You Want To',,'Change Apportionment|Special Apportion'),
+ if(gcretval=1,doChangeApportionment=),
+ if(gcretval=2,doSpecialApportionOne=)
+ ;
+
+@doSpecialApportionOne=d1select('select dbo.receiptDetailGLDetailId('&lcid+0&')'),
+ gc4794gldetailid=obj7:d1,
+ if(gc4794gldetailid+0<1,m('Cannot Special Apportion this line.')),
+ break(gc4794gldetailid+0<1),
+ gc4794id=obj:id,
+ gcApportionToDate=obj:key2,
+ if(gcApportionToDate+0<today(),gcApportionToDate=today()),
+ lcApportionStage=kp('select max(id) from object where typ = 4794'),
+ if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794)),
+ gc4794gldetailid=0
+ ;
 
 @doChangeApportionment=gcReceiptId=obj:id,
  gcDetailid=lcid,
