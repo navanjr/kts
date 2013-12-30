@@ -61,6 +61,7 @@ set @searchString=replace(@searchstring,'~{','''')
     join receiptLink b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
     where b.receiptId = @receiptId
+    and isnull(a.invoiceid,0)=0
 
 
 -- get the first 1000 rows that match the search string. IF we have a search string ordered by name or parcel
@@ -81,6 +82,8 @@ set @searchString=replace(@searchstring,'~{','''')
         and status<>'Firstnum'
         and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(i.id as varchar(15)),null)>0 then 0 else 1 end end
         and i.id not in (select invoiceId from receiptlink where receiptid = @receiptId)
+        and isnull(i.invoiceid,0)=0
+
      else
 ---Regular Search 
      if @sSlen=1 and isnumeric(@searchString)=0
@@ -95,6 +98,7 @@ set @searchString=replace(@searchstring,'~{','''')
         and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
+        and isnull(invoiceid,0)=0
      else
       insert @rt
        select  
@@ -107,6 +111,7 @@ set @searchString=replace(@searchstring,'~{','''')
         and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
+        and isnull(invoiceid,0)=0
     end
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
    else
@@ -121,6 +126,7 @@ set @searchString=replace(@searchstring,'~{','''')
       and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
       and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
       and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
+      and isnull(invoiceid,0)=0
 
 
 --Adtax 0 due records
