@@ -6,7 +6,7 @@ declare @wt table (taxAmount money,AccCode varchar(50),AccType varchar(50))
 declare @slinks table(slink varchar(15))
 
 if @switch = 0 
-
+     begin
 	insert into @wt  
 		select amount,accountCode,''
 			from gldetail a,receiptlink b 
@@ -14,9 +14,10 @@ if @switch = 0
                                 left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
 					and b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
+     end
 
 if @switch = 1
-
+     begin
 	insert into @wt  
 		select amount,accountCode,''
 			from gldetail a,receiptlink b 
@@ -25,9 +26,10 @@ if @switch = 1
 					and b.invoiceId = @invoiceId  
 					and b.receiptId < @recId
 
+     end
 
 if @switch = 2
-
+     begin
         insert into @slinks 
                 select 'l'+cast(b.id as varchar) 
                         from receiptlink b
@@ -36,7 +38,7 @@ if @switch = 2
 					and b.receiptId = @recId
 
         insert into @slinks 
-                select 'l'+cast(b.id as varchar) 
+                select 'l'+cast(rl.id as varchar) 
                         from receiptlink b, invoices i, receiptlink rl
                         where
                                 rl.invoiceId = i.id
@@ -53,12 +55,13 @@ if @switch = 2
                                 a.slink=b.slink
 
 
-	update @wt set AccType = accountType from glAccounts where accountType='Receivable'
+	update w set AccType = accountType from @wt w, glAccounts a where w.AccCode=a.accountcode and accountType='Receivable'
 	
 	delete from @wt where AccType<>'Receivable' or taxAmount > 0
         delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
+     end
 
 if @switch = 3 -- Penalty Sub invoices
 begin
