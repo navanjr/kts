@@ -19,7 +19,8 @@ declare @wt table(	accountDesc varchar(60),
 					TotalCash money,
 					Collateral money,
 					FDIC money,
-					ord varchar(250))
+					ord varchar(250),
+                                        ledgergroup varchar(50))
 
 
 
@@ -35,13 +36,14 @@ declare @dailyledgerdetail table(
 					deposits money,
 					endbalance money,
 					accountType varchar(50),
-					reportOrder varchar(50))
+					reportOrder varchar(50),
+                                        ledgerGroup varchar(50))
 
 declare @useCollateralLedger varchar(5)
 select @useCollateralLedger=settingvalue from settings where settingname='site.useCollateralLedger'
 
-insert @dailyledgerdetail (accountCode,	accountDesc, beginbalance, paid, appout, appin,	tranout, tranin, deposits, endbalance, accountType, reportOrder)
-	select accountCode, accountDesc, beginbalance, paid, appout+specappout, appin+specappin, tranout+fundtranout, tranin+fundtranin, deposits+elecdeposits, endbalance, accountType, reportOrder from dailyledgerdata(@beginDate,@endDate,'FALSE') 
+insert @dailyledgerdetail (accountCode,	accountDesc, beginbalance, paid, appout, appin,	tranout, tranin, deposits, endbalance, accountType, reportOrder, ledgergroup)
+	select accountCode, accountDesc, beginbalance, paid, appout+specappout, appin+specappin, tranout+fundtranout, tranin+fundtranin, deposits+elecdeposits, endbalance, accountType, reportOrder, case when ledgergroup not in ('BANK','INVESTMENT','CASH','SUSPENSE') then ledgergroup else '' end from dailyledgerdata(@beginDate,@endDate,'TRUE') 
 
 insert @wt
 	select	d.accountDesc,
@@ -52,7 +54,8 @@ insert @wt
 			endBalance as TotalCash,
 			isnull((select top 1 cast(c6 as money) from object where key1=a.accountCode and a2<=@endDate order by a2 desc),0) as Collateral,
 			isnull((select top 1 cast(c7 as money) from object where key1=a.accountCode and a2<=@endDate order by a2 desc),0) as FDIC,
-			d.accountdesc
+			d.accountdesc,
+                        d.ledgergroup
 			from @dailyledgerdetail d, glaccounts a 
 		where d.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 			and d.accountCode=a.accountCode
@@ -65,17 +68,18 @@ if @useCollateralLedger = 'TRUE'
 
 ----insert detail
 insert @rt
-	select	'  ' + dbo.padRight(accountDesc,' ',61),
-			bankAccount,
-			dbo.padLeft(dbo.formatCurr(DemandBalance),' ',16),
-			dbo.padLeft(dbo.formatCurr(InvestBalance),' ',16),
-			dbo.padLeft(dbo.formatCurr(TotalCash),' ',16),
-			dbo.padLeft(dbo.formatCurr(Collateral),' ',16),
-			dbo.padLeft(dbo.formatCurr(FDIC),' ',16),
+	select	'  ' + dbo.padRight(case when ledgergroup > ' 0' then ledgergroup else accountdesc end,' ',61),
+			case when ledgergroup > ' 0' then ledgergroup else bankAccount end,
+			dbo.padLeft(dbo.formatCurr(sum(DemandBalance)),' ',16),
+			dbo.padLeft(dbo.formatCurr(sum(InvestBalance)),' ',16),
+			dbo.padLeft(dbo.formatCurr(sum(TotalCash)),' ',16),
+			dbo.padLeft(dbo.formatCurr(sum(Collateral)),' ',16),
+			dbo.padLeft(dbo.formatCurr(sum(FDIC)),' ',16),
 			'detail',
-			@ordSeed + ord + 'c', accountcode
+			@ordSeed + min(ord) + 'c', min(accountcode)
 		from @wt where isnull(DemandBalance,0) <> 0 or
   isnull(InvestBalance,0) <> 0 or isnull(TotalCash,0) <> 0 or isnull(Collateral,0) <> 0 or isnull(FDIC,0) <> 0.00
+                group by case when ledgergroup > ' 0' then ledgergroup else bankAccount end, case when ledgergroup > ' 0' then ledgergroup else accountdesc end
 
 ----insert subtotals
 insert @rt
