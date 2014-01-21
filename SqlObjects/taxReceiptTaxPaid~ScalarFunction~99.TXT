@@ -14,6 +14,13 @@ if @switch = 0
                                 left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
 					and b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
+	update w set AccType = accountType from @wt w, glAccounts a where w.AccCode=a.accountcode and accountType='Receivable'
+	
+	delete from @wt where AccType<>'Receivable' or taxAmount > 0
+        delete from @slinks where slink>'0'
+
+	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
+
      end
 
 if @switch = 1
@@ -26,6 +33,12 @@ if @switch = 1
 					and b.invoiceId = @invoiceId  
 					and b.receiptId < @recId
 
+	update w set AccType = accountType from @wt w, glAccounts a where w.AccCode=a.accountcode and accountType='Receivable'
+	
+	delete from @wt where AccType<>'Receivable' or taxAmount > 0
+        delete from @slinks where slink>'0'
+
+	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
      end
 
 if @switch = 2
