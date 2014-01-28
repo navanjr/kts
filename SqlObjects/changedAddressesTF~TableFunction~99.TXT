@@ -1,0 +1,29 @@
+create function dbo.changedAddressestf(@taxyear int) returns 
+@rt table(
+ id int,
+ name varchar(100),
+ itemNumber varchar(50),
+ parcel varchar(50),
+ fulladdress varchar(2000))
+ as begin
+ 
+declare @wt table(taxrollDetailId int)
+ insert @wt 
+  select max(id)
+   from taxrollDetail 
+   where dtype='a' and taxyear=@taxyear and CHARINDEX('import',Stamp)=0 
+   group by itemNumber,taxyear
+ 
+ insert into @rt
+  select 
+   taxrollDetailId,name,itemNumber,parcelNumber,
+   case when address1 > '  0' then rtrim(ltrim(address1)) else '' end
+   + case when address2 > '  0' then ' ' +rtrim(ltrim(address2)) else '' end
+   + case when address3 > '  0' then ' ' + rtrim(ltrim(address3)) else '' end
+   + case when city > '  0' then ' ' + rtrim(ltrim(city)) else '' end
+   + case when state > '  0' then  ', ' + rtrim(ltrim(state))  else '' end
+   + case when zip1 > '  0' then  ' ' + rtrim(ltrim(zip1)) else '' end
+   + case when zip2 > '  0' then '-' +rtrim(ltrim(zip2))  else '' end
+  from taxrollDetail td join @wt on taxrollDetailId = td.id order by td.name
+return
+end
