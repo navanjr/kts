@@ -16,6 +16,11 @@ begin
  
  declare @priorBS table(id int)
 
+ declare @voucherSLinks table(slink varchar(16))
+
+ insert @voucherSLinks
+   select 'o'+cast(id as varchar) from object where typ=4771
+
  select 
   @accountId = link1,
   @sBDate = cast(a1 as int),
@@ -38,14 +43,15 @@ begin
  where 
   accountId = @accountId 
    and bsId = @id
-   and ((amount > 0) and slink not in (select 'o'+cast(id as varchar) from object where typ=4771))
+   and (amount > 0) 
+   and slink not in (select slink from @voucherSLinks)
  
  select @credits = isnull(sum(amount),0) 
  from gldetail 
  where 
   accountId = @accountId 
    and bsId = @id
-   and ((amount < 0) or slink in (select 'o'+cast(id as varchar) from object where typ=4771))
+   and ((amount < 0) or slink in (select slink from @voucherSLinks))
 
  select @variance = case when isnumeric(a3)=1 then cast(a3 as money) else 0 end-@eBalance from object where typ = 4780 and id = @id
 
