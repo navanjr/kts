@@ -1,6 +1,9 @@
 @bb1=&Print; 
+
  @bbproc1=officialDepository=;
+
    
+
 @officialDepository=
  do(452,getSiteInfo=),
   lcLm=250,
@@ -19,8 +22,9 @@
   gcsql4506='select description,subdescription,'''',amount from dbo.receiptDetailBRW('&gcRecId&',0,0) where ord in (''bc'',''bdc'')',
   lcBoxColor=14539482,
  tr(
-    lctot=0,
+    if(curpage=1),lctot=0,
     lcPTot=0,
+    lcrow=0,
     lcy=450,
     box(450,lcy,4000,950,0,lcBoxColor),
     prn(printed),
@@ -62,17 +66,21 @@
      lcBs=lcy,
      lcMR=lcM&'R',
   bnd('H','By Whom Drawn',lcCw,'Reference',lcCw,'',lcCw,'Amount',lcMR),
-    nl,
-     lcy=lcy+185,
-  det(gcsql4506),
+     lcy=pagey+50,
+  prn(,,lcy),
+  det(gcsql4506,,,,,,45),
        bnd('D',obj5:a1,lcCw,obj5:a2,lcCw,obj5:a3,lcCw,format(obj5:a4,@n$-14.2b),lcM*-1),
+       lcrow=lcrow+1,
        lcy=lcy+125,
        lctot=lctot+obj5:a4,
+      lin(lcLm,pagey-160,lcLm,pagey),
+      lin(lcLm+100+lcCw,pagey-160,lcLm+100+lcCw,pagey),
+      lin(lcLm+200+(lcCw*2),pagey-160,lcLm+200+(lcCw*2),pagey),
+      lin(lcLm+300+(lcCw*3),pagey-160,lcLm+300+(lcCw*3),pagey),
+      lin(lcAw+900,pagey-160,lcAw+900,pagey),
+      if(lcrow=45),do(lin(lcLm,pagey,lcAw+900,pagey),nl,bnd('D','--continued--',7500C)),
   edt,
-    box(lcLm,lcBs,lcAw+900,lcy),
-      lin(lcLm+100+lcCw,lcLS,lcLm+100+lcCw,lcy),
-      lin(lcLm+200+(lcCw*2),lcLS,lcLm+200+(lcCw*2),lcy),
-      lin(lcLm+300+(lcCw*3),lcLS,lcLm+300+(lcCw*3),lcy),
+    lin(lcLm,pagey,lcAw+900,pagey),
    nl,
    lcy=lcy+125,
   bnd('H','',lcCw*3+200,format(lctot,@n$-14.2b),lcM*-1),
@@ -92,10 +100,10 @@
     lcRp3=lcRp3+125,
   prn(,,lcRp3),
   bnd('D',obj7:a18,lcCw),
-  prn(,750,8000),
+  nl,nl,
+  prn(,750),
   bnd('H','RECEIVED THE ABOVE DEPOSIT AGGREGATING '&format(lctot,@n$-14.2)&' AND CREDITED THE OFFICIAL',500),
   bnd('H','DEPOSITORY ACCOUNT OF: '&clip(obj7:a1)&', '&obj7:b1,500),
     nl,nl,
   bnd('H','',3500,'BY:______________________________________',3250),
- if(obj7:a17='VOID'),prn('VOID',3400,3000,56)
-);
+ if(obj7:a17='VOID'),prn('VOID',3400,3000,56));
