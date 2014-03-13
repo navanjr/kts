@@ -66,6 +66,18 @@ begin
   end
  end
 
+-- bail if we are a receipt and we have already been apportioned
+ if isnull(@objTyp,0) = 4502
+ begin
+  if exists (select * from gldetail where slink = @slink and nullif(bsId,0) is not null)
+  begin
+   select
+    @code = 1,
+    @message = 'Unposting can not be done on this receipt as it has already been apportioned... Sorry.;'
+    GOTO bail
+  end
+ end
+
 -- bail if we are an officialDeposit and paid records are already linked to depost
  if isnull(@objTyp,0) = 4522
  begin

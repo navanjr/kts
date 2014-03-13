@@ -250,6 +250,25 @@ begin
    return
   end
 
+-- bail if receipt apportioned
+  if exists(select * from gldetail where slink=@slink and isnull(bsId,0)>0)
+  begin
+   exec dbo.logit @@procid, 'Receipt has been apportioned... Bailing.'
+   select '@code=1;@message=Receipt has been apportioned, aborting delete;'
+   return
+  end
+  
+  declare @receiptlinks table (slink varchar(15))
+  insert @receiptlinks
+   select 'l'+cast(id as varchar) from receiptlink where receiptid = @receiptId
+
+  if exists(select * from gldetail g, @receiptlinks rl where g.slink = rl.slink and isnull(bsId,0)>0)
+  begin
+   exec dbo.logit @@procid, 'Receipt has been apportioned... Bailing.'
+   select '@code=1;@message=Receipt has been apportioned, aborting delete;'
+   return
+  end
+
   declare
    @tokenSlink varchar(15),
    @token int,
