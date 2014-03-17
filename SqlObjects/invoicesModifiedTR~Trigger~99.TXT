@@ -18,3 +18,16 @@ AS
   UPDATE dbo.invoices
     SET modified = GETDATE()
     WHERE ID IN (SELECT DISTINCT ID FROM Inserted)
+
+  exec dbo.logit @@procid, 'Just ran the update...', @@rowCount, 'was...', @apiDateWas, 'Is...', @apiDateIs 
+  declare 
+    @invoiceAmount money,
+    @invoiceDue money,
+    @subInvoiceDue money
+
+  select 
+    @invoiceAmount = invoiceAmount,
+    @invoiceDue = invoiceDue,
+    @subInvoiceDue = subInvoiceDue
+  from inserted
+  exec dbo.logit @@procid, '  saved ... @invoiceAmount', @invoiceAmount, '@invoiceDue', @invoiceDue, '@subInvoiceDue', @subInvoiceDue
