@@ -1,0 +1,81 @@
+create proc dbo.diagFix_orphanedFees(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(si.id),  
+   @message = 'Orphaned Fees.'
+  from invoices si, invoices mi
+  where 
+   si.invoiceId=mi.ID
+   and si.TYP='F'
+   and si.invoiceDue > 0.00
+   and mi.invoiceDue = 0.00
+   and mi.subInvoiceDue > 0.00
+
+--  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from invoices si, invoices mi
+  where 
+   si.invoiceId=mi.ID
+   and si.TYP='F'
+   and si.invoiceDue > 0.00
+   and mi.invoiceDue = 0.00
+   and mi.subInvoiceDue > 0.00
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  declare @ids table(id int)
+  declare @subInvoiceIdToken int = 0
+
+  insert @ids
+   select distinct si.id
+   from invoices si, invoices mi
+   where 
+    si.invoiceId=mi.ID
+    and si.TYP='F'
+    and si.invoiceDue > 0.00
+    and mi.invoiceDue = 0.00
+    and mi.subInvoiceDue > 0.00
+ 
+  while exists(select * from @ids) 
+  begin
+   select top 1 @subInvoiceIdToken = id from @ids
+
+   exec subInvoiceAdjust @subInvoiceIdToken, @newAmount = 0.00, @receiptId = 0, @mode = 'DEFAULT', @blob = '' 
+
+   delete from @ids where id = @subInvoiceIdToken
+  end
+
+  return  
+ end
+
+
+end
