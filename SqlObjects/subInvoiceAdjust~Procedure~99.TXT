@@ -7,7 +7,10 @@ begin
   @fundCode varchar(50),
   @subInvoiceType varchar(1),
   @amount money,
-  @receiptType varchar(50)
+  @receiptType varchar(50),
+  @subInvoiceSlink varchar(15) = 't'+cast(@subInvoiceId as varchar)
+
+
 
  select top 1 
   @mainInvoiceId = i.invoiceId,
@@ -17,7 +20,7 @@ begin
   @fundCode = r.fundcode,
   @subInvoiceType = i.typ
  from invoices i, receiptDetail r where i.id=@subInvoiceId and 
-   left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id
+   r.slink=@subInvoiceSlink
 
  exec dbo.logit @@procid, '@subInvoiceId', @subInvoiceId, '@amount', @amount, '@mode', @mode
 
@@ -30,7 +33,6 @@ if @mode = 'single'
 
 
  set @blob = @blob + ': ' +dbo.formatcurr(@amount)
-
 
  exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount,@blob=@blob
  
