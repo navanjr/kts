@@ -107,6 +107,30 @@ begin
    l.receiptId in (select receiptId from @wtRaw)
    and l.receiptNumber > '  0'
 
+-- insert void tax receipt data
+ insert @wtRaw --(receiptNumber,subDescription,receiptId) 
+ select 
+  b.accountId,
+  a.reportOrder,
+  a.collectionDescription,
+  b.accountDesc,
+  r.recnum,
+  0.00,
+  '',
+  '',
+  '',
+  recId,
+  1,
+  0.00,
+  0.00
+  from taxreceipt r, glaccounts b, @accounts a
+ where 
+   b.accountcode = cast(r.taxyear as varchar)+'_ADVALOREM'
+   and b.accountId = a.accountId
+   and r.recStatus = 'VOID'
+   and case when isnumeric(r.postDate)=1 then cast(r.postDate as int) else 0 end between @theDate and @theDate + @days
+   and r.recNum > '  0'
+
 --- insert all raw into @wt
 insert @wt
  select

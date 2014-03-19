@@ -44,7 +44,7 @@ printBookReceiptList=;
  if(gcBankAccount>'  0',lcWhere=lcWhere&choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''') and recId not in (select dbo.slinkid(slink) from paid where 
  depositid in (select d.id from object d, glaccounts a where d.typ = 4513 and d.link1=a.accountid and accountcode <> '''&gcBankAccount&''') 
  and dbo.slinktype(slink)=''o'')',lcWhere=lcWhere),
- lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -194,7 +194,7 @@ printReceiptList=
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
- lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  tr(
   prn(printed),
   prn(page),
@@ -226,7 +226,7 @@ printReceiptList=
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
- lcsql='select recType,recnum,recdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by taxType,rectype,recnum',
+ lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by taxType,rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -241,7 +241,7 @@ printReceiptList=
   lcReportType=choose(gcDeputy='','Station','Deputy'),
   lcUser=choose(lcReportType='Station','Station: '&gcStation,'Deputy: '&gcDeputy),
   lcFilter=choose(lcReportType='Station','station='&''gcStation'','deputy='&''gcDeputy''),
-  lcsql='select recType,recnum,postdate1,recfrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0)+isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where '&lcFilter&' order by recType,recnum',
+  lcsql='select recType,recnum,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0)+isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where '&lcFilter&' order by recType,recnum',
   lcTotPaid=0,
   lcPaid=0,
   lcPenFees=0,
@@ -307,7 +307,7 @@ printReceiptList=
  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
-  lcsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by Deputy, Station, recType, recNum  ',
+  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by Deputy, Station, recType, recNum  ',
  if(lcReceiptType='TAX',BookTax=,BookOther=);
 
 /**Honors date range and receipt type. Deputy, Station and Print Detail are ignored**/
@@ -323,7 +323,7 @@ printReceiptList=
  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
-  lcsql='select recType,recNum,recdate1,postdate1,recFrom,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by '''&lcReportType&''', recType, recNum  ',
+  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by '''&lcReportType&''', recType, recNum  ',
  if(lcReceiptType='TAX',BookTax=,BookOther=);
   
 @BookOther=
