@@ -32,7 +32,7 @@ begin
 
  insert @wt (slink,rlId,invoiceid,receiptid,receiptNumber,previousNumber)
   select 'l'+cast(id as varchar), id, invoiceid, receiptid, receiptNumber,right('00000'+cast(cast(receiptNumber as int)-1 as varchar(5)),5) 
-    from receiptlink where isnull(receiptNumber,'') > '00000'
+    from receiptlink where isnull(receiptNumber,'') > '00000' and isnumeric(receiptNumber)=1
 
  update w set taxyear = a.apyear 
    from @wt w, gldetail d, glaccounts a
@@ -50,6 +50,16 @@ begin
    from @wt w, invoices i
    where w.invoiceid*-1=i.id
      and isnull(w.taxyear,'NULL')='NULL'    
+
+ insert @wt (receiptid, taxyear, receiptNumber, previousNumber)
+  select id, left(rtrim(key3)+' '+rtrim((select fiscalyear from dbo.fpinfo(key2))),20), key1,
+    right('00000'+cast(case when isnumeric(key1)=1 then cast(key1 as int) else 1 end -1 as varchar(5)),5) 
+   from object
+    where typ = 4502 and isnull(key1,'') > '00000' and isnumeric(key1)=1
+
+
+
+
     
  insert @rt
   select w.* from @wt w
@@ -70,7 +80,7 @@ begin
  delete from @rt where lastNumber='00000' 
 
  insert @missingNumbers
-  select taxyear,firstNumber,lastNumber from @rt order by taxyear desc, receiptnumber
+  select distinct taxyear,firstNumber,lastNumber from @rt order by taxyear desc, firstnumber
 
  return
 end
