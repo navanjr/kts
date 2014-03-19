@@ -7,10 +7,7 @@ begin
   @fundCode varchar(50),
   @subInvoiceType varchar(1),
   @amount money,
-  @receiptType varchar(50),
-  @subInvoiceSlink varchar(15) = 't'+cast(@subInvoiceId as varchar)
-
-
+  @receiptType varchar(50)
 
  select top 1 
   @mainInvoiceId = i.invoiceId,
@@ -20,19 +17,20 @@ begin
   @fundCode = r.fundcode,
   @subInvoiceType = i.typ
  from invoices i, receiptDetail r where i.id=@subInvoiceId and 
-   r.slink=@subInvoiceSlink
+   left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id
 
  exec dbo.logit @@procid, '@subInvoiceId', @subInvoiceId, '@amount', @amount, '@mode', @mode
 
  select @receiptType = key3 from object where id=@receiptId
 
-if @mode = 'single'
+ if @mode = 'single'
   set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where id=@subInvoiceId),0)
  else
   set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
 
 
  set @blob = @blob + ': ' +dbo.formatcurr(@amount)
+
 
  exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount,@blob=@blob
  
@@ -42,16 +40,15 @@ if @mode = 'single'
  begin
    insert receiptLink (receiptId,invoiceId,methodRate)
   select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId) 
-   and id not in (select invoiceId from receiptLink)
+   and id not in (select invoiceId from receiptLink where receiptId=@receiptId)
+ end
+ else
+ exec dbo.invoiceUpdate @mainInvoiceId
 
 -- add to the gl stage
   if @receiptType = 'TAX'
    exec dbo.receiptTaxStageGL @receiptId, ''
   else
    exec dbo.receiptStageGL @receiptId
- end
- else
- exec dbo.invoiceUpdate @mainInvoiceId
-
 
 end

@@ -42,6 +42,7 @@ begin
    fundCode varchar(60), 
    amount money)
 
+
  -- check for open Fiscal Period
  select @fpid = dbo.glGetFiscalPeriodId(@invoiceDate) 
  if @fpid = 0
@@ -89,6 +90,7 @@ begin
   return
  end
 
+
  exec dbo.logit @@procid, 'Begin Transaction... @mainInvoiceId', @mainInvoiceId
  begin transaction
  if @subInvoiceType <> 'A'
@@ -103,7 +105,6 @@ begin
 
   exec dbo.glAccountVerification @accrualcode, 'ACCRUED RECEIVABLE', 'CREATE', @targetAccountCode=@targetcode
  end  
-
    insert invoices (typ,postDate,invoiceId,[taxyear],[TaxRollId],[PARCEL],[ITEM],[NAME],[BUSINESSNAME],[STATUS], origin, originId, printed, queue,blob)
     select 
      @subInvoiceType,
@@ -126,6 +127,13 @@ begin
    set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
    set @slink='t'+cast(@invoiceId as varchar)
 
+/*if dbo.readstring('@addComment=',@blob) = 'TRUE'
+  begin
+   select @parcel = parcel, @item = item, @blob = replace(@blob,'@addComment=TRUE;','') from invoices where id = @mainInvoiceId
+   exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @mainInvoiceId ,@docReceivablesBRWBlob = '' , @blob = @blob
+
+  end
+*/
   exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@slink', @slink
    
   if left(@description,4) = 'VOID'
@@ -148,20 +156,13 @@ begin
   -- add to the gl stage
   exec dbo.subInvoiceStageGL @invoiceId
 
-  if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
+ if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
   begin
    exec dbo.logit @@procid, 'Rollback Transaction... @mainInvoiceId', @mainInvoiceId
    rollback transaction
    return
   end
-
-  if (select count(*) from gldetailstage where slink=@slink) < 2
-  begin
-   exec dbo.logit @@procid, 'Rollback Transaction... @mainInvoiceId', @mainInvoiceId
-   rollback transaction
-   return
-  end
-  
+ else
   
   -- post to the gl
   declare @test int = substring(@slink,2,14)
@@ -177,10 +178,9 @@ begin
     end
    return
   end
-  
+
 
   exec dbo.logit @@procid, 'Commit Transaction... @mainInvoiceId', @mainInvoiceId
   commit transaction
   set @newInvoiceId = @invoiceId
-
 end
