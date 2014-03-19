@@ -11,7 +11,8 @@ begin
           @fundAccountCode varchar(60),
           @fundAccountDesc varchar(60),
           @sourceCode varchar(60),
-          @log varchar(max)
+          @log varchar(max),
+          @invoiceDue money
           
    select @arAccountId = a.accountId,
           @arAccountCode = a.accountCode,
@@ -22,12 +23,16 @@ begin
           @fundAccountId = f.accountId,
           @fundAccountCode = f.accountCode,
           @fundAccountDesc = f.accountDesc,
-          @sourceCode = arc.sourceCode
+          @sourceCode = arc.sourceCode,
+          @invoiceDue = arc.invoiceDue
           from (select * from dbo.applyRefundCheck(@invoiceId)) arc, glaccounts a, glaccounts c, glaccounts f
           where
            arc.arAccountId = a.accountId
            and arc.contraAccountId = c.accountId
            and arc.fundCode = f.accountCode
+
+   if @refundAmount > @invoiceDue
+      set @refundAmount = @invoiceDue
 
    if isnull(@arAccountId,0) <= 0 or isnull(@arAccountCode,'') <= ' 0' or isnull(@arAccountDesc,'') <= ' 0'
     begin
@@ -53,6 +58,7 @@ begin
      return
     end
 
+   
           
          -- create journalLinks
            if not exists(select * from journallink where jeId = @JEId and invoiceId = @invoiceId)
