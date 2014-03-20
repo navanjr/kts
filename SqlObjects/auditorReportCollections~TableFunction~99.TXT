@@ -111,11 +111,12 @@ insert @rt
  '   ' + dbo.padRight(auditReportGroup,' ',61),
  dbo.padLeft(dbo.formatCurr(apportionOut),' ',16),
  'detail',
- @ordSeed + cast(reportOrder as varchar) + case when auditorReportGroup = 'COLLECTIONS' then 'b' 
-                                                when auditorReportGroup = 'UNAPPORTIONED' then 'c'
+ @ordSeed + case when auditorReportGroup = 'COLLECTIONS' then 'b' 
+                                                when auditorReportGroup = 'UNAPPORTIONED' then 'd'
                                                 when auditorReportGroup = 'PREVAPPORTIONED' then 'e'
                                                 when auditorReportGroup = 'PROTEST RELEASE' then 'f'
                                                 else 'g' end
+          + cast(reportOrder as varchar) 
  from @wt
 ----insert subtotals
 insert @rt
@@ -124,7 +125,7 @@ insert @rt
             dbo.padRight('      Total Collections', ' ', 60),
             dbo.padLeft(dbo.formatCurr(SUM(apportionOut)),' ',16),
             'gFooter',
-            @ordSeed + max(reportOrder) + 'h' 
+            @ordSeed + 'c' + max(reportOrder) 
 	from @wt where auditorReportGroup = 'COLLECTIONS'
 
 insert @rt
@@ -133,7 +134,7 @@ insert @rt
             dbo.padRight('      To Apportion', ' ', 60),
             dbo.padLeft(dbo.formatCurr(SUM(apportionOut)),' ',16),
             'gFooter',
-            @ordSeed + max(reportOrder) + 'h' 
+            @ordSeed + 'h' + max(reportOrder) 
 	from @wt 
 
 
