@@ -1,0 +1,66 @@
+create proc receiptChangePurpose(@receiptId int = 39645,
+        @detailid int = 149886,
+        @newAcctCode varchar(50) = 'TRPAPA')
+ as
+ begin
+ 
+ declare @originalAccountCode varchar(60),
+         @originalDescription varchar(120),
+         @originalSourceCode varchar(50),
+         @contraId int,
+         @slink varchar(16)='o'+cast(@receiptId as varchar),
+         @amount money,
+         @newSlink varchar(20),
+         @newSourceCode varchar(60) = @newAcctCode+'_'
+         
+select @originalAccountCode = fundCode, 
+       @originalSourceCode = sourcecode, 
+       @originalDescription = [description],
+       @amount = amount 
+       from receiptDetail where ID=@detailid
+
+exec dbo.glAccountVerification @newSourceCode, 'SOURCE', 'CREATE'
+
+select top 1 @contraId = contraId 
+  from gldetail 
+ where slink=@slink 
+   and comment = @originalDescription
+   and accountCode = @originalAccountCode
+
+   -- create new JE
+   declare  @jeType varchar(50), 
+           @accountDesc varchar(50),
+           @resultCode varchar(max),
+           @resultmessage varchar(max),
+           @newId int
+           
+	select  @jeType = 'Adjust Purpose', @accountDesc = 'Adjust Purpose Receipt #'+cast(key1 as varchar) from object where id = @receiptId 
+    exec dbo.journalEntryCRUD
+         @mode = 0,
+         @description = @accountDesc,
+         @jeType = @jeType,
+         @resultCode = @resultCode output,
+         @resultMessage = @resultMessage output,
+         @newId = @newId output
+
+    select @newSlink = 'o' + cast(@newId as varchar)
+
+
+ -- create journalLinks
+    insert into journalLink
+         select @newId,0,0,@receiptId  
+
+    insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
+     select @originalAccountCode, @originalDescription, @originalSourceCode, @contraId,@amount*-1,@newSlink    
+     
+    insert gldetailStage (accountCode,comment,sourcecode,contraId,amount,slink)
+     select @newAcctCode, @originalDescription, @newSourceCode, @contraId,@amount,@newSlink         
+
+update g set accountid=a.accountid, accountdesc=a.accountdesc 
+ from gldetailStage g, glAccounts a 
+ where g.accountCode=a.accountCode 
+  and slink=@newSlink
+     
+exec glPost @newId, 'o'
+return
+end

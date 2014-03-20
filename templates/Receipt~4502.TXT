@@ -738,10 +738,28 @@ acc551=
 @updatepaid=sql('update paid set checkno='''&obj7:key1&''', drawnon='''&obj7:key2&''', location='''&obj7:key3&''' where id='&lcid),
   refreshDetail=;
 
-@doPostedMenu9=m('Do You Want To','Do You Want To',,'Change Apportionment|Special Apportion'),
+@doPostedMenu9=if(obj:key3='TRUST',doChangePurpose=),
+ break(obj:key3='TRUST'),
+ m('Do You Want To','Do You Want To',,'Change Apportionment|Special Apportion'),
  if(gcretval=1,doChangeApportionment=),
  if(gcretval=2,doSpecialApportionOne=)
  ;
+
+@doChangePurpose=gcReceiptId=obj:id,
+ gcDetailid=lcid,
+ m('Are you sure that you want to change the purpose for this line item?','Change Purpose',,6),
+ break(gcretval<>2),
+ select(1,4701,'a1=''PURPOSE'' and b3<>''1''','Please select a new purpose.'),
+ break(gcretval='esc'),
+ gcNewAcctCode=pic:key1,
+ gcNewDesc=pic:key2,
+ d1select('exec dbo.receiptChangePurpose '&gcReceiptId+0&',
+        '&gcDetailid+0&',
+        '''&gcNewAcctCode&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Change Purpose...')),
+ if(readstring(obj7:d1,'@code=')=0,m('Purpose Changed to '&gcNewDesc&'.','Change Purpose...')),
+ refreshDetail=;
+
 
 @doSpecialApportionOne=d1select('select dbo.receiptDetailGLDetailId('&lcid+0&')'),
  gc4794gldetailid=obj7:d1,
