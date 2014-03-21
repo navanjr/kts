@@ -82,7 +82,7 @@ begin
  declare @millages table(taxName varchar(50), mill decimal(19,10), millId int)
  insert @millages 
   select a1, cast(a2 as decimal(19,10)), id
-  from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @taxYear and a2 > '  0'
+  from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @taxYear and case when isnumeric(a2)=1 then cast(a2 as money) else 0.00 end > 0.00
 
  select @totalMills = sum(mill) from @millages
 
@@ -110,23 +110,6 @@ begin
     0,
     0
    from object where id=@taxrollId
-/*
-   insert @rt
-   select
-    feedescription,
-    '',
-    feesourceCode,
-    0,
-    feefundCode,
-    0,
-    0.0000000,
-    feeAmount,
-    null,
-    @taxYear,
-    null,
-    null
-    from (select top 1 * from dbo.assessmentDetailCheck(@taxrollId)) data
-*/
   end
  else
   begin
