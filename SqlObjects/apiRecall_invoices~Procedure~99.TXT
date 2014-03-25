@@ -1,0 +1,59 @@
+create procedure dbo.apiRecall_invoices as
+begin
+ set nocount on
+
+ declare
+  @filter varchar(max) = 'site_id=' + dbo.settingsF('site.apisitecode', null),
+  @out varchar(max),
+  @apiResultWt JSONHierarchy,
+  @invoiceLink_objectId int,
+  @dateRange_objectId int,
+  @dateFrom datetime,
+  @dateThru datetime,
+  @resourceId int,
+  @invoiceIds ids,
+  @tally int,
+  @tokenId int
+ 
+ exec dbo.api 
+  @method = 'GET',
+  @resource = '/v2/treasurer/recall.json',
+  @filter = @filter,
+  @dump = @out output
+
+ exec dbo.logit @@procid, 'api said... @out', @out
+
+ insert @apiResultWt select * from dbo.parseJSON(@out)
+
+ select @resourceId = OBJECT_ID from @apiResultWt where NAME = 'invoices' and ValueType = 'object'
+ if not isnull(@resourceId, 0) > 0
+ begin
+  exec dbo.logit @@procid, 'Bailing cause no invoices object was found'
+  return
+ end
+
+ select @invoiceLink_objectId = OBJECT_ID from @apiResultWt where NAME = 'invoice_link' and ValueType = 'array' and parent_ID = @resourceId
+ select @dateRange_objectId = OBJECT_ID from @apiResultWt where NAME = 'date_range' and ValueType = 'object' and parent_ID = @resourceId
+
+ if isnull(@invoiceLink_objectId, 0) > 0
+  insert @invoiceIds select cast(StringValue as int) from @apiResultWt where parent_ID = @invoiceLink_objectId
+
+ if isnull(@dateRange_objectId, 0) > 0
+ begin
+  select @dateFrom = cast(stringValue as datetime) from @apiResultWt where NAME = 'from' and ValueType = 'string' and parent_ID = @dateRange_objectId
+  select @dateThru = cast(stringValue as datetime) from @apiResultWt where NAME = 'to' and ValueType = 'string' and parent_ID = @dateRange_objectId
+  insert @invoiceIds select id from invoices where apiUpdated between @dateFrom and @dateThru and id not in (select id from @invoiceIds)
+  insert @invoiceIds select id from invoices where modified between @dateFrom and @dateThru and id not in (select id from @invoiceIds)
+ end
+
+ select @tally = count(id) from @invoiceIds
+ exec dbo.logit @@procid, 'invoice recall @tally', @tally
+
+ while exists(select * from @invoiceIds)
+ begin
+  select @tokenId = min(id) from @invoiceIds
+  exec dbo.apiReset @invoiceId = @tokenId
+  delete @invoiceIds where id = @tokenId
+ end
+
+end
