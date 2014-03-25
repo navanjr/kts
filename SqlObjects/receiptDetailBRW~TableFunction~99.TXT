@@ -11,8 +11,8 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  origin int,
  colorFlag int,
  subDescription2 varchar(125),
- trustAccount varchar(50),
- trustAccountDesc varchar(50) 
+ sCode varchar(60),
+ fCode varchar(60)  
 )
 begin
 
@@ -25,8 +25,11 @@ begin
  select @receiptTyp=typ, @receiptAccount = a2 from object where id = @receiptId
  select top 1 @trustAccount = key3 from object where typ=4503 and key1='TRUST'
 
- insert @rettable (ord,id,description,subdescription,amount)
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount from receiptDetail where slink = @slink 
+-- Insert MISC receiptdetail
+ insert @rettable (ord,id,description,subdescription,amount,sCode,fCode)
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,sourcecode,fundcode from receiptDetail where slink = @slink 
+
+-- Insert showfunds info
  if isnull(@showFunds,0) = 1
  begin
   insert @rettable (ord,id,description,subdescription,amount)
@@ -41,14 +44,15 @@ begin
  end
  
  update @rettable 
-      set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,1,charindex('/',subdescription)-1) and ord<>'aa1'
+      set sName = dbo.proper(sCode+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts 
+  where accountCode=sCode and ord<>'aa1'
 
-  update @rettable 
-      set fName = left(dbo.proper(SUBSTRING(subdescription,charindex('/',subdescription)+1,50)+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=SUBSTRING(subdescription,charindex('/',subdescription)+1,50) and ord<>'aa1'
+ update @rettable 
+      set fName = left(dbo.proper(fCode+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts 
+  where accountCode=fCode and ord<>'aa1'
 
   update @rettable 
       set subDescription = subDescription2 where ord<>'aa1'
-
 
 
  if exists(select * from dbo.journalLink where receiptId = @receiptId)
@@ -187,16 +191,8 @@ begin
   select 'bda',0,'','',0,7
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bdb',0,'Payment(s) - via Trust Receipt','',0,8
-  insert @rettable (ord,id,description,subdescription,amount,origin,trustAccount)
-  select 'bdc',cast('4'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9,
-  isnull((select top 1 a.accountcode 
- from gldetail g, glAccounts a 
- where g.slink=paid.slink
-  and g.accountcode=a.accountcode 
-  and a.accountType='OFFICIAL' 
-),@trustAccount)
- from dbo.paid where officialDepositId = @receiptId
- update r set trustAccountDesc = a.accountdesc from @rettable r, glaccounts a where r.trustaccount=a.accountcode
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'bdc',cast('4'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9 from dbo.paid where officialDepositId = @receiptId
  end
 
 
