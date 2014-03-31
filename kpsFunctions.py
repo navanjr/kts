@@ -430,7 +430,10 @@ class kps():
                 if passedKeys:
                     i = 1
                 else:
-                    i = stale / float(step)
+                    if step > 0:
+                        i = stale / float(step)
+                    else:
+                        i = 1
                 while i > 0:
                     if not self.sendLoop:
                         break
@@ -500,15 +503,24 @@ def foxMapper(record, map, apiSettings):
         def clean(dirtArray, stripChar=None):
             if not type(dirtArray) == list:
                 dirtArray = [dirtArray]
+            if stripChar and not type(stripChar) == list:
+                stripChar = [stripChar]
             for dirt in dirtArray:
+                csDirt = ''
                 try:
                     if type(dirt) in [unicode]:
+                        csDirt = dirt.encode("ascii").strip()
                         if stripChar:
-                            return dirt.encode("ascii").replace(stripChar, '').strip()
-                        else:
-                            return dirt.encode("ascii").strip()
+                            for sChar in stripChar:
+                                csDirt = csDirt.replace(sChar, '').strip()
+
                     else:
-                        return dirt
+                        if type(dirt) is str:
+                            csDirt = ' '.join(dirt.split())
+                        else:
+                            csDirt = dirt
+
+                    return csDirt
                 except AttributeError, e:
                     print 'type: %s' % type(dirt), e
 
@@ -517,13 +529,16 @@ def foxMapper(record, map, apiSettings):
         if type(mapItem[1]) is list:
             verb = mapItem[1][0]
             arguments = mapItem[1][1:]
+            goofyChars = ['-', '.', ',']
             if verb in ['cat', 'concat', 'concatenate']:
                 if len(arguments) > 2:
                     for i, y in enumerate(arguments[0]):
-                        value += clean(record[y]).replace('.', '').zfill(arguments[1][i])
+                        # value += clean(record[y]).replace('-', '').replace('.', '').zfill(arguments[1][i])
+                        value += clean(record[y], goofyChars).zfill(arguments[1][i])
                 else:
                     for y in arguments[0]:
-                        value += clean(record[y]).replace('.', '')
+                        # value += clean(record[y]).replace('-', '').replace('.', '')
+                        value += clean(record[y], goofyChars)
             if verb in ['joinWithSpace']:
                 vArray = []
                 for y in arguments[0]:
@@ -547,7 +562,12 @@ def foxMapper(record, map, apiSettings):
                             value = 10.00
                             # value = eval('%s + %s' %(value, record[y]))
         else:
-            value = clean(record[mapItem[1]])
+            if key == 'item_number':
+                value = clean(record[mapItem[1]], ['-', ',', '.'])
+            elif key == 'property_address1':
+                value = ' '.join(clean(record[mapItem[1]]).split())
+            else:
+                value = clean(record[mapItem[1]])
         return key, value
 
     o = {}
