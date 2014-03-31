@@ -6,7 +6,8 @@ create proc dbo.apiReceipts(
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output,
- @dropRawFile varchar(5) = 'FALSE'
+ @dropRawFile varchar(5) = 'FALSE',
+ @excludeDeleted varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
@@ -58,6 +59,7 @@ begin
   invoice_link int,
   receipt_number varchar(50),
   receipt_link int,
+  glSlink varchar(15),
   post_Date varchar(20),
   paid_Date varchar(20),
   paid_by varchar(50),
@@ -69,66 +71,76 @@ begin
  if @method = 'JOB'
  begin
   select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
-  exec dbo.apiReceipts @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile
+  exec dbo.apiReceipts
+   @method = 'POST',
+   @batchSize = @batchSize,
+   @dropRawFile = @dropRawFile,
+   @debugMode = @debugMode,
+   @excludeDeleted = @excludeDeleted
  end
 
  if @method = 'POST'
  begin
 
--- deleted receipts
-  declare
-   @deletedBatchSize int = 20,
-   @deletedReceiptsStringBlob stringBlob
-
-  if @batchsize < @deletedBatchSize
-   set @deletedBatchSize = @batchSize
-
-  insert @deletedReceiptsStringBlob
-  select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(isnull(invoice_link,'') as varchar) + '|' + typ from dbo.apiReceiptIds() where typ in  ('deletedReceipt','voidReceipt')
-  if exists(select * from @deletedReceiptsStringBlob)
+  if not @excludeDeleted = 'TRUE'
   begin
-   declare 
-    @apiDeletedFields blobFields,
-    @payload varchar(max),
-    @deletedTally int
+ -- deleted receipts
+   declare
+    @deletedBatchSize int = 20,
+    @deletedReceiptsStringBlob stringBlob
 
--- reset the batch size for use in the final comparison
-   select @deletedBatchSize = count(*) from @deletedReceiptsStringBlob
+   if @batchsize < @deletedBatchSize
+    set @deletedBatchSize = @batchSize
 
-   insert @apiDeletedFields select 'receipt_link','int',0
-   insert @apiDeletedFields select 'invoice_link','int',0
-   exec dbo.pipedStringToJson @deletedReceiptsStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
-
-   exec spOverwriteTextFile @postFileFull, @payload
-   exec dbo.logit @@procid, '@deletedBatchSize', @deletedBatchSize
-   exec dbo.api
-    @method = 'DELETE',
-    @resource = @apiResource,
-    @postFile = @postFile,
-    @debugMode = @debugMode,
-    @scratchfile = @scratchFile,
-    @cmdOutput = @tokenId output,
-    @dump = @dump output
-
-   select @deletedTally = dbo.apiResultDecoder('deleted', @dump) 
-   if isnull(@deletedTally,0) = @deletedBatchSize
+   insert @deletedReceiptsStringBlob
+   select top (@deletedBatchSize) cast(dbo.slinkId(slink) as varchar) + '|' + cast(isnull(invoice_link,'') as varchar) + '|' + typ from dbo.apiReceiptIds() where typ in  ('deletedReceipt','voidReceipt')
+   if exists(select * from @deletedReceiptsStringBlob)
    begin
-    set @theDate = getDate()
-    if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'deletedReceipt') 
-     update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
-    if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'voidReceipt')
-      update o set k7 = @theDate from object o inner join @deletedReceiptsStringBlob on dbo.splitF(blob,'|',1) = o.ID where dbo.splitF(blob,'|',3) = 'voidReceipt'
-    exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
+    declare 
+     @apiDeletedFields blobFields,
+     @payload varchar(max),
+     @deletedTally int
+
+ -- reset the batch size for use in the final comparison
+    select @deletedBatchSize = count(*) from @deletedReceiptsStringBlob
+
+    insert @apiDeletedFields select 'receipt_link','int',0
+    insert @apiDeletedFields select 'invoice_link','int',0
+    exec dbo.pipedStringToJson @deletedReceiptsStringBlob, @apiDeletedFields, @urlEncode = 'TRUE', @payload = @payload output
+
+    exec spOverwriteTextFile @postFileFull, @payload
+    exec dbo.logit @@procid, '@deletedBatchSize', @deletedBatchSize
+    exec dbo.api
+     @method = 'DELETE',
+     @resource = @apiResource,
+     @postFile = @postFile,
+     @debugMode = @debugMode,
+     @scratchfile = @scratchFile,
+     @cmdOutput = @tokenId output,
+     @dump = @dump output
+
+    if not @debugMode = 'TRUE'
+    begin
+     select @deletedTally = dbo.apiResultDecoder('deleted', @dump) 
+     if isnull(@deletedTally,0) = @deletedBatchSize
+     begin
+      set @theDate = getDate()
+      if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'deletedReceipt') 
+       update apiDeleted set apiUpdated = @theDate where apiResource = 'receipts' and slink in (select 'o' + dbo.splitF(blob,'|',1) from @deletedReceiptsStringBlob)
+      if exists (select * from @deletedReceiptsStringBlob where dbo.splitF(blob,'|',3) = 'voidReceipt')
+        update o set k7 = @theDate from object o inner join @deletedReceiptsStringBlob on dbo.splitF(blob,'|',1) = o.ID where dbo.splitF(blob,'|',3) = 'voidReceipt'
+      exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
+     end
+     else
+     begin
+      exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+     end
+    end
    end
    else
    begin
-    exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+    exec dbo.logit @@procid, 'all deleted receipt records updated... nothing to do. :)', @override = 'TRUE'
    end
-
-  end
-  else
-  begin
-   exec dbo.logit @@procid, 'all deleted receipt records updated... nothing to do. :)', @override = 'TRUE'
   end
 
 -- create the post data file then call the API
@@ -154,6 +166,7 @@ begin
        c.ID,
        a.receiptNumber,
        a.receiptId,
+       'l' + CAST(a.id as varchar),
        '',
        '',
        dbo.stripChars(c.NAME,@goofyChars),
@@ -165,14 +178,19 @@ begin
          and a.receiptId in (select i.receiptId from @it i)
          and a.invoiceId = c.ID
          and a.receiptNumber>'  0'
-        group by c.id,c.invoiceId, c.TAXROLLID, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId
+        group by c.id,c.invoiceId, c.TAXROLLID, a.protestAmount, a.receiptNumber, c.taxyear, c.NAME,a.receiptId, a.id
         
      update @wt set
        paid_by =   dbo.stripChars(case when a1>'  0' then a1 else paid_by end,@goofyChars),
-       paid_Total =  dbo.taxReceiptTaxPaid(receipt_link,invoice_link,0),
+     --  paid_Total =  dbo.taxReceiptTaxPaid(receipt_link,invoice_link,0),
        paid_Date = coalesce(nullif(dbo.date112(b10),''),nullif(dbo.date112(key2),''),'0'),
        post_Date = dbo.date112(key2)
       from @wt,object where id = receipt_link
+
+     update a set a.paid_total = abs(b.amount)
+     from @wt a, gldetail b
+     where a.glSlink = b.slink	
+      and amount < 0 
 
   select @batchsize = count(invoice_link) from @wt
         
@@ -191,6 +209,12 @@ begin
 			paid_fees = fee,
 			paid_total = paid_total + penalty + fee
 			from @wt w,@wt2 w2 where w2.id = w.invoice_link
+
+  if @debugMode = 'TRUE'
+  begin
+   select * from @wt
+   select * from @wt2
+  end
 			
 -- insert into jsonprep			
   insert @jsonPrep select parentId,null,'site_id',@apiCode,'int' from @wt
@@ -235,20 +259,22 @@ begin
 
   set @result = @dump 
 
-  insert @apiResultWt select * from dbo.parseJSON(@dump)
-  select @updated = cast(stringValue as int) from @apiResultWt where name = 'updated' and valueType = 'int'
-  select @inserted = cast(stringValue as int) from @apiResultWt where name = 'created' and valueType = 'int'
-  if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
+  if not @debugMode = 'TRUE'
   begin
-   set @theDate = getDate()
-   update object set k7 = @theDate where id in (select receiptId from @it)
-   exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
+   insert @apiResultWt select * from dbo.parseJSON(@dump)
+   select @updated = cast(stringValue as int) from @apiResultWt where name = 'updated' and valueType = 'int'
+   select @inserted = cast(stringValue as int) from @apiResultWt where name = 'created' and valueType = 'int'
+   if isnull(@updated,0) + isnull(@inserted,0) =  @batchSize
+   begin
+    set @theDate = getDate()
+    update object set k7 = @theDate where id in (select receiptId from @it)
+    exec dbo.logit @@procid, 'Success...', @dump, @override = 'TRUE'
+   end
+   else
+   begin
+    exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
+   end
   end
-  else
-  begin
-   exec dbo.logit @@procid, 'Failure...', @dump, @override = 'TRUE'
-  end
-
   return
  end
 
