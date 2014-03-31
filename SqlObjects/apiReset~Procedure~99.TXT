@@ -1,12 +1,16 @@
 create proc dbo.apiReset(
  @invoiceId int = null,
- @adtaxId int = null
+ @adtaxId int = null,
+ @debugMode varchar(5) = 'FALSE'
 ) as
 begin
 
  exec dbo.logit @@procid, 'Started with ... @invoiceId', @invoiceId, '@adtaxId', @adtaxId
 
- declare @objectIds ids
+ declare @resetIds table(
+  tablename varchar(50),
+  id int
+ )
 
  if @invoiceId is null and @adtaxId is not null
   select @invoiceId = id from invoices where taxrollId = @adtaxId
@@ -18,30 +22,46 @@ begin
 
 
  if @invoiceId is not null
-  insert @objectIds select receiptId from receiptlink where invoiceId = @invoiceId
+ begin
+  insert @resetIds select 'object', receiptId from receiptlink where invoiceId = @invoiceId
+  insert @resetIds select 'invoices', @invoiceId
+ end
 
+ if @adtaxId is not null
+ begin
+  insert @resetIds select 'adtax', @adtaxId
+ end
+
+
+ if @debugMode = 'TRUE'
+ begin
+  select * From @resetIds
+  return
+ end
 
 -- invoices
  if @invoiceId is not null
  begin
-  update invoices set apiUpdated = null where id = @invoiceId
+
+  update invoices set apiUpdated = null where id in (select id from @resetIds where tablename = 'invoices')
   exec dbo.logit @@procid, 'update invoices... @@rowcount', @@rowcount
+
 -- turn off the trigger on object
   alter table object disable trigger keySqlObjectWriteToRepoTR
-  update object set k7 = '' where typ = 4502 and id in (select id from @objectIds)
+  update object set k7 = '' where typ = 4502 and id in (select id from @resetIds where tablename = 'object')
   exec dbo.logit @@procid, 'update receipts (object)... @@rowcount', @@rowcount
+
 -- turn on the trigger on object
   alter table object enable trigger keySqlObjectWriteToRepoTR
  end
 
 -- adtax
- if @adtaxId is not null
-  update adtax set
-   apiUpdated = null,
-   apiUpdatedLegal = null
-  from adTax
-  where id = @adtaxId
-  exec dbo.logit @@procid, 'update adtax & legal... @@rowcount', @@rowcount
+ update adtax set
+  apiUpdated = null,
+  apiUpdatedLegal = null
+ from adTax
+ where id in (select id from @resetIds where tablename = 'adtax')
+ exec dbo.logit @@procid, 'update adtax & legal... @@rowcount', @@rowcount
 
  return
 end
