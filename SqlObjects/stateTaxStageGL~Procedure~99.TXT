@@ -54,13 +54,13 @@ declare @pt table(id int identity(1,1),
                   glbalance money)
 
 insert @ct
-select comment,sourcecode,'','','',accountCode,contraId,SUM(amount) 
+select max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount) 
  from gldetail 
  where [date]<=@date 
   and ISNULL(bsId,0)=0 
   and contraId in (select contraId from @wt)
   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
- group by comment,sourcecode,accountCode,contraId
+ group by sourcecode,accountCode,contraId
  
  update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
  update c set fundCode = targetAccountCode from @ct c, glAccounts a where ACRCode=accountcode
