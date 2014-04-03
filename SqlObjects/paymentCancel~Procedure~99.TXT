@@ -77,6 +77,14 @@ begin
   goto bail
  end
 
+-- bail if we have cleared to a bank statement
+ if exists(select * from gldetail where slink=@slink and isnull(bsId,0)>0)
+ begin
+  select @log = '@code=1;@message=Sorry. This ' + @paymentType + ' has cleared the bank and can not be ' + @verbPT
+   + ';@caption=' + dbo.proper(@method) + 'ing a ' + @paymentType + '...;'  
+  goto bail
+ end
+
 -- bail if we are not posted
  if dbo.isPosted(@slink) != 'TRUE'
  begin
