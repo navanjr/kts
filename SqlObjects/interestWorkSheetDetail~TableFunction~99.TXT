@@ -123,7 +123,7 @@ insert @wt2
 select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)),accountcode,accountdesc,comment2,amount,bankaccount,bankdesc from @rt where accountcode in (
     select accountcode from glaccounts where accounttype in ('SCHOOL','CITY','VOTECH')
 )
-
+/*
 insert @wt2
  select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.accountcode, a.accountDesc, '', 
   sum(g.amount)*-1 - isnull((select amount from @investmentTotal where interestTo=a.accountcode),0),
@@ -135,6 +135,31 @@ insert @wt2
      and a.accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL')
     group by a.accountcode, a.accountDesc
     having sum(g.amount) <> 0.00
+*/
+
+
+declare @wt3 table (
+    accountCode varchar(60),
+    amount money)
+insert into @wt3 
+select 	accountCode,
+	SUM(amount) 
+ from gldetailreports
+  where
+  accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL')
+  and sourcedate <= @lastDayPriorMonth
+ group by accountCode
+
+insert @wt2
+ select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.accountcode, a.accountDesc, '', 
+  sum(g.amount)*-1 - isnull((select amount from @investmentTotal where interestTo=a.accountcode),0),
+   '', ''
+   from @wt3 g, glaccounts a
+    where g.accountcode = a.accountcode
+     and a.b7 = a.accountcode 
+    group by a.accountcode, a.accountDesc
+    having sum(g.amount) <> 0.00
+
 
 insert @wt2
  select 'GENERAL BALANCE',datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), ita.accountcode, ita.accountDesc, '', 
