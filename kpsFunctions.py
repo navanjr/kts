@@ -223,7 +223,7 @@ class kps():
             'dbfName': 'receipt.dbf',
             'resource': 'v2/treasurer/receipts.json',
             'map': [
-                ['tax_roll_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
+                ['tax_roll_link', ['concatenate', ['taxyear', 'nbr'], [4, 6]]],
                 ['invoice_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
                 ['receipt_link', ['concatenate', ['nbr', 'key_suf'], [8, 2]]],
                 ['paid_date', 'datepaid'],
@@ -233,7 +233,7 @@ class kps():
                 # ['paid_total', ['math.add', ['feespaid', 'penpaid', 'taxpaid', 'mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'otherpaid']]],
                 ['paid_total', 'taxpaid'],
              # 15) recby C(15)
-                ['paid_by', 'paidby'],
+                ['paid_by', ['coalesce', ['paidby', 'pbnam']]],
              # 17) protestamt N(11,2)
              # 18) pkey C(8)
              # 19) rc C(1)
@@ -553,6 +553,12 @@ def foxMapper(record, map, apiSettings):
                     else:
                         vArray.append(clean(record[y]))
                 value = ' '.join(vArray)
+
+            if verb in ['coalesce']:
+                for fname in arguments[0]:
+                    if record[fname] > '  0':
+                        value = record[fname]
+
             elif 'math' in verb:
                 if 'add' in verb:
                     for y in arguments:
