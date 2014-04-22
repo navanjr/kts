@@ -31,6 +31,14 @@ printBookReceiptList=;
  gcTIFF='FALSE',
  gcWhere='';
 
+@printReceiptSummary=
+ gcReceiptType='TAX',
+ gcSummary='TRUE',
+ lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,count(recnum),postdate1,school+'' - ''+rate,sum(isnull(paid,0))+sum(isnull(penalty,0))+sum(isnull(fee,0)),'''',sum(isnull(paid,0)),sum(isnull(penalty,0)),sum(isnull(fee,0)),'''','''',taxType,SAtyp,'''',assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''tax'' group by recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,postdate1,taxType,SAtyp,assessmentCityDesc,rate,school,postdate,recType order by recType,school,rate,postdate',
+ printReceiptList=,
+ gcSummary='TRUE',
+ gcWhere='';
+
 @printReceiptList=
  do(452,getSiteInfo=),
  d1select('select a17 from object where typ=40'),
@@ -44,7 +52,7 @@ printBookReceiptList=;
  if(gcBankAccount>'  0',lcWhere=lcWhere&choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''') and recId not in (select dbo.slinkid(slink) from paid where 
  depositid in (select d.id from object d, glaccounts a where d.typ = 4513 and d.link1=a.accountid and accountcode <> '''&gcBankAccount&''') 
  and dbo.slinktype(slink)=''o'')',lcWhere=lcWhere),
- lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ if(gcSummary='FALSE',lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum'),
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -75,7 +83,7 @@ printBookReceiptList=;
   lcy=lcy+200,
   prn(gcOfficial,lcx+1000,lcy),
   prn(,lcx,1000,lcHeaderFontSize+2,bold,lcFont),
-  bnd(,'Receipt Report'&choose(gcTIFF='TRUE',' - TIFF Districts','')&choose(gcSA='TRUE',' - Special Assessments',''),8000C),
+  bnd(,'Receipt Report'&choose(gcTIFF='TRUE',' - TIFF Districts','')&choose(gcSA='TRUE',' - Special Assessments','')&choose(gcSummary='TRUE',' - Summary',''),8000C),
   prn(,,,lcHeaderFontSize,bold,lcFont),
   bnd(,gcCounty&' County - '&gcCity&', '&gcState,8000C),
   bnd(,format(gcBeginDate,@d1)&' - '&format(gcEndDate,@d1),8000C),
