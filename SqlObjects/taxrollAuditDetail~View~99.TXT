@@ -8,7 +8,8 @@ select *,
       when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' then '2. Taxroll Correction' 
       when sourceType = '4502' then '3. Receipt'
       when sourceType = '4512' and isnull(contraId,0) <> 0 then '5. Receipt Adjustment'
-      when sourceType = '4512' and isnull(contraId,0) = 0 then '6. Apportioned'
+      when sourceType = '4512' and isnull(contraId,0) = 0 and sourcea18<>'Tax Payment Adjust' then '6. Apportioned'
+      when sourceType = '4512' and isnull(contraId,0) = 0 and sourcea18='Tax Payment Adjust' and left(slink,1)='j' then '3. Receipt'
       else 'Unidentified - '+origin end as auditOrigin,
       case when isnull(slink2,'NULL')<>'NULL' then 
       isnull((select penaltyAmount from dbo.taxrollAuditDetailPenaltyAdjust where invoiceId=gldetailreports.invoiceId),0)
