@@ -65,7 +65,8 @@ begin
   item_number varchar(50),
   invoice_type varchar(1),
   name varchar(50),
-  parcel varchar(50)
+  parcel varchar(50),
+  adtaxtotaldue money
  )
 
  declare @taxyears table(year varchar(4))
@@ -172,21 +173,27 @@ begin
 
 -- create the post data file then call the API
   insert @wt select top (@batchSize)
-   id, 
-   invoiceId,
-   taxrollId,
-   taxyear,
-   invoiceDue,
-   invoiceAmount,
-   dbo.date112(postdate),
-   dbo.date112(interestDate),
-   item,
-   typ, 
-   dbo.stripChars(name,@goofyChars), 
-   dbo.stripChars(parcel,@goofyChars)
-  from invoices 
-  where id in (select id from @ids)
-  order by id  
+   i.id, 
+   i.invoiceId,
+   i.taxrollId,
+   i.taxyear,
+   i.invoiceDue,
+   i.invoiceAmount,
+   dbo.date112(i.postdate),
+   dbo.date112(i.interestDate),
+   i.item,
+   i.typ, 
+   dbo.stripChars(i.name,@goofyChars), 
+   dbo.stripChars(i.parcel,@goofyChars),
+   a.totaldue as adtaxtotaldue
+  from invoices i
+  left join adtax a on a.id = i.taxrollid and i.typ <> 'S'
+  where i.id in (select id from @ids)
+  order by i.id  
+
+  update @wt 
+  set invoice_amount = dbo.taxCorrectionsSF(invoice_amount,tax_roll_link,'078')
+  where adtaxtotaldue <> invoice_amount and invoice_type <> 'S' and isnull(adtaxtotaldue,'NULL') <> 'NULL'
 
 -- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
