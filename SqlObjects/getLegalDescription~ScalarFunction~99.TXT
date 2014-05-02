@@ -7,13 +7,20 @@ create function dbo.getLegalDescription(@invoiceId int) returns varchar(max)
           @typ varchar(5) = '',
           @parcel varchar(50) = '',
           @taxYear varchar(10) = '',
-          @item varchar(50) = '' 
+          @item varchar(50) = '',
+          @adtaxId int 
 
    select @typ = typ,@parcel = parcel,@taxYear = taxYear,@item = item from invoices where id = @invoiceId 
 
-If @typ<>'S'
-  begin
    select @taxRollId = taxrollId from invoices where id = @invoiceId
+
+ if @typ ='S' 
+ begin
+  select @adtaxId = id from adtax where id = @taxrollId and [recordtype] = 'S'
+ end
+
+If @typ<>'S' or (isnull(@adtaxId,0) = @taxrollId and @taxrollId <> 0)
+  begin
    select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
   end
  else
