@@ -3,7 +3,8 @@ as
 begin
 
  declare @taxrollId int,
-         @invoiceType varchar(10)
+         @invoiceType varchar(10),
+         @adtaxId int
 
 
 if @source = 'Update'
@@ -69,10 +70,14 @@ if @source = 'Update'
  else
   begin
    select @taxrollId = taxrollId, @invoiceType = typ from invoices where id=@invoiceId
-
   end
 
- if @invoiceType <> 'S'
+ if @invoiceType ='S' 
+ begin
+  select @adtaxId = id from adtax where id = @taxrollId and [recordtype] = 'S'
+ end
+
+ if @invoiceType <> 'S' or (isnull(@adtaxId,0) = @taxrollId and @taxrollId <> 0)
  begin
  update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
 
