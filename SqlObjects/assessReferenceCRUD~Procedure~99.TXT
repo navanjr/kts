@@ -1,13 +1,19 @@
 create procedure [dbo].[assessReferenceCRUD](
  @assessmentId int,
- @newId int output
+ @newId int = null output,
+ @newAdtaxId int = null output
 ) as
 begin
+ declare @existingInvoiceId int,
+         @invoiceId varchar(5),
+         @adtaxId varchar(5)
 
- -- insert tax reference invoice
- if not exists(select * from invoices where taxrollId=@assessmentId and [TYP]='S')
+ select @adtaxId = id from adtax where id=@assessmentId and [RECORDTYPE]='S'
+ select @invoiceId = id from invoices where taxrollId=@assessmentId and [TYP]='S'
+
+ -- insert adtax record
+ if isnull(@adtaxId,0) = 0
   begin
-  declare @newAdtaxId int
    insert adtax (
 [FULLPIDNUMBER],
 [ITEMNUMBER],
@@ -134,25 +140,38 @@ origin,
    set @newAdtaxId = @@identity
 
    exec dbo.logit @@procId, 'inserted into adtax typ = S.... @newAdtaxId', @newAdtaxId
+ end
+else 
+ begin
+  set @newAdtaxId = @adtaxId
+ end
 
-   insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS],[interestDate])
-   select
-    case when isnull(@newAdtaxId,0) > 0 then @newAdtaxId else [ID] end,
-    'S',
-    key1,
-    cast(key3 as numeric(7,1)),
-    cast(a18 as numeric (5)),
-    a1,
-    '',
-    key2,
-    a17,
-    case when isnumeric(b3)=1 then cast(b3 as int)-1 else 0 end
-   from object where id = @assessmentId
+ -- insert tax reference invoice
+ if isnull(@invoiceId,0) = 0
+  begin
+   insert invoices ([TAXROLLID],[TYP],[PARCEL],[ITEM],[TAXYEAR],[NAME],[BUSINESSNAME],[POSTDATE],[STATUS],[interestDate])        select
+     case when isnull(@newAdtaxId,0) > 0 then @newAdtaxId else [ID] end,
+     'S',
+     key1,
+     cast(key3 as numeric(7,1)),
+     cast(a18 as numeric (5)),
+     a1,
+     '',
+     key2,
+     a17,
+     case when isnumeric(b3)=1 then cast(b3 as int)-1 else 0 end
+    from object where id = @assessmentId
 
    set @newId = @@identity
 
    exec dbo.logit @@procId, 'inserted into object.... @newId', @newId
-
+  end
+ else
+  begin
+   if isnull(@newAdtaxId,0) > 0
+   begin
+    update invoices set taxrollid = @newAdtaxId where id = @invoiceId
+   end
   end
 
 end
