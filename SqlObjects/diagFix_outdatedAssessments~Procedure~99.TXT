@@ -1,0 +1,72 @@
+create proc dbo.diagFix_outdatedAssessments(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'Assessments',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(i.id),  
+   @message = 'missing adtax records for special assessments.'
+ from invoices i
+ where TYP = 'S'
+  and TAXROLLID not in (select ID from AdTax where recordtype='S')
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   i.item,
+   i.taxyear,
+   i.name,
+   i.parcel
+  from invoices i
+ where TYP = 'S'
+  and TAXROLLID not in (select ID from AdTax where recordtype='S')
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  declare @assessmentIdToken int
+  declare @assessmentIds table(id int)
+  
+  insert @assessmentIds
+   select taxrollid 
+   from invoices i
+   where TYP = 'S'
+    and TAXROLLID not in (select ID from AdTax where recordtype='S')
+  
+  while exists(select * from @assessmentIds)
+  begin
+   select top 1 @assessmentIdToken = id from @assessmentIds
+    exec dbo.assessReferenceCRUD @assessmentIdToken 
+   delete from @assessmentIds where id = @assessmentIdToken
+  end
+
+  return  
+ end
+
+
+end
+
+
