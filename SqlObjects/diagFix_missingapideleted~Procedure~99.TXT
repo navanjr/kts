@@ -1,0 +1,63 @@
+create proc dbo.diagFix_missingapideleted(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+
+ if @method = 'GET'
+ begin 
+
+  select
+   @class = 'API',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(rl.id),
+   @message = 'missing apideleted records...'
+    from receiptlink rl 
+    where receiptid in 
+     (select id from object where typ = 4502 and A17='VOID')
+     and not exists (select * from apiDeleted where blob like '%receipt_link=' + cast(receiptId as varchar) + ';%' 
+     and blob like '%invoice_link=' + cast(abs(invoiceId) as varchar) + ';%')
+
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 'o'+cast(receiptId as varchar),
+   'receipts', 'receipt_link=' + cast(receiptId as varchar) + ';invoice_link=' + cast(abs(invoiceId) as varchar) + ';'
+    from receiptlink rl 
+    where receiptid in 
+     (select id from object where typ = 4502 and A17='VOID')
+     and not exists (select * from apiDeleted where blob like '%receipt_link=' + cast(receiptId as varchar) + ';%' 
+     and blob like '%invoice_link=' + cast(abs(invoiceId) as varchar) + ';%')
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert apiDeleted(slink,apiResource,blob)
+  select 'o'+cast(receiptId as varchar),
+   'receipts', 'receipt_link=' + cast(receiptId as varchar) + ';invoice_link=' + cast(abs(invoiceId) as varchar) + ';'
+    from receiptlink rl 
+    where receiptid in 
+     (select id from object where typ = 4502 and A17='VOID')
+     and not exists (select * from apiDeleted where blob like '%receipt_link=' + cast(receiptId as varchar) + ';%' 
+     and blob like '%invoice_link=' + cast(abs(invoiceId) as varchar) + ';%')
+  return
+
+ end
+
+end

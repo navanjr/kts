@@ -17,8 +17,15 @@ begin
 
 -- it is ok if @blob ends up being null if there is no link to a Tax invoice... that just means the api won't have it anyhow.
  if @apiResource = 'receipts'
-  select @blob = 'receipt_link=' + cast(@id as varchar) + ';invoice_link=' + cast(abs(invoiceId) as varchar) + ';'
-  from receiptLink where abs(receiptId) = @id
+  begin
+  insert apiDeleted(slink,apiResource,blob) 
+   select @slink, @apiResource, 'receipt_link=' + cast(@id as varchar) + ';invoice_link=' + cast(abs(invoiceId) as varchar) + ';'
+   from receiptLink where abs(receiptId) = @id
+
+   exec dbo.logit @@procid, 'inserted into apiDeleted... @slink', @slink, '@apiResource', @apiResource, '@blob', @blob 
+
+   return
+  end
 
  if @apiResource = 'invoices'
   select @blob = 'invoice_link=' + cast(abs(@id) as varchar) + ';'
