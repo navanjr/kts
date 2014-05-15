@@ -180,7 +180,7 @@ begin
    i.invoiceDue,
    i.invoiceAmount,
    dbo.date112(i.postdate),
-   dbo.date112(i.interestDate + case when i.typ = 'S' then 1 else 0 end),
+   case when i.typ = 'S' then dbo.date112(i.interestDate + 1) else dbo.date112(i.interestDate + 1) end,
    i.item,
    i.typ, 
    dbo.stripChars(i.name,@goofyChars), 
@@ -192,8 +192,8 @@ begin
   order by i.id  
 
   update @wt 
-  set invoice_amount = dbo.taxCorrectionsSF(invoice_amount,tax_roll_link,'078')
-  where adtaxtotaldue <> invoice_amount and invoice_type <> 'S' and isnull(adtaxtotaldue,'NULL') <> 'NULL'
+  set invoice_amount = cast(dbo.taxCorrectionsSF(invoice_amount,tax_roll_link,'078') as money)
+  where adtaxtotaldue <> invoice_amount and invoice_type <> 'S' and isnull(adtaxtotaldue,0) <> 0
 
 -- bail if your done or update batchSize from tally, maybe... 
   select @tally = count(*) from @wt
