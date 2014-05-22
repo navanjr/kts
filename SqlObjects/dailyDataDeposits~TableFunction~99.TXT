@@ -11,7 +11,8 @@ create function dbo.dailyDataDeposits(@theDate int, @days int, @ordSeed varchar(
  rowType char(10),
  brwBGColor int,
  electronicAmount varchar(50),
- otherAmount varchar(50)
+ otherAmount varchar(50),
+ section int
 )
 begin
 
@@ -56,6 +57,7 @@ declare @byAccount int = 0
  insert @accounts select accountId,collectionDescription,reportOrder from dbo.glBankAccounts
 
 -- insert all raw receipt data
+-- insert all raw receipt data
  insert @wtRaw
  select
   b.accountId,
@@ -68,7 +70,8 @@ declare @byAccount int = 0
   c.typ,
   case when isnull(b.comment,'') in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as electronicAmount,
   case when isnull(b.comment,'') not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount,
-  c.a18
+  case when c.Typ = 4771 and c.A18 <> 'Transfer' then '   Disbursements' when c.Typ = 4771 and c.a18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end
+  
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4513,4771)
@@ -89,7 +92,8 @@ declare @byAccount int = 0
   c.typ,
   case when b.comment in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as electronicAmount,
   case when b.comment not in (select key1 from object where typ=4505 and a2 in ('E','C')) then b.amount else 0 end as otherAmount,
-  c.a18
+  case when c.Typ = 4771 and c.A18 <> 'Transfer' then '   Disbursements' when c.Typ = 4771 and c.a18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end
+ 
  from @accounts a, glDetail b, object c
  where a.accountId = b.accountId
   and c.typ in (4512) and c.a18='Miscellaneous Deposit'
@@ -161,13 +165,14 @@ begin
   dbo.padLeft(convert(varchar,amount,1),' ',16),
   'detail',0,
   dbo.padLeft(convert(varchar,electronicAmount,1),' ',16),
-  dbo.padLeft(convert(varchar,otherAmount,1),' ',16)
+  dbo.padLeft(convert(varchar,otherAmount,1),' ',16),
+  1
  from @wt
 
  -- headers
- insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'',''
- insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1,'Electronic','Regular'
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'',''
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','',2
+ insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1,'Electronic','Regular',2
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','',2
 
 
 -- get the balance of the accounts
@@ -184,7 +189,7 @@ begin
   replicate('-',22),
   replicate('-',10),
   replicate('-',16),
-  'line',0,'',''
+  'line',0,'','',3
  from @wt 
  group by reportOrder,description
 
@@ -202,7 +207,7 @@ begin
   dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
   'gFooter',0,
   dbo.padLeft(convert(varchar,sum(electronicAmount),1),' ',16),
-  dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16)
+  dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16),4
  from @wt 
  group by reportOrder,description
 
@@ -217,14 +222,14 @@ begin
   '',
   '',
   '',
-  'lineFeed',0,'',''
+  'lineFeed',0,'','',5
  from @wt 
  group by reportOrder,description
 
 -- insert grand total
  if exists(select * from @wt)
  begin
-  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'',''
+  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','',7
 
   insert @rt
   select
@@ -241,6 +246,7 @@ begin
    'grandTotal',0,
    dbo.padLeft(convert(varchar,sum(electronicAmount),1),' ',16),
    dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16)
+   ,8
   from @wt 
  end
 
@@ -298,13 +304,14 @@ insert @wt (id,ord,reportOrder,description,subDescription)
   dbo.padLeft(convert(varchar,abs(amount),1),' ',16),
   case when right(ord,1)='a' then 'gHeader' else 'detail' end,0,
   dbo.padLeft(convert(varchar,electronicAmount,1),' ',16),
-  dbo.padLeft(convert(varchar,otherAmount,1),' ',16)
+  dbo.padLeft(convert(varchar,otherAmount,1),' ',16),
+  21
  from @wt
 
  -- headers
- insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'',''
- insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1,'Electronic','Regular'
- insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'',''
+ insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,'','',22
+ insert @rt select 0,@ordSeed+'00aa','  Deposits & Disbursements','','  Deposits & Disbursements','','','','sHeader',1,'Electronic','Regular',22
+ insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),replicate('=',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','',22
 
  insert @rt
  select
@@ -316,7 +323,7 @@ insert @wt (id,ord,reportOrder,description,subDescription)
   replicate('-',22),
   replicate('-',10),
   replicate('-',16),
-  'line',0,'',''
+  'line',0,'','',23
  from @wt 
  group by reportOrder,description,substring(ord,len(reportOrder)+1,3)
 
@@ -334,7 +341,8 @@ insert @wt (id,ord,reportOrder,description,subDescription)
   dbo.padLeft(convert(varchar,abs(sum(amount)),1), ' ', 16),
   'gFooter',0,
   dbo.padLeft(convert(varchar,sum(electronicAmount),1),' ',16),
-  dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16)
+  dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16),
+  24
  from @wt 
  group by reportOrder,description,substring(ord,len(reportOrder)+1,3)
 
@@ -349,14 +357,14 @@ insert @wt (id,ord,reportOrder,description,subDescription)
   '',
   '',
   '',
-  'lineFeed',0,'',''
+  'lineFeed',0,'','',25
  from @wt 
  group by reportOrder,description,substring(ord,len(reportOrder)+1,3)
 
 -- insert grand total
  if exists(select * from @wt)
  begin
-  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'',''
+  insert @rt select 0,@ordSeed+'ZZZZZ'+'dza',dbo.padLeft(replicate('=',20),' ',80),replicate('=',16),dbo.padLeft(replicate('=',20),' ',80),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,'','',25
 
   insert @rt
   select
@@ -372,7 +380,7 @@ insert @wt (id,ord,reportOrder,description,subDescription)
    dbo.padLeft(convert(varchar,sum(amount),1), ' ', 16),
    'grandTotal',0,
    dbo.padLeft(convert(varchar,sum(electronicAmount),1),' ',16),
-   dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16)
+   dbo.padLeft(convert(varchar,sum(otherAmount),1),' ',16),26
   from @wt 
  end
 
