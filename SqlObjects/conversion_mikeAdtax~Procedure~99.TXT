@@ -72,13 +72,13 @@ begin
            ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
            ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
            ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[pertyp],proploc,[mort_cd]
-           ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn])'
+           ,[morleg],[bankrupt],[treamort],[chg_asmt],[cur_adr],[trcode],[kpsc_schn], LandAssessed, ImprovedAssessed)'
   set @sql2 = 'select a.typ,a.parcel,cast(a.itm_nbr as numeric(7,1)),cast(a.taxyear as numeric(5,0)),a.name,a.addl1,a.addl2,a.addl3,a.city,a.[state],a.zip_1,a.zip_2
            ,a.sch_n,b.postdist,a.sch_c,a.c_cityc
-           ,0,a.acres,a.mobile_hm,cast(a.g_per as money)+cast(a.g_lv as money)+cast(a.g_imp as money),cast(a.exemp as numeric(9,0)),cast(a.net_assd as numeric (8,0)),cast(a.levy as numeric(9,7)),cast(a.tax_due as numeric(19,2)),cast(a.ctax_due as numeric(19,2)),cast(a.unpaid as numeric(19,2))
+           ,0,a.acres,a.mobile_hm,cast(a.g_per as money),cast(a.exemp as numeric(9,0)),cast(a.net_assd as numeric (8,0)),cast(a.levy as numeric(9,7)),cast(a.tax_due as numeric(19,2)),cast(a.ctax_due as numeric(19,2)),cast(a.unpaid as numeric(19,2))
            ,left(a.cert_asgn,6),a.leg_l1+a.leg_l2+a.leg_l3+a.leg_l4+a.leg_l5+a.leg_l6,'''','''','''','''','''','''',''''
            ,'''','''','''','''','''',0,0,0,0,0,0,0,0,'''',0,'''',0,0,0,'''','''','''','''',a.[pertyp],a.proploc,a.[mort_cd]
-           ,a.[morleg],a.[bankrupt],a.[treamort],a.[chg_asmt],a.[cur_adr],a.[trcode],a.[c_schn]
+           ,a.[morleg],a.[bankrupt],a.[treamort],a.[chg_asmt],a.[cur_adr],a.[trcode],a.[c_schn],a.[G_lv],a.[G_imp]
   FROM openrowset(''VFPOLEDB'',''' + @mikePath + ''';'''';'''',''SELECT * FROM ' + @mikeTableName + ' where !deleted() and unpaid > 0.00'') a, dbo.mike_taxAppsch01() b
   where a.c_schn=b.sch_n and a.c_cityc=b.city_c and a.taxyear=b.year'
 
