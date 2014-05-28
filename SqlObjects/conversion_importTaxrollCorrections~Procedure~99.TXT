@@ -1,0 +1,122 @@
+create proc dbo.conversion_importTaxrollCorrections(
+ @mode varchar(50) = 'conversion',
+ @method varchar(5) = 'GET',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ declare @wt table(taxrollId int,
+                   fieldNumber int,
+                   fieldName varchar(100),
+                   fieldData varchar(max),
+                   correctionDate int,
+                   comment varchar(max))
+
+
+ insert @wt
+  select a.id as taxrollid,
+   54 as fieldNumber,
+   'MISCASSESSED' as fieldName,
+   cast(tc.per_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+  union all
+  select a.id as taxrollid,
+   50 as fieldNumber,
+   'LANDASSESSED' as fieldName,
+   cast(tc.lv_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+  union all
+  select a.id as taxrollid,
+   52 as fieldNumber,
+   'IMPROVEDASSESSED' as fieldName,
+   cast(tc.imp_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+  union all
+  select a.id as taxrollid,
+   72 as fieldNumber,
+   'NETASSESSEDVALUE' as fieldName,
+   cast(tc.imp_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+  union all
+  select a.id as taxrollid,
+   66 as fieldNumber,
+   'EXEMPTION1' as fieldName,
+   cast(tc.exemp_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+
+
+
+ if @mode != 'conversion'
+  return
+
+ if @method = 'GET'
+ begin  
+ 
+  select 
+   @class = 'conversion',
+   @guide = 'GET|SHOW|FIX',
+   @message = 'taxroll Correction records not found in KTS'
+
+   select 
+    @tally = COUNT(*),  
+    @code = case when count(*) > 0 then 1 else 0 end
+   from @wt
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @wt
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  insert taxrollCorrections (taxrollId,fieldNumber,fieldName,fieldData,correctionDate,comment)
+    select * from @wt
+  
+  return
+
+ end
+
+end
+
+
+
+
+
