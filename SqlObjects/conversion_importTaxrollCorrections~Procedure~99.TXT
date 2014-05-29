@@ -56,7 +56,7 @@ begin
   select a.id as taxrollid,
    72 as fieldNumber,
    'NETASSESSEDVALUE' as fieldName,
-   cast(tc.imp_c as varchar(max)) as fieldData,
+   cast(tc.net_c as varchar(max)) as fieldData,
    dbo.clariondate(GETDATE()) as correctionDate,
    'Imported Correction' as comment 
   from mike_taxrollCorrection tc, AdTax a
@@ -74,6 +74,18 @@ begin
   where tc.taxyear = a.REALTAXYEAR 
   and tc.itemnumber = a.ITEMNUMBER
   and a.ID not in (select taxrollid from taxrollCorrections)
+  union all
+  select a.id as taxrollid,
+   58 as fieldNumber,
+   'GROSSASSESSED' as fieldName,
+   cast(tc.per_c+tc.lv_c+tc.imp_c as varchar(max)) as fieldData,
+   dbo.clariondate(GETDATE()) as correctionDate,
+   'Imported Correction' as comment 
+  from mike_taxrollCorrection tc, AdTax a
+  where tc.taxyear = a.REALTAXYEAR 
+  and tc.itemnumber = a.ITEMNUMBER
+  and a.ID not in (select taxrollid from taxrollCorrections)
+
 
 
 
