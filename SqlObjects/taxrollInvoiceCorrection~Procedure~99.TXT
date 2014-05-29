@@ -19,7 +19,22 @@ as begin
 -- relocate any receipts to the newly created invoice
   if exists(select * from receiptlink where invoiceId in (select id from invoices where taxrollId=@taxrollId))
   begin
+   insert apideleted (slink,apiresource,blob)
+     select 'o'+cast(r.receiptid as varchar) as slink, 
+            'receipts', 
+            'receipt_link='+cast(r.receiptid as varchar)+';invoice_link='+cast(r.invoiceid as varchar)+';' 
+     from receiptlink r 
+     where invoiceId in (select id from invoices where taxrollId=@taxrollId)
    update receiptlink set invoiceId=@newInvoiceId where invoiceId in (select id from invoices where taxrollId=@taxrollId)
+  end
+
+-- relocate any fee or penalty invoices to the newly created invoice
+  if exists(select * from invoices where invoiceId in (select id from invoices where taxrollId=@taxrollId)
+      and typ in ('P','F'))
+  begin
+   update invoices set invoiceId=@newInvoiceId 
+    where invoiceId in (select id from invoices where taxrollId=@taxrollId) 
+     and typ in ('P','F')
   end
 
 -- relocate any journals to the newly created invoice
