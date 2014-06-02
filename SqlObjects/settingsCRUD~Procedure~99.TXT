@@ -180,6 +180,10 @@ begin
   where a.settingName = b.name
 
 --remove Unused settings
+  --Log settiing Values
+  insert settingsHistory   
+   select * from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
+
   delete from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
 
   if @@rowcount > 0
@@ -196,18 +200,25 @@ begin
  if @method = 'POST' and @settingValue is not null
  begin
   if exists(select * from settings where settingName = @settingName)
+   begin
    update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
+   end
   else
-   insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
-
+   begin
+    insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
+   end
  end
 
  if @method = 'TOGGLE'
  begin
   if @settingId is not null
-   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where id = @settingId
+   begin
+     update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where id = @settingId
+   end
   else
+   begin
    update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where settingName = @settingName
+  end
  end
 
  if @method = 'GET'
@@ -250,6 +261,9 @@ begin
 
  if @method = 'DELETE' and @settingId is not null
  begin
+  --Log settiing Values
+  insert settingsHistory   
+   select * from settings where id = @settingId
   delete settings where id = @settingId
  end
 
@@ -262,6 +276,10 @@ begin
  if @method = 'DELETEALL' 
  begin
   if exists(select * from settings where parentId = @parentId)
+    --Log settiing Values
+    insert settingsHistory   
+     select * from settings where parentId = @parentId
+
    delete from settings where parentId = @parentId
  end
 
