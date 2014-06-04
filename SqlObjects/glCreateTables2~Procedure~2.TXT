@@ -157,6 +157,16 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Ad
     beforeData varchar(max),
     afterData varchar(max)
   )
+ if  not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'securityDecision' and COLUMN_NAME = 'level')
+   alter table securityDecision add level int not null default 3
+
+/*
+Level:
+ 1 - No second login required
+ 2 - Any second login is sufficient
+ 3 - Login with 81 or greater security level required for either the requester or the approver
+ 4 - Login with 81 or greater security level required for both the requester and the approver
+*/
 
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[settingsHistory]') and OBJECTPROPERTY(id, N'IsTable') = 1)
   CREATE TABLE [dbo].[settingsHistory](
