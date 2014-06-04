@@ -1,0 +1,86 @@
+create procedure dbo.decisionCheck(@slink varchar(16),
+ @location varchar(50),
+ @level int = 3,
+ @requestPerson varchar(300) = '',
+ @requestNotes varchar(max) = '',
+ @approvedPerson varchar(300) = '',
+ @approvedNotes varchar(max) = '',
+ @continue varchar(20) = 'FALSE' output,
+ @blob varchar(max) = '' output
+ )
+as
+begin
+ declare @slinkTyp varchar(1) = dbo.slinkType(@slink),
+         @slinkId int = dbo.slinkId(@slink),
+         @beforeDate varchar(max)
+ 
+ 
+ if exists(select * from settings where settingName = 'securitylevel.'+@location)
+  begin
+   select @level = isnull(cast(settingValue as int),3) from settings where settingName = 'securitylevel.'+@location
+  end
+ else 
+  begin
+   insert settings (settingName,settingValue,[description],settingType,notes)
+    select 'securitylevel.'+@location, 
+     '3', 
+     'Secuirty Setting for '+@location+'. Levels are as follows: 1 - No second login required, 2 - Any second login is sufficient, 3 - Login with 81 or greater security level required for either the requester or the approver, 4 - Login with 81 or greater security level required for both the requester and the approver',
+     'int',
+     'Created by decisionCheck procedure'
+    select @level = 3
+  end
+  
+--Set beforeData
+  if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_beforeData')
+  drop table temp_beforeData
+  if @slinktyp = 'o'
+  begin
+   select * into temp_beforeData from object where ID = @slinkId
+   exec dbo.table2json 'temp_beforeData', @json = @beforeDate output
+  end
+    
+  if @slinktyp = 't'
+  begin
+   select * into temp_beforeData from invoices where ID = @slinkId
+   exec dbo.table2json 'temp_beforeData', @json = @beforeDate output
+  end
+    
+  if @slinktyp = 'l'
+  begin
+   select * into temp_beforeData from receiptlink where ID = @slinkId
+   exec dbo.table2json 'temp_beforeData', @json = @beforeDate output
+  end
+    
+  if @slinktyp = 'p'
+  begin
+   select * into temp_beforeData from paid where ID = @slinkId
+   exec dbo.table2json 'temp_beforeData', @json = @beforeDate output
+  end
+    
+  if @slinktyp = 'j'
+  begin
+   select * into temp_beforeData from journalLink where ID = @slinkId
+   exec dbo.table2json 'temp_beforeData', @json = @beforeDate output
+  end
+    
+
+
+--Check for required level
+ if @level = 1
+ begin
+  select @continue = 'TRUE', @blob = '@continue=TRUE;@level=1;@message=Continue no approval required;'
+  select @blob
+  insert securityDecision (slink,location,requestDateTime,requestPerson,requestNotes, beforeData)
+   select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeDate
+  return
+ end
+
+--Check for existing decision approval
+/* if exists(select * from securityDecision where slink = @slink and location = @location and requestDateTime >= GETDATE()-1)
+ begin
+  
+ end
+ */
+ 
+end
+
