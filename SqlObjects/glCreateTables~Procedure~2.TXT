@@ -249,7 +249,10 @@ begin
     MiscAssessed [numeric](9, 0) not null default 0,
     modified datetime not null default getDate(),
     apiUpdated datetime,
-    apiUpdatedLegal datetime
+    apiUpdatedLegal datetime,
+    PHYSICALSTREETNUMBER varchar(50) not null default '',
+    PHYSICALSTREET varchar(50) not null default '',
+    PHYSICALTOWN varchar(50) not null default '' 
    ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
  
   if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
@@ -263,6 +266,12 @@ begin
    alter table adtax alter column CERTIFICATENUMBER varchar(50)
   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'OWNERNUMBER' and NUMERIC_PRECISION=9)
    alter table adtax alter column OWNERNUMBER numeric(14,2)
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'PHYSICALSTREETNUMBER')
+   alter table AdTax add PHYSICALSTREETNUMBER varchar(50) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'PHYSICALSTREET')
+   alter table AdTax add PHYSICALSTREET varchar(50) not null default ''
+ if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'AdTax' and COLUMN_NAME = 'PHYSICALTOWN')
+   alter table AdTax add PHYSICALTOWN varchar(50) not null default ''
 
 -- TAXROLLInvoiceBatch
  if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxRollInvoiceProcessing]') and OBJECTPROPERTY(id, N'IsTable') = 1)
@@ -806,52 +815,6 @@ begin
    name varchar(50) not null default ''
   ) 
 
--- diagnostics
- if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[diagnosticResults]') and OBJECTPROPERTY(id, N'IsTable') = 1)
-  create table dbo.diagnosticResults(
-   id int identity(1,1),
-   trialId int,
-   testId int,  
-   method varchar(max),
-   code int,
-   message varchar(max),
-   tally int,
-   fixProc varchar(max),
-   timeStamp datetime,
-   mode varchar(10),
-   guideBlob varchar(250)
-  )
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'diagnosticResults' and COLUMN_NAME = 'class')
-   alter table diagnosticResults add [class] varchar(50)
- if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settings' and COLUMN_NAME = 'settingType')
-   alter table settings add settingType varchar(50)
-
--- create or update G/L Account Types
- exec dbo.createAccountTypes
--- create or update Receipt Types
- exec dbo.createReceiptTypes
--- create or update Reasons to Cancel
- exec dbo.createReasonsToCancel
--- create GL Collection Descriptions
- exec dbo.createGLCollectionDescriptions
--- create ReportCommentSections
- exec dbo.createReportCommentSections
-
--- Mortgage Names and Info
- if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[mortgageInfo]') and OBJECTPROPERTY(id, N'IsTable') = 1)
-  create table mortgageInfo(
-   id int identity(1,1),
-   receiptId int,
-   mortgagor varchar(100),
-   mortgagee varchar(100),
-   description varchar(100),
-   section varchar(100),
-   township varchar(100),
-   range varchar(100),
-   lender varchar(100),
-   creationdate int default (left(CONVERT([real],getdate(),0),(5))+(36163)),
-   creationtime int default ((substring(CONVERT([char],getdate(),(114)),(1),(2))*(360000)+substring(CONVERT([char],getdate(),(114)),(4),(2))*(6000))+substring(CONVERT([char],getdate(),(114)),(7),(2))*(100)), 
-  )
 
 exec dbo.glCreateTables2
 end
