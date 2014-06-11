@@ -8,6 +8,7 @@
  if(tier=2,editDeed=,newDeed=);
 
 @editDeed=
+ lcLegal=kp('select dbo.readstring(''@legal='','''&gcDeedBlob&''')'),
  set(002,readstring(gcDeedBlob,'@name=')),
  set(004,readstring(gcDeedBlob,'@add1=')),
  set(006,readstring(gcDeedBlob,'@add2=')),
@@ -25,8 +26,11 @@
  set(056,readstring(gcDeedBlob,'@sec=')),
  set(058,readstring(gcDeedBlob,'@rnge=')),
  set(078,readstring(gcDeedBlob,'@group=')),
- set(102,str_replace(readstring(gcDeedBlob,'@legal='),'~{~',''''));
+ set(102,str_replace(str_replace(lcLegal,'~{~',''''),'~:~',';'));
+set(102,str_replace(str_replace(readstring(gcDeedBlob,'@legal='),'~{~',''''),'~:~',';'));
+
  
+
 @newDeed=
  set(102,kp('select dbo.getLegalDescription('&gcInvoiceId&')')),
  lcAdtaxString=kp('select ''@twp=''+townshipblock+'';@sec=''+sectionnumber+'';@rnge=''+rangelot+'';'' from adtax where id = (select taxrollId from invoices where id='&gcInvoiceId&')'),
@@ -54,12 +58,11 @@
 
 @dtypeCrud=
  lcSaleDate=kp('select dbo.dateLegal('&obj:a18&')'),
- lcDeedblob='@name='&obj:key1&';@add1='&obj:key2&';@add2='&obj:key3&';@add3='&obj:a1&';@city='&obj:a2&';@state='&obj:a3&';@zip='&obj:a4&';@zip2='&obj:a5&';@sub='&obj:b2&';@town='&obj:b3&';@sec='&obj:b4&';@twp='&obj:b5&';@rnge='&obj:b6&';@bidAmount='&obj:a17&';@legal='&clip(obj:e1)&';@comChair='&obj:a6&';@saleDate='&lcSaleDate&';@bidder='&obj:a7&';@saleDateRaw='&obj:a18&';@group='&obj:c1&';',
+ lcDeedblob='@name='&obj:key1&';@add1='&obj:key2&';@add2='&obj:key3&';@add3='&obj:a1&';@city='&obj:a2&';@state='&obj:a3&';@zip='&obj:a4&';@zip2='&obj:a5&';@sub='&obj:b2&';@town='&obj:b3&';@sec='&obj:b4&';@twp='&obj:b5&';@rnge='&obj:b6&';@bidAmount='&obj:a17&';@legal='&clip(str_replace(obj:e1,';','~:~'))&';@comChair='&obj:a6&';@saleDate='&lcSaleDate&';@bidder='&obj:a7&';@saleDateRaw='&obj:a18&';@group='&obj:c1&';',
  lcDeedblob=str_replace(lcDeedblob,'''','~{~'),
  d1select('exec dbo.dtypeCommentCRUD @mode='''&gcDeed&''',@dtype='''&gcDeed&''', @invoiceId='&gcInvoiceId&',@blob='''&lcDeedblob&''',@taxrollDetailId='&obj:link1+0);
 
-
-\t001Name; \t002@s30b; @acc002=if(obj:a7<'  0' and gcDeed<>'countyDeed',set(020,obj:key1));
+\t001Name; @acc002=if(obj:a7<'  0' and gcDeed<>'countyDeed',set(020,obj:key1));
 \t003Address1;
 \t005Address2;
 \t007Address3; \w004008+50;r2
