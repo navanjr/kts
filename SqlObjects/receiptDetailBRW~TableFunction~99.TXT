@@ -136,7 +136,7 @@ begin
   group by c.invoiceId, c.id, a.protestAmount, a.receiptNumber, c.taxyear
 
   insert @rettable (ord,id,description,subdescription,amount,origin)
-  select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(max(c.id) as varchar) as int)*-1,
+  select 'aa'+cast(c.invoiceId as varchar)+'az',cast('7'+cast(c.id as varchar) as int)*-1,
    max('   '+b.description),
    max('   '+lower(b.subDescription)),
    i.due,3
@@ -146,7 +146,7 @@ begin
     and receiptId = @receiptId
     and c.id=i.id
     and c.invoiceId > 0
-  group by c.invoiceId, c.typ, i.due
+  group by c.invoiceId, c.typ, i.due, c.id
 
  update @rettable 
       set sName = dbo.proper(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts where accountCode=ltrim(SUBSTRING(subdescription,1,charindex('/',subdescription)-1)) and  RIGHT(ord,2)='az' 
