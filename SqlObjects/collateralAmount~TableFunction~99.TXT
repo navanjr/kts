@@ -6,6 +6,7 @@ returns @rt table(id int identity(1,1),
                   glBalance money,
                   outstandingPayments money,
                   statementBalance money,
+                  amount money,
                   collateralAmount money,
                   FDICAmount money,
                   notCoveredAmount money,
@@ -15,7 +16,15 @@ returns @rt table(id int identity(1,1),
                   processcode int)
 as
 begin
+declare @collateralDetail table(key1 varchar(60),
+                                key2 varchar(60),
+                                key3 varchar(60),
+                                a1 varchar(50),
+                                a2 money,
+                                collaterallAmount money)
+
 declare @collateral table(bankName varchar(50),
+                          amount money,
                           totalCollateral money)
 
 declare @FDIC table(bankName varchar(50),
@@ -27,7 +36,15 @@ declare @bankNameToken varchar(50),
         @collateralDifference money,
         @bankFDIC money,
         @FDICDifference money,
-        @idToken int
+        @idToken int,
+        @bankCollateralAmount money
+
+insert @collateralDetail                          
+ select key1,key2,key3,a1,case when isnumeric(a2)=1 then cast(a2 as money) else 0 end,
+ case when isnumeric(a2)=1 then cast(a2 as money)*
+   isnull((select case when isnumeric(ct.key2)=1 and cast(ct.key2 as money)<>0.00 then 100/cast(ct.key2 as money) else 1 end from object ct where ct.typ=4708 and ct.key1 = o.a1 and o.a1 > ' 0'),1) 
+  else 0 end
+ from object o where typ=4707
         
 
 insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPayments, statementBalance, processcode, notCoveredAmount, unusedCollateral,CDARS)
@@ -45,12 +62,14 @@ insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPa
 delete from @rt where statementBalance = 0.00
 
 insert @collateral                          
- select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end)
- from object where typ=4707 and a1<>'FDIC' and key2<=@effectiveDate and (key3 >= @effectiveDate or key3 <'1')
+ select key1,
+ sum(a2),
+ sum(collaterallAmount)
+ from @collateralDetail where a1<>'FDIC' and key2<=@effectiveDate and (key3 >= @effectiveDate or key3 <'1')
   group by key1
   
 insert @collateral 
- select distinct bankName,0 from @rt where bankName not in (select bankName from @collateral)
+ select distinct bankName,0,0 from @rt where bankName not in (select bankName from @collateral)
 
 insert @FDIC
  select key1, sum(case when isnumeric(a2)=1 then cast(a2 as money) else 0 end) 
@@ -71,6 +90,7 @@ begin
  
  select @bankGlBalance = sum(statementBalance) from @rt where bankName=@bankNameToken and CDARS<>'CDARS'
 
+ select top 1 @bankCollateralAmount = isnull(amount,0.00) from @collateral where bankName=@bankNameToken
  select top 1 @bankCollateral = isnull(totalCollateral,0.00) from @collateral where bankName=@bankNameToken
  select top 1 @bankFDIC = isnull(totalFDIC,0.00) from @FDIC where bankName=@bankNameToken
  
@@ -78,6 +98,7 @@ begin
  begin
  update r set processcode=1, 
   bankPercent = r.statementBalance/@bankGlBalance,
+  amount = round(@bankCollateralAmount*r.statementBalance/@bankGlBalance,2),
   collateralAmount = round(@bankCollateral*r.statementBalance/@bankGlBalance,2),
   FDICAmount = round(@bankFDIC*r.statementBalance/@bankGlBalance,2)
  from @rt r
@@ -87,6 +108,7 @@ begin
  begin
  update r set processcode=1, 
   bankPercent = 0.00,
+  amount = 0.00,
   collateralAmount = 0.00,
   FDICAmount = 0.00
  from @rt r
