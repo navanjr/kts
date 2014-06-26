@@ -1,0 +1,19 @@
+create view collateralDetail as 
+select 
+ cd.key1 as bankName1, 
+ cd.a3 as PledgeNum2, 
+ cd.a4 as cusip3, 
+ cd.a5 as descr4, 
+ cd.a6 as originalFaceAmt5,
+ cd.a7 as pledgedate6,
+ cd.a8 as maturityDate7,
+ cd.a2 as marketValue8,
+ (case when isnumeric(cd.a2)=1 then cast(cd.a2 as money) else 0 end) * 
+   (100/(case when isnumeric(isnull(ct.key2,'NULL'))=1 and cast(ct.key2 as money) <> 0 then cast(ct.key2 as money) else 100 end))      as collateralValue8,
+ cd.key2 as dateLastUpdated9,
+ dbo.date1(cd.key3) as enddate10,
+ cd.* 
+from object cd
+ LEFT OUTER JOIN object ct on cd.a1 = ct.key1 and ct.typ = 4708
+where cd.typ=4707
+  
