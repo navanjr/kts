@@ -1,12 +1,17 @@
+@loadwindow=brwstuff=,create(151,17,3,128,'Security setting levels are as follows: '&chr(13)&chr(10)&'1 - No second login required, '&chr(13)&chr(10)&'2 - Any second login is sufficient, '&chr(13)&chr(10)&'3 - Login with 81 or greater security level required for either the requester or the approver, '&chr(13)&chr(10)&'4 - Login with 81 or greater security level required for both the requester and the approver'),prop(151,width,270);
+\t000Security Settings For Decisions;
+
 @decide=
  break(gcDecisionId+0=0),
- m('What would you like to do with this decision?','Decision',,'Approve|View|Cancel'),
+ if(cur:securitylevel>88,gcsettings='|Edit Settings',gcsettings=''),
+ m('What would you like to do with this decision?','Decision',,'Approve|View'&gcsettings&'|Cancel'),
  if(gcretval=1,approve=),
- if(gcretval=2,viewproc=);
+ if(gcretval=2,viewproc=),
+ if(gcretval=3 and gcsettings > ' 0',new(450));
 
 @viewproc=d1select('exec dbo.decisionCheck @decisionId='&gcDecisionId+0&', @method = ''VIEWID'''),
  gcview=readstring(obj7:d1,'@view='),
- if(gcview+0>0,change(gcview,-1));
+ if(gcview+0>0,change(gcview,1));
 
 @check=
  d1select('select dbo.whoami()'),
@@ -27,3 +32,44 @@
  d1select('exec dbo.decisionCheck @decisionId='&gcDecisionId+0&', @method = ''APPROVE'', @approvedPerson = ''' & gcApprovedPerson & ''', @approvedNotes = '''&lcReason&''''),
  m(readstring(obj7:d1,'@message=')),
  ;
+
+@brwstuff=
+ gcbrw1sql='select id,display,rowType from dbo.settingsBRW(''securitylevel'') order by ord',
+ brw(150,1,gcbrw1sql,3,3,270,120,'200L(2)~~#2#M',,1),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',16777215),
+ prop(150,'SelectedColor',0), ;
+@lbrw1color=obj7:c10='1',13499135; 13499135; 2157055; 2350115; 7467519
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ e1select('exec dbo.settingsCRUD @settingId='&lcid&', @verbose=''TRUE'', @method=''GET'''),
+ lcName=readstring(obj7:e1,'@name='),
+ lcDescription=readstring(obj7:e1,'@description='),
+ lcValue=readstring(obj7:e1,'@value='),
+ lcType=readstring(obj7:e1,'@type='),
+ iw('\t101Change Note;\w102200;'),
+ gcNote=obj7:e1,
+ if(lcType='boolean',toggleSetting=),
+ if(lcType='int',intSetting=),
+ if(instring('|',lcType,1,1)>0,comboSetting=);
+
+@comboSetting=
+ iw(',.t000'&str_replace(lcName,'securitylevel.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.h002., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004., ,[loadwindow=create(150,33,64,1,'''',002),prop(150,''From'','''&lcType&'''),prop(150,''Width'',118),prop(150,''Height'',12),prop(150,''Readonly'',0),prop(150,''Drop'',5),prop(150,7cfah,16777215).,'),
+ break(gcretval<>'OK'),
+ lcNewValue=obj7:key1,
+ sql('exec dbo.settingsCRUD '''&lcName&''','''&lcNewValue&''',@notes = '''&gcNote&''''),
+ brwreload(1);
+
+@toggleSetting=
+ m(lcDescription&'||Current Setting: '&lcValue,lcName,'Question.ico','&Toggle|&Cancel'),
+ break(gcretval<>1),
+ sql('exec dbo.settingsCRUD @settingId='&lcid&', @method=''TOGGLE'',@notes = '''&gcNote&''''),
+ brwreload(1);
+
+@intSetting=
+ iw(',.t000'&str_replace(lcName,'securitylevel.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.w00230., ,.t002@n10.0.,'),
+ break(gcretval<>'OK'),
+ lcNewValue=obj7:key1,
+ sql('exec dbo.settingsCRUD '''&lcName&''','''&lcNewValue&''',@notes = '''&gcNote&''''),
+ brwreload(1);
