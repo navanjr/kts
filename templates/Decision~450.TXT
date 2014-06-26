@@ -1,0 +1,29 @@
+@decide=
+ break(gcDecisionId+0=0),
+ m('What would you like to do with this decision?','Decision',,'Approve|View|Cancel'),
+ if(gcretval=1,approve=),
+ if(gcretval=2,viewproc=);
+
+@viewproc=d1select('exec dbo.decisionCheck @decisionId='&gcDecisionId+0&', @method = ''VIEWID'''),
+ gcview=readstring(obj7:d1,'@view='),
+ if(gcview+0>0,change(gcview,-1));
+
+@check=
+ d1select('select dbo.whoami()'),
+ lcperson=obj7:d1,
+ d1select('select count(*) from securityDecision where slink = '''&gcslink&''' and location = '''&gclocation&''' and requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''''),
+ if(obj7:d1+0=0,setReason=,lcReason=''),
+ d1select('exec dbo.decisionCheck '''&gcslink&''', '''&gclocation&''', '''&gcmethod&''', @requestperson = '''&lcperson&''', @requestNotes = '''&lcReason&''''),
+ gccontinue=readstring(obj7:d1,'@continue='),
+ if(gccontinue<>'TRUE',m(readstring(obj7:d1,'@message=')));
+
+@setReason=iw('\t097Notes;\y097=001;\x097=001;\y098=002;\x098=002;\w098200;\t000Notes;'),lcReason=obj7:d1;
+
+@approve=
+ break(gcDecisionId+0=0),
+ d1select('select dbo.whoami()'),
+ gcApprovedPerson=obj7:d1,
+ setReason=,
+ d1select('exec dbo.decisionCheck @decisionId='&gcDecisionId+0&', @method = ''APPROVE'', @approvedPerson = ''' & gcApprovedPerson & ''', @approvedNotes = '''&lcReason&''''),
+ m(readstring(obj7:d1,'@message=')),
+ ;

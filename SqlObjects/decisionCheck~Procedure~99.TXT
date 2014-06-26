@@ -1,13 +1,13 @@
 create procedure dbo.decisionCheck(
- @slink varchar(16),
- @location varchar(50),
+ @slink varchar(16)='',
+ @location varchar(50)='',
  @method varchar(20) = 'CHECK',
  @level int = 3,
  @requestPerson varchar(300) = '',
  @requestNotes varchar(max) = '',
  @approvedPerson varchar(300) = '',
  @approvedNotes varchar(max) = '',
- @decionId int, = 0,
+ @decisionId int = 0,
  @continue varchar(20) = 'FALSE' output,
  @blob varchar(max) = '' output
  )
@@ -16,14 +16,34 @@ begin
  declare @slinkTyp varchar(1) = dbo.slinkType(@slink),
          @slinkId int = dbo.slinkId(@slink),
          @beforeData varchar(max),
-         @requestIni varchar(10) = dbo.dbo.readstring('@ini=', @requestPerson),
-         @approvedIni varchar(10) = dbo.dbo.readstring('@ini=', @approvedPerson),
+         @requestIni varchar(10) = dbo.readstring('@ini=', @requestPerson),
+         @approvedIni varchar(10) = dbo.readstring('@ini=', @approvedPerson),
          @idToken int,
          @approvedPersonToken varchar(300),
          @requestPersonToken varchar(300),
          @approvedNotesToken varchar(max),
-         @levelToken int
+         @levelToken int,
+         @requestPersonSecurity int,
+         @approvedPersonSecurity int
  
+ if @method = 'VIEWID'
+ begin
+  select @slink = slink,
+        @slinkTyp = dbo.slinkType(slink),
+        @slinkId = dbo.slinkId(slink)
+  from securityDecision 
+  where id = @decisionId
+  
+  exec dbo.logit @@procid, '@slinkTyp', @slinktyp
+  exec dbo.logit @@procid, '@slinkId', @slinkId
+  if @slinkTyp = 'o'
+   select '@view=' + cast(@slinkId as varchar) + ';'
+  else
+   select ''
+
+  return
+ end
+
  if @method = 'CHECK' 
  begin
   if exists(select * from settings where settingName = 'securitylevel.'+@location)
@@ -42,39 +62,51 @@ begin
    end
   
 --Set beforeData
-   if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'temp_beforeData')
-    drop table temp_beforeData
 
    if @slinktyp = 'o'
    begin
-    select * into temp_beforeData from object where ID = @slinkId
-    exec dbo.table2json 'temp_beforeData', @json = @beforeData output
+    if OBJECT_ID('tempdb..#obeforeData') is not null
+     drop table #obeforeData
+    select * into #obeforeData from object where ID = @slinkId
+    exec dbo.table2json '#obeforeData', @json = @beforeData output
    end
     
    if @slinktyp = 't'
    begin
-    select * into temp_beforeData from invoices where ID = @slinkId
-    exec dbo.table2json 'temp_beforeData', @json = @beforeData output
+    if OBJECT_ID('tempdb..#tbeforeData') is not null
+     drop table #tbeforeData
+    select * into #tbeforeData from invoices where ID = @slinkId
+    exec dbo.table2json '#tbeforeData', @json = @beforeData output
    end
     
    if @slinktyp = 'l'
    begin
-    select * into temp_beforeData from receiptlink where ID = @slinkId
-    exec dbo.table2json 'temp_beforeData', @json = @beforeData output
+    if OBJECT_ID('tempdb..#lbeforeData') is not null
+     drop table #lbeforeData
+    select * into #lbeforeData from receiptlink where ID = @slinkId
+    exec dbo.table2json '#lbeforeData', @json = @beforeData output
    end
     
    if @slinktyp = 'p'
    begin
-    select * into temp_beforeData from paid where ID = @slinkId
-    exec dbo.table2json 'temp_beforeData', @json = @beforeData output
+    if OBJECT_ID('tempdb..#pbeforeData') is not null
+     drop table #pbeforeData
+    select * into #pbeforeData from paid where ID = @slinkId
+    exec dbo.table2json '#pbeforeData', @json = @beforeData output
    end
     
    if @slinktyp = 'j'
    begin
-    select * into temp_beforeData from journalLink where ID = @slinkId
-    exec dbo.table2json 'temp_beforeData', @json = @beforeData output
+    if OBJECT_ID('tempdb..#jbeforeData') is not null
+     drop table #jbeforeData
+    select * into #jbeforeData from journalLink where ID = @slinkId
+    exec dbo.table2json '#jbeforeData', @json = @beforeData output
    end
     
+  exec dbo.logit @@procid, '@slinkTyp', @slinktyp
+  exec dbo.logit @@procid, '@slinkId', @slinkId
+  exec dbo.logit @@procid, '@beforeData', @beforeData
+
 
 
 --Check for required level
@@ -82,13 +114,13 @@ begin
   begin
    select @continue = 'TRUE', @blob = '@continue=TRUE;@level=1;@message=Continue, no approval required;'
    select @blob
-   insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results)
-    select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob
+   insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, level)
+    select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, @level
    return
   end
 
 --Check for existing decision approval
-  if exists(select * from securityDecision where slink = @slink and location = @location and requestDateTime >= GETDATE()-1      and dbo.dbo.readstring('@ini=',requestPerson) = @requestIni)
+  if exists(select * from securityDecision where slink = @slink and location = @location and requestDateTime >= GETDATE()-1      and dbo.readstring('@ini=',requestPerson) = @requestIni)
   begin
    select @idToken = id,
          @approvedPersonToken = approvedPerson,
@@ -99,7 +131,7 @@ begin
    where slink = @slink 
      and location = @location 
      and requestDateTime >= GETDATE()-1      
-     and dbo.dbo.readstring('@ini=',requestPerson) = @requestIni
+     and dbo.readstring('@ini=',requestPerson) = @requestIni
 
    if isnull(@approvedPersonToken,'') <' 0'
    begin
@@ -141,16 +173,17 @@ begin
 
  if @method = 'APPROVE' and @approvedPerson > ' 0'
  begin
-  if isnull(@decionId,0) = 0
+
+  if isnull(@decisionId,0) = 0
   begin
-   select @decionId = id from securityDecision 
+   select @decisionId = id from securityDecision 
      where slink = @slink 
        and location = @location 
-       and isnull(approvedPerson,'') > '0'
+       and isnull(approvedPerson,'') < '0'
        and requestDateTime >= GETDATE()-1 
   end
 
-  if isnull(@decionId,0) = 0
+  if isnull(@decisionId,0) = 0
   begin
     select @continue = 'FALSE', 
            @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=Nothing to approve;'
@@ -163,23 +196,90 @@ begin
         @requestIni = dbo.readstring('@ini=', requestPerson),
         @levelToken = level
   from securityDecision 
-  where id = @decionId
+  where id = @decisionId
   
   if @requestIni = @approvedIni
   begin
     select @continue = 'FALSE', 
            @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=You may not approve your own decisions;'
     select @blob
+
+    update securityDecision set 
+     results = @blob
+    where id = @decisionId
+
     return
   end
+
+  select 
+    @requestPersonSecurity = securitylevel 
+   from users 
+   where ini = @requestIni 
+
+  select 
+    @approvedPersonSecurity = securitylevel 
+   from users 
+   where ini = @approvedIni
+
 
   if @levelToken < 3    
   begin
     select @continue = 'TRUE', 
            @blob = '@continue=TRUE;@level='+cast(@level as varchar)+';@message=Approved Request;'
     select @blob
+
+    update securityDecision set 
+     approvedDateTime = getdate(),
+     approvedPerson = @approvedPerson,
+     approvedNotes = @approvedNotes,
+     results = @blob
+    where id = @decisionId
+
     return
   end
+
+  if @levelToken = 3 and (@requestPersonSecurity > 80 or @approvedPersonSecurity > 80)
+  begin
+    select @continue = 'TRUE', 
+           @blob = '@continue=TRUE;@level='+cast(@level as varchar)+';@message=Approved Request;'
+    select @blob
+
+    update securityDecision set 
+     approvedDateTime = getdate(),
+     approvedPerson = @approvedPerson,
+     approvedNotes = @approvedNotes,
+     results = @blob
+    where id = @decisionId
+
+    return
+  end
+
+  if @levelToken = 4 and @requestPersonSecurity > 80 and @approvedPersonSecurity > 80
+  begin
+    select @continue = 'TRUE', 
+           @blob = '@continue=TRUE;@level='+cast(@level as varchar)+';@message=Approved Request;'
+    select @blob
+
+    update securityDecision set 
+     approvedDateTime = getdate(),
+     approvedPerson = @approvedPerson,
+     approvedNotes = @approvedNotes,
+     results = @blob
+    where id = @decisionId
+
+    return
+  end
+
+  select @continue = 'FALSE', 
+         @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=You do not have security clearance to approve this decision;'
+  select @blob
+
+  update securityDecision set 
+   results = @blob
+  where id = @decisionId
+
+  return
+
  end
 
   
