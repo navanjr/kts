@@ -102,6 +102,12 @@
  @acc356=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  gclocation='Invoice_Void',
+  gcslink='t'&gcInvoiceId,
+  gcdecisionId=0,
+  gcmethod='CHECK',
+  do(450,'check='),
+  break(gccontinue<>'TRUE'),
   iw(',.t000Void Invoice?!!!., ,.y001002+13.,r ,.t001Description., ,.x002-20., ,.t003Are you sure you want to void this invoice?., ,.p0037c13h,700.,,.p0037c12h,255., ,.y003004-13.,r ,.h004., ,.w003180.,'),
   break(gcretval='esc'),
   lcamount=obj7:key2+obj7:key3,
@@ -225,6 +231,12 @@
 @adjustPayment=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
+  gclocation='Invoice_Adjust_Payment',
+  gcslink='t'&gcInvoiceId,
+  gcdecisionId=0,
+  gcmethod='CHECK',
+  do(450,'check='),
+  break(gccontinue<>'TRUE'),
   iw(',.t000Adjust Payment?!!!., ,.t001Comment., ,.t003Payment Amt., ,.t004@n-19.2.,'),
   break(gcretval='esc'),
   lcamount=obj7:key2,
@@ -246,7 +258,15 @@
  trreport('TaxItemComments',5048,'printTaxItemComments=')
  ;
 
-@delInvoice=sql('exec dbo.invoiceCRUD @mode=3, @invoiceId='&kpbrwid(1)*-1&', @postcheckoverride=0');
+@delInvoice=gcInvoiceId=kpbrwid(1)*-1,
+  break(gcInvoiceId+0<1),
+  gclocation='Invoice_Delete',
+  gcslink='t'&gcInvoiceId,
+  gcdecisionId=0,
+  gcmethod='CHECK',
+  do(450,'check='),
+  break(gccontinue<>'TRUE'),
+ sql('exec dbo.invoiceCRUD @mode=3, @invoiceId='&kpbrwid(1)*-1&', @postcheckoverride=0');
 
 @collections=
  d1select('exec dbo.dtypeCommentCRUD @mode=''CREATEBYINVOICE'', @invoiceId='&kpbrwid(1)*-1),
@@ -270,6 +290,13 @@
  
 @applyRefund=
  gcInvoiceId=lcid,
+ break(gcInvoiceId+0<1),
+ gclocation='Invoice_Apply_Refund',
+ gcslink='t'&gcInvoiceId,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  select(1,4512,'a17<>''Posted'' and a18=''Tax Refund'''),
  gcJEId=PIC:id,
  lcrefundAmount=PIC:b15,
@@ -282,6 +309,13 @@
 
 @refundInvoice=
  gcInvoiceId=lcid,
+ break(gcInvoiceId+0<1),
+ gclocation='Invoice_Refund',
+ gcslink='t'&gcInvoiceId,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  lccheck=kp('select invoiceDue*-1 from invoices where id='&gcInvoiceId),
  iw('\t000Refund Balance?; \t001Refund Amount; \w00250; \f002'&lccheck&';\t002@n-19.2; @loadwindow=create(150,12,3,15,''Refund Fees/Penalties'',48);'),
  lcrefundAmount=obj7:key1,
