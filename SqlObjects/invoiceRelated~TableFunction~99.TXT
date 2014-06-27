@@ -32,7 +32,13 @@ begin
  if @name > '  0'
   insert @rt select id, 'Name' from dbo.invoices where name = @name and id != @inquireInvoiceId
  if @parcel > '  0'
-  insert @rt select id, 'Parcel' from dbo.invoices where parcel = @parcel and id != @inquireInvoiceId and id not in (select invoiceId from @rt)
+  begin
+   insert @rt select id, 'Parcel' from dbo.invoices where parcel = @parcel and id != @inquireInvoiceId 
+    and id not in (select invoiceId from @rt)
+   insert @rt select invoiceLinkId, 'Resale' from dbo.taxrolldetail where parcelNumber = @parcel 
+    and invoiceLinkId != @inquireInvoiceId 
+    and invoiceLinkId not in (select invoiceId from @rt)
+  end
 
 
  if dbo.settingsF('site.invoiceRelatedIncludeReceiptHistory','TRUE') = 'TRUE'
