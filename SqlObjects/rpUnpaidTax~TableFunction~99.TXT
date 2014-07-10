@@ -13,7 +13,7 @@ create function dbo.rpUnpaidTax(@year int,@asof int) returns @rt table(id int id
 as begin
 declare @invoiceIds table(id int, taxrollId int, processed int)
 insert @invoiceIds
-select id,taxrollId,0 from invoices where taxyear=@year and invoicedue <> 0 and invoiceid=0
+select id,taxrollId,0 from invoices where taxyear=@year and invoiceid=0
 
 declare @wt table(taxrollId int, invoiceId int,apdistrict varchar(50), aprate varchar(50), accountcode varchar(60),accounttype varchar(50),amount money)
 declare @idToken int,
@@ -41,7 +41,8 @@ insert @rt (apdistrict,aprate,taxrollId,taxes,unpaid)
 update r set 
    item = dbo.taxCorrectionsSF(a.[ITEMNUMBER],a.id,'008'),
    RecordType = dbo.taxCorrectionsSF(a.[RECORDTYPE],a.id,'010'),
-   name = dbo.readstring('@NAME=',dbo.taxRollAddressBlob(a.Realtaxyear,a.itemnumber)),
+   name = (select top 1 rtrim(replace(NAME,'''','`')) from  taxRollDetail where TAXYEAR = @year and itemNumber = dbo.taxCorrectionsSF(a.[ITEMNUMBER],a.id,'008') and dtype in ('a','s')
+	order by ID desc),
    parcel = dbo.taxCorrectionsSF(a.[FULLPIDNUMBER],a.id,'006')
 from @rt r, adtax a where r.taxrollid=a.id
 
