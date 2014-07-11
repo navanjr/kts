@@ -1663,6 +1663,9 @@ class ktsMenu():
             'improvedassessed': [['IMPROVEDASSESSEDVALUE'], 'int'],
             'miscAssessed': [['MISCELLANEOUSASSESSED'], 'int'],
             'propLoc': [['PHYSICALSTREETNUMBER', 'PHYSICALSTREET', 'PHYSICALTOWN'], 'string'],
+            'PHYSICALSTREETNUMBER': [['PHYSICALSTREETNUMBER'], 'string'],
+            'PHYSICALSTREET': [[ 'PHYSICALSTREET'], 'string'],
+            'PHYSICALTOWN': [[ 'PHYSICALTOWN'], 'string'],
         }
         aaMasterFields = []
         for key, fieldArray in fields.items():

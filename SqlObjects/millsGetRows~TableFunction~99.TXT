@@ -11,7 +11,8 @@ create function dbo.millsGetRows(
  amount money,
  accountId int,
  accountCode varchar(50),
- stepDesc varchar(50)
+ stepDesc varchar(50),
+ altSource varchar(50)
 ) as
 begin
 
@@ -60,8 +61,13 @@ begin
 
  if @typ=4022
  begin
-  insert @rt (description, millAmount, accountCode, stepDesc)
-  select key2 ,case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,key2,a1 from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+  insert @rt (description, millAmount, accountCode, stepDesc, altSource)
+  select key2,
+   case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
+   key2,
+   a1,
+   case when a2 > ' 0' then a2 else null end 
+   from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
  end
 
  if @typ=4512

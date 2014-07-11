@@ -77,7 +77,7 @@ set nocount on
           (@parcel > '  0' and parcel = @parcel or name = @name)
           and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    if @unPaidCnt>0
-     select '@code=3;@message=There are unpaid paid back taxes!;'
+     select '@code=3;@message=There are unpaid back taxes!;'
   end   
  end 
 
@@ -108,7 +108,12 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
    insert @rd (receiptId, invoiceId, methodRate) 
    select @receiptId, id, @methodRate from invoices 
    where parcel = @parcel
-    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd 
+     where receiptId = @receiptId)
+   insert @rd (receiptId, invoiceId, methodRate) 
+   select @receiptId, invoiceLinkId, @methodRate from dbo.taxrolldetail where parcelNumber = @parcel 
+    and invoiceLinkId not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd 
+      where receiptId = @receiptId)
   end
 
   if @name > '  0'

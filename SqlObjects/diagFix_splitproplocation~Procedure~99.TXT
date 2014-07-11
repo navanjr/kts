@@ -1,0 +1,59 @@
+create proc dbo.diagFix_splitproplocation(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'AdTax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Prperty Locations that can be split into specific fields'
+  from adtax
+  where left(origin,12) = 'mike_taxroll'
+   and len(rtrim(proploc))>2  and proploc > ' 0'
+   and PHYSICALSTREETNUMBER < ' 0'
+   and PHYSICALSTREET < ' 0'
+   and PHYSICALTOWN < ' 0'
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from adtax
+  where left(origin,12) = 'mike_taxroll'
+   and len(rtrim(proploc))>2 and proploc > ' 0'
+   and PHYSICALSTREETNUMBER < ' 0'
+   and PHYSICALSTREET < ' 0'
+   and PHYSICALTOWN < ' 0'
+ end
+
+ if @method = 'FIX'
+ begin  
+  update adtax 
+   set PHYSICALSTREETNUMBER = rtrim(ltrim(right(proploc,11))),
+    PHYSICALSTREET = rtrim(ltrim(substring(proploc,16,25))),
+    PHYSICALTOWN = rtrim(ltrim(left(proploc,15)))
+  where left(origin,12) = 'mike_taxroll'
+   and len(rtrim(proploc))>2 and proploc > ' 0'
+   and PHYSICALSTREETNUMBER < ' 0'
+   and PHYSICALSTREET < ' 0'
+   and PHYSICALTOWN < ' 0'
+  return
+
+ end
+
+end

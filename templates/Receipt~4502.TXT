@@ -16,6 +16,9 @@ lmode=2;
 'typ=4502 and key3=''TAX'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''TRUST'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''INDIV'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ';
+
+@browse14=kp('select case when '''&obj:key3&'''=''MTG'' then isnull((select top 1 mortgagor from mortgageinfo where receiptid = '&obj:id&'),'''') else '''' end');
+
 @closebrowse=
  gcDashRecType='';
 @loadbrowse=
@@ -28,7 +31,7 @@ lmode=2;
  altFormat=;
 
 @altFormat=
- format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
+ format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M'&choose(gcDashRecType='MTG','150L(2)~Mortgagor~#14#|M','')&'150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
 key7=apiUpdate
@@ -508,6 +511,12 @@ close('ok');
 @voidReceipt=
  m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
  break(gcretval<>2),
+ gclocation='Receipt_Void',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  d1select('exec dbo.receiptVoid '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  refreshDetail=,
@@ -529,7 +538,12 @@ close('ok');
 @refundReceipt=
  if(gcMode+0=1,m('Canceling a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
  break(gcretval<>2),
- d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
+ if(gcMode+0=1,gclocation='Receipt_Cancel',gclocation='Receipt_Modify_Apportionment'), 
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'), d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
  if(lcjeId>0,change(lcjeId)),
@@ -822,6 +836,12 @@ gcPrintOneTaxReceiptId=0,
   lcinvoicetype=kp('select top 1 description from receiptDetail where slink=''t'&gcid&''''),
   m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
   break(gcretval<>2),
+ gclocation='Receipt_Adjust_'&lcinvoicetype,
+ gcslink='t'&lcid,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
   iw('\t000Enter New Amount;\t001Amount; \w00250; \t002@n14.2;'),
   resetfocus(),
   break(gcretval='esc'),

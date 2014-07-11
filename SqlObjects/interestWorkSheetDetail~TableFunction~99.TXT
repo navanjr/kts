@@ -65,7 +65,7 @@ end
 
 delete from @investments where fundAccountCode not in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('FUND') where accounttype<>'OFFICIAL'))
 
- update i set interestTo = a.b7 from @investments i, glaccounts a where i.fundaccountcode = a.accountcode
+ update i set interestTo = a.interestToAccountCode from @investments i, glaccounts a where i.fundaccountcode = a.accountcode
 
 insert @investmentTotal
   select interestTo, sum(amount)
@@ -86,7 +86,7 @@ insert @rt
  having sum(w.amount) <> 0.00
  
 insert @rt
- select 'Balance '+o.b3,datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1, o.a4, o.b3
+ select 'Balance '+left(o.b3,30),datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1, o.a4, o.b3
    from object o, gldetail g, glaccounts a, glaccounts ita
     where o.typ=4601 
      and g.accountcode=o.a3
@@ -180,7 +180,7 @@ insert @wt2
  (sum(g.amount)*-1
  -
  isnull((select sum(amount) from @wt2 where tableType='GENERAL BALANCE'),0))
- - isnull((select sum(i.amount) from @investmentTotal i where (i.interestTo=ita.accountcode or isnull(i.interestTo,'')<'     0')),0)
+ - isnull((select sum(i.amount) from @investmentTotal i ),0)
  , '', ''
    from gldetailreports g, glaccounts ita
     where g.[sourcedate]<= @lastDayPriorMonth

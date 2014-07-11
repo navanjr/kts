@@ -7,7 +7,8 @@ create proc dbo.settingsCRUD(
  @verbose varchar(5) = 'FALSE',
  @logit varchar(5) = 'FALSE',
  @parentId varchar(50) = '',
- @valueOut varchar(max) = null output
+ @valueOut varchar(max) = null output,
+ @notes varchar(max) = ''
 ) as
 begin
  set nocount on
@@ -125,6 +126,8 @@ begin
    union
   select 'site.printStatementRevised', 'FALSE', 'Adds a "Revised" line to tax statement', 'o' + cast(@siteId as varchar),'','boolean'
    union
+  select 'site.stateTaxSystemImport', 'FALSE', 'Enable State Tax System Import', 'o' + cast(@siteId as varchar),'','boolean'
+   union
   select 'site.specialAssessmentsGetOwnReceiptNumber', 'FALSE', 'Sets the Special Assessments to get their own sequence of receipt numbers', 'o' + cast(@siteId as varchar),'','boolean'
    union
   select 'site.applyGraceOnlyInJanuary', 'FALSE', 'Acts as if the grace period was set to 0 for all months other than January', 'o' + cast(@siteId as varchar),'','boolean'
@@ -173,18 +176,25 @@ begin
 
   update a set
    a.description = b.description,
-   a.settingType = b.settingType
+   a.settingType = b.settingType,
+   a.notes = 'Updating Default Information'
   from settings a, @defaultSettings b
   where a.settingName = b.name
+   and (a.description <> b.description
+   or a.settingType <> b.settingType)
 
 --remove Unused settings
+  --Log settiing Values
+  insert settingsHistory   
+   select * from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
+
   delete from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'updated default settings descriptions... @@rowCount', @@rowcount
 
-  insert settings (settingName,settingValue,description,parentId,settingType)
-  select name,value,description,parentId,settingType from @defaultSettings where name not in (select settingName from settings where settingName is not null)
+  insert settings (settingName,settingValue,description,parentId,settingType,notes)
+  select name,value,description,parentId,settingType,@notes from @defaultSettings where name not in (select settingName from settings where settingName is not null)
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'inserted default settings... @@rowCount', @@rowcount
@@ -194,18 +204,32 @@ begin
  if @method = 'POST' and @settingValue is not null
  begin
   if exists(select * from settings where settingName = @settingName)
-   update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
+   begin
+   update settings set settingValue = @settingValue, 
+     parentId = case when @parentId>'  0' then @parentId else parentId end,
+     notes = @notes 
+    where settingName = @settingName
+   end
   else
-   insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
-
+   begin
+    insert settings (settingName, settingValue, parentId, notes) select @settingName, @settingValue, @parentId,@notes
+   end
  end
 
  if @method = 'TOGGLE'
  begin
   if @settingId is not null
-   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where id = @settingId
+   begin
+     update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue),
+      notes = @notes 
+      where id = @settingId
+   end
   else
-   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where settingName = @settingName
+   begin
+   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue),
+    notes = @notes 
+    where settingName = @settingName
+  end
  end
 
  if @method = 'GET'
@@ -248,18 +272,26 @@ begin
 
  if @method = 'DELETE' and @settingId is not null
  begin
+  --Log settiing Values
+  insert settingsHistory   
+   select * from settings where id = @settingId
   delete settings where id = @settingId
  end
 
  if @method = 'POSTNAME' and @parentId>'  0'
  begin
   if exists(select * from settings where parentId = @parentId)
-   update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))) where parentId = @parentId
+   update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))),
+   notes = @notes where parentId = @parentId
  end
 
  if @method = 'DELETEALL' 
  begin
   if exists(select * from settings where parentId = @parentId)
+    --Log settiing Values
+    insert settingsHistory   
+     select * from settings where parentId = @parentId
+
    delete from settings where parentId = @parentId
  end
 

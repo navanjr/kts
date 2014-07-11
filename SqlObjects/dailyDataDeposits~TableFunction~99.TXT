@@ -134,14 +134,14 @@ begin
   ord + cast(id as varchar) + 'b',
   ord,
   description,
-  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end, --subDescription,
+  case when typ = 4771 and sourcea18 <> '   Transfer Checks' then '   Disbursements' when typ = 4771 and sourcea18 = '   Transfer Checks' then '   Transfer Checks'  else '   Deposits' end, --subDescription,
   min(depositNumber),
   max(depositNumber),
   COUNT(depositNumber),
-  SUM(amount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end, -- removed abs()
+  SUM(amount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end, -- removed abs()
   0,
-  SUM(electronicAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end,
-  SUM(otherAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end
+  SUM(electronicAmount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end,
+  SUM(otherAmount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end
  from @wtRaw
  group by
   id,
@@ -256,22 +256,22 @@ begin
  insert @wt
  select
   id,
-  ord  + case when typ = 4771 and sourcea18 <> 'Transfer' then 'Dis' when typ = 4771 and sourcea18 = 'Transfer' then 'Tra' else 'Dep' end + CAST(id as varchar) + 'b',
+  ord  + case when typ = 4771 and sourcea18 <> '   Transfer Checks' then 'Dis' when typ = 4771 and sourcea18 = '   Transfer Checks' then 'Tra' else 'Dep' end + CAST(id as varchar) + 'b',
   ord,
-  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
+  case when typ = 4771 and sourcea18 <> '   Transfer Checks' then '   Disbursements' when typ = 4771 and sourcea18 = '   Transfer Checks' then '   Transfer Checks'  else '   Deposits' end,
   '   '+subDescription,
   min(depositNumber),
   max(depositNumber),
   COUNT(depositNumber),
-  SUM(amount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end, -- removed abs()
+  SUM(amount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end, -- removed abs()
   0,
-  sum(electronicAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end,
-  sum(otherAmount) * case when typ=4771 and sourcea18 <> 'Transfer' then -1 else 1 end
+  sum(electronicAmount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end,
+  sum(otherAmount) * case when typ=4771 and sourcea18 <> '   Transfer Checks' then -1 else 1 end
  from @wtRaw
  group by
   id,
   ord,
-  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
+  case when typ = 4771 and sourcea18 <> '   Transfer Checks' then '   Disbursements' when typ = 4771 and sourcea18 = '   Transfer Checks' then '   Transfer Checks'  else '   Deposits' end,
   subDescription,
   typ,
   sourcea18
@@ -280,10 +280,10 @@ begin
 insert @wt (id,ord,reportOrder,description,subDescription)
  select
   0,
-  ord  + case when typ = 4771 and sourcea18 <> 'Transfer' then 'Dis' when typ = 4771 and sourcea18 = 'Transfer' then 'Tra' else 'Dep' end + '000' + 'a',
+  ord  + case when typ = 4771 and sourcea18 <> '   Transfer Checks' then 'Dis' when typ = 4771 and sourcea18 = '   Transfer Checks' then 'Tra' else 'Dep' end + '000' + 'a',
   ord,
-  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end,
-  case when typ = 4771 and sourcea18 <> 'Transfer' then '   Disbursements' when typ = 4771 and sourcea18 = 'Transfer' then '   Transfer Checks'  else '   Deposits' end
+  case when typ = 4771 and sourcea18 <> '   Transfer Checks' then '   Disbursements' when typ = 4771 and sourcea18 = '   Transfer Checks' then '   Transfer Checks'  else '   Deposits' end,
+  case when typ = 4771 and sourcea18 <> '   Transfer Checks' then '   Disbursements' when typ = 4771 and sourcea18 = '   Transfer Checks' then '   Transfer Checks'  else '   Deposits' end
  
  from @wtRaw
  group by
