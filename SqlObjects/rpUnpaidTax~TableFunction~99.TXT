@@ -35,8 +35,10 @@ insert @rt (apdistrict,aprate,taxrollId,taxes,unpaid)
  select apdistrict,aprate,taxrollId,
   sum(case when accounttype='SOURCE' then amount*-1 else 0 end) as taxes,
   sum(case when accounttype in ('SOURCE','ACCRUED RECEIVABLE') then amount*-1 else 0 end) as unpaid
-  from @wt where apdistrict > ' 0'
+  from @wt where apdistrict > ' 0' 
   group by apdistrict,aprate,taxrollId
+
+delete from @rt where unpaid = 0
 
 update r set 
    item = dbo.taxCorrectionsSF(a.[ITEMNUMBER],a.id,'008'),
