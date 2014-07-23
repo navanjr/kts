@@ -85,9 +85,9 @@ begin
   legal_description varchar(1000),
   item_number decimal(10,1),
   mortgage_Code varchar(50),
-  PHYSICAL_STREET_NUMBER varchar(50),
-  PHYSICAL_STREET varchar(50),
-  PHYSICAL_TOWN varchar(50)
+  physical_street_number varchar(50),
+  physical_street varchar(50),
+  physical_town varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -162,9 +162,9 @@ declare @rt table (
  itemNumber varchar(50),
  mtgCode varchar(10),
  blob varchar(max),
- PHYSICALSTREETNUMBER varchar(50),
- PHYSICALSTREET varchar(50),
- PHYSICALTOWN varchar(50)
+ physicalstreetnumber varchar(50),
+ physicalstreet varchar(50),
+ physicaltown varchar(50)
 )
 insert into @rt
  select top (@batchSize)
@@ -195,9 +195,9 @@ insert into @rt
    itemNumber,
    case when treamort > '  0' then treamort else cast(mortgageCode as varchar) end,
    dbo.getTaxInvoiceBlob(i.ID),
-   a.PHYSICALSTREETNUMBER,
-   a.PHYSICALSTREET,
-   a.PHYSICALTOWN
+   a.physicalstreetnumber,
+   a.physicalstreet,
+   a.physicaltown
    from adtax a join invoices i on i.TAXROLLID = a.ID where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and a.id > 0
     and isnull(a.apiUpdated,0) < a.modified
    order by OWNERNAME, ITEMNUMBER  
@@ -235,9 +235,9 @@ select
    '',
    itemNumber,
    mtgCode,
-   PHYSICALSTREETNUMBER,
-   PHYSICALSTREET,
-   PHYSICALTOWN
+   physicalstreetnumber,
+   physicalstreet,
+   physicaltown
  from @rt
 
 -- bail if your done or update batchSize from tally, maybe... 
@@ -289,9 +289,9 @@ select
 --  insert @jsonPrep select parentId,null,'legal_description', dbo.stripChars(legal_description,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'item_number', item_number,'int' from @wt
   insert @jsonPrep select parentId,null,'mortgage_code', mortgage_code,'string' from @wt
-  insert @jsonPrep select parentId,null,'physical_street_number', PHYSICAL_STREET_NUMBER,'string' from @wt
-  insert @jsonPrep select parentId,null,'physical_street', PHYSICAL_STREET,'string' from @wt
-  insert @jsonPrep select parentId,null,'physical_town', PHYSICAL_TOWN,'string' from @wt
+  insert @jsonPrep select parentId,null,'physical_street_number', physical_street_number,'string' from @wt
+  insert @jsonPrep select parentId,null,'physical_street', physical_street,'string' from @wt
+  insert @jsonPrep select parentId,null,'physical_town', physical_town,'string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep
@@ -333,5 +333,4 @@ select
 
   return
  end
-
 end
