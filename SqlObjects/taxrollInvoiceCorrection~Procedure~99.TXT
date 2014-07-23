@@ -58,5 +58,15 @@ as begin
     rollback transaction
   
    end
+  declare @ids table(id int)
+  declare @tokenId int
+  insert @ids
+    select id from invoices where taxrollid = @taxrollId
 
+  while exists(select id from @ids)
+  begin
+    select top 1 @tokenId = id from @ids
+    exec invoiceUpdate @tokenId
+    delete from @ids where id = @tokenId
+  end
 end
