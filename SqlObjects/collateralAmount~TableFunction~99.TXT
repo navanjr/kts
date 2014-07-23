@@ -13,7 +13,8 @@ returns @rt table(id int identity(1,1),
                   unusedCollateral money,
                   bankPercent numeric(19,12),
                   CDARS varchar(5),
-                  processcode int)
+                  processcode int,
+                  bankAccountType varchar(50))
 as
 begin
 declare @collateralDetail table(key1 varchar(60),
@@ -47,17 +48,17 @@ insert @collateralDetail
  from object o where typ=4707
         
 
-insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPayments, statementBalance, processcode, notCoveredAmount, unusedCollateral,CDARS)
+insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPayments, statementBalance, processcode, notCoveredAmount, unusedCollateral,CDARS,bankAccountType)
  select accountCode,
         accountDesc,
         bankName, 
         isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode),0),
         isnull((select sum(g.amount*-1) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and amount < 0.00 and isnull(bsId,0)=0),0),
         isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and (amount > 0.00 or isnull(bsId,0)>0)),0),
-        0,0.00,0.00,CDARS
+        0,0.00,0.00,CDARS,a.accounttype
  from glaccounts a
   where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
- group by a.accountcode,a.accountdesc,a.bankName,a.CDARS
+ group by a.accountcode,a.accountdesc,a.bankName,a.CDARS,a.accounttype
 
 delete from @rt where statementBalance = 0.00
 
