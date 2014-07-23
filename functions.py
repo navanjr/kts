@@ -35,6 +35,7 @@ class ktsMenu():
         self.settings['server'] = self.configStuff('importDefaults', 'server') or '.'
         self.settings['uid'] = self.configStuff('importDefaults', 'uid')
         self.settings['password'] = self.configStuff('importDefaults', 'password')
+        self.settings['driver'] = self.configStuff('importDefaults', 'driver')
 
         self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
         self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
@@ -1753,7 +1754,7 @@ class ktsMenu():
 
     def sqlQuery(self, sqlString, isProc=False, alternateDatabase=None, testConnection=False, appName='kts.bat'):
         connDatabase = alternateDatabase or self.settings['database']
-        connectionString = 'APP=%s;DRIVER={SQL Server};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (appName, self.settings['server'], connDatabase, self.settings['uid'], self.settings['password'])
+        connectionString = 'APP=%s;DRIVER={%s};SERVER=%s;DATABASE=%s;UID=%s;PWD=%s' % (appName, self.settings['driver'], self.settings['server'], connDatabase, self.settings['uid'], self.settings['password'])
         package = {}
         package['connectionString'] = connectionString
         package['database'] = connDatabase
