@@ -54,7 +54,7 @@ class dbfClass():
             for column in s:
                 obj[column[0]] = row[column[0]]
                 if 'varchar' in column[1]:
-                    vValues.append(row[column[0]] or "".replace("'", ""))
+                    vValues.append(row[column[0]].replace("'", "") or "".replace("'", ""))
                 else:
                     nValues.append(str(row[column[0]] or 0))
             r.append(obj)
