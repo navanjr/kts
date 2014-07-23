@@ -256,6 +256,7 @@ class ktsMenu():
                 #print "structure: ", data['structure']
                 print 'Drop and create %s...' % data['tableName'], self.sqlQuery(data['dropAndCreateTableSQL'], True)['code']
                 for row in data['insertRows']:
+                    print row
                     try:
                         self.sqlQuery(row, True)
                     except:
