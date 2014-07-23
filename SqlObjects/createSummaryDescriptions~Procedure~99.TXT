@@ -1,0 +1,78 @@
+create procedure dbo.createSummaryDescriptions
+as
+begin
+ exec dbo.glaccountverification 'TREAFEESOURCE', 'SOURCE', 'CREATE', @forceAccountDesc = 'County Treasurers Fees'
+
+ exec dbo.glaccountverification 'ADVALOREMSOURCE', 'SOURCE', 'CREATE', @forceAccountDesc = 'Advalorem Taxes'
+
+ exec dbo.glaccountverification 'ADVALOREMTAX_ACR', 'Accrued Receivable', 'CREATE', @forceAccountDesc = 'Advalorem Taxes Accrued Receivable', @tableType = 'T'
+
+ declare @taxdescriptions table([description] varchar(50), 
+                               sourcecode varchar(50),
+                               sourcedec varchar(50),
+                               fundcode varchar(50),
+                               funddesc varchar(50),
+                               receipttype varchar(30))
+
+ declare @description varchar(50), 
+        @sourcecode varchar(50),
+        @sourcedesc varchar(50),
+        @fundcode varchar(50),
+        @funddesc varchar(50)
+
+ declare @descriptions table([description] varchar(50))
+
+ insert @descriptions
+  select 'CURRENT TAX' union all
+  select 'PRIOR TAX' union all
+  select 'BACK TAX' union all
+  select '2012 BACK TAX' union all
+  select '2011 BACK TAX' union all
+  select '2010 BACK TAX' union all
+  select '2009 BACK TAX' union all
+  select '2008 BACK TAX' union all
+  select '2007 BACK TAX' union all
+  select '2006 BACK TAX' union all
+  select '2005 BACK TAX' union all
+  select '2004 BACK TAX' union all
+  select '2003 BACK TAX' union all
+  select '2002 BACK TAX' union all
+  select '2001 BACK TAX' union all
+  select '2000 BACK TAX' 
+
+ insert @descriptions
+  select left(year,4) + ' ' + upper(rtrim(yearcode)) + ' TAX' from dbo.taxYears(dbo.clariondate(getdate())) 
+   where left(year,4) + ' ' + upper(rtrim(yearcode)) + ' TAX' not in (select [description] from @descriptions)
+ 
+
+ insert @taxdescriptions
+  select [description], 'ADVALOREMSOURCE', 'Advalorem Taxes', 'ADVALOREMTAX_ACR', 'Advalorem Taxes Accrued Receivable', 'SUMMARY' from @descriptions
+
+ insert object (typ, key1, key2, a18, key3, a19, a1)
+  select 4504, * from @taxdescriptions where [description] not in (select key1 from object where typ=4504 and a1='SUMMARY')
+
+
+ update @descriptions set [description] = left([description],len([description])-4)
+
+ if exists(select * from object where typ = 4504 and a1 = 'PENALTY' and key1 > ' 0' and key2 > ' 0' and key3 > ' 0' )
+ begin
+  select top 1 @description = key1, 
+        @sourcecode = key2,
+        @sourcedesc = isnull((select accountdesc from glaccounts where accountcode = key2),''),
+        @fundcode = key3,
+        @funddesc = isnull((select accountdesc from glaccounts where accountcode = key3),'')
+  from object where typ = 4504 and a1 = 'PENALTY' and key1 > ' 0' and key2 > ' 0' and key3 > ' 0' 
+
+
+  insert object (typ, key1, key2, a18, key3, a19, a1)
+   select 4504, [description]+' PENALTY', @sourcecode, @sourcedesc, @fundcode, @funddesc,'SUMMARY' from @descriptions where [description]+' PENALTY' not in (select key1 from object where typ=4504 and a1='SUMMARY')
+ 
+  select top 1 @sourcecode = 'TREAFEESOURCE',
+        @sourcedesc = isnull((select accountdesc from glaccounts where accountcode = 'TREAFEESOURCE'),'')
+
+  insert object (typ, key1, key2, a18, key3, a19, a1)
+   select 4504, [description]+' FEES', @sourcecode, @sourcedesc, @fundcode, @funddesc,'SUMMARY' from @descriptions where [description]+' FEES' not in (select key1 from object where typ=4504 and a1='SUMMARY')
+ 
+ end
+
+end

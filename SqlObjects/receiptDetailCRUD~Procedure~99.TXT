@@ -91,11 +91,30 @@ begin
   if @receiptType = 'TRUST' 
    select @altContraId = t.accountid from glaccounts a, glaccounts t where a.accountcode=@fundCode and a.targetaccountcode=t.accountcode and a.targetaccountcode>' 0'
 
-  if @receiptType = 'SUMMARY'
-   select @altcontraId = isnull(f.accountid,0) from glaccounts a, glaccounts f where @fundcode=a.accountcode and rtrim(a.apyear)+'_ADVALOREM' = f.accountcode
+
+  declare @altcontracode varchar(50)
+
+
+  if @receiptType = 'SUMMARY' and isnumeric(left(@description,4)) = 1
+  begin
+   select @altcontracode = left(@description,4)+'_ADVALOREM'
+
+   exec glaccountverification @altcontracode, 'FUND', 'CREATE', @collectionDesc = 'Ad Valorem Tax'
+
+   select @altcontraId = isnull(f.accountid,0) from glaccounts f where @altcontracode = f.accountcode
+  end
 
   if @receiptType = 'SUMMARY' and isnull(@altcontraId,0)=0
-   select @altcontraId = isnull(f.accountid,0) from glaccounts f where left(@description,4)+'_ADVALOREM' = f.accountcode
+  begin
+   select top 1 @altcontracode = left(year,4)+'_ADVALOREM'
+    from dbo.taxYears(dbo.clariondate(getdate()))
+    where left(yearcode,3) = case when left(@description,3) in ('bac','pri') then left(@description,3) else 'cur' end
+    order by year desc
+      
+   exec glaccountverification @altcontracode, 'FUND', 'CREATE', @collectionDesc = 'Ad Valorem Tax'
+
+   select @altcontraId = isnull(f.accountid,0) from glaccounts f where @altcontracode = f.accountcode
+  end
 
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount,altContraId) 
