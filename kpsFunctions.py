@@ -579,17 +579,18 @@ def foxMapper(record, map, apiSettings):
             if verb in ['split']:
                 requestedIndex = arguments[0]
                 indexes = record[5].split('-')
-		if len(indexes) > 1:
-                	value = indexes[requestedIndex]
+                if len(indexes) > 1:
+                    value = indexes[requestedIndex]
+
             elif 'math' in verb:
                 if 'add' in verb:
                     amount = 0
                     for y in arguments[0]:
-                    	#print 'row - amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
-                    	if record[y] is not None:
-	                    amount = amount + record[y]
-	                    #print 'amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
-    	            value = str(amount)
+                        #print 'row - amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
+                        if record[y] is not None:
+                            amount = amount + record[y]
+                            #print 'amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
+                    value = str(amount)
         else:
             if key == 'item_number':
                 value = clean(record[mapItem[1]], goofyChars)
