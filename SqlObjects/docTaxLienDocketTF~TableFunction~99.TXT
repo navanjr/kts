@@ -4,10 +4,11 @@ returns @wt table (invoiceId int,taxYear varchar(10),Item varchar(30),Name varch
  begin
  
  insert @wt
-  select null,max(taxyear),item,NAME
-   from invoices 
-   where invoiceDue>0 and invoiceId=0 and TYP in ('b','i','p') and taxyear between @yearFrom and @yearTo
-   group by NAME,item
+  select null,max(i.taxyear),i.item,i.NAME
+   from invoices i
+    join taxrollDetail as d on i.item = d.itemNumber and d.dtype = 'taxwarrant'
+   where i.invoiceDue>0 and i.invoiceId=0 and i.TYP in ('b','i','p') and i.taxyear between @yearFrom and @yearTo
+   group by i.NAME,i.item
 	
  update w set w.invoiceId = i.ID 
   from invoices i inner join @wt w on w.Item = i.ITEM and i.NAME = w.Name and i.TAXYEAR = w.taxYear
