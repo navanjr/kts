@@ -155,7 +155,10 @@ close('ok');
  gcCheckDeposited=kp('select case when '&obj:id&' in (select objLinkId from dbo.depositPaidUnPosted() where depositId=0)
  and '&obj:id&' not in (select objLinkId from dbo.depositPaidUnPosted() where depositId>0)
  then ''FALSE'' else ''TRUE'' end'),
- prop(120,'color',65280);
+ prop(120,'color',65280),
+ gcscanid=obj:id;
+
+@closewindow=gcscanid=0;
 
 @intReceipt=
  set(020,'ETR');
@@ -654,6 +657,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  lcrdId=sub(lcrdId,2,25),
  break(lcrdId+0<1),
  if(lcTyp+0=3 and obj:a17='Posted' and cur:securitylevel>75,donewtaxreceiptno=),
+ if(lcTyp+0=8,menu8=),
  break(obj:a17='Posted'),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
@@ -752,7 +756,19 @@ acc551=
  if(lcTyp+0=4,change(lcid)),
  if(lcTyp+0=9,doPostedMenu9=),
  break(lcTyp<>8),
- lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,
+ neww(3208),
+ gcscanid=obj:id;
+
+@changecheckinfo=lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
  break(lcCheckDeposited='TRUE'),
  iw('\t000Enter the Correct Information...; \t001Check #; \w00250; \t003Bank Drawn On; \w00450; \l0044509;r004002006004; @lf004=,2; lmode004=2; @nopop004; \t005Location; \w00650;'),

@@ -19,6 +19,23 @@
  if(instring('@group=developer',cur:options,1,1)>0,gcadmin=1,gcadmin=0),
  if(instring('@unpost=1',cur:options,1,1)>0,gcunpost=1,gcunpost=0),
  d1select('select @@servername+'':''+db_name()'),status(obj7:d1,1),
- d1select('exec dbo.taxDescriptionVerification');
+ d1select('exec dbo.taxDescriptionVerification'),
+ acImaging=kp('select dbo.settingsf(''site.enableImaging'',''FALSE'')'),
+ if(acImaging='TRUE',acImag=1,acImag=0);
 
 
+@button15=Scan [Ctrl-F11],634,,,,55,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
+@tb15=if(acImaging='TRUE',scan=);
+@scan=d1select('exec dbo.getScanId '''&gcscanid&''''),
+gcscanid=readstring(obj7:d1,'@scanid='),
+if(numeric(left(gcscanid,1))=0,m('Failed to retrieve scan Id please try again later')),
+break(numeric(left(gcscanid,1))=0),
+if(gcscanid+0>0,scanit=,m('Please select a record to scan into...'));
+
+@scanit=scandirect(gcscanid,1),calcrecord(gcscanid);
+
+@button14=Scan Cfg,,,,,45,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
+@tb14=insert(-02=149,-04=obj:id,012=obj:b15,014=obj:a4,016=''),change(obj1:id);
+
+@button11=Image Viewer,,,,,45,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
+@tb11=new(3208);

@@ -7,6 +7,8 @@
  lcinquiry=kp('select top 1 id from object where typ=4003 and key2='''&lcHostName&''''),
  if(lcinquiry+0>0,change(lcinquiry),new(4003,,004=lcHostName));
 
+@closewindow=gcscanid='';
+
 @loadwindow=
  lcbrwRefresh=1,
  create(150,12,60,3,'Show Paid',28),
@@ -382,8 +384,25 @@
  lcbrw3Id=sub(lcw3Id,2,25),
  lcDtype=kp('select dtype from taxrolldetail where id='&lcbrw3Id),
  break(instring('@group=publicuser',cur:options,1,1)>0),
+ gcotheroption='',
+ if(lcbrw3Typ+0=9,gcotheroption='|Print Receipt'),
+ if(lcbrw3Typ+0=7,gcotheroption='|Remove Flag'),
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View'&gcotheroption&'|Cancel'),donoimaging=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,donoimaging=);
+
+@donoimaging=
  if(lcbrw3Typ+0=9,printReceipt=),
  if(lcbrw3Typ+0=7,actionDate=);
+
+@scanpaid=gcscanid='cb'&kpbrwid(3),
+ do(1,scan=),
+ gcscanid='t'&lcSearchId;
+
+@viewpaid=gcscanid='cb'&kpbrwid(3),
+ neww(3208),
+ gcscanid='t'&lcSearchId;
+
 
 @actionDate=
  m('Remove '&lcDtype&' Flag?','Remove Flag',,6),
@@ -406,6 +425,7 @@
 
 @newselbrw160=
  lcSearchId=kpbrwid(1)*-1,
+ gcscanid='t'&lcSearchId,
  break(lcSearchId+0<1),
  refreshBRW2=,
  refreshBRW3=;
@@ -470,6 +490,7 @@
  lcbrw1Filter=str_replace(obj:c1,'''','~{'),
  if(readstring(gcSiteBlob,'@barcodeScanner=')=1,barcodeit=),
  lcSearchId=0,
+ gcscanid=0,
  refreshBRW=,
  if(lcFocus=078,focusit78=,focus(160));
 
@@ -482,6 +503,7 @@
  lcPart=choose(gcTaxToggle=gcTaxToggleF,'full','half'),
  d1select('exec dbo.barcodeScan '''&lcbrw1Filter&''','&obj:id&','''&lcPart&''',''TAX'''),
  lcSearchId=readstring(obj7:d1,'@invoiceId='),
+ gcscanid='t'&lcSearchId,
  barcodeitb=,
  if(readstring(obj7:d1,'@code=')=1,lcFocus=078),
  if(readstring(obj7:d1,'@code=')=2,m('This item has a mortgage code on it')),
@@ -493,7 +515,9 @@
 @barcodeitb=
  refreshBRW2=,
  refreshBRW3=,
- lcSearchId='';
+ lcSearchId='',
+ gcscanid='';
+
 
 
 \t108New &Receipt;
@@ -513,6 +537,7 @@
 
 \t109&Add Comment;
   @acc109=lcSearchId=kpbrwid(1)*-1,
+  gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddComment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
   d1select('select top 1 id from object where typ=4002 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
@@ -547,6 +572,7 @@
 
 \t113V&iew Receipts;
  @acc113=lcSearchId=kpbrwid(1)*-1,
+  gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1 or lcSearchId>9000000),
   browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')');
 
@@ -564,6 +590,7 @@
 
 \t117&View/Correct; \h117lcHideViewCorrect='TRUE';
  @acc117=lcSearchId=kpbrwid(1)*-1,
+  gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   if(lcSearchId>9000000,lcSource='ADTAX',lcSource='INVOICES'),
   sql('dbo.taxRolladdressCheck '&lcSearchId),
@@ -573,6 +600,7 @@
 \t118A&dd Fee; 
   @acc118=
   lcSearchId=kpbrwid(1)*-1,
+  gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1 or lcSearchId>9000000),
   gcRecType='TAX',
   iw('\t001Date; \t002@d2; \f002=c; \w00250; \t003Description;\l0044504;r004002006004008006; @lf004=''a1=''''tax'''''',1,2; \t005Source; \w00660; \l0064701; @lf006=''typ=4701 and a1=''''SOURCE'''' and b3!=1'',2; \t007Fund; \w00860; \l0084701; @lf008=''typ=4701 and a1=''''FUND'''' and b3!=1'',2; \t009Amount; \t010@n21.2; \w01050;'),
@@ -586,6 +614,7 @@
 
 \t119Add A&ssessment;
   @acc119=lcSearchId=kpbrwid(1)*-1,
+  gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddAssessment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
   d1select('select top 1 id from object where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),

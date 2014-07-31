@@ -16,6 +16,12 @@
 
 @browsedelete=
  lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.','Are you sure you wish to delete this Payment?'),
+ gclocation='Deposit_Delete',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
  break(gcretval<>2),
  sql('exec dbo.depositCRUD 3, @depositId='&obj:id);
@@ -27,7 +33,10 @@
  if(tier=3,dotier3=),
  create(160,9,3,120,'Link &Type'),
  create(550,12,345,95,'&Show Un-Linked',78),
- brwstuff=;
+ brwstuff=,
+ gcscanid=obj:id;
+
+@closewindow=gcscanid=0;
 
 @dotier3=
  update,
@@ -107,10 +116,23 @@
 @lbrw1color=obj7:c10='1',1959605,obj7:c10='2',13499135; 2157055; 1959605; 2350115; 7467519
 
 @lbrwclick150=
- break(obj:a3+0<>1),
  bustItUp=,
+ if(lcMode+0=1 and acImaging='TRUE',doscan=),
+ break(obj:a3+0<>1),
  if(lcMode+0=8,rightClickUnLinkOptions=),
  if(lcMode+0=9,rightClickLinkOptions=);
+
+@doscan=m('Would you like to:',,,'Scan|View|Cancel'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,
+ neww(3208),
+ gcscanid=obj:id;
+
 
 @brw1=
  break(obj:a3+0<>1),
