@@ -7,8 +7,7 @@ create proc dbo.settingsCRUD(
  @verbose varchar(5) = 'FALSE',
  @logit varchar(5) = 'FALSE',
  @parentId varchar(50) = '',
- @valueOut varchar(max) = null output,
- @notes varchar(max) = ''
+ @valueOut varchar(max) = null output
 ) as
 begin
  set nocount on
@@ -25,7 +24,6 @@ begin
    removeSettingName varchar(200) default '',
    settingType varchar(50) default ''
   )
-
   declare @siteId int
   select top 1 @siteId = id from object where typ = 40 order by id
 
@@ -33,8 +31,6 @@ begin
   select 'site.voucherNumberEnforcementMethod', 'Fiscal', 'Voucher Number Enforcement Method', 'o' + cast(@siteId as varchar),'','Calendar|Fiscal|Unique|None'
    union
   select 'site.showCollateralOnBKD', 'FALSE', 'display collateral info on the Book Keepers Dashboard.', 'o' + cast(@siteId as varchar),'','boolean'
-   union
-  select 'site.SpecialAssessmentRequireInterestDate', 'FALSE', 'Require Interest Date to be entered for Special Assessments.', 'o' + cast(@siteId as varchar),'','boolean'
    union
   select 'site.passwordExpireDays', '365', 'Age (in days) that passwords expire', 'o' + cast(@siteId as varchar),'','int'
    union
@@ -108,7 +104,11 @@ begin
    union
   select 'conversion.aamasterpath', 'missing', 'aamaster path', 'o' + cast(@siteId as varchar),'',''
    union
-  select 'conversion.appvwork', 'F:\ASCII\APPVWORK.DBF', 'appvwork path', 'o' + cast(@siteId as varchar),'',''
+  select 'conversion.appvwork', 'F:\ASCII\APPVWORK.DBF', 'Stations path to the original location of appvwork file', 'o' + cast(@siteId as varchar),'',''
+   union
+  select 'conversion.appvwork.map', 'K:\APPVWORK.DBF', 'Stations path to KellPro server to place appvwork file', 'o' + cast(@siteId as varchar),'',''
+   union
+  select 'conversion.appvwork.location', 'd:\sys\APPVWORK.DBF', 'Servers path to appvwork file', 'o' + cast(@siteId as varchar),'',''
    union
   select 'site.delinquentTaxPubNewest', 'True', 'Only print the newest year on Delinquent Real Estate Publication Notice', 'o' + cast(@siteId as varchar),'','boolean'
    union
@@ -126,8 +126,6 @@ begin
    union
   select 'site.printStatementRevised', 'FALSE', 'Adds a "Revised" line to tax statement', 'o' + cast(@siteId as varchar),'','boolean'
    union
-  select 'site.stateTaxSystemImport', 'FALSE', 'Enable State Tax System Import', 'o' + cast(@siteId as varchar),'','boolean'
-   union
   select 'site.specialAssessmentsGetOwnReceiptNumber', 'FALSE', 'Sets the Special Assessments to get their own sequence of receipt numbers', 'o' + cast(@siteId as varchar),'','boolean'
    union
   select 'site.applyGraceOnlyInJanuary', 'FALSE', 'Acts as if the grace period was set to 0 for all months other than January', 'o' + cast(@siteId as varchar),'','boolean'
@@ -137,9 +135,6 @@ begin
   select 'site.budgetReportDetailMultipleApportionments', 'FALSE', 'Allows the budget report to give two totals for the months from December to March.', 'o' + cast(@siteId as varchar),'','boolean'
    union
   select 'site.budgetReportShowJournalEntries', 'TRUE', 'Allows the budget report to show journal entries.', 'o' + cast(@siteId as varchar),'','boolean'
-   union
-  select 'site.enableImaging', 'FALSE', 'Turns on the KTS Imaging features.', 'o' + cast(@siteId as varchar),'','boolean'
-
 
 
 ---Backup
@@ -179,25 +174,18 @@ begin
 
   update a set
    a.description = b.description,
-   a.settingType = b.settingType,
-   a.notes = 'Updating Default Information'
+   a.settingType = b.settingType
   from settings a, @defaultSettings b
   where a.settingName = b.name
-   and (a.description <> b.description
-   or a.settingType <> b.settingType)
 
 --remove Unused settings
-  --Log settiing Values
-  insert settingsHistory   
-   select * from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
-
   delete from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'updated default settings descriptions... @@rowCount', @@rowcount
 
-  insert settings (settingName,settingValue,description,parentId,settingType,notes)
-  select name,value,description,parentId,settingType,@notes from @defaultSettings where name not in (select settingName from settings where settingName is not null)
+  insert settings (settingName,settingValue,description,parentId,settingType)
+  select name,value,description,parentId,settingType from @defaultSettings where name not in (select settingName from settings where settingName is not null)
 
   if @@rowcount > 0
    exec dbo.logit @@procid, 'inserted default settings... @@rowCount', @@rowcount
@@ -207,32 +195,18 @@ begin
  if @method = 'POST' and @settingValue is not null
  begin
   if exists(select * from settings where settingName = @settingName)
-   begin
-   update settings set settingValue = @settingValue, 
-     parentId = case when @parentId>'  0' then @parentId else parentId end,
-     notes = @notes 
-    where settingName = @settingName
-   end
+   update settings set settingValue = @settingValue, parentId = case when @parentId>'  0' then @parentId else parentId end where settingName = @settingName
   else
-   begin
-    insert settings (settingName, settingValue, parentId, notes) select @settingName, @settingValue, @parentId,@notes
-   end
+   insert settings (settingName, settingValue, parentId) select @settingName, @settingValue, @parentId
+
  end
 
  if @method = 'TOGGLE'
  begin
   if @settingId is not null
-   begin
-     update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue),
-      notes = @notes 
-      where id = @settingId
-   end
+   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where id = @settingId
   else
-   begin
-   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue),
-    notes = @notes 
-    where settingName = @settingName
-  end
+   update settings set settingValue = coalesce( nullif(dbo.toggle(settingValue),''), settingValue) where settingName = @settingName
  end
 
  if @method = 'GET'
@@ -275,26 +249,18 @@ begin
 
  if @method = 'DELETE' and @settingId is not null
  begin
-  --Log settiing Values
-  insert settingsHistory   
-   select * from settings where id = @settingId
   delete settings where id = @settingId
  end
 
  if @method = 'POSTNAME' and @parentId>'  0'
  begin
   if exists(select * from settings where parentId = @parentId)
-   update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))),
-   notes = @notes where parentId = @parentId
+   update settings set settingName=@settingName+'.'+rtrim(substring(settingName,CHARINDEX('.',settingName)+1,len(settingName))) where parentId = @parentId
  end
 
  if @method = 'DELETEALL' 
  begin
   if exists(select * from settings where parentId = @parentId)
-    --Log settiing Values
-    insert settingsHistory   
-     select * from settings where parentId = @parentId
-
    delete from settings where parentId = @parentId
  end
 
