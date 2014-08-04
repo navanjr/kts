@@ -1,0 +1,25 @@
+create procedure dbo.getScanId(@slink varchar(16)) 
+as 
+begin
+ if isnumeric(left(@slink,1))=1
+ begin
+  select '@code=0;@scanid='+rtrim(@slink)
+  return
+ end
+
+ if exists(select * from object where typ = 3209 and key1 = @slink)
+  begin
+   select '@code=0;@scanid='+cast(id as varchar) from object where typ = 3209 and key1 = @slink
+   return
+  end
+ else 
+  begin
+   insert object (typ,key1)
+    select 3209, @slink
+   select '@code=0;@scanid='+cast(id as varchar) from object where typ = 3209 and key1 = @slink
+   return
+  end
+
+ select '@code=1;@slink='+@slink+';@message=System failed to locate the scanId for this record;'
+
+end

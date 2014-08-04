@@ -22,9 +22,10 @@ lmode=2;
  gcTrustAccount=kp('select key3 from object where typ=4503 and key1=''TRUST'''),
  if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id)),
  prop(112,'color',65280),
- lcTrustDep=kp('select count(id) from paid where officialDepositId='&obj:id);
+ lcTrustDep=kp('select count(id) from paid where officialDepositId='&obj:id),
+ gcscanid=obj:id;
 
- obj:a2<>gcTrustAccount or a17='Posted' or gcadmin=0;
+@closewindow=gcscanid=0;
 
 @addLinkTrust=
  break(obj:a17='Posted'),
@@ -287,10 +288,16 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  d1select('dbo.glPost '&obj:id&',''o'''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...'),close('ok'));
 
-\t112&Undo G/L Posting; \h112gcadmin=0;
+\t112&Undo G/L Posting; \h112gcadmin=0 and gcunpost=0;
 @acc112=
  m('Are you sure you wish to unPost this Official Deposit?','UnPosting Official Deposit...','question.ico',6,4),
  break(gcretval<>2),
+ gclocation='Official_Deposit_Unpost',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  d1select('exec dbo.glUnPost @slink=''o'&obj:id&''''),
  sql('exec dbo.officialDepositStageGL '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Undo G/L/ Posting...')),

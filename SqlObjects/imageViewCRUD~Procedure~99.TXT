@@ -1,0 +1,79 @@
+create procedure dbo.imageViewCRUD(@scanId varchar(16))
+as 
+begin
+
+ declare @ini varchar(50),
+         @objectType int,
+         @slinkTyp varchar(1),
+         @slinkId int
+
+ select @ini = dbo.readstring('@ini=',dbo.whoami())
+
+ --bail if we failed to read the initials
+ if len(isnull(@ini,''))<1
+ begin
+  select '@code=1;@message=No Initials were found;'
+  return
+ end
+
+ --bail if scanid is zero or blank
+ if len(isnull(@scanId,''))<2
+ begin
+  select '@code=1;@message=No Scan Id was chosen;'
+  return
+ end
+
+ update object set typ=-9208 where typ=9208 and key2 = @ini
+
+ if isnumeric(@scanId)=1
+  begin
+   insert into object (typ,link1,link2,link3,key1,key2) 
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref = @scanId
+   
+   select @objectType = typ from object where id = @scanId
+   
+   if @objectType in (4502,4522)
+    insert into object (typ,link1,link2,link3,key1,key2) 
+     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
+       (select id from object where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid where slink = 'o'+cast(@scanId as varchar)))
+    
+   if @objectType = 4513
+    insert into object (typ,link1,link2,link3,key1,key2) 
+     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
+       (select id from object where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid where depositId = cast(@scanId as int)))
+   
+  end
+ else
+  begin
+   select @slinkTyp = left(@scanId,1)
+
+   insert into object (typ,link1,link2,link3,key1,key2) 
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
+      (select id from object where typ = 3209 and key1 = @scanId)
+
+   if @slinkTyp = 't'
+   begin
+    select @slinkId = cast(substring(@scanId,2,15) as int)
+
+    insert into object (typ,link1,link2,link3,key1,key2) 
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
+      (select id from object where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
+ 
+   end
+
+  end
+ --bail if no images were found
+ if not exists(select * from object where typ = 9208 and key2 = @ini)
+ begin
+  select '@code=1;@message=No Images were found for this item;'
+  return
+ end
+
+ select top 1 cast(link2 as varchar)
+  from object where typ = 9208 and key2 = @ini
+  order by link2, link1
+
+ 
+end

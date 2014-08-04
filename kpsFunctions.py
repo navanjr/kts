@@ -168,9 +168,9 @@ class kps():
                 ['owner_state', 'state'],
                 ['owner_postal', 'zip_1'],
                 ['parcel', 'parcel'],
-                # ['addition', ''],
-                # ['block', ''],
-                # ['lot', ''],
+                ['addition', ['split', 0]],
+                ['block', ['split', 2]],
+                ['lot', ['split', 3]],
                 ['acres', 'acres'],
                 ['property_address1', 'proploc'],
                 # ['property_address2', ''],
@@ -187,7 +187,7 @@ class kps():
                 ['item_number', 'itm_nbr'],
                 ['legal_description', ['joinWithSpace', ['leg_l1', 'leg_l2', 'leg_l3', 'leg_l4', 'leg_l5', 'leg_l6']]],
                 # ['tsvector', ''],
-                ['assessed_property', 'g_per'],
+                ['assessed_property', ['math.add',['g_per', 'g_lv']]],
                 # ['assessed_miscellaneous', ''],
                 ['mortgage_code', 'treamort'],
             ],
@@ -228,10 +228,10 @@ class kps():
                 ['receipt_link', ['concatenate', ['nbr', 'key_suf'], [8, 2]]],
                 ['paid_date', 'datepaid'],
                 ['receipt_number', 'nbr'],
-                ['paid_fees', 'feespaid'],
                 ['paid_penalities', 'penpaid'],
-                # ['paid_total', ['math.add', ['feespaid', 'penpaid', 'taxpaid', 'mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'otherpaid']]],
-                ['paid_total', 'taxpaid'],
+                ['paid_fees', ['math.add', ['mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'feespaid', 'otherpaid']]],
+                # ['paid_total', ['math.add', ['feespaid', 'taxpaid', 'mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'otherpaid']]],
+                ['paid_total', ['math.add', ['mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'feespaid', 'otherpaid', 'taxpaid', 'penpaid']]],
              # 15) recby C(15)
                 ['paid_by', ['coalesce', ['paidby', 'pbnam']]],
              # 17) protestamt N(11,2)
@@ -239,6 +239,25 @@ class kps():
              # 19) rc C(1)
              # 20) pbnam C(30)
              # 21) r_memo M
+            ],
+            'stats': {},
+            'info': '',
+            'results': {},
+        }
+        
+        self.foxData['tables']['override'] = {
+            'process': True,
+            'key': 'override',
+            'dbfName': 'ASMNCUR.dbf',
+            'resource': 'v2/treasurer/tax_rolls.json',
+            'map': [
+                ['tax_roll_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
+                ['tax_year', 'taxyear'],
+                ['item_number', 'itm_nbr'],
+                ['assessed_improvements', 'imp_c'],
+                ['assessed_exemption', 'exemp_c'],
+                ['assessed_net', 'net_c'],
+                ['assessed_property', ['math.add',['per_c', 'lv_c']]],
             ],
             'stats': {},
             'info': '',
@@ -525,11 +544,11 @@ def foxMapper(record, map, apiSettings):
                     print 'type: %s' % type(dirt), e
 
         key = mapItem[0]
+        goofyChars = ['-', '.', ',', '\\']
         value = ''
         if type(mapItem[1]) is list:
             verb = mapItem[1][0]
             arguments = mapItem[1][1:]
-            goofyChars = ['-', '.', ',']
             if verb in ['cat', 'concat', 'concatenate']:
                 if len(arguments) > 2:
                     for i, y in enumerate(arguments[0]):
@@ -546,10 +565,9 @@ def foxMapper(record, map, apiSettings):
                         try:
                             vArray.append(clean(record[y]))
                         except UnicodeDecodeError, e:
-                            print 'Unicode Decode Error... ', e
+                            evilPos = int(str(e).split(':')[0].split(' ')[-1])
+                            print 'Unicode Decode Error... at position: ', evilPos
                             print 'COLUMN: ', y, record['taxyear'], record['itm_nbr']
-                            testUtf8 = record[y].encode("utf-8")
-                            print "utf-8: ", testUtf8
                     else:
                         vArray.append(clean(record[y]))
                 value = ' '.join(vArray)
@@ -558,18 +576,24 @@ def foxMapper(record, map, apiSettings):
                 for fname in arguments[0]:
                     if record[fname] > '  0':
                         value = record[fname]
+            if verb in ['split']:
+                requestedIndex = arguments[0]
+                indexes = record[5].split('-')
+                if len(indexes) > 1:
+                    value = indexes[requestedIndex]
 
             elif 'math' in verb:
                 if 'add' in verb:
-                    for y in arguments:
-                        if value < '  0':
-                            value = '0'
-                        if y > '  0':
-                            value = 10.00
-                            # value = eval('%s + %s' %(value, record[y]))
+                    amount = 0
+                    for y in arguments[0]:
+                        #print 'row - amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
+                        if record[y] is not None:
+                            amount = amount + record[y]
+                            #print 'amount: %s.... foxfield: %s .... value: %s' % (amount, y, record[y])
+                    value = str(amount)
         else:
             if key == 'item_number':
-                value = clean(record[mapItem[1]], ['-', ',', '.'])
+                value = clean(record[mapItem[1]], goofyChars)
             elif key == 'property_address1':
                 value = ' '.join(clean(record[mapItem[1]]).split())
             else:

@@ -1,4 +1,4 @@
-create function dbo.rpUnpaidTax(@year int,@asof int) returns @rt table(id int identity(1,1),
+create function dbo.rpUnpaidTax(@year int, @asof int) returns @rt table(id int identity(1,1),
                   apdistrict varchar(50),
                   aprate varchar(50),
                   taxrollId int,
@@ -15,6 +15,9 @@ declare @invoiceIds table(id int, taxrollId int, processed int)
 insert @invoiceIds
 select id,taxrollId,0 from invoices where taxyear=@year and invoiceid=0
 
+if isnull(@asof,0) < 1
+ select @asof = dbo.clariondate(getdate())
+
 declare @wt table(taxrollId int, invoiceId int,apdistrict varchar(50), aprate varchar(50), accountcode varchar(60),accounttype varchar(50),amount money)
 declare @idToken int,
         @taxrollIdToken int
@@ -27,6 +30,7 @@ begin
    where g.accountcode=a.accountcode 
      and g.slink in (select slink from dbo.invoiceSLinks(@idToken)) 
      and a.accounttype in ('SOURCE','RECEIVABLE','ACCRUED RECEIVABLE')
+     and g.date <= @asof
    group by a.apdistrict,a.aprate,g.accountcode, a.accounttype
  update @invoiceIds set processed = 1 where id=@idToken 
 end

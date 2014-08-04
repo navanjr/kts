@@ -34,9 +34,11 @@ lmode=2;
  format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M'&choose(gcDashRecType='MTG','150L(2)~Mortgagor~#14#|M','')&'150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
+@key3=format(obj:key2,@d12)&clip(obj:key1);
 key7=apiUpdate
 
-@ordername=Receipt No Only,Date Newest on Top;
+@defaultbrowsekey=3;
+@ordername=Receipt No Only,Date Newest on Top, Post Date;
 
 @menuprocess=
  insertSelections=;
@@ -153,7 +155,10 @@ close('ok');
  gcCheckDeposited=kp('select case when '&obj:id&' in (select objLinkId from dbo.depositPaidUnPosted() where depositId=0)
  and '&obj:id&' not in (select objLinkId from dbo.depositPaidUnPosted() where depositId>0)
  then ''FALSE'' else ''TRUE'' end'),
- prop(120,'color',65280);
+ prop(120,'color',65280),
+ gcscanid=obj:id;
+
+@closewindow=gcscanid=0;
 
 @intReceipt=
  set(020,'ETR');
@@ -371,7 +376,7 @@ close('ok');
  refreshDetail=;
 
 @mortCalc=
- lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&', 0',obj:a12+0&',0,'&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', '&obj:a16+0),
+ lcOptions=choose(lcBranch,obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&',0,'&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', 0',obj:a12+0&','&obj:a13+0&','&obj:a14+0&','&obj:a15+0&', '&obj:a16+0),
  d1select('select blob from dbo.mortgageTaxCalculator('&lcOptions&')'),
  set(32,readstring(obj7:d1,'@endDate=')),
  set(34,readstring(obj7:d1,'@termYears=')),
@@ -606,10 +611,16 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
   if(obj:a17='Posted',gccontinue='',gccontinue='No');
 
 
-\t120&Undo G/L Posting; \h120gcadmin=0;
+\t120&Undo G/L Posting; \h120gcadmin=0 and gcunpost=0;
 @acc120=
  m('Are you sure you wish to unPost this Receipt?','UnPosting Receipt...','question.ico',6,4),
  break(gcretval<>2),
+ gclocation=obj:key3&'_Receipt_Unpost',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
  sql('exec dbo.receiptStageGL '&obj:id),
@@ -646,6 +657,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  lcrdId=sub(lcrdId,2,25),
  break(lcrdId+0<1),
  if(lcTyp+0=3 and obj:a17='Posted' and cur:securitylevel>75,donewtaxreceiptno=),
+ if(lcTyp+0=8,menu8=),
  break(obj:a17='Posted'),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
@@ -744,7 +756,19 @@ acc551=
  if(lcTyp+0=4,change(lcid)),
  if(lcTyp+0=9,doPostedMenu9=),
  break(lcTyp<>8),
- lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,
+ neww(3208),
+ gcscanid=obj:id;
+
+@changecheckinfo=lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
  break(lcCheckDeposited='TRUE'),
  iw('\t000Enter the Correct Information...; \t001Check #; \w00250; \t003Bank Drawn On; \w00450; \l0044509;r004002006004; @lf004=,2; lmode004=2; @nopop004; \t005Location; \w00650;'),
