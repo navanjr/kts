@@ -201,11 +201,14 @@ begin
 
 	insert @wt2
 		select 
-		   invoiceId,
-           sum(case when invoiceId>0 and TYP='P' then invoiceamount else 0 end),
-		   sum(case when invoiceId>0 and TYP<>'P' and typ<>'A' then invoiceamount else 0 end)
-		from invoices,@wt where invoice_link = invoiceId			
-		group by invoiceId
+		   i.invoiceId,
+           sum(case when i.invoiceId>0 and TYP='P' then i.invoiceamount else 0 end),
+		   sum(case when i.invoiceId>0 and i.TYP<>'P' and i.typ<>'A' then i.invoiceamount else 0 end)
+		from invoices i, receiptlink rl, @wt w 
+                 where i.id = rl.invoiceid 
+                  and w.invoice_link = i.invoiceId			
+                  and w.receipt_link = rl.receiptid
+		group by i.invoiceId
     
     update w set
 			paid_penalties = penalty,
