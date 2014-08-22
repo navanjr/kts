@@ -98,12 +98,14 @@ class pickler():
             for id, record in enumerate(scratch):
                 if record['taxyear'] in [str(y) for y in self.years] or not self.years:
                     mappedRow = foxMapper(record, map, self.apiSettings)
-                    if mappedRow['tax_roll_link'] > '  0':
-                        self.blob['data'][mappedRow['tax_roll_link']] = {
-                            'id': id,
-                            'updated': 0,
-                            'apiRow': mappedRow,
-                        }
+                    if isinstance(mappedRow, dict):
+                        if type(mappedRow['tax_roll_link']) is not None:
+                            if mappedRow['tax_roll_link'] > '  0':
+                                self.blob['data'][mappedRow['tax_roll_link']] = {
+                                    'id': id,
+                                    'updated': 0,
+                                    'apiRow': mappedRow,
+                                }
             return True
         else:
             return False
@@ -168,9 +170,9 @@ class kps():
                 ['owner_state', 'state'],
                 ['owner_postal', 'zip_1'],
                 ['parcel', 'parcel'],
-                ['addition', ['split', 0]],
-                ['block', ['split', 2]],
-                ['lot', ['split', 3]],
+                ['addition', ['split', [0, 5, '-']]],
+                ['block', ['split', [0, 2, '-']]],
+                ['lot', ['split', [0, 3, '-']]],
                 ['acres', 'acres'],
                 ['property_address1', 'proploc'],
                 # ['property_address2', ''],
@@ -227,7 +229,7 @@ class kps():
                 ['invoice_link', ['concatenate', ['taxyear', 'itm_nbr'], [4, 6]]],
                 ['receipt_link', ['concatenate', ['nbr', 'key_suf'], [8, 2]]],
                 ['paid_date', 'datepaid'],
-                ['receipt_number', 'nbr'],
+                ['receipt_number', 'nbr', True],
                 ['paid_penalities', 'penpaid'],
                 ['paid_fees', ['math.add', ['mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'feespaid', 'otherpaid']]],
                 # ['paid_total', ['math.add', ['feespaid', 'taxpaid', 'mailpaid', 'lienpaid', 'advpaid', 'mowpaid', 'otherpaid']]],
@@ -577,8 +579,10 @@ def foxMapper(record, map, apiSettings):
                     if record[fname] > '  0':
                         value = record[fname]
             if verb in ['split']:
-                requestedIndex = arguments[0]
-                indexes = record[5].split('-')
+                requestedIndex = arguments[0][0]
+                recordIndex = arguments[0][1]
+                splitCharacter = arguments[0][2]
+                indexes = record[recordIndex].split(splitCharacter)
                 if len(indexes) > 1:
                     value = indexes[requestedIndex]
 
@@ -603,7 +607,22 @@ def foxMapper(record, map, apiSettings):
     o = {}
     o['site_id'] = apiSettings['siteId']
     o['origin'] = apiSettings['origin']
+	
+    returnTheData = True
+
     for x in map:
         apiField, value = mapHelper(x, record)
         o[apiField] = value
-    return o
+        if len(x) > 2:
+            if x[2]:
+                if value is not None:
+                    if str(value) < '  0':
+                        returnTheData = False
+                    if str(value) == '0':
+                        returnTheData = False
+                else:
+                    returnTheData = False
+    if returnTheData:
+        return o
+    else:
+        return
