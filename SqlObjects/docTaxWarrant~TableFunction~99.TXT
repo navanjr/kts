@@ -1,4 +1,4 @@
-create function dbo.docTaxWarrant(@documentId int,@invoiceId int,@taxRollDetailId int,@batchId int,@addressOnly int)
+create function dbo.docTaxWarrant(@documentId int,@invoiceId int,@taxRollDetailId int,@batchId int,@addressOnly int, @interestDate varchar(50))
 returns @rt table (invoiceId int,
 		itemNumber varchar(50),
 		taxYears varchar(50),
@@ -16,7 +16,6 @@ returns @rt table (invoiceId int,
 as
 begin		
 declare
- @interestDateInt int,
  @documentName varchar(50),
  @documentDate varchar(50),
  @item varchar(50),
@@ -26,6 +25,7 @@ declare
  @stat money,
  @sheriff money,
  @addressee varchar(2000)
+
 
 --get address 
 if isnull(@taxRollDetailId,0) < 1
@@ -39,14 +39,25 @@ if @addressOnly!=1
  begin
  select @documentName =  key1 from Object where ID = @documentId
  
- select  @interestDateInt = dbo.clariondate(settingValue) from settings where settingName = @documentName+'.interestTo'
+ select  
+   @interestDate = coalesce(@interestDate,settingValue) 
+    from settings where settingName = @documentName+'.interestTo'
  select  @documentDate = settingValue from settings where settingName = @documentName+'.documentDate'
 
-
-
 --insert invoices
-declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAmount money,penalty money,fees money) 
+declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAmount money,penalty money,fees money)
+
+ insert @wt
+   select id,
+	  item,
+	  taxYear,
+	  taxdue,
+	  penalty,
+	  fees
+         from docUnpaidTf(@invoiceid, @interestDate)
+         where invoicetype is not null         
  
+/* 
  insert @wt 
  select	id,
 	item,
@@ -65,7 +76,9 @@ declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAm
 	 a.fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId and i.typ='f' and printed != @documentName),0),
 	 a.penalty = round((cast(a.taxAmount as money)*dbo.penaltyPercent(invoiceId,dbo.date1(@interestDateInt))/100),2)
          from @wt a where invoiceId = @invoiceId
- 
+*/
+
+
 --get document fees
  select	@publication = sum(case when Key2 = 'Publication Fee' then cast(A2 as money) else 0 end), 
 	@lien = sum(case when Key2 = 'Lien Docket Fee' then cast(A2 as money) else 0 end), 
