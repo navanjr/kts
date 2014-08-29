@@ -19,7 +19,9 @@ create function dbo.docUnpaidTF(@invoiceId int, @interestDate varchar(50))
 		sec varchar(10),
                 twp varchar(10),
                 rng varchar(10),
-		ord varchar(1000))
+		ord varchar(1000),
+                item varchar(50)
+)
 	as 
 	begin						
 
@@ -53,7 +55,8 @@ declare @wt table(
                 perTyp varchar(10),
                 sec varchar(10),
                 twp varchar(10),
-                rng varchar(10))
+                rng varchar(10),
+                item varchar(50))
 	
 insert @wt
 	select	id,
@@ -69,7 +72,8 @@ insert @wt
 	        '',
                 '',
                 '',
-                ''   					
+                '',
+                item   					
 		from invoices where (ITEM = @item and case when @type in ('r','s','o') then parcel else @parcel end = @parcel or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0 and 
                 case when @type in ('b','i','p','m','u') and @limitToCurrentDelinquent = 'True' then @taxYear else taxYear end = taxYear
 
@@ -89,7 +93,8 @@ if @Parcel>'  0'
 	        '',
                 '',
                 '',
-                ''   					
+                '',
+                item   					
 		from invoices where id in (select invoiceLinkId from taxrollDetail where parcelNumber = @parcel and invoiceLinkId>0 and dType='Attach') 
                                     and id not in (select invoiceId from @wt)
 
@@ -147,7 +152,8 @@ insert @rt
 		sec,
 		twp,
 		rng,	
-		@parcel+''+taxyear+''+invoiceType+'c' 
+		@parcel+''+taxyear+''+invoiceType+'c',
+                item 
 		from @wt order by taxYear
 
 insert @rt (rowString,ord)

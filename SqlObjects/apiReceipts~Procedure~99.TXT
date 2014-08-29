@@ -190,28 +190,36 @@ begin
        post_Date = dbo.date112(key2)
       from @wt,object where id = receipt_link
 
-     update a set a.paid_total = abs(b.amount)
+     update a set a.paid_total = b.amount
      from @wt a, gldetail b
      where a.glSlink = b.slink	
-      and amount < 0 
+      and b.accountcode in (select accountcode from glaccounts where accounttype = 'Accrued Receivable')
 
   select @batchsize = count(invoice_link) from @wt
         
-  declare @wt2 table (id int,penalty money,fee money)
+  declare @wt2 table (id int, rid int, penalty money, fee money)
 
 	insert @wt2
 		select 
-		   invoiceId,
-           sum(case when invoiceId>0 and TYP='P' then invoiceamount else 0 end),
-		   sum(case when invoiceId>0 and TYP<>'P' and typ<>'A' then invoiceamount else 0 end)
-		from invoices,@wt where invoice_link = invoiceId			
-		group by invoiceId
+		   i.invoiceId,
+                   rl.receiptid,
+           sum(case when i.invoiceId>0 and i.TYP='P' then g.amount else 0 end),
+		   sum(case when i.invoiceId>0 and i.TYP<>'P' and i.typ<>'A' then g.amount else 0 end)
+		from invoices i, receiptlink rl, @wt w, gldetail g 
+                 where i.id = rl.invoiceid 
+                  and g.slink = 'l'+cast(rl.id as varchar)
+                  and g.accountcode in (select accountcode from glaccounts where accounttype = 'Accrued Receivable')
+                  and w.invoice_link = i.invoiceId			
+                  and w.receipt_link = rl.receiptid
+		group by i.invoiceId, rl.receiptid
     
     update w set
 			paid_penalties = penalty,
 			paid_fees = fee,
 			paid_total = paid_total + penalty + fee
-			from @wt w,@wt2 w2 where w2.id = w.invoice_link
+			from @wt w,@wt2 w2, receiptlink rl 
+                          where w2.id = w.invoice_link
+                           and w2.rid = w.receipt_link
 
   if @debugMode = 'TRUE'
   begin

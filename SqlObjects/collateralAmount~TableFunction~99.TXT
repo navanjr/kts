@@ -116,6 +116,13 @@ begin
    where r.bankName=@bankNameToken
  end
  
+ if isnull((select sum(amount) from @rt where bankName=@bankNameToken),0.00)<> @bankCollateralAmount 
+  begin
+   select @collateralDifference = @bankCollateralAmount-sum(amount) from @rt where bankName=@bankNameToken
+   
+   update @rt set amount=amount+@collateralDifference where id=@idToken
+  end
+
  if isnull((select sum(collateralAmount) from @rt where bankName=@bankNameToken),0.00)<> @bankCollateral 
   begin
    select @collateralDifference = @bankCollateral-sum(collateralAmount) from @rt where bankName=@bankNameToken

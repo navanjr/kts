@@ -1,0 +1,69 @@
+create proc dbo.diagFix_missingExpenseAccounts(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ declare @needexpense table(accountcode varchar(50))
+ declare @accountcodeToken varchar(50),
+         @expensecodeToken varchar(50)
+
+ insert @needexpense
+  select accountCode 
+  from dbo.apportionCollectionsBRW(0,99999, 0) 
+  where isnull(acraccountcode,'NULL')='NULL'
+   and accountCode in (select accountcode from glAccounts where accountType in (SELECT accountType FROM glBankFundTypes('FUND')))
+  and accountCode not in (select targetAccountCode from glAccounts where accountType='EXPENSE')
+  order by contraAccountCode, acrAccountCode
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'Accounts',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'missing expense accounts.'
+  from @needexpense
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   a.accountcode,
+   a.accountdesc
+  from @needexpense n, glaccounts a
+ where n.accountcode=a.accountcode
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  while exists(select * from @needexpense)
+  begin
+   select top 1 @accountcodeToken=accountcode, @expensecodeToken=RTRIM(accountcode)+'_EXP' from @needexpense
+    exec dbo.glAccountVerification @expensecodeToken, 'EXPENSE', 'CREATE', @targetAccountCode = @accountcodeToken
+   delete from @needexpense where accountcode=@accountcodeToken
+  end
+  return  
+ end
+
+
+end
+
+
