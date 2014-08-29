@@ -35,38 +35,10 @@ begin
   from invoices where (ID=@InvId or invoiceId=@InvId) 
   group by case when invoiceId>0 then invoiceId else ID end
 
-/*
-if @invoiceType='S'
- begin
-  declare @parentItem varchar(50)
 
-  select @parentItem = item, @taxrollId = taxrollId 
-    from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S'
-  
-  if not exists (select * from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S')
-   begin
-    select @taxrollId = taxrollId 
-     from invoices where id = @InvId
-    select @addressblobtoken = dbo.taxRollSAAddressBlob(@taxrollId)
-    select top 1 @retval = @retval + @addressblobtoken
-   end
-  else
-   begin
-    select @addressblobtoken = dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),@parentItem)
-   end  
-
-  if exists (select * from invoices where taxYear=dbo.readstring('@TAXYEAR=',@retval) and parcel = dbo.readstring('@Parcel=',@retval) and typ<>'S')
-  select top 1 @retval = @retval + @addressblobtoken + '@LEGALDESCRIPTION=' + rtrim(replace(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxrollId,'102') as varchar(4000)),'''','`')) + ';' from adtax where id = @taxrollId
- 
- end
-  else
-*/ 
  select top 1 @retval = @retval + dbo.taxRollAddressBlob(dbo.readstring('@TAXYEAR=',@retval),dbo.readstring('@Item=',@retval)),
               @taxrollId = dbo.readstring('@taxrollid=',@retval)
 
-
---if @invoiceType<>'S'
---begin
 
 
 select @retval = @retval 
@@ -93,7 +65,6 @@ select @retval = @retval
  + '@OwnerNumber=' +dbo.taxCorrectionsSF(cast(OwnerNumber as varchar(50)),@taxrollId,'034')+  + ';'
  + '@propLoc= ' + case when proploc>'   0' then 'Physical Address: '+ proploc  else '' end + ';'
  from AdTax where ID = dbo.readstring('@taxrollid=',@retval)
---end
 
 select @retval = @retval
  + '@HideMrtgMsg=' + c2 + ';'
