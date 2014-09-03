@@ -61,9 +61,10 @@ select max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount)
   and contraId in (select contraId from @wt)
   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
  group by sourcecode,accountCode,contraId
+  having SUM(amount)<> 0.00
  
  update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
- update c set fundCode = targetAccountCode from @ct c, glAccounts a where ACRCode=accountcode
+ update c set fundCode = case when aptabletype > ' 0' and aptabletype not in ('T','L') then 'TABLE' else targetAccountCode end from @ct c, glAccounts a where ACRCode=accountcode
  update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
  
 insert @pt
@@ -118,9 +119,9 @@ select 4022,LEFT(p.ACRCode,LEN(p.ACRCode)-4),w.accountcode,cast(w.amount as varc
  from @wt w, @pt p where p.contraId=w.contraId
 
 declare @accountcodeToken varchar(60)
-while exists(select * from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode from glaccounts))
+while exists(select * from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode from glaccounts) and   rtrim(Key1)+'_ACR' in (select p.ACRCode from @pt p))
 begin
- select top 1 @accountcodeToken=rtrim(key1) from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode from glaccounts)
+ select top 1 @accountcodeToken=rtrim(key1) from object where typ = 4022 and rtrim(Key1)+'_ACR' not in (select accountcode    from glaccounts) and rtrim(Key1)+'_ACR' in (select p.ACRCode from @pt p)
  exec dbo.apportionTableFundReceivableVerification @accountcodeToken
 end
 
