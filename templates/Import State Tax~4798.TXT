@@ -11,6 +11,7 @@
  sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
  gcvars=,
  brwstuff=,
+ create(175,12,330,45,'Edit JE',38),
  d1select('select count(*) from object where typ=4512 and key2='&gcenddate+0&' and a18=''State Tax'' and key3=''Monthly Taxes'''),
  if(obj7:d1+0>0,gcAlreadyPosted='TRUE',gcAlreadyPosted='FALSE');
 
@@ -96,10 +97,14 @@
 
 \t112Refresh;
 @acc112=refreshDetail=;
+\t037EditJE; \h037038;r
 
 @postTax=
   m('Would you like to post your taxes for this month?','Post Taxes?',,6),
   break(gcretval<>2),
-  sql('exec stateTaxAdjustCRUD 0,'&obj:id&', 0,'''&gcenddate+0&''''),
+  d1select('exec stateTaxAdjustCRUD 0,'&obj:id&', 0,'''&gcenddate+0&''', @skipPost='''&obj:a16&''''),
+  lceditje=obj7:d1,
   refreshDetail=,
-  m('Taxes Posted');
+  m('Taxes Posted'),
+  break(obj:a16<>'1'),
+  change(lceditje);
