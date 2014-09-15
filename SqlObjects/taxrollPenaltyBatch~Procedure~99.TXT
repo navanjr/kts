@@ -1,8 +1,6 @@
 CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int, @forceInvoiceId int = null, @forceAmount money = null)
 as
-
 begin
-
  declare 
   @idToken int,
   @fundCodeToken varchar(50),
@@ -148,7 +146,7 @@ begin
   exec dbo.logit @@procid,  '@idToken', @idToken, '@amount', @amount
   
   -- Issue penalty invoice for this tax item or update an existing one
-  set @existingpenaltyId = isnull((select top 1 id from invoices where typ='P' and invoiceId=@idToken),0)
+  set @existingpenaltyId = isnull((select top 1 id from invoices where typ='P' and invoiceId=@idToken and id not in (select invoiceid from receiptlink where receiptId <> @receiptId)),0)
   if @existingpenaltyId=0
    begin
     exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount
