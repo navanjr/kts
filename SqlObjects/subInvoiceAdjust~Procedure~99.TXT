@@ -26,7 +26,7 @@ begin
  if @mode = 'single'
   set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where id=@subInvoiceId),0)
  else
-  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where invoiceId=@mainInvoiceId and typ=@subInvoiceType),0)
+  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(i.Id),2)) from invoices i, receiptdetail r where i.invoiceId=@mainInvoiceId and left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id and i.typ=@subInvoiceType and r.description=@description),0)
 
 
  set @blob = @blob + ': ' +dbo.formatcurr(@amount)
