@@ -1,0 +1,35 @@
+CREATE function dbo.dailyDataCommentActions(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
+@rt table (
+ id int,
+ ord varchar(250),
+ rowstring varchar(250),
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50),
+ rowType char(10),
+ brwBGColor int,
+ blob varchar(max)
+)
+begin
+ insert @rt
+  select id*-1, 
+   @ordSeed + a3, 
+   left('  ' + dbo.date1(a3) + ': ' + key3 + ' - Notes: ' + cast(e1 as varchar(250)),249),
+   '', 
+   left('  ' + dbo.date1(a3) + ': ' + key3 + ' - Notes: ' + cast(e1 as varchar(250)),249),
+   '', '', '', 'detail',    0, ''
+  from object where typ=4002 and a3 > '0' and cast(a3 as int) <= @theDate+@days
+
+ -- headers
+  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,''
+  insert @rt
+  select 0,@ordSeed+'00aa','  '
+   + dbo.padRight('Comment Actions',' ',20),
+   '','  Comment Action','','','','sHeader',1,''
+  insert @rt select 0,@ordSeed+'00ab',' ' + replicate('=',79),
+   replicate(' ',16),' ' + replicate('=',79),replicate('=',22),replicate('=',10),replicate('=',16),'line',0,''
+
+ return
+end
