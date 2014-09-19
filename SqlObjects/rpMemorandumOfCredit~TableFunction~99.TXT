@@ -1,0 +1,65 @@
+create function dbo.rpMemorandumOfCredit(@begindate int, @enddate int, @officialName varchar(100), @purpose varchar(250))
+returns @rt table(voucher varchar(50),
+  dateRegistered varchar(50),
+  payWhom varchar(100),
+  officialAccountCode varchar(50),
+  whomDrawn varchar(100),
+  amount money,
+  dateCancelled varchar(50),
+  typeCancel varchar(100),
+  comment varchar(max),
+  purpose varchar(50),
+  bankAccountCode varchar(50),
+  bankName varchar(100),
+  bankLocation varchar(100),
+  officialAccountTotal money
+  )
+as
+begin
+
+insert @rt
+select 
+    a.foreignNumber,
+    a.postDate,    
+    a.payee,
+    a.accountCode,
+    a.fundAccount,
+    a.contraAmount*-1,
+    a.contraPostDate,
+    left(a.contraPaymentType,charindex(' ',a.contraPaymentType)),
+    cv.e1,
+    cv.a14,
+    '',
+    '',
+    '',
+    0.00
+     from 
+      (select * from dbo.paymentreports('OFFICIAL',@enddate,'TRUE') where contraPostDate >= @begindate and contraPostDate <= @enddate and paymenttype like '%VOUCHER%') a,
+      object cv 
+     where cv.typ=4771
+      and cv.id=dbo.slinkId(a.contraSLink) 
+      and (isnull(@officialName,'')< ' 0' or fundAccount in (select b2 from object where typ=4601 and key2=@officialName) )
+      and (isnull(@purpose,'')< ' 0' or cv.a14 = @purpose)
+     order by a.fundAccount,a.postDate,a.foreignNumber 
+
+ update r set bankAccountCode = b.accountcode,
+              bankName = b.BankName,
+              bankLocation = b.BankLocation
+  from @rt r, object o, glaccounts b
+  where o.typ=4601
+   and r.officialAccountCode=o.a3
+   and o.a4 = b.accountcode
+
+ declare @totals table(officialAccountCode varchar(50),total money)
+
+ insert @totals
+  select officialAccountCode,sum(amount)
+  from @rt
+  group by officialAccountCode
+
+ update r set officialAccountTotal = t.total
+  from @rt r, @totals t
+  where r.officialAccountCode = t.officialAccountCode
+
+ return
+end
