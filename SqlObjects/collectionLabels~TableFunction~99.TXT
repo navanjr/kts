@@ -12,17 +12,17 @@ returns @rt table(
  address2 varchar(50),
  address3 varchar(50),
  city varchar(50),
- [state] varchar(2),
+ [state] varchar(10),
  zip1 varchar(5),
  zip2 varchar(5),
  zip3 varchar(5),
- taxyear int,
+ taxyear varchar(50),
  parcel varchar(50),
- invoiceId int,
- taxrollDetailId int,
+ invoiceId varchar(50),
+ taxrollDetailId varchar(50),
  dtype varchar(50),
- enabled int,
- ord varchar(250)
+ enabled varchar(50),
+ ord varchar(260)
 )
 as
 begin
@@ -37,13 +37,18 @@ from dbo.collectionsBRW(@dtype,@documentId,@date,@days,@taxrollDetailId) a
 where Id > 0 
 
 
+insert @rt (invoiceId, taxrollDetailId, taxyear, name, parcel, businessName, address1,
+ address2, address3, city, [state], zip1, zip2, zip3, dtype, [enabled], ord)
+select 'invoiceId', 'taxrollDetailId', 'taxyear', 'name', ' parcel', 'businessName', 'address1',
+   'address2', 'address3', 'city', 'state', 'zip1', 'zip2', 'zip3', 'dtype', 'enabled', ' '
+
 while exists(select invoiceid from @ids)
 begin
  select top 1 @idToken = invoiceid, @ordToken = ord from @ids
   insert @rt (invoiceId, taxrollDetailId, taxyear, name, parcel, businessName, address1,
  address2, address3, city, [state], zip1, zip2, zip3, dtype, [enabled], ord)
-  select invoiceId, taxrollDetailId, taxyear, name, parcel, businessName, address1,
-   address2, address3, city, [state], zip1, zip2, zip3, dtype, [enabled], @ordToken
+  select cast(invoiceId as varchar), cast(taxrollDetailId as varchar), cast(taxyear as varchar), name, parcel, businessName, address1,
+   address2, address3, city, [state], zip1, zip2, zip3, dtype, cast([enabled] as varchar), 'a'+@ordToken
   from dbo.docaddresses(@idToken)
  delete from @ids where invoiceId=@idToken
 end
