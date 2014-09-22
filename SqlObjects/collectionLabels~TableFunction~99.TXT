@@ -1,0 +1,53 @@
+create function dbo.collectionLabels(
+ @dtype varchar(50),
+ @documentId int,
+ @date int,
+ @days int,
+ @taxrollDetailId int)
+
+returns @rt table(
+ name varchar(50),
+ businessName varchar(50),
+ address1 varchar(50),
+ address2 varchar(50),
+ address3 varchar(50),
+ city varchar(50),
+ [state] varchar(2),
+ zip1 varchar(5),
+ zip2 varchar(5),
+ zip3 varchar(5),
+ taxyear int,
+ parcel varchar(50),
+ invoiceId int,
+ taxrollDetailId int,
+ dtype varchar(50),
+ enabled int,
+ ord varchar(250)
+)
+as
+begin
+
+declare @ids table(invoiceId int, ord varchar(250))
+declare @idToken int,
+        @ordToken varchar(250)
+
+insert @ids
+select invoiceidmain, ord
+from dbo.collectionsBRW(@dtype,@documentId,@date,@days,@taxrollDetailId) a
+where Id > 0 
+
+
+while exists(select invoiceid from @ids)
+begin
+ select top 1 @idToken = invoiceid, @ordToken = ord from @ids
+  insert @rt (invoiceId, taxrollDetailId, taxyear, name, parcel, businessName, address1,
+ address2, address3, city, [state], zip1, zip2, zip3, dtype, [enabled], ord)
+  select invoiceId, taxrollDetailId, taxyear, name, parcel, businessName, address1,
+   address2, address3, city, [state], zip1, zip2, zip3, dtype, [enabled], @ordToken
+  from dbo.docaddresses(@idToken)
+ delete from @ids where invoiceId=@idToken
+end
+
+return
+end
+
