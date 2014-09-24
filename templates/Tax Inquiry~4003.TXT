@@ -1,7 +1,6 @@
 @select=078;
 @nolock;
 @noconfirmdelete;
-@noupdate;
 
 @menuprocess=
  lcHostName=kp('select host_name()'),
@@ -31,12 +30,10 @@
  createbrw=,
  enhancedSecurity=;
 
-@afterloadwindow=gcTaxInquiryId=obj:id,
- break(gcdecision<>'TRUE'),
+@afterloadwindow=break(gcdecision<>'TRUE'),
  set(078,gctaxInquiry),
  set(002,gctaxYear),
- refreshBRW1=,
- gcTaxInquiryId=obj:id;
+ refreshBRW1=;
 
 \t079barcodeFilter; \h079080;r
 \v551122;
@@ -66,11 +63,61 @@
  create(354,9,513,268,'Chg Mort Code(F8)'),
  create(355,9,513,254,'Set Interest Date(F7)'),
  if(cur:securitylevel+0>59,create(356,9,513,240,'Void Invoice(F6)'),),
+ create(358,9,513,310,'Load Payments'),
+ create(359,9,513,324,'Reset Import'),
  halfToggle=;
 
 @lbrw3forecolor=obj7:c9=1,255,obj7:c9=2,32768,obj7:c9=3,8388736;
 @lbrw1color=obj7:c10=3,16760879,obj7:c10=2,13428479,obj7:c10=1,13499135,obj7:c10=4,16711935;
 @lbrw2color=obj7:c10=0,13428479;
+
+\w359=119;
+ @acc359=clearmemo=;
+
+\w358=119;
+ @acc358=
+ if(len(clip(obj:e1))>0,overwritememo=),
+ break(gcretval<>2 and gcretval<>''),
+ filedialog('Locate file...'),
+ lcFileName=gcretval,
+ break(lcFileName<'  0'),
+ binin(obj:id,lcFileName),
+ d1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''move'''),
+ set(-72,readstring(obj7:d1,'@logitId=')),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1,'Bin File Info...')),
+ lcTooBig=readstring(obj7:d1,'@tooBig='),
+ if(lcTooBig='FALSE',loadE1=,link2img=),
+ tsc;
+
+@link2img=set(102,'File too large to edit here... @fileName='&readstring(obj7:d1,'@fileName=')&';');
+@loadE1=
+ e1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''dump'''),
+ set(102,obj7:e1);
+
+@overwritememo=
+ m('The workfield will be overwritten...||Do you want to proceed?','Warning',,6),
+ break(gcretval<>2),
+ set(102,''),
+ set(104,''),
+ acc102=;
+
+@clearmemo=
+ messagemdi('Would you like for me to clear the workfield for you?','Clear Field','question.ico',6),
+ break(gcretval<>2),
+ set(102,''),
+ set(104,''),
+ acc102=,
+ tsc;
+
+
+\t101Raw Import Data; \x1013; \y101140; @acc102=update,refreshBRW=; \h101102len(clip(obj:e1))=0;r
+ \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
+ \x1023; \y102152; \w102480; \z102100; \d102obj:c4=0;
+
+\t103Raw Import Data2; \h103; \h104len(clip(obj:e2))=0;
+ @acc104=acc102=;
+ \p1047cfah,13499135; \p1047c10h,courier new; \p1047c11h,8;
+ \x1043; \y104255; \w104480; \z104100; \d104obj:c4=0;
 
 \v352120; \w352=119; 
  @acc352=
@@ -164,6 +211,11 @@
   prop(160,'SelectedColor',0),
   prop(161,'SelectedColor',0),
   kpmc();
+
+\h161len(clip(obj:e1))>0;
+\h171len(clip(obj:e1))>0;
+\h162len(clip(obj:e2))>0;
+\h172len(clip(obj:e2))>0;
 
 @brw1=
  break(instring('@group=publicuser',cur:options,1,1)>0),
@@ -547,7 +599,6 @@
   @acc109=lcSearchId=kpbrwid(1)*-1,
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
-  gcTaxInquiryId=obj:id,
   sql('exec dbo.taxrollAddComment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
   d1select('select top 1 id from object where typ=4002 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
   change(obj7:d1,,1),
@@ -562,8 +613,7 @@
  lcSelectedCount=kp('select count(*) from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') where selectedFlag in  (''x'',''½'')'),
  if(lcSelectedCount+0>0,printQuote=,printTaxList=);
 
-@printTaxList=if(obj:c1<' 0',m('Please enter search criteria.')),
- break(obj:c1<' 0'),
+@printTaxList=
  trreport('taxQueryList',5031,'printTaxQueryList=');
 
 @printQuote=
