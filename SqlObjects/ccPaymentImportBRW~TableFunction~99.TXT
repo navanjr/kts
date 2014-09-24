@@ -1,0 +1,182 @@
+create function dbo.ccPaymentImportBRW(
+ @id int,
+ @csvBlob varchar(max))
+returns @rt table(
+ invoiceId int,
+ name nvarchar(60),
+ parcel nvarchar(34),
+ taxYear numeric(5,0),
+ item numeric(22,1),
+ taxType nvarchar(1),
+ receivedOf varchar(100),
+ amount varchar(50),
+ due varchar(50),
+ slink varchar(15),
+ selectedFlag char(4),
+ methodRate money,
+ ord varchar(80),
+ fees money,
+ penalty money,
+ calcpenalty money,
+ toPay money,
+ treamort varchar(5),
+ taxrollId int,
+ queue varchar(50),
+ printed varchar(50),
+ colorFlag int,
+ paycodeId int,
+ paycode varchar(50),
+ appCode varchar(50)
+)
+as
+begin
+ declare @wt table(
+  id int identity(1,1),
+  impTime varchar(50),
+  paycode varchar(50),
+  firstName varchar(50),
+  lastName varchar(50),
+  phone varchar(50),
+  appCode varchar(50),
+  parcel varchar(50),
+  yearItem varchar(50),
+  amount money,
+  paycodeId int,
+  invoiceId int
+ )
+
+
+ declare
+  @idToken int,
+  @logitId int,
+  @dataToken nvarchar(max),
+  @csv nvarchar(max),
+  @debitAcct varchar(50),
+  @creditAcct varchar(50),
+  @officalLink int,
+  @lastNumber int,
+  @payee varchar(max) = '',
+  @binFileName varchar(max)
+
+
+-- get the csv from the importer or from the passed variable
+ if isnull(@id,0) > 0 
+ begin
+
+  select
+   @csv = cast(e1 as nvarchar(max)) + cast(e2 as nvarchar(max)),
+   @logitId = cast(olink5 as int)
+  from object where typ = 4003 and id = @id
+
+  if left(@csv,14) = 'File too large'
+   select @csv = message from keyLog where id = @logitId
+
+ end
+ else
+ begin
+  select
+   @csv = @csvBlob
+ end
+
+ -- take the csv data and run with it
+ declare @rows table(
+  id int identity(1,1),
+  rowData varchar(1000)
+ )
+
+-- TODO: this seems to work well. however we might have an issue with char(13)'s getting left in the data.
+ insert @rows 
+ select replace(data,'"','') from dbo.split( @csv, char(10))
+
+ while exists(select * from @rows)
+ begin
+  select top 1
+   @idToken = id,
+   @dataToken = rowData
+  from @rows order by id
+  
+  if left((select data from dbo.split(@dataToken,',') where id = 8),4) between '1900' and '2300'
+   insert @wt select 
+    (select data from dbo.split(@dataToken,',') where id = 1),
+    (select data from dbo.split(@dataToken,',') where id = 2),
+    (select data from dbo.split(@dataToken,',') where id = 3),
+    (select data from dbo.split(@dataToken,',') where id = 4),
+    (select data from dbo.split(@dataToken,',') where id = 5),
+    (select data from dbo.split(@dataToken,',') where id = 6),
+    (select data from dbo.split(@dataToken,',') where id = 7),
+    (select data from dbo.split(@dataToken,',') where id = 8),
+    dbo.stripNonNumeric((select data from dbo.split(@dataToken,',') where id = 9)),
+    null,null
+  delete @rows where id = @idToken
+ end
+
+update w set paycodeId = pc.id 
+  from @wt w, object pc 
+  where pc.typ = 4505
+   and pc.key1 = w.paycode
+
+update w set invoiceId = i.id 
+  from @wt w, invoices i
+  where cast(i.taxyear as varchar(4))+rtrim(ltrim(cast(i.item as varchar(20)))) like '%'+w.yearItem+'%'
+   and isnull(i.invoiceid,0) = 0
+
+
+insert @rt 
+    select 
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,
+   b.firstName + ' ' +b.lastName, 
+   dbo.formatcurr(a.invoiceAmount),dbo.formatcurr(a.invoiceDue),
+   't'+cast(a.id as varchar), 'x',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
+   round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
+   0,'',a.taxrollId,a.queue,a.printed,
+     case when isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],x.id,'056'),0) > 0 then 3 when a.parcel in (select key1 from object where typ=4100 and key2='A') then 4 else 1 end, b.paycodeId, b.paycode,
+ b.appCode
+    from dbo.invoices a 
+    join @wt b on a.id = b.invoiceId
+    left join adtax x on a.taxrollId = x.id
+    where isnull(a.invoiceid,0)=0
+     and b.amount > 0
+     and a.invoiceDue > 0
+
+update r set penalty = case when b.amount > (cast(r.due as money) + cast(r.fees as money)) 
+   then b.amount - (cast(r.due as money) + cast(r.fees as money))
+   else 0.00
+  end,
+  colorflag = case when abs(penalty - calcpenalty) > 4.00 then 5 else 0 end
+  from @rt r, @wt b
+  where r.invoiceid*-1 = b.invoiceid
+
+update @rt set colorflag = case when abs(penalty - calcpenalty) > 4.00 then 5 else 0 end where penalty > 0
+
+update @rt set selectedFlag='', ord = 'c' where colorFlag > 0
+
+insert @rt 
+    select 
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,
+   b.firstName + ' ' +b.lastName, 
+   dbo.formatcurr(a.invoiceAmount),dbo.formatcurr(a.invoiceDue),
+   't'+cast(a.id as varchar), '',1,'b_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
+   round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
+   0,'',a.taxrollId,a.queue,a.printed,
+     5, b.paycodeId, b.paycode,
+ b.appCode
+    from dbo.invoices a 
+    join @wt b on a.id = b.invoiceId
+    left join adtax x on a.taxrollId = x.id
+    where isnull(a.invoiceid,0)=0
+     and (b.amount <= 0
+     or a.invoiceDue <= 0)
+
+insert @rt 
+    select 
+     0,b.firstName + ' ' +b.lastName, b.parcel,left(b.yearItem,4),substring(b.yearItem,5,len(b.yearItem)-4),'',
+   b.firstName + ' ' +b.lastName, 
+   dbo.formatcurr(b.amount),dbo.formatcurr(0.00),
+   '', '',1,'c_',0.00,0,0.00,
+   0,'',0,'','', 5, b.paycodeId, b.paycode, b.appCode
+    from @wt b 
+    where b.invoiceId not in (select invoiceId*-1 from @rt)
+
+
+return
+end
