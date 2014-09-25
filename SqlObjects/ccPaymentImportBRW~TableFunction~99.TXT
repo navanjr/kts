@@ -1,7 +1,7 @@
 create function dbo.ccPaymentImportBRW(
  @id int,
  @csvBlob varchar(max))
-returns @rt table(
+returns @rt table(id int identity(1,1),
  invoiceId int,
  name nvarchar(60),
  parcel nvarchar(34),
@@ -27,7 +27,8 @@ returns @rt table(
  paycodeId int,
  paycode varchar(50),
  appCode varchar(50),
- paidAmount money
+ paidAmount money,
+ receiptId int
 )
 as
 begin
@@ -130,7 +131,7 @@ insert @rt
    't'+cast(a.id as varchar), 'x',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
    round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
    0,'',a.taxrollId,a.queue,a.printed,
-     0, b.paycodeId, b.paycode, b.appCode, b.amount
+     0, b.paycodeId, b.paycode, b.appCode, b.amount, 0
     from dbo.invoices a 
     join @wt b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
@@ -156,19 +157,18 @@ insert @rt
      a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,
    b.firstName + ' ' +b.lastName, 
    dbo.formatcurr(a.invoiceAmount),dbo.formatcurr(a.invoiceDue),
-   't'+cast(a.id as varchar), 'x',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
+   't'+cast(a.id as varchar), '',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
    round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
    0,'',a.taxrollId,a.queue,a.printed,
      case when o.a17 = 'Posted' then 6 else 7 end, b.paycodeId, b.paycode,
- b.appCode,0
+ b.appCode,0, o.id
     from dbo.invoices a 
     join @wt b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
     join paid p on p.paycode = b.paycode and p.amount = b.amount and p.checkno = b.appcode
     left join object o on o.id = dbo.slinkId(p.slink) and dbo.slinkType(p.slink)='o'
     where isnull(a.invoiceid,0)=0
-     and b.amount > 0
-     and a.invoiceDue > 0
+     and b.invoiceId * -1 not in (select invoiceId from @rt)
 
 insert @rt 
     select 
@@ -179,13 +179,14 @@ insert @rt
    round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
    0,'',a.taxrollId,a.queue,a.printed,
      5, b.paycodeId, b.paycode,
- b.appCode,0
+ b.appCode,0, 0
     from dbo.invoices a 
     join @wt b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
     where isnull(a.invoiceid,0)=0
      and (b.amount <= 0
      or a.invoiceDue <= 0)
+     and b.invoiceId * -1 not in (select invoiceId from @rt)
 
 insert @rt 
     select 
@@ -193,9 +194,10 @@ insert @rt
    b.firstName + ' ' +b.lastName, 
    dbo.formatcurr(b.amount),dbo.formatcurr(0.00),
    '', '',1,'c_',0.00,0,0.00,
-   0,'',0,'','', 5, b.paycodeId, b.paycode, b.appCode, 0
+   0,'',0,'','', 5, b.paycodeId, b.paycode, b.appCode, 0, 0
     from @wt b 
     where b.invoiceId not in (select invoiceId*-1 from @rt)
+     and b.invoiceId * -1 not in (select invoiceId from @rt)
 
 
 return

@@ -1,0 +1,82 @@
+create procedure dbo.ccAutoPostReceipts(@taxInquiryId int) as 
+begin
+declare @wt table(invoiceId int, 
+                  name varchar(100), 
+                  paycodeId int, 
+                  paycode varchar(100), 
+                  appCode varchar(100),
+                  amount money,
+                  penalty money,
+                  processFlag int)
+                  
+declare @invoiceIdToken int, 
+        @receivedOfToken varchar(100),
+        @paycodeIdToken int,
+        @paycodeToken varchar(100),
+        @appCodeToken varchar(100),
+        @amountToken money,
+        @penaltyAmountToken money,
+        @newId int,
+        @curDate int = dbo.clariondate(getdate())
+
+declare @curDateStr varchar(5) = cast(@curDate as varchar(5)),
+        @slink varchar(15),
+        @newReceiptId int
+        
+insert @wt                  
+select invoiceId*-1, receivedOf, paycodeId, paycode, appCode, paidAmount, penalty, 0 
+ from ccpaymentImportBRW(@taxInquiryId, null)
+ where selectedFlag = 'x'
+  and colorFlag = 0
+
+while exists(select * from @wt where processFlag = 0)
+begin
+-- Get Posting Data
+ select top 1 @invoiceIdToken = invoiceId, 
+        @receivedOfToken = name,
+        @paycodeIdToken = paycodeId,
+        @paycodeToken = paycode,
+        @appCodeToken = appCode,
+        @amountToken = amount,
+        @penaltyAmountToken = penalty
+  from @wt where processFlag = 0
+-- Create Receipt Record  
+ exec dbo.receiptCRUD
+  @mode = 0,
+  @series='TAX',
+  @newReceiptId = @newId output
+ 
+ select @slink = 'o'+cast(@newId as varchar(15)), @newReceiptId = @newId
+ 
+-- Set Received Of on Receipt Record
+ update object set a1 = @receivedOfToken,
+                   key2 = @curDateStr,
+                   k2 = cast(99999 - @curDate as varchar(5)) + @curDateStr,
+                   b10 = @curDateStr
+  where typ=4502 and id = @newReceiptId
+ 
+-- Link Invoices to Receipt
+ insert receiptlink (receiptid, invoiceId, methodRate)
+  select @newReceiptId, @invoiceIdToken, 1
+  
+-- Link all fees and penalties
+ exec dbo.taxrollPenaltyBatch @newReceiptId, @invoiceIdToken, @penaltyAmountToken  
+-- Create Paid Records
+ insert paid (paycode, [date], amount, checkno, slink)
+  select @paycodeToken, @curDate, @amountToken, @appCodeToken, @slink
+  
+-- Stage GL
+ exec dbo.receiptTaxStageGL @newReceiptId
+
+-- Assign Numbers
+ exec dbo.taxReceiptNumber @newReceiptId
+ exec dbo.receiptNumber @newReceiptId, 'TAX'
+ 
+-- Post GL
+ exec dbo.glpost @newReceiptId, 'o'
+
+-- Print Receipt
+
+ update @wt set processFlag = 1 where invoiceId = @invoiceIdToken
+end
+end
