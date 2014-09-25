@@ -302,3 +302,26 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  sql('exec dbo.officialDepositStageGL '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Undo G/L/ Posting...')),
  close('ok');
+
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcid+0<1),
+ if(lcTyp+0=8,imaging=);
+
+@imaging=
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+ break(readstring(obj7:d1,'@code=')=1),
+ gcobjid=obj7:d1,
+ neww(3208),
+ gcscanid=obj:id;
