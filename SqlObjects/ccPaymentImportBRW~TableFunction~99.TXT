@@ -26,7 +26,8 @@ returns @rt table(
  colorFlag int,
  paycodeId int,
  paycode varchar(50),
- appCode varchar(50)
+ appCode varchar(50),
+ paidAmount money
 )
 as
 begin
@@ -129,14 +130,14 @@ insert @rt
    't'+cast(a.id as varchar), 'x',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
    round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
    0,'',a.taxrollId,a.queue,a.printed,
-     case when isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],x.id,'056'),0) > 0 then 3 when a.parcel in (select key1 from object where typ=4100 and key2='A') then 4 else 1 end, b.paycodeId, b.paycode,
- b.appCode
+     0, b.paycodeId, b.paycode, b.appCode, b.amount
     from dbo.invoices a 
     join @wt b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
     where isnull(a.invoiceid,0)=0
      and b.amount > 0
      and a.invoiceDue > 0
+     and not exists (select * from paid p where p.paycode = b.paycode and p.amount = b.amount and p.checkno = b.appcode)
 
 update r set penalty = case when b.amount > (cast(r.due as money) + cast(r.fees as money)) 
    then b.amount - (cast(r.due as money) + cast(r.fees as money))
@@ -155,11 +156,30 @@ insert @rt
      a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,
    b.firstName + ' ' +b.lastName, 
    dbo.formatcurr(a.invoiceAmount),dbo.formatcurr(a.invoiceDue),
+   't'+cast(a.id as varchar), 'x',1,'a_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
+   round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
+   0,'',a.taxrollId,a.queue,a.printed,
+     case when o.a17 = 'Posted' then 6 else 7 end, b.paycodeId, b.paycode,
+ b.appCode,0
+    from dbo.invoices a 
+    join @wt b on a.id = b.invoiceId
+    left join adtax x on a.taxrollId = x.id
+    join paid p on p.paycode = b.paycode and p.amount = b.amount and p.checkno = b.appcode
+    left join object o on o.id = dbo.slinkId(p.slink) and dbo.slinkType(p.slink)='o'
+    where isnull(a.invoiceid,0)=0
+     and b.amount > 0
+     and a.invoiceDue > 0
+
+insert @rt 
+    select 
+     a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,
+   b.firstName + ' ' +b.lastName, 
+   dbo.formatcurr(a.invoiceAmount),dbo.formatcurr(a.invoiceDue),
    't'+cast(a.id as varchar), '',1,'b_'+cast(a.item as varchar)+cast(a.taxyear as varchar),case when a.invoiceDue != 0 then a.subInvoiceDue else 0.00 end,0,
    round(dbo.penaltyPercent(a.id,dbo.date1(dbo.clariondate(left(b.impTime,10))))/100*a.invoiceDue,2),
    0,'',a.taxrollId,a.queue,a.printed,
      5, b.paycodeId, b.paycode,
- b.appCode
+ b.appCode,0
     from dbo.invoices a 
     join @wt b on a.id = b.invoiceId
     left join adtax x on a.taxrollId = x.id
@@ -173,7 +193,7 @@ insert @rt
    b.firstName + ' ' +b.lastName, 
    dbo.formatcurr(b.amount),dbo.formatcurr(0.00),
    '', '',1,'c_',0.00,0,0.00,
-   0,'',0,'','', 5, b.paycodeId, b.paycode, b.appCode
+   0,'',0,'','', 5, b.paycodeId, b.paycode, b.appCode, 0
     from @wt b 
     where b.invoiceId not in (select invoiceId*-1 from @rt)
 
