@@ -1,6 +1,6 @@
 @apiHost=api.kellpro.com;
 @apiResource=/v2/treasurer/sites;
-
+@audit=1;
 @menuprocess=loadbrowse=; 
 @loadbrowse=if(kp('select id from object where typ=40')>0,modifysite=,insertsite=);
 @modifysite=change(kp('select id from object where typ=40'));
@@ -42,7 +42,15 @@
  gcNote=obj7:e1,
  if(lcType='boolean',toggleSetting=),
  if(lcType='int',intSetting=),
+ if(lcType='string',stringSetting=),
  if(instring('|',lcType,1,1)>0,comboSetting=);
+
+@stringSetting=
+ iw(',.t000'&str_replace(lcName,'site.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004.,'),
+ break(gcretval<>'OK'),
+ lcNewValue=obj7:key1,
+ sql('exec dbo.settingsCRUD '''&lcName&''','''&lcNewValue&''',@notes = '''&gcNote&''''),
+ brwreload(1);
 
 @comboSetting=
  iw(',.t000'&str_replace(lcName,'site.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.h002., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004., ,[loadwindow=create(150,33,64,1,'''',002),prop(150,''From'','''&lcType&'''),prop(150,''Width'',118),prop(150,''Height'',12),prop(150,''Readonly'',0),prop(150,''Drop'',5),prop(150,7cfah,16777215).,'),

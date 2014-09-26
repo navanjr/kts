@@ -26,7 +26,38 @@ create function dbo.taxrollBRW(
  colorFlag int
 )
 Begin
-  
+
+declare @importBRW varchar(5)
+
+select @importBRW = case when len(cast(e1 as varchar))>1 then 'TRUE' else 'FALSE' end from object where typ=4003 and id=@receiptId
+
+if @importBRW = 'TRUE'
+begin
+ insert @rt
+   select invoiceId,
+ name,
+ parcel,
+ taxYear,
+ item,
+ taxType,
+ amount,
+ due,
+ slink,
+ selectedFlag,
+ methodRate,
+ ord,
+ fees,
+ penalty,
+ toPay,
+ treamort,
+ taxrollId,
+ queue,
+ printed,
+ colorFlag
+ from dbo.ccPaymentImportBRW(@receiptId,null)
+end
+else
+begin  
 set @searchString=replace(@searchstring,'~{','''')
 
   declare @sSLen int
@@ -181,18 +212,18 @@ set @searchString=replace(@searchstring,'~{','''')
 -- Remove voided invoices that have been reissued
   delete from @rt where cast(amount as money)=0.00 and cast(due as money) = 0.00 and taxrollid in (select taxrollid from @rt where cast(amount as money)<>0.00)  
 
-
-  if exists(select * from receiptLink where receiptId = @receiptId)
+end
+  if exists(select * from receiptLink where receiptId = @receiptId) or @importBRW = 'TRUE'
   begin
    update a set 
     fees = isnull((select sum(i.invoiceDue) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
-    penalty = round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2)
+    penalty = case when @importBRW = 'FALSE' then round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2) else penalty end
    from @rt a where selectedFlag in (char(189),'x')
  
   update a set
     toPay = round(cast(due as money),2)+fees+penalty
      from @rt a where selectedFlag in (char(189),'x')
-   
+
    insert @rt (invoiceId,name,ord,amount,due,fees,penalty,parcel,colorFlag) 
    select 0,'--Selected--  Count: '+cast(count(invoiceId) as varchar),' _',dbo.formatcurr(sum(cast(amount as money))),dbo.formatcurr(sum(cast(due as money))),sum(fees),sum(penalty),'--Grand Total: '+convert(varchar,sum((topay)),1),2
    from @rt where selectedFlag > '  0'

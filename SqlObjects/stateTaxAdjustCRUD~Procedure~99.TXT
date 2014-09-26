@@ -5,7 +5,8 @@ create procedure dbo.stateTaxAdjustCRUD(
  @enddate varchar(20),
  @debugMode varchar(5) = 'FALSE',
  @newJeId int = 0 output,
- @blob varchar(8000)=''
+ @blob varchar(8000)='',
+ @skipPost varchar(1)=''
 ) as
 /*
  remember
@@ -76,7 +77,9 @@ begin
         from glaccounts a 
         where a.accountcode = @detailsourceCode
 
-   exec glPost @newId, 'o'
+   if @skipPost <> '1'
+     exec glPost @newId, 'o'
+   select @newId
 end
 
 if @mode = 0
@@ -101,7 +104,9 @@ begin
      -- move gldetailstage to je
      update gldetailstage set slink = @slink where slink = @objectSLink
 
-   exec glPost @newId, 'o'
+   if @skipPost <> '1'
+     exec glPost @newId, 'o'
+   select @newId
 end
 
 

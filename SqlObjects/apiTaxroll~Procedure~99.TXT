@@ -87,7 +87,8 @@ begin
   mortgage_Code varchar(50),
   physical_street_number varchar(50),
   physical_street varchar(50),
-  physical_town varchar(50)
+  physical_town varchar(50),
+  physical_street_direction varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -164,7 +165,8 @@ declare @rt table (
  blob varchar(max),
  physicalstreetnumber varchar(50),
  physicalstreet varchar(50),
- physicaltown varchar(50)
+ physicaltown varchar(50),
+ physicalstreetdirection varchar(50)
 )
 insert into @rt
  select top (@batchSize)
@@ -197,7 +199,8 @@ insert into @rt
    dbo.getTaxInvoiceBlob(i.ID),
    a.physicalstreetnumber,
    a.physicalstreet,
-   a.physicaltown
+   a.physicaltown,
+   a.physicalstreetdirection
    from adtax a join invoices i on i.TAXROLLID = a.ID where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and a.id > 0
     and isnull(a.apiUpdated,0) < a.modified
    order by OWNERNAME, ITEMNUMBER  
@@ -237,7 +240,8 @@ select
    mtgCode,
    physicalstreetnumber,
    physicalstreet,
-   physicaltown
+   physicaltown,
+   physicalstreetdirection
  from @rt
 
 -- bail if your done or update batchSize from tally, maybe... 
@@ -292,6 +296,7 @@ select
   insert @jsonPrep select parentId,null,'physical_street_number', physical_street_number,'string' from @wt
   insert @jsonPrep select parentId,null,'physical_street', physical_street,'string' from @wt
   insert @jsonPrep select parentId,null,'physical_town', physical_town,'string' from @wt
+  insert @jsonPrep select parentId,null,'physical_street_direction', physical_street_direction,'string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep

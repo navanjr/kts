@@ -1,0 +1,78 @@
+create proc dbo.diagFix_DeletedPenalties(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+declare @wt table(id int, typ varchar(1), taxyear int, postdate int, invoiceid int, accountcode varchar(60), sourcecode varchar(60), amount money)
+insert @wt
+
+select r.invoiceid,'P',left(gl.accountcode,4),gl.[date],
+  (select top 1 rl.invoiceid from receiptlink rl where rl.receiptid=r.receiptid and rl.receiptnumber >0),
+  gl.accountcode, 
+  (select top 1 key2 from object where typ=4504 and a1='PENALTY'),
+  gl.amount
+ from receiptlink r, (select * from gldetail 
+ where accountcode in (select accountcode from glaccounts where accounttype='RECEIVABLE') 
+  and slink in 
+(select 'l'+cast(id as varchar) from receiptlink 
+ where invoiceid not in (select id from invoices) 
+  and receiptid in (select id from object where typ=4502))) gl
+ where invoiceid not in (select id from invoices) 
+  and receiptid in (select id from object where typ=4502)
+  and 'l'+cast(r.id as varchar) = gl.slink
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'penalty',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Penalties deleted by a bug'
+  from @wt
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from @wt
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  
+  insert gldetailstage (slink,accountcode,amount)
+   select 't'+cast(id as varchar), sourcecode, amount from @wt
+   union all
+   select 't'+cast(id as varchar), accountcode, amount*-1 from @wt
+ 
+  set identity_insert invoices on
+
+  insert invoices (id, typ, taxyear, postdate, invoiceid, taxrollid, parcel, item, name, businessname, status)
+   select id, typ, taxyear, postdate, invoiceid,0,'',0,'','','' from @wt
+
+  set identity_insert invoices off
+  declare @invoiceIdToken int
+  while exists(select invoiceid from @wt)
+  begin
+   select top 1 @invoiceIdToken = invoiceid from @wt
+    exec dbo.glpost @invoiceIdToken, 't'
+   delete from @wt where invoiceid = @invoiceIdToken
+  end
+  return
+
+ end
+
+end

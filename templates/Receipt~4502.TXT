@@ -1,3 +1,5 @@
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&''')))'),1);
+@newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
 \00020500;
 @dup;
@@ -6,7 +8,7 @@
 @wbgcolor=12701121;
 @save;
 lmode=2;
-@format=50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M;
+@format=15R(1)~Img~#60#|M50L(2)~Type~#3#|M50L(2)~Receipt #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M;
 @filtername=All,All Un-Posted,All Query,Miscellaneous,Mortgage,Tax,Trust,Individual Redemption;
 @filter='id>0',
 'a17<>''Posted''',
@@ -31,7 +33,7 @@ lmode=2;
  altFormat=;
 
 @altFormat=
- format('50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M'&choose(gcDashRecType='MTG','150L(2)~Mortgagor~#14#|M','')&'150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
+ format('15R(1)~Img~#60#|M50L(2)~Type~#3#|M50L(2)~'&choose(gcDashRecType='TAX' or gcDashRecType='ALL','Control','Receipt')&' #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Receipt Date~@d2@#42#|M150L(2)~Received Of~#5#|M50R(2)~Amount~@n-14.2@#56#|M'&choose(gcDashRecType='MTG','150L(2)~Mortgagor~#14#|M','')&'150L(2)~Comments~#58#|M50C~Status~#29#|M100L(2)~Deputy~#30#|M');
 
 @key2=999999-obj:key2&clip(obj:key3)&999999-clip(obj:key1);
 @key3=format(obj:key2,@d12)&clip(obj:key1);
@@ -231,7 +233,7 @@ close('ok');
 
 @acc012=thetabord=;
 @thetabord=
- break(obj:key3<>'MISC'),
+ break(obj:key3<>'MISC' and obj:key3<>'SUMMARY'),
  lctabs1='~0009',
  lctabs2='~0009',
  focusFund=,
@@ -526,7 +528,7 @@ close('ok');
 
 \t111&Void; @acc111=voidReceipt=; \h111obj:a17<>'Posted';
 @voidReceipt=
- m('Voiding a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),
+ m('Voiding a receipt cannot be undone. Are you sure you wish to continue?','Void Receipt...',,6,4),
  break(gcretval<>2),
  gclocation='Receipt_Void',
  gcslink='o'&obj:id,
@@ -553,7 +555,7 @@ close('ok');
 
 \t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114obj:a17<>'Posted' or gcAlreadyCancelled='TRUE'; or obj:key3<>'TAX';
 @refundReceipt=
- if(gcMode+0=1,m('Canceling a receipt can not be un-done are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
+ if(gcMode+0=1,m('Cancelling a receipt cannot be undone. Are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
  break(gcretval<>2),
  if(gcMode+0=1,gclocation='Receipt_Cancel',gclocation='Receipt_Modify_Apportionment'), 
  gcslink='o'&obj:id,
@@ -638,7 +640,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  sql('exec dbo.receiptStageGL '&obj:id),
  close('ok');
 
-\h121-;
+
 @miscDetail= if(obj:key3='TRUST',set(12,obj:b2)),
  update,
  sql('exec dbo.logit null, ''receiptDetailCRUD '&obj:id&','&obj:type&''''),
@@ -678,6 +680,9 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  if(lcTyp+0=6,taxitemchoose=),
  if(lcTyp+0=3,donewtaxreceiptno=)
 ;
+@menu8=
+ lcid=lcrdId,
+ imaging=;
 
 @taxitemchoose=m('','Add a new?',,'NEW PENALTY|NEW FEE|APPLY AMOUNT|CANCEL'),
 if(gcretval+0=1,donewpenalty=),
@@ -768,6 +773,9 @@ acc551=
  if(lcTyp+0=4,change(lcid)),
  if(lcTyp+0=9,doPostedMenu9=),
  break(lcTyp<>8),
+ imaging=;
+
+@imaging=
  if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
  break(acImaging='FALSE'),
  case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
@@ -776,7 +784,10 @@ acc551=
  do(1,scan=),
  gcscanid=obj:id;
 
-@viewpaid=gcscanid='p'&lcid,
+@viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+ break(readstring(obj7:d1,'@code=')=1),
+ gcobjid=obj7:d1,
  neww(3208),
  gcscanid=obj:id;
 

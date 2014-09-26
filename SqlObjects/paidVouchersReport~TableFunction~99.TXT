@@ -1,6 +1,16 @@
 CREATE function dbo.paidVouchersReport(@beginDate int,@endDate int) 
  returns
- @rt table(actionDate varchar(50),registerDate varchar(50),controlNumber varchar(50),registerNumber varchar(50),toWhom varchar(50),fundAccount varchar(50),vType varchar(10), TotalAmount varchar(50),paidAmount varchar(50), contraAmount varchar(50),ord varchar(250))
+ @rt table(actionDate varchar(50),
+           registerDate varchar(50),
+           controlNumber varchar(50),
+           registerNumber varchar(50),
+           toWhom varchar(50),
+           fundAccount varchar(50),
+           vType varchar(10), 
+           TotalAmount varchar(50),
+           paidAmount varchar(50), 
+           contraAmount varchar(50),
+           ord varchar(250))
  as
  begin
 
@@ -23,13 +33,14 @@ insert @rt
    and contraPostDate >= @beginDate
    and contraPostDate <= @endDate
 
-insert @rt (toWhom,totalAmount,paidAmount,contraAmount,ord)
+insert @rt (toWhom,totalAmount,paidAmount,contraAmount,ord,fundaccount)
  select 
   fundaccount+' Total',
   sum(cast(TotalAmount as money)),
   sum(cast(paidAmount as money)-cast(contraAmount as money)),
   sum(cast(contraAmount as money)),
-  fundaccount+'c'
+  fundaccount+'c',
+  fundaccount
  from @rt group by fundaccount
 
 

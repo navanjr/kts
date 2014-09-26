@@ -3,8 +3,8 @@
 
 @button1=Login,,,login,secur06.ico,45,,always;
 @button16=Exit [F12],,,press,wizdown.ico,40r,123,always;
-@title='KellPro Treasurers System Version v1.19';
-@ktsTag=v1.19;
+@title='KellPro Treasurers System Version v1.20';
+@ktsTag=v1.20;
 
 @namesearch=browse(1,10,,,,1);
 
@@ -34,8 +34,13 @@ if(gcscanid+0>0,scanit=,m('Please select a record to scan into...'));
 
 @scanit=scandirect(gcscanid,1),calcrecord(gcscanid);
 
-@button14=Scan Cfg,,,,,45,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
-@tb14=insert(-02=149,-04=obj:id,012=obj:b15,014=obj:a4,016=''),change(obj1:id);
-
 @button11=Image Viewer,,,,,45,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
-@tb11=new(3208);
+@tb11=d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+ break(readstring(obj7:d1,'@code=')=1),
+ gcobjid=obj7:d1,
+ new(3208);
+
+@button13=Log KP Edit,,,,,45,,,cur:securitylevel=100;
+@tb13=sql('  insert kplog
+   select top 1 kplid+1, '&today()&', '&clock()&', '''&CUR:ini&''','''','''',0,0,0,''KellPro Edit'',''KellPro Entered Information'' from kplog order by KPLID desc');

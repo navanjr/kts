@@ -1,8 +1,10 @@
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&''')))'),1);
+@newselbrowse=gcscanid=obj:id;
 @defaultbrowsekey=2;
 @gobot=1;
 @wbgcolor=15573409;
 lmode=2;
-@format=50L(2)~Deposit #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Created Date~@d2@#42#|M100L(2)~Received Of~#5#|M80L(2)~Account~#33#|M50R(2)~Amount~@n-14.2@#54#|M50C~Status~#29#|M50R(2)~Type~#3#|M100L(2)~Deputy~#30#|M150L(2)~Comments~#58#|M;
+@format=15R(1)~Img~#60#|M50L(2)~Deposit #~#1#|M50R(2)~Post Date~@d2@#2#|M50R(2)~Created Date~@d2@#42#|M100L(2)~Received Of~#5#|M80L(2)~Account~#33#|M50R(2)~Amount~@n-14.2@#54#|M50C~Status~#29#|M50R(2)~Type~#3#|M100L(2)~Deputy~#30#|M150L(2)~Comments~#58#|M;
 @filtername=All,Posted,Un-Posted;
 @filter='1=1','a17=''Posted''','a17<>''Posted''';
 @dk1;
@@ -302,3 +304,26 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  sql('exec dbo.officialDepositStageGL '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Undo G/L/ Posting...')),
  close('ok');
+
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcid+0<1),
+ if(lcTyp+0=8,imaging=);
+
+@imaging=
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+ break(readstring(obj7:d1,'@code=')=1),
+ gcobjid=obj7:d1,
+ neww(3208),
+ gcscanid=obj:id;

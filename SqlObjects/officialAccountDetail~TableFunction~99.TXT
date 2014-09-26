@@ -30,23 +30,29 @@ select a3,@begindate as sourceDate,'' as sourcekey1,'' as sourcekey3,'' as perso
  from object
  where typ=4601 and a3 >' 0' and a3 not in (select accountcode from @rt)
 
-/*
-union 
- select id,key2,key1,a1,
- a3 AccountCode,
- 0.00 BeginBalance,
- 0.00 CancelVoid,
- 0.00 Journals,
- 0.00 Deposits,
- 0.00 Vouchers,
- 0.00 EndBalance,
- a4
- from object
- where typ=4601 and a3 >' 0' and a3 not in (select accountcode from @wt2)
-*/
 
 insert @rt
+select debitAccountCode,
+   dateRegistered,
+   treasurersNumber,
+   clerksNumber,
+   payee as person,
+   status as purpose,
+   0.00 as creditmemo,
+   0 as deposits,
+   0 as withdrawals,
+   0 as balance, 
+   '' as DeptNo,
+   '' as OfficerName,
+   '' as OfficerTitle,
+   0,
+   'da',0,0
+   from dbo.payments 
+   where dateRegistered>=@begindate 
+     and dateRegistered<=@enddate
+     and status = 'VOID'
 
+insert @rt
 select accountCode,
    sourcedate,
    sourcekey1,
@@ -70,7 +76,6 @@ select accountCode,
      and accounttype='OFFICIAL'
      
 insert @rt
-
 select accountCode,
    sourcedate,
    sourcekey1,

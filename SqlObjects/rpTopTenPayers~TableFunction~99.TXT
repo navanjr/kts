@@ -1,0 +1,30 @@
+create function dbo.rpTopTenPayers(@taxYear int, @district varchar(60))
+returns @rt table(id int,
+ name varchar(60),
+ ownerNumber numeric(14,2),
+ district varchar(60),
+ total money)
+as
+begin
+
+ declare @wt table(id int identity(1,1), ownerName varchar(60),ownerNumber numeric(14,2), total money)
+
+ insert @wt
+  select top 10 min(ownerName), ownernumber,sum(originaltotaldue) from adtax 
+   where realtaxyear=@taxYear 
+    and ownernumber <> 0.00
+    and (orgschooldistrictmain = @district or @district < ' 0')
+   group by ownernumber
+   order by sum(originaltotaldue) desc 
+
+ insert @rt
+  select w.id,w.ownername,a.ownernumber,a.orgschooldistrictmain,sum(a.originaltotaldue) 
+   from adtax a, @wt w 
+   where a.realtaxyear=@taxYear 
+    and a.ownernumber <> 0.00
+    and a.ownernumber = w.ownerNumber
+    and (a.orgschooldistrictmain = @district or @district < ' 0')
+   group by a.ownernumber,w.ownerName,a.orgschooldistrictmain,w.id
+  
+  return
+end

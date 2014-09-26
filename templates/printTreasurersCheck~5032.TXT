@@ -59,7 +59,7 @@
   d1select('select settingvalue from settings where settingname=''site.warrantsHitLedgerWhenRegistered'''),
   lcwarrantsHitLedgerWhenRegistered=obj7:d1,
   if(lcwarrantsHitLedgerWhenRegistered='TRUE',lcsql='select fund, Date, sum(warAmount) as warAmount, TreasurersCheck  from(select w.key1 as TreasurersCheck, dbo.date1(d.dateCleared) as Date, d.amount*-1 as warAmount, w.key3 as warNumber, w.a1 as warDate, w.a2 as payee,
-     (select accountDesc from glaccounts where accountCode=w.a4) as fund from object w, gldetail d, glaccounts a where w.typ=4771 and w.a18 = ''Warrant'' and ''o''+cast(w.id as varchar)=d.slink and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' ) data group by fund, Date, TreasurersCheck order by fund, Date'),
+     (select accountDesc from glaccounts where accountCode=w.a4) as fund from object w, gldetail d, glaccounts a where w.typ=4771 and w.a18 = ''Warrant'' and d.slink in (''o''+cast(w.id as varchar),''o''+cast(w.link1 as varchar)) and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' ) data group by fund, Date, TreasurersCheck order by fund, Date'),
  tr(
   prn(printed),
   prn(page),
@@ -76,14 +76,14 @@
    prn(,lcLm,pagey+25),
    grp(1,obj5:a1,
     do(bnd('H','Fund: '&obj5:a1,4500),prn(,,pagey+25),box(lcLm-50,pagey-25,pagex+7500,pagey+150,0,lcBoxColor),bnd('H','Treas Chk No.',1000,'Date',1000,'Amount',1000C),prn(,,pagey+25)),
-    do(nl,bnd('H','',1000,'Total',1000,format(lcCheckAmt,@n$14.2),1000R,),lcCheckAmt=0,nl,nl)),
+    do(nl,bnd('H','',1000,'Total',1000,format(lcCheckAmt,@n$-14.2),1000R,),lcCheckAmt=0,nl,nl)),
   bnd('H','',7500),
   det(lcsql),
-   bnd('D',obj5:a4,1000,obj5:a2,1000,format(obj5:a3,@n14.2),1000R,),
+   bnd('D',obj5:a4,1000,obj5:a2,1000,format(obj5:a3,@n-14.2),1000R,),
    lcCheckAmt=lcCheckAmt+obj5:a3,
    lcCheckTot=lcCheckTot+obj5:a3,
   edt,
-   bnd('H',,1000,'Grand Total',1000,format(lcCheckTot,@n$14.2),1000R,),
+   bnd('H',,1000,'Grand Total',1000,format(lcCheckTot,@n$-14.2),1000R,),
  );
 
 @printPaidWarrants=
@@ -101,7 +101,7 @@
   d1select('select settingvalue from settings where settingname=''site.warrantsHitLedgerWhenRegistered'''),
   lcwarrantsHitLedgerWhenRegistered=obj7:d1,
   if(lcwarrantsHitLedgerWhenRegistered='TRUE',lcsql='select w.key1 as TreasurersCheck, d.dateCleared, d.amount*-1 as amount, w.key3 as warNumber, w.a1 as warDate, w.a2 as payee,
-     (select accountDesc from glaccounts where accountCode=w.a4) as fund from object w, gldetail d, glaccounts a where w.typ=4771 and w.a18 = ''Warrant'' and ''o''+cast(w.id as varchar)=d.slink and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' order by fund, TreasurersCheck'),
+     (select accountDesc from glaccounts where accountCode=w.a4) as fund from object w, gldetail d, glaccounts a where w.typ=4771 and w.a18 = ''Warrant'' and d.slink in (''o''+cast(w.id as varchar),''o''+cast(w.link1 as varchar)) and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' order by fund, TreasurersCheck'),
   tr(
     lcRecCnt=0,
     lcCnt=0,
@@ -121,15 +121,15 @@
     nl,
     grp(1,obj5:a7,
      do(bnd('H','Fund: '&obj5:a7,5000), nl),
-     do(nl,bnd('H','Total:',1550R,format(lcWarrantTot,@n$14.2),1000R,),lcWarrantTot=0,nl)),
+     do(nl,bnd('H','Total:',1550R,format(lcWarrantTot,@n$-14.2),1000R,),lcWarrantTot=0,nl)),
    bnd('H','',7500),  
 
    det(lcsql),
-     bnd('D',format(obj5:a2,@d1),750C,format(obj5:a1,@n05),700C,format(obj5:a3,@n$14.2),1000R,format(obj5:a4,@n05),700C,format(obj5:a5,@d1),750C,format(obj5:a6,@s70),2800 ),
+     bnd('D',format(obj5:a2,@d1),750C,format(obj5:a1,@n05),700C,format(obj5:a3,@n$-14.2),1000R,format(obj5:a4,@n05),700C,format(obj5:a5,@d1),750C,format(obj5:a6,@s70),2800 ),
      lcWarrantTot=lcWarrantTot+obj5:a3,
      lcWarrantGrTot=lcWarrantGrTot+obj5:a3,
    edt,
-   bnd('H',,450,'Grand Total',1000,format(lcWarrantGrTot,@n$14.2),1000R,),
+   bnd('H',,450,'Grand Total',1000,format(lcWarrantGrTot,@n$-14.2),1000R,),
    );
 
 

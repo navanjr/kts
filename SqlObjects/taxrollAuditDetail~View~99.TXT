@@ -5,7 +5,8 @@ create view dbo.taxrollAuditDetail
 select *,
  case when accountType = 'SOURCE' and origin like '%Origin%' then '1. Original Tax'
       when accountType = 'SOURCE' and origin = 'mike_taxroll' then '1. Original Tax'
-      when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' then '2. Taxroll Correction' 
+      when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' and slink not in (select 't'+cast(i.id as varchar) from journalLink j, invoices i where i.typ='A' and i.postdate=gldetailreports.date and i.invoiceid=j.invoiceid and jeid in (
+select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=gldetailreports.date)) then '2. Taxroll Correction' 
       when sourceType = '4502' then '3. Receipt'
       when sourceType = '4512' and isnull(contraId,0) <> 0 then '5. Receipt Adjustment'
       when sourceType = '4512' and isnull(contraId,0) = 0 and sourcea18<>'Tax Payment Adjust' then '6. Apportioned'

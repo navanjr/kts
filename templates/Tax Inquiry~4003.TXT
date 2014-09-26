@@ -30,7 +30,9 @@
  createbrw=,
  enhancedSecurity=;
 
-@afterloadwindow=break(gcdecision<>'TRUE'),
+@afterloadwindow=
+ gcTaxInquiryId=obj:id,
+ break(gcdecision<>'TRUE'),
  set(078,gctaxInquiry),
  set(002,gctaxYear),
  refreshBRW1=;
@@ -63,11 +65,80 @@
  create(354,9,513,268,'Chg Mort Code(F8)'),
  create(355,9,513,254,'Set Interest Date(F7)'),
  if(cur:securitylevel+0>59,create(356,9,513,240,'Void Invoice(F6)'),),
+ create(358,9,513,310,'Load Payments'),
+ create(359,9,513,324,'Reset Import'),
+ create(360,9,513,338,'Create Receipts'),
  halfToggle=;
 
 @lbrw3forecolor=obj7:c9=1,255,obj7:c9=2,32768,obj7:c9=3,8388736;
-@lbrw1color=obj7:c10=3,16760879,obj7:c10=2,13428479,obj7:c10=1,13499135,obj7:c10=4,16711935;
+@lbrw1color=obj7:c10=3,16760879,obj7:c10=2,13428479,obj7:c10=1,13499135,obj7:c10=4,16711935,obj7:c10=5,255,obj7:c10=6,32768,obj7:c10=7,8388608;
 @lbrw2color=obj7:c10=0,13428479;
+
+\h358360cur:securitylevel<50;r
+\w360=119;
+ @acc360=d1select('select count(*) from dbo.ccPaymentImportBRW('&obj:id&',null) where colorFlag=0'),
+ lcCountGood=obj7:d1,
+ d1select('select count(*) from dbo.ccPaymentImportBRW('&obj:id&',null) where colorFlag > 0 and colorFlag < 6'),
+ lcCountBad=obj7:d1,
+ m('You have '&clip(lcCountGood)&' payments that can import and '&clip(lcCountBad)&' that cannot.  Do you wish to import the '&clip(lcCountGood)&' payments?','Import?',,6),
+ break(gcretval+0<>2),
+ sql('exec dbo.ccAutoPostReceipts '&obj:id+0),
+ refreshBRW=,
+ tsc,
+ gcFilter='id in (select receiptId from dbo.ccPaymentImportBRW('&obj:id+0&',null) where receiptId > 0)',
+ recalc('TEM:ID=4502',gcFilter,0,,1),
+ m('Receipts Posted.'),
+ browse(1,4502,gcFilter); 
+
+\w359=119;
+ @acc359=clearmemo=;
+
+\w358=119;
+ @acc358=
+ if(len(clip(obj:e1))>0,overwritememo=),
+ break(gcretval<>2 and gcretval<>''),
+ filedialog('Locate file...'),
+ lcFileName=gcretval,
+ break(lcFileName<'  0'),
+ binin(obj:id,lcFileName),
+ d1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''move'''),
+ set(-72,readstring(obj7:d1,'@logitId=')),
+ if(readstring(obj7:d1,'@code=')>0,m(obj7:d1,'Bin File Info...')),
+ lcTooBig=readstring(obj7:d1,'@tooBig='),
+ if(lcTooBig='FALSE',loadE1=,link2img=),
+ update,
+ refreshBRW=,
+ tsc;
+
+@link2img=set(102,'File too large to edit here... @fileName='&readstring(obj7:d1,'@fileName=')&';');
+@loadE1=
+ e1select('exec dbo.getBinInfo '&obj:id&','''&lcFileName&''', @method=''dump'''),
+ set(102,obj7:e1);
+
+@overwritememo=
+ m('The workfield will be overwritten...||Do you want to proceed?','Warning',,6),
+ break(gcretval<>2),
+ set(102,''),
+ set(104,''),
+ acc102=;
+
+@clearmemo=
+ messagemdi('Would you like for me to clear the workfield for you?','Clear Field','question.ico',6),
+ break(gcretval<>2),
+ set(102,''),
+ set(104,''),
+ acc102=,
+ tsc;
+
+
+\t101Raw Import Data; \x1013; \y101140; @acc102=update,refreshBRW=; \h101102len(clip(obj:e1))=0;r
+ \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
+ \x1023; \y102152; \w102480; \z102100; \d102obj:c4=0;
+
+\t103Raw Import Data2; \h103; \h104len(clip(obj:e2))=0;
+ @acc104=acc102=;
+ \p1047cfah,13499135; \p1047c10h,courier new; \p1047c11h,8;
+ \x1043; \y104255; \w104480; \z104100; \d104obj:c4=0;
 
 \v352120; \w352=119; 
  @acc352=
@@ -161,6 +232,11 @@
   prop(160,'SelectedColor',0),
   prop(161,'SelectedColor',0),
   kpmc();
+
+\h161len(clip(obj:e1))>0;
+\h171len(clip(obj:e1))>0;
+\h162len(clip(obj:e2))>0;
+\h172len(clip(obj:e2))>0;
 
 @brw1=
  break(instring('@group=publicuser',cur:options,1,1)>0),
