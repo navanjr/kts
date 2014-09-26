@@ -65,3 +65,17 @@ exportimage(lcobjid,lcimagename,lclineno);
 
 \t115Page Down;
 @acc115=focus(160),press('~0040');\v11534;
+
+\t117Delete Img; \h117cur:securitylevel<81;
+ @acc117=m('Are you sure that you want to delete the currently highlighted image?','Delete',,6),
+  break(gcretval<>2),
+  lcilinkid=kpbrwid(),
+  d1select('select link1 from object where typ=9208 and key2='''&cur:ini&''' and id='&lcilinkid),
+  gcilinkid=obj7:d1,
+  break(gcilinkid+0<2),
+  sql('delete from imglinks where ilinkid='&gcilinkid),  
+  d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+  gcobjid=obj7:d1,
+  brwreload(1),
+  afterloadwindow=;
