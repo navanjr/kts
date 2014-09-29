@@ -1,0 +1,68 @@
+create procedure dbo.mailLogPaymentAdd(
+ @receiptId int,
+ @paycode varchar(50) = '',
+ @amount money = 0,
+ @checkNumber varchar(50) = '',
+ @bankId int = 0,
+ @paymentId int = 0,
+ @field int = 0
+)
+as
+begin
+
+ declare @styp char(1) = 'o'
+ 
+ exec dbo.logit @@procid, '@field', @field
+
+ declare 
+  @slink varchar(15) = @styp + cast(@receiptId as varchar),
+  @code int,
+  @message varchar(100),
+  @receiptType varchar(50),
+  @suspenseAccountId int,
+  @contraId int,
+  @fpId int,
+  @objectTyp int,
+  @checkReq int
+
+ select 
+  @checkReq = isnull(a16,0)
+  from object where typ=4505 and key1 = @paycode	
+  
+ select 
+  @code = code,
+  @message = message
+ from dbo.mailLogCheck(@receiptId,@paycode)
+
+ -- bail if we dont have enough data
+ if @code = 1
+ begin
+  select '@code=1;@message=' + @message + ';'
+  return
+ end
+
+ --bail if check # required and @field = 22
+ if @checkReq = 1 and @field = 22
+ begin
+  select '@code=2;@message=Sorry, Check number is required.;@field=024;'
+  return
+ end
+
+ -- bail if paycode is  and no check number is offered
+ if @checkReq = 1 and @checkNumber < '  0'
+ begin
+  select '@code=1;@message=Sorry, Check number is required.;'
+  return
+ end
+
+  -- add or update paid
+  if isnull(@paymentId,0) < 1
+  insert paid (paycode,mailLogId,amount,checkno,bankId)
+   select @paycode,@receiptId,@amount,@checkNumber,@bankId
+  else
+   update paid set paycode=@paycode,mailLogId=@receiptId,amount=@amount,checkno=@checkNumber,bankId=@bankId where id=@paymentId
+
+ select '@code=0;@message=Payment applied OK.;'
+ return
+
+end

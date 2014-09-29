@@ -1,4 +1,4 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&')))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&'))'),1);
 @newselbrowse=gcscanid=obj:id;
 @nodel;
 @gobot=1;
@@ -7,37 +7,54 @@
 @seriesfield=key3;
 \u002104;r
 
+@newMail=
+ insert(-02=4514,006='MAIL LOG'),
+ change(obj1:id);
+
+@newDropBox=
+ insert(-02=4514,006='DROP BOX LOG'),
+ change(obj1:id);
+
 @loadwindow=
  brwstuff=,
- prop(112,'color',65280),
  gcscanid=obj:id;
 
 @closewindow=gcscanid=0;
 
 @brwstuff=
- gcbrw1sql='select id,description,subdescription,amount from dbo.officialDepositBRW('&obj:id&',0) order by ord',
+ gcbrw1sql='select id,description,subdescription,amount from dbo.mailLogBRW('&obj:id&') order by ord',
  brw(150,1,gcbrw1sql,65,95,270,200,'138L(2)~~#2#M80L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1),
  prop(150,7CFAH,13499135);
 
 @lbrw1forecolor=obj7:c10<0,255;
 
 @afterloadwindow=
+ if(obj:key1<' 0',nextNumber=),
  refreshDetail=,
  create(161,9,3,105,'&Delete'),prop(161,7c04h,56),
- update,
  blankEm=;
 
-@nextNumber=;
+@nextNumber=
+ if(obj:key3<' 0',getSeries=),
+ d1select('exec dbo.nextObjectAutoNumber @typ=4514, @seriesString='''&obj:key3&''', @ignoreDeleted = ''FALSE'', @verbose=''TRUE'''),
+ set(2,obj7:d1),
+ update;
 
-\t001Log Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002readstring(gcSiteBlob,'@unlockReceipt=')=0; a002+; \00020500; \d001;
-\t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; @acc004=update; \d004obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
+@getSeries=m('What List Should I Put this on?','Which List?',,'MAIL LOG|DROP BOX LOG|CANCEL'),
+ gcSeries=' ',
+ if(gcretval+0=1,gcSeries='MAIL LOG'),
+ if(gcretval+0=2,gcSeries='DROP BOX LOG'),
+ if(gcSeries=' ',close('cancel')),
+ set(6,gcSeries),
+ update;
+
+\t001Log Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \00020500;
+\t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \d004;
  \w00200455;r2 
-\t065&Create Date | Type; \t066@d2; \f066=c; \p0667cfah,13499135; \p0667c13h,700; \p0667c0ch,1; @acc066=update; \d006obj:a17='Posted' and readstring(gcSiteBlob,'@unlockReceipt=')=0;
- \w06655; \h005; \y065066=006;r \x066=004; \x065=003; \o066004; \o006066; \w06570;
-
-\t005Deposit Type; \w00655; \p0067cfah,13499135; \p0067c13h,700; \d006; \x006+60;
-\t007Received From;  \l0084601,2; \d008obj:a17='Posted' or lcTrustDep>0; @lf008='a17!=1'; \q008;
-\t041Received by;  \f042=cur:fullname; 
+\t005Log Type; \w00680; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\t007Received From; 
+\t009PM Date; \t010@d2;
+\t041Received by;  \f042=cur:fullname; \d042;
 \t019P&aycode; \l0204505; \w02050; @lmode020=2;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,applyPayment=; 
 \t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
@@ -47,7 +64,7 @@
 
 @applyPayment=
  update,
- d1select('exec dbo.officialDepositPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'''&obj:link4+0&''','&lcField+0),
+ d1select('exec dbo.mailLogPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'''&obj:link4+0&''','&lcField+0),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Payment...')),
  if(readstring(obj7:d1,'@code=')=2 and lcField<>22,applyPaymentA=),
  set(-06,0),
@@ -68,15 +85,13 @@
  evalAmount=,break(lcBreak),
  evalCheck=,break(lcBreak),
  update,
- 
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
-
  break(readstring(obj7:d1,'@code=')=1),
  refreshDetail=,
  blankEm=,
  focus(020);
 
-\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where slink=''o'&obj:id&''' or officialDepositId = '&obj:id;
+\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where mailLogId='&obj:id;
 \p0907cfah,13499135; \p0907c13h,700; \p0907c0ch,1; \d090;
  \y08981; \y09081; \x089250; \x090278;
 
@@ -88,12 +103,10 @@
  set(020,''),set(022,''),set(024,'');
 
 @refreshDetail=
- if(obj:a17='Posted',prop(165,'7C65H',1)),
  brwreload(1),
- calcfld(088),calcfld(090);
+ calcfld(090);
 
 @brw1=
- break(obj:a17='Posted'),
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
@@ -109,20 +122,14 @@
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
- if(lcTyp=8,deletePayment=),
- if(lcTyp=4,removeTrust=);
+ if(lcTyp=8,deletePayment=);
 
 @deletePayment=
  m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),
  break(gcretval<>2),
- d1select('exec officialDepositPaymentRemove '&lcid&', '&obj:id),
+ d1select('exec mailLogPaymentRemove '&lcid&', '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
  refreshDetail=;
-
-@getRecNum=break(obj:key1>'00000'),
- sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
- rekey('id='&obj:id),
- update;
 
 @lbrwclick150=
  lcid=kpbrwid(1)*-1,

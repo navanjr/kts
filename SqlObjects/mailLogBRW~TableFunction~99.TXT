@@ -1,0 +1,31 @@
+create function dbo.mailLogBRW(@id int) 
+returns @rt table(
+ ord varchar(80),
+ id int,
+ description varchar(100), 
+ subdescription varchar(100), 
+ amount money,
+ sName varchar(50),
+ fName Varchar(50),
+ origin int,
+ colorFlag int,
+ subDescription2 varchar(125)  
+)
+begin
+
+
+-- here are all the payments applied
+ if exists(select * from dbo.paid where mailLogId = @id)
+ begin
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'ba',0,'','',0,4
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bb',0,'Payment(s)','',0,5
+  insert @rt (ord,id,description,subdescription,amount,origin)
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,
+   '   '+paycode+case when isnull(slink,'') > ' 0' then isnull((select ' rec#:'+key1+' '+dbo.date1(key2) from object where id = dbo.slinkid(slink)),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6
+  from dbo.paid where mailLogId = @id
+ end
+
+ return
+end
