@@ -26,7 +26,14 @@ begin
  end
 
  begin transaction
-  delete paid where id = @paymentId
+  if exists(select * from paid where isnull(mailLogId,0)>0 and id = @paymentId)
+   begin
+    update paid set slink = null where id = @paymentId 
+   end
+  else
+   begin 
+    delete paid where id = @paymentId
+   end
   
   -- add to the gl stage
   exec dbo.officialDepositStageGL @receiptId

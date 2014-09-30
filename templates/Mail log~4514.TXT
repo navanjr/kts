@@ -52,23 +52,33 @@
 \t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \d004;
  \w00200455;r2 
 \t005Log Type; \w00680; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\d008010obj:a17='Posted';r
 \t007Received From; 
 \t009PM Date; \t010@d2;
 \t041Received by;  \f042=cur:fullname; \d042;
+
+\h019028obj:a17='Posted';r
 \t019P&aycode; \l0204505; \w02050; @lmode020=2;
 \t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,applyPayment=; 
 \t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
+\t025Bank Drawn On; \w02675; \l0264509;r026002028004; @lf026=,2; @acc026=lcField=26,if(obj:a11>' 0',applyPayment=); @nopop026;
+\t027Location; \w02875; @acc028=lcField=28,applyPayment=; 
  \y01969; \x01965; \y02081; \x02065;
  \y02169; \x021120; \y02281; \x022120;
  \y02369; \x023175; \y02481; \x024175;
+ \y02569; \x025230; \y02681; \x026230;
+ \y02769; \x027310; \y02881; \x028310;
+\t039Status; \d040; \s040-'select case when exists (select * from paid where mailLogId='&obj:id+0&' and isnull(slink,'''')>'' 0'') then ''Posted'' else '''' end';
+
 
 @applyPayment=
  update,
- d1select('exec dbo.mailLogPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'''&obj:link4+0&''','&lcField+0),
+ d1select('exec dbo.mailLogPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''','''&obj:a10&''','''&obj:a11&''',0,'''&obj:link4+0&''','&lcField+0),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Payment...')),
  if(readstring(obj7:d1,'@code=')=2 and lcField<>22,applyPaymentA=),
- set(-06,0),
+ if(readstring(obj7:d1,'@code=')=3 and lcField<>24,applyPaymentA2=),
  break(readstring(obj7:d1,'@code=')<>0),
+ set(-06,0),
  refreshDetail=,
  blankEm=,
  focus(020);
@@ -77,30 +87,20 @@
  if(readstring(obj7:d1,'@field=')='024',focus(024)), 
  m(readstring(obj7:d1,'@message='),'AddingPayment Payment...');
 
-
-
-@acc165=
- lcBreak=0,
- evalPaycode=,break(lcBreak),
- evalAmount=,break(lcBreak),
- evalCheck=,break(lcBreak),
- update,
- if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
- break(readstring(obj7:d1,'@code=')=1),
- refreshDetail=,
- blankEm=,
- focus(020);
+@applyPaymentA2=
+ if(readstring(obj7:d1,'@field=')='026',focus(026)), 
+ m(readstring(obj7:d1,'@message='),'AddingPayment Payment...');
 
 \t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where mailLogId='&obj:id;
 \p0907cfah,13499135; \p0907c13h,700; \p0907c0ch,1; \d090;
- \y08981; \y09081; \x089250; \x090278;
+ \y089=009; \y090=009; \x089250; \x090278;
 
 \t097Comments; \d098obj:a17='Posted'; \w098271;
  \y097298; \x0973; \y098298; \x09864; \d097;
 
 @blankEm=
  set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
- set(020,''),set(022,''),set(024,'');
+ set(020,''),set(022,''),set(024,''),set(026,''),set(028,'');
 
 @refreshDetail=
  brwreload(1),
@@ -116,6 +116,8 @@
  set(020,readstring(gcblob,'@paycode=')),
  set(022,readstring(gcblob,'@amount=')),
  set(024,readstring(gcblob,'@checkNumber=')),
+ set(026,readstring(gcblob,'@drawnon=')),
+ set(028,readstring(gcblob,'@location=')),
  focus(020);
 
 @acc161=

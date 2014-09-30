@@ -3,6 +3,8 @@ create procedure dbo.mailLogPaymentAdd(
  @paycode varchar(50) = '',
  @amount money = 0,
  @checkNumber varchar(50) = '',
+ @drawnon varchar(100),
+ @location varchar(100),
  @bankId int = 0,
  @paymentId int = 0,
  @field int = 0
@@ -23,10 +25,13 @@ begin
   @contraId int,
   @fpId int,
   @objectTyp int,
-  @checkReq int
+  @checkReq int,
+  @bankReq int
+
 
  select 
-  @checkReq = isnull(a16,0)
+  @checkReq = isnull(a16,0),
+  @bankreq = isnull(a15,0)
   from object where typ=4505 and key1 = @paycode	
   
  select 
@@ -48,6 +53,14 @@ begin
   return
  end
 
+ --bail if check # required and @field = 24
+ if @bankReq = 1 and @field = 24
+ begin
+  select '@code=3;@message=Sorry, Check number is required.;@field=026;'
+  return
+ end
+
+
  -- bail if paycode is  and no check number is offered
  if @checkReq = 1 and @checkNumber < '  0'
  begin
@@ -55,12 +68,21 @@ begin
   return
  end
 
+
+ -- bail if paycode is  and no bank information is offered
+ if @bankReq = 1 and (@drawnon < '  0' or @location < '  0')
+ begin
+  select '@code=1;@message=Sorry, Bank information is required.;'
+  return
+ end
+
+
   -- add or update paid
   if isnull(@paymentId,0) < 1
-  insert paid (paycode,mailLogId,amount,checkno,bankId)
-   select @paycode,@receiptId,@amount,@checkNumber,@bankId
+  insert paid (paycode,mailLogId,amount,checkno,drawnon,location,bankId)
+   select @paycode,@receiptId,@amount,@checkNumber,@drawnon,@location,@bankId
   else
-   update paid set paycode=@paycode,mailLogId=@receiptId,amount=@amount,checkno=@checkNumber,bankId=@bankId where id=@paymentId
+   update paid set paycode=@paycode,mailLogId=@receiptId,amount=@amount,checkno=@checkNumber,drawnon=@drawnon,location=@location,bankId=@bankId where id=@paymentId
 
  select '@code=0;@message=Payment applied OK.;'
  return
