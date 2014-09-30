@@ -5,21 +5,52 @@
 @wbgcolor=15573409;
 @dk1;
 @seriesfield=key3;
+@format=15L(2)~Img~#60#|M
+60L(2)~Log Number~#1#|M
+60L(2)~Date Recvd~@d2@#2#|M
+60L(2)~Log Type~#3#|M
+100L(2)~From~#5#|M
+60L(2)~Post Mark~@d2@#6#|M
+60L(2)~Status~#29#|M
+60L(2)~Complete~#31#|M
+60R(2)~Total~#54#|M
+100L(2)~Comment~#58#|M
+;
+
+@nox=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0'; 
+@noexit=
+ tsc,
+ cancelRoutine=;
+	
+@noc=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0';
+@nocancel=cancelRoutine=;
+
+@cancelRoutine=m('This Receipt Has not Been Posted, Do you want to:',,,'Abandon It|Save It|Cancel'),
+case(gcretval+0=1,abandonreceipt=,gcretval+0=2,saveReceipt=);
+
+@saveReceipt=
+set(040,'Saved'),close('ok');
+
+@abandonreceipt=sql('delete from object where id='&obj:id+0),
+set(040,'abandoned'),
+update,
+close('ok');
+
 \u002104;r
 
 @newMail=
- insert(-02=4514,006='MAIL LOG'),
+ insert(-02=4514,006='MAIL LOG',096='NEW'),
  change(obj1:id);
 
 @newDropBox=
- insert(-02=4514,006='DROP BOX LOG'),
+ insert(-02=4514,006='DROP BOX LOG',096='NEW'),
  change(obj1:id);
 
 @loadwindow=
  brwstuff=,
  gcscanid=obj:id;
 
-@closewindow=gcscanid=0;
+@closewindow=set(096,''),update,gcscanid=0;
 
 @brwstuff=
  gcbrw1sql='select id,description,subdescription,amount from dbo.mailLogBRW('&obj:id&') order by ord',
@@ -47,6 +78,13 @@
  if(gcSeries=' ',close('cancel')),
  set(6,gcSeries),
  update;
+\h161obj:a17='Posted';
+
+\t109Add Another;
+ @acc109=gcType=obj:key3,
+  close('ok'),
+  if(gcType='MAIL LOG',newMail=),
+  if(gcType='DROP BOX LOG',newDropBox=);
 
 \t001Log Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \00020500;
 \t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \d004;
@@ -68,10 +106,12 @@
  \y02369; \x023175; \y02481; \x024175;
  \y02569; \x025230; \y02681; \x026230;
  \y02769; \x027310; \y02881; \x028310;
-\t039Status; \d040; \s040-'select case when exists (select * from paid where mailLogId='&obj:id+0&' and isnull(slink,'''')>'' 0'') then ''Posted'' else '''' end';
+\t039Status; \d040; \s040-'select dbo.mailLogPosted('&obj:id+0&')';
+\t043Complete; \d044; \s044-'select dbo.mailLogComplete('&obj:id+0&')';
 
 
 @applyPayment=
+ break(obj:a17='Posted'),
  update,
  d1select('exec dbo.mailLogPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''','''&obj:a10&''','''&obj:a11&''',0,'''&obj:link4+0&''','&lcField+0),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Payment...')),
@@ -107,6 +147,7 @@
  calcfld(090);
 
 @brw1=
+ break(obj:a17='Posted'),
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
@@ -121,6 +162,7 @@
  focus(020);
 
 @acc161=
+ break(obj:a17='Posted'),
  lcid=kpbrwid(1)*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
