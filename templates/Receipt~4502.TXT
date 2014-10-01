@@ -1,4 +1,4 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&''')))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1);
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
 \00020500;
@@ -45,7 +45,8 @@ key7=apiUpdate
 @menuprocess=
  insertSelections=;
 
-
+@calcmailLog=
+ recalc('TEM:ID=4514','id in (select mailLogId from paid where slink=''o'&obj:id&''')',,'044');
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
@@ -219,6 +220,7 @@ close('ok');
  prop(160,color,15570276),
  create(161,9,3,85,'&Delete'),
  prop(161,7c04h,56),
+ if(obj:a17<>'Posted',create(162,9,3,214,'&Get Pymts')),
  blankEm=,
  if(tier=4,intReceipt=),
  blankEmMort=,
@@ -912,6 +914,13 @@ gcPrintOneTaxReceiptId=0,
  if(lcTyp=6,removeInvoice=),
 ;
 
+@acc162=break(obj:a17='Posted'),
+ select(1,4514,'typ=4514 and a19>''0''','Select Envelope to Work...'),
+ sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&pic:id&' and isnull(slink,'''')<'' 0'''),
+ sql('exec dbo.receiptStageGL '&obj:id),
+ refreshDetail=
+;
+
 @deleteReceiptDetail=
  sql('exec dbo.receiptDetailRemove '&lcid&', '&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Detail...')),
@@ -943,6 +952,7 @@ gcPrintOneTaxReceiptId=0,
  if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
  checkCert=,
+ calcmailLog=,
  gccertId=0,
  lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
  if(lccheck+0 > 0,dodecal=),
