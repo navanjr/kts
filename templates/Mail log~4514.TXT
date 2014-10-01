@@ -1,0 +1,199 @@
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&'))'),1);
+@newselbrowse=gcscanid=obj:id;
+@nodel;
+@gobot=1;
+@wbgcolor=15573409;
+@dk1;
+@seriesfield=key3;
+@format=15L(2)~Img~#60#|M
+60L(2)~Log Number~#1#|M
+60L(2)~Date Recvd~@d2@#2#|M
+60L(2)~Log Type~#3#|M
+100L(2)~From~#5#|M
+60L(2)~Post Mark~@d2@#6#|M
+60L(2)~Status~#29#|M
+60L(2)~Complete~#31#|M
+60R(2)~Total~#54#|M
+100L(2)~Comment~#58#|M
+;
+
+@nox=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0'; 
+@noexit=
+ tsc,
+ cancelRoutine=;
+	
+@noc=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0';
+@nocancel=cancelRoutine=;
+
+@cancelRoutine=m('This Receipt Has not Been Posted, Do you want to:',,,'Abandon It|Save It|Cancel'),
+case(gcretval+0=1,abandonreceipt=,gcretval+0=2,saveReceipt=);
+
+@saveReceipt=
+set(040,'Saved'),close('ok');
+
+@abandonreceipt=sql('delete from object where id='&obj:id+0),
+set(040,'abandoned'),
+update,
+close('ok');
+
+\u002104;r
+
+@newMail=
+ insert(-02=4514,006='MAIL LOG',096='NEW'),
+ change(obj1:id);
+
+@newDropBox=
+ insert(-02=4514,006='DROP BOX LOG',096='NEW'),
+ change(obj1:id);
+
+@loadwindow=
+ brwstuff=,
+ gcscanid=obj:id;
+
+@closewindow=set(096,''),update,gcscanid=0;
+
+@brwstuff=
+ gcbrw1sql='select id,description,subdescription,amount from dbo.mailLogBRW('&obj:id&') order by ord',
+ brw(150,1,gcbrw1sql,65,95,270,200,'138L(2)~~#2#M80L(2)~~#3#M50R(2)~Amount~@n-14.2b@#4#M',7,1),
+ prop(150,7CFAH,13499135);
+
+@lbrw1forecolor=obj7:c10<0,255;
+
+@afterloadwindow=
+ if(obj:key1<' 0',nextNumber=),
+ refreshDetail=,
+ create(161,9,3,105,'&Delete'),prop(161,7c04h,56),
+ blankEm=;
+
+@nextNumber=
+ if(obj:key3<' 0',getSeries=),
+ d1select('exec dbo.nextObjectAutoNumber @typ=4514, @seriesString='''&obj:key3&''', @ignoreDeleted = ''FALSE'', @verbose=''TRUE'''),
+ set(2,obj7:d1),
+ update;
+
+@getSeries=m('What List Should I Put this on?','Which List?',,'MAIL LOG|DROP BOX LOG|CANCEL'),
+ gcSeries=' ',
+ if(gcretval+0=1,gcSeries='MAIL LOG'),
+ if(gcretval+0=2,gcSeries='DROP BOX LOG'),
+ if(gcSeries=' ',close('cancel')),
+ set(6,gcSeries),
+ update;
+\h161obj:a17='Posted';
+
+\t109Add Another;
+ @acc109=gcType=obj:key3,
+  close('ok'),
+  if(gcType='MAIL LOG',newMail=),
+  if(gcType='DROP BOX LOG',newDropBox=);
+
+\t001Log Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \00020500;
+\t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \d004;
+ \w00200455;r2 
+\t005Log Type; \w00680; \p0067cfah,13499135; \p0067c13h,700; \d006;
+\d008010obj:a17='Posted';r
+\t007Received From; 
+\t009PM Date; \t010@d2;
+\t041Received by;  \f042=cur:fullname; \d042;
+
+\h019028obj:a17='Posted';r
+\t019P&aycode; \l0204505; \w02050; @lmode020=2;
+\t021Amount Paid; \t022@n14.2; \w02250; \p0227c0ch,1; @acc022=lcField=22,applyPayment=; 
+\t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
+\t025Bank Drawn On; \w02675; \l0264509;r026002028004; @lf026=,2; @acc026=lcField=26,if(obj:a11>' 0',applyPayment=); @nopop026;
+\t027Location; \w02875; @acc028=lcField=28,applyPayment=; 
+ \y01969; \x01965; \y02081; \x02065;
+ \y02169; \x021120; \y02281; \x022120;
+ \y02369; \x023175; \y02481; \x024175;
+ \y02569; \x025230; \y02681; \x026230;
+ \y02769; \x027310; \y02881; \x028310;
+\t039Status; \d040; \s040-'select dbo.mailLogPosted('&obj:id+0&')';
+\t043Complete; \d044; \s044-'select dbo.mailLogComplete('&obj:id+0&')';
+
+
+@applyPayment=
+ break(obj:a17='Posted'),
+ update,
+ d1select('exec dbo.mailLogPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''','''&obj:a10&''','''&obj:a11&''',0,'''&obj:link4+0&''','&lcField+0),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Payment...')),
+ if(readstring(obj7:d1,'@code=')=2 and lcField<>22,applyPaymentA=),
+ if(readstring(obj7:d1,'@code=')=3 and lcField<>24,applyPaymentA2=),
+ break(readstring(obj7:d1,'@code=')<>0),
+ set(-06,0),
+ refreshDetail=,
+ blankEm=,
+ focus(020);
+
+@applyPaymentA=
+ if(readstring(obj7:d1,'@field=')='024',focus(024)), 
+ m(readstring(obj7:d1,'@message='),'AddingPayment Payment...');
+
+@applyPaymentA2=
+ if(readstring(obj7:d1,'@field=')='026',focus(026)), 
+ m(readstring(obj7:d1,'@message='),'AddingPayment Payment...');
+
+\t089Total; \t090@n14.2;  \s090-'select sum(amount) from dbo.paid where mailLogId='&obj:id;
+\p0907cfah,13499135; \p0907c13h,700; \p0907c0ch,1; \d090;
+ \y089=009; \y090=009; \x089250; \x090278;
+
+\t097Comments; \d098obj:a17='Posted'; \w098271;
+ \y097298; \x0973; \y098298; \x09864; \d097;
+
+@blankEm=
+ set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
+ set(020,''),set(022,''),set(024,''),set(026,''),set(028,'');
+
+@refreshDetail=
+ brwreload(1),
+ calcfld(090);
+
+@brw1=
+ break(obj:a17='Posted'),
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcTyp<>8),
+ set(-06,lcid,1),
+ gcblob=kp('select dbo.getPaidInfo('&lcid&')'),
+ set(020,readstring(gcblob,'@paycode=')),
+ set(022,readstring(gcblob,'@amount=')),
+ set(024,readstring(gcblob,'@checkNumber=')),
+ set(026,readstring(gcblob,'@drawnon=')),
+ set(028,readstring(gcblob,'@location=')),
+ focus(020);
+
+@acc161=
+ break(obj:a17='Posted'),
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ if(lcTyp=8,deletePayment=);
+
+@deletePayment=
+ m('Are you sure you wish to delete this Payment?','Receipt Payment...',,6,4),
+ break(gcretval<>2),
+ d1select('exec mailLogPaymentRemove '&lcid&', '&obj:id),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Receipt Payment...')),
+ refreshDetail=;
+
+@lbrwclick150=
+ lcid=kpbrwid(1)*-1,
+ lcTyp=left(lcid,1),
+ lcid=sub(lcid,2,25),
+ break(lcid+0<1),
+ if(lcTyp+0=8,imaging=);
+
+@imaging=
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ break(acImaging='FALSE'),
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+
+@scanpaid=gcscanid='p'&lcid,
+ do(1,scan=),
+ gcscanid=obj:id;
+
+@viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+ if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+ break(readstring(obj7:d1,'@code=')=1),
+ gcobjid=obj7:d1,
+ neww(3208),
+ gcscanid=obj:id;

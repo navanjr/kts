@@ -13,7 +13,7 @@
  d1select('select count(*) from object where typ = 9208 and key2 = '''&cur:ini&''''),
  gcimgcount=obj7:d1;
 
-@closewindow=sql('update object set typ=typ*-1 where typ=3208 and olink1='''&cur:ini&'''');
+@closewindow=sql('update object set typ=typ*-1 where typ=3208 and olink1='''&cur:ini&''''),calcrecord(gcscanid);
 
 
 @afterloadwindow=if(gcimgcount+0<1,close('cancel+')),if(gcimgcount+0>0,dobrw=),lcfirstpage=kp('select min(link3) from object where typ=9208 and key2='''&cur:ini&''''),
@@ -22,7 +22,7 @@ lclastpage=kp('select max(link3) from object where typ=9208 and key2='''&cur:ini
 set(004,lclastpage),
 displaytif(161,,'yyyyyyyyyy',gcobjid,lcfirstpage);
 
-@dobrw=brw(160,1,'select id,link2,link3,key1 from object where typ=9208 and key2='''&cur:ini&''''&gcfirstpage&gclastpage,3,30,70,470,'30R(2)~Page~#3#|M40L(2)~Selected~#4#|M');
+@dobrw=brw(160,1,'select id,link2,link3,key1 from object where typ=9208 and key2='''&cur:ini&''''&gcfirstpage&gclastpage&' order by link2,link3',3,30,70,470,'30R(2)~Page~#3#|M40L(2)~Selected~#4#|M');
 
 @brw1=lcilinkid=kpbrwid(),
  d1select('select link2 from object where typ=9208 and key2='''&cur:ini&''' and id='&lcilinkid),
@@ -65,3 +65,18 @@ exportimage(lcobjid,lcimagename,lclineno);
 
 \t115Page Down;
 @acc115=focus(160),press('~0040');\v11534;
+
+\t117Delete Selected; \h117cur:securitylevel<81;
+ @acc117=
+  d1select('Select count(link1) from object where typ=9208 and key2='''&cur:ini&''' and key1=''Y'''),
+  lcDelCount=obj7:d1,
+  if(lcDelCount+0<1,m('No Images Selected to Delete.')),
+  break(lcDelCount+0<1),
+  m('Are you sure that you want to delete the '&clip(lcDelCount)&' currently selected images?','Delete',,6),
+  break(gcretval<>2),
+  sql('delete from imglinks where ilinkid in (Select link1 from object where typ=9208 and key2='''&cur:ini&''' and key1=''Y'')'),  
+  d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
+  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
+  gcobjid=obj7:d1,
+  brwreload(1),
+  afterloadwindow=;

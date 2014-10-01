@@ -1,0 +1,44 @@
+create function dbo.mailLogCheck(@sourceId int, @paycode varchar(50) = null) returns
+@rettable table(
+ code int,
+ message varchar(500),
+ receiptType varchar(50),
+ suspenseAccountId int, 
+ objectTyp int
+)
+begin
+ 
+ declare
+  @cdate int,
+  @receiptType varchar(50),
+  @suspenseAccountId int,
+  @contraId int,
+  @arAccountCode varchar(50),
+  @arAccountId int,
+  @fpid int,
+  @status varchar(50),
+  @objectTyp int
+
+ select
+  @cdate = cast(key2 as int),
+  @receiptType = key3,
+  @objectTyp = typ
+ from object where id = @sourceId
+
+ -- optionally check for the suspense account id
+ if isnull(@paycode,'') > '  0'
+ begin
+  select @suspenseAccountId = link1 from object where typ = 4505 and key1 = @paycode
+  if not isnull(@suspenseAccountId,0) > 0
+  begin
+   insert @rettable 
+    select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@objectTyp
+   return 
+  end
+ end
+ 
+ insert @rettable
+  select 0,'OK',@receiptType,@suspenseAccountId,@objectTyp
+ return
+
+end
