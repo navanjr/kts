@@ -76,6 +76,18 @@ begin
    group by paymentType
  end
 
+--Add pending mail items
+  if exists(select * from object ml, paid p where p.maillogid = ml.id and ml.typ = 4514 and isnull(p.slink,'')<' 0')
+  begin
+   insert @rt (display,ord) select '', 'zza'
+   insert @rt (display,rowColor,ord,blob) select 'Pending Mail Log Items', 2, 'zzb', '@menu=5;'
+   insert @rt (receiptType,rowType,ord,amount,blob)
+   select ml.key3, 3, 'zzc', sum(p.amount),'@receiptType=maillog;@menu=5;'
+    from object ml, paid p 
+    where p.maillogid = ml.id and ml.typ = 4514 and isnull(p.slink,'')<' 0'
+    group by ml.key3
+  end
+
  update @rt set display = 
     dbo.padRight('  ' + receiptType,' ',10) 
   + dbo.padright(case when dbo.settingsf('site.dashBoardPostDate','FALSE') = 'TRUE' then  
@@ -84,11 +96,18 @@ begin
   + dbo.date1(postdate) else '' end end,' ',12) 
   + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',19) else '' end
  where rowType = 0
+
  update @rt set display = 
     dbo.padRight('  ' + receiptType,' ',22) 
   + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',19) else '' end
  where rowType = 2
  update @rt set rowColor = case when accountId > 0 then 0 else 1 end where rowType = 0
+
+ update @rt set display = 
+    dbo.padRight('  ' + receiptType,' ',22) 
+  + case when amount > 0 then dbo.padLeft('$ ' + convert(varchar,amount,1),' ',19) else '' end
+ where rowType = 3
+
 
  return
 end
