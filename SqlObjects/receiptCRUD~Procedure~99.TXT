@@ -317,7 +317,8 @@ begin
    end
 
 -- remove paid records
-   delete from paid where slink = 'o'+cast(@receiptId as varchar)
+   update paid set slink = null where slink = 'o'+cast(@receiptId as varchar) and isnull(mailLogId,0)>0
+   delete from paid where slink = 'o'+cast(@receiptId as varchar) and isnull(mailLogId,0)=0
 
 --remove receiptLinks and their GL
   while exists(select * from @slinks where dbo.slinkType(slink) = 'l' and processFlag = 0)
@@ -342,12 +343,14 @@ begin
     if @voidReceipt = 'FALSE'
     begin
      update object set typ = -4502 where typ = 4502 and id = dbo.slinkId(@tokenSlink)
-     delete paid where slink = @tokenSlink
+     delete paid where slink = @tokenSlink and isnull(mailLogId,0)=0
+     update paid set slink = null where slink = @tokenSlink and isnull(mailLogId,0)>0
     end
     else
     begin
      update object set a17 = 'VOID' where typ = 4502 and id = dbo.slinkId(@tokenSlink)
-     update paid set amount = 0 where slink = @tokenSlink
+     update paid set amount = 0 where slink = @tokenSlink and isnull(mailLogId,0)=0
+     update paid set slink = null where slink = @tokenSlink and isnull(mailLogId,0)>0
     end
     delete receiptDetail where slink = @tokenSlink
     delete glDetail where slink = @tokenSlink

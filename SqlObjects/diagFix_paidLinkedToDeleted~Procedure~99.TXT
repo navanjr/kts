@@ -57,7 +57,17 @@ begin
    left(p.slink,1) = 'o'
    and o.typ < 0
    and isnull(p.depositId,0) = 0
-   and isnull(p.officialDepositId,0) = 0)
+   and isnull(p.officialDepositId,0) = 0) and isnull(mailLogId,0) = 0
+
+  update paid set slink = null where id in 
+  (select p.id 
+  from paid p
+  left join Object o on cast(o.id as varchar) = dbo.slinkId(p.slink)
+  where
+   left(p.slink,1) = 'o'
+   and o.typ < 0
+   and isnull(p.depositId,0) = 0
+   and isnull(p.officialDepositId,0) = 0) and isnull(mailLogId,0) > 0
   
   exec dbo.logit @@procid, 'Just deleted paid records... @@rowCount', @@rowCount 
 
