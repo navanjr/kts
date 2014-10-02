@@ -1,0 +1,91 @@
+create function dbo.stateTaxImportBRW(@objectId int, @enddate varchar(20)) returns @rt table(
+  brwid int,
+  display varchar(max),
+  amount money,
+  blob varchar(max),
+  ord varchar(50)
+) 
+as 
+begin
+declare @slink varchar(20)='o'+cast(@objectId as varchar)
+
+declare @contraAccounts table(accountId int, accountcode varchar(60), accountdesc varchar(50), glBalance money, accrued money, diff money)
+
+if isnull(@enddate,'')<'00'
+begin
+select @enddate = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
+
+end
+
+
+insert @contraAccounts (accountid)
+ select distinct contraId from gldetailStage where slink=@slink
+       and accounttype = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<>0
+
+update c set accountcode = a.accountcode, 
+             accountdesc = a.accountdesc,
+             glBalance = b.amount,
+             accrued = acr.amount+s.amount,
+             diff = acr.amount-b.amount+s.amount
+   from @contraAccounts c, 
+        glaccounts a, 
+        (select accountCode,SUM(amount*-1) as amount from gldetail where [date]<=@enddate group by accountCode) b,
+        (select contraId,SUM(amount) as amount from gldetail 
+ where [date]<=@enddate 
+   and ISNULL(bsId,0)=0
+   and ISNULL(contraId,0)>0
+   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
+ group by contraId) acr,
+        (select contraId,SUM(amount) as amount from gldetailstage 
+ where ISNULL(contraId,0)>0
+   and accountCode in (select accountCode from glAccounts where accountType='ACCRUED RECEIVABLE')
+   and slink = @slink
+ group by contraId) s
+
+   where c.accountId=a.accountId
+     and a.accountcode=b.accountcode
+     and acr.contraId = c.accountId
+     and s.contraId = c.accountId
+
+---GL Balances
+if exists(select * from @contraAccounts where diff <> 0.00)
+begin
+ insert @rt (display, ord) select '', 'a_'
+ insert @rt (display, ord) select 'Accounts Out of Balance', 'a_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-4'+cast(accountid as varchar) as int),
+    ' '+accountDesc+': ',diff,
+    'a_'+accountDesc 
+    from @contraAccounts where diff <> 0.00
+end
+
+---Staged Receipt Detail
+ insert @rt (display, ord) select '', 'b_'
+ insert @rt (display, ord) select 'Penalties and Costs', 'b_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-5'+cast(id as varchar) as int),
+    ' '+description+': ',amount,
+    'b_'+description 
+    from receiptDetail where slink=@slink
+
+
+if not exists(select * from object where typ=4512 and key2=@enddate and a18='State Tax' and key3='Monthly Taxes')
+begin
+---Staged GL Detail Imported
+   insert @rt (display, ord) select '', 'd_'
+   insert @rt (brwid,display, ord) select 0,'Staged GL Detail Imported', 'd_0'
+ insert @rt (brwid, display, amount, ord)
+   select cast('-7'+cast(id as varchar) as int),' '+comment+': ',amount,'d_'+accountdesc 
+     from gldetailStage where slink=@slink
+       and accounttype = 'ACCRUED RECEIVABLE' and amount > 0 and isnull(contraId,0)<>0
+       and isnull(comment2,'')=''
+end
+else
+begin
+   insert @rt (display, ord) select '', 'd_'
+   insert @rt (brwid,display, ord) select 0,'Taxes Imported for '+dbo.date1(@enddate), 'd_0'
+end
+
+
+ return
+end

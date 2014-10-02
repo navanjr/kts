@@ -32,6 +32,9 @@ begin
  return
 end
 
+declare @contraAccounts table(accountId int, accountcode varchar(60), accountdesc varchar(50), yearcode varchar(20), glBalance money, accrued money, diff money)
+
+
 declare @ct table(id int identity(1,1),
                   comment varchar(100),
                   sourceCode varchar(60),
@@ -43,6 +46,7 @@ declare @ct table(id int identity(1,1),
                   amount money)
 
 declare @pt table(id int identity(1,1),
+                  yearcode varchar(50),
                   comment varchar(100),
                   sourceCode varchar(60),
                   sourceDesc varchar(50),
@@ -66,9 +70,34 @@ select max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount)
  update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
  update c set fundCode = case when aptabletype > ' 0' and aptabletype not in ('T','L') then 'TABLE' else targetAccountCode end from @ct c, glAccounts a where ACRCode=accountcode
  update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
- 
+
+
+insert @contraAccounts (accountid)
+ select distinct contraId from gldetailStage where slink=@slink
+       and accounttype = 'ACCRUED RECEIVABLE' and isnull(contraId,0)<>0
+
+update c set accountcode = a.accountcode, 
+             accountdesc = a.accountdesc,
+             glBalance = b.amount,
+             accrued = acr.amount,
+             diff = acr.amount-b.amount
+   from @contraAccounts c, 
+        glaccounts a, 
+        (select accountCode,SUM(amount*-1) as amount from gldetail where [date]<=@date group by accountCode) b,
+        (select contraId,sum(amount) as amount from @ct where fundcode > ' 0' group by contraId) acr
+   where c.accountId=a.accountId
+     and a.accountcode=b.accountcode
+     and acr.contraId = c.accountId
+
+update ca set yearcode = ty.yearcode from @contraaccounts ca, (select yearcode,year from dbo.taxyears(@date)) ty
+ where left(ca.accountcode,4)=ty.year
+
+delete from @contraaccounts where diff=0
+
 insert @pt
-select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),'')+' Tax','','','','',
+select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((
+select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),''),
+ isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),'')+' Tax','','','','',
  'State Tax '
  +cast(YEAR(dbo.date1(@date)) as varchar)
  +cast(MONTH(dbo.date1(@date)) as varchar)
@@ -78,6 +107,8 @@ select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((selec
  contraId,SUM(amount),ISNULL((select sum(amount) from gldetail where [date]<=@date and accountcode=(select accountcode from glaccounts where accountid=w.contraId)),0)
  from @wt w
  group by contraId
+ 
+update p set contraId = ca.accountid from @pt p, @contraaccounts ca where p.yearcode=ca.yearcode
 
 declare @accountStage table(id int identity(1,1),
                             accountcode varchar(60),

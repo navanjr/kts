@@ -6,8 +6,10 @@ begin
 
  declare @useFiscalCalendar varchar(5),
          @current varchar(4),
-         @prior varchar(5)
+         @prior varchar(5),
+         @noPrior varchar(5)
 
+ select @noPrior = dbo.settingsF('site.taxYearsExcludePrior', 'FALSE')
  
  select @useFiscalCalendar = settingvalue from settings where settingname='site.useFiscalCalendarforCurrentTax'
 
@@ -23,13 +25,17 @@ begin
     order by left(accountcode,4) desc
   end
 
+  if @noPrior != 'TRUE'
   select @prior = cast(cast(@current as int)-1 as varchar(4))
 
 
   insert @years
    select 'Current',@current
-  insert @years
-   select top 1 'Prior',@prior
+
+  if @noPrior != 'TRUE'
+   insert @years
+    select top 1 'Prior',@prior
+
   insert @years
    select distinct 'Back',left(accountcode,4) from glaccounts 
     where isnumeric(left(accountcode,4))=1 
@@ -45,12 +51,15 @@ begin
     where isnumeric(left(accountcode,4))=1 
       and accountcode like '%ADVALOREM%'
     order by left(accountcode,4) desc
-  insert @years
-  select top 1 'Prior',left(accountcode,4) from glaccounts 
-    where isnumeric(left(accountcode,4))=1 
-      and accountcode like '%ADVALOREM%'
-      and left(accountcode,4) not in (select [year] from @years) 
-    order by left(accountcode,4) desc
+
+  if @noPrior != 'TRUE'
+   insert @years
+   select top 1 'Prior',left(accountcode,4) from glaccounts 
+     where isnumeric(left(accountcode,4))=1 
+       and accountcode like '%ADVALOREM%'
+       and left(accountcode,4) not in (select [year] from @years) 
+     order by left(accountcode,4) desc
+
   insert @years
   select distinct 'Back',left(accountcode,4) from glaccounts 
     where isnumeric(left(accountcode,4))=1 
