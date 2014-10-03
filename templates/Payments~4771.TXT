@@ -2,7 +2,7 @@
 @noins;
 @gfbnr=1;
 @dk1;
-@format=15R(1)~Img~#60#|M60L(2)~Payment Type~#30#|M50L(2)~Reg Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
+@format=15R(1)~Img~#60#|M60L(2)~Payment Type~#30#|M50L(2)~Reg Number~#1#|M50R(2)~Date~@d2@#2#|M50R(2)~Number~#3#|M50R(2)~Date~@d2@#5#|M150L(2)~Payee~#8#|M50R(2)~Amount~@n-14.2@#7#|M50C~Status~#29#|M80L~Payor~#19#|M50L(2)~Warrant~#38#|MM100L(2)~Fund~#35#|M50L(2)~Cancelled~#4#|M100L(2)~ImportStamp~#28#|M;
 \00020500;
 @filtername=All,Vouchers,Outstanding Vouchers,Warrants,Outstanding Warrants,Treasurers Checks,Posted,Un-Posted,Cancelled Vouchers,Miscellaneous,Transfer Checks;
 @filter='typ=4771 '&choose(len(filterfield1)>0,'and id in (select id from dbo.paymentSearch('''&filterfield1&'''))','')&' ',
@@ -138,6 +138,8 @@ bbproc4=
  if(lower(obj:a18)='treasurers check',doFund=),
  tsc;
 
+@recalc=if(lower(left(obj:a18,7))='warrant' or lower(obj:a18)='treasurers check' and kp('select dbo.settingsF(''site.warrantsHitLedgerWhenRegistered'',''FALSE'')')<>'TRUE',doFund=);
+
 @doFund=d1select('select dbo.settingsF(''site.warrantsHitLedgerWhenRegistered'',''FALSE'')'),
  break(obj7:d1='TRUE'),
  d1select('select f.accountdesc from glaccounts f, glaccounts w where f.accountcode = w.targetaccountcode and w.accountcode='''&obj:a4&''''),
@@ -261,11 +263,22 @@ bbproc4=
 \t049Cancelled?; \h049050right(obj:a18,7)<>'Voucher';r \w05055; \y049050=043;r
  \s050-'select key1 from object where typ=4771 and key3='''&obj:key3&''' and a2='''&obj:a2&''' and a4='''&obj:a4&''' and a18 in (''Cancel Voucher'',''Void Voucher'') and '''&obj:a18&''' not in (''Cancel Voucher'',''Void Voucher'')';
 
+\t057Warrant; \h057058obj:a18<>'Treasurers Check';r \w05855; \y057058=006;r
+ \s058-'select key1 from object where typ=4771 and link1='''&obj:id&''' and a18 = ''Warrant''';
 
 \t101Comment;
 
 \t108Post and &Print; 
 @acc108=postandprint=;
+
+\t109View &Linked;
+ @acc109=
+ if(obj:a18='Official Voucher' or obj:a18='Trust Voucher' or obj:a18='Warrant' or obj:a18='Miscellaneous',lcChange=obj:link1,getLink=),
+ if(lcChange+0>0,change(lcChange),doLink=),
+ lcChange=0;
+@getLink=
+ d1select('select top 1 id from object where typ=4771 and link1='&obj:id),
+ lcChange=obj7:d1;
 
 \t110&G/L Detail;
 @acc110=
