@@ -2,10 +2,14 @@ create procedure dbo.receiptAdjustMEApportion(@receiptId int,
         @detailid int,
         @newDesc varchar(120),
         @newSourceCode varchar(50),
-        @newFundCode varchar(50))
+        @newFundCode varchar(50),
+        @newJEDate int = null)
 as
 begin        
  
+ if isnull(@newJEDate,0)=0
+  select @newJEDate = dbo.clariondate(getdate())
+
  declare @originalFundCode varchar(60),
          @originalACRCode varchar(60),
          @originalSourceCode varchar(60),
@@ -78,7 +82,8 @@ select top 1 @contraId = contraId
                  @jeType = @jeType,
                  @resultCode = @resultCode output,
                  @resultMessage = @resultMessage output,
-                 @newId = @newId output
+                 @newId = @newId output,
+                 @postdate = @newJEDate
 
                  select @newSlink = 'o' + cast(@newId as varchar)
 
