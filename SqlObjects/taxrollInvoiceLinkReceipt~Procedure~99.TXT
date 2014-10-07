@@ -1,6 +1,7 @@
 create procedure dbo.taxrollInvoiceLinkReceipt(
  @taxInquiryId int,
- @receiptId int
+ @receiptId int,
+ @forceInterestDate int = null
 )
 as 
 begin
@@ -20,7 +21,7 @@ exec dbo.logit @@procid, '@taxInquiryId', @taxInquiryId, '@receiptId', @receiptI
 
  update receiptlink set receiptId = @receiptId where receiptId = @taxInquiryId  
 
- exec dbo.taxrollPenaltyBatch @receiptId
+ exec dbo.taxrollPenaltyBatch @receiptId, @forceInterestDate = @forceInterestDate
 
  insert receiptLink (receiptId,invoiceId,methodRate)
   select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId)
