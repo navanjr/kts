@@ -1,7 +1,7 @@
 create function dbo.redemptionDetailCheck(@sourceId int,
  @interestDate int,
- @interestPercent numeric(7,2)) returns
-@rettable table(message varchar(500),
+ @interestPercent numeric(7,2)) 
+returns @rettable table(message varchar(500),
  status varchar(50),
  taxAmount money,
  taxdescription varchar(50),
@@ -27,7 +27,10 @@ begin
   @certid int,
   @certFees money,
   @firstDate int,
-  @sourceType int
+  @sourceType int,
+  @feeMethod varchar(20)
+
+ select @feeMethod = dbo.settingsF('site.IndividualRedemptionFeeMethod', 'Only')
 
  select @sourceType = typ from object where id = @sourceId
 
@@ -56,7 +59,7 @@ begin
  if @sourceType = 4100
   set @certId = @sourceId
 
- select @certFees = cast(isnull(a12,0) as money)+cast(isnull(a14,0) as money)+cast(isnull(a16,0) as money) from object where id=@certid
+ select @certFees = cast(isnull(a12,0.00) as money)+cast(isnull(a14,0.00) as money)+cast(isnull(a16,0.00) as money) from object where id=@certid
 
  select top 1 @firstDate = cast(a8 as int) from object where typ=4101 and link1=@certid order by a8
 
@@ -64,8 +67,10 @@ begin
   (select sum(cast(a9 as money)) from object where typ=4101 and link1=@certid)+
   (select sum(dbo.interestCalc(@interestPercent, cast(a8 as int), @interestDate, cast(a9 as money))) from object where typ=4101 and link1=@certid)
   ),0.00) + 
-   isnull((select dbo.interestCalc(@interestPercent, @firstDate, @interestDate, @certFees) from object where typ=4100 and id=@certid)
+  case when @feeMethod in ('First','Only') then
+   isnull((select dbo.interestCalc(@interestPercent, @firstDate, @interestDate, @certFees) from object where typ=4100 and id=@certid) 
   ,0.00)
+ else 0 end + case when @feeMethod in ('First','No') then @certFees else 0.00 end
 
  -- check for status of Posted
  if @status = 'Posted'
