@@ -1360,7 +1360,7 @@ class ktsMenu():
             columnNames = columnNames + ['ORGSCHOOLDISTRICTTAXRATE','SCHOOLDISTRICTTAXRATE','FIREDISTRICT','MORTGAGECODE','OWNERNUMBER','ACRES','LOTS','MFGHOMEASSESSED','GROSSASSESSED','FREEPORTEXEMPTION']
             columnNames = columnNames + ['BASEEXEMPTION','DBLEXEMPTION','EXEMPTION1','EXEMPTION2','EXEMPTION3','NETASSESSEDVALUE','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE','CERTIFICATENUMBER']
             columnNames = columnNames + ['PAIDOFFDATE','PROPERTYLIENCODE1','PROPERTYLIENAMOUNT1','PROPERTYLIENCODE2','PROPERTYLIENAMOUNT2','LASTTRANDATE','TAXCORRECTIONDATE','TAXCORRECTIONINITIALS','FLAG1']
-            columnNames = columnNames + ['FLAG2','FLAG3','LEGALDESCRIPTION','PHYSICALSTREETNUMBER','PHYSICALSTREET','PHYSICALTOWN','PHYSICALSTREETDIRECTION']
+            columnNames = columnNames + ['FLAG2','FLAG3','LEGALDESCRIPTION']
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(package['rows']):
@@ -1668,6 +1668,7 @@ class ktsMenu():
             'PHYSICALSTREETNUMBER': [['PHYSICALSTREETNUMBER'], 'string'],
             'PHYSICALSTREET': [[ 'PHYSICALSTREET'], 'string'],
             'PHYSICALTOWN': [[ 'PHYSICALTOWN'], 'string'],
+            'PHYSICALSTREETDIRECTION': [[ 'PHYSICALSTREETDIRECTION'], 'string'],
         }
         aaMasterFields = []
         for key, fieldArray in fields.items():
