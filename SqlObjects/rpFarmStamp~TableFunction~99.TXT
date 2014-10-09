@@ -1,0 +1,113 @@
+create function rpFarmStamp(@begindate varchar(20), @enddate varchar(20))
+ returns @rt table(id int identity(1,1),
+                  ord varchar(100),
+                  [description] varchar(200),
+                  num6 int,
+                  num18 int,
+                  num24 int,
+                  num108 int,
+                  amount money)
+as 
+begin
+
+declare @wt table(ord varchar(100),
+                  [description] varchar(200),
+                  num6 int,
+                  num18 int,
+                  num24 int,
+                  num108 int)
+
+declare @wt2 table(ord varchar(100),
+                  [description] varchar(200))
+
+ insert @wt (ord, [description], num6, num18, num24, num108)  
+  select 'A1','Beginning Inventory',
+  case when cast(key1 as money)=6.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=18.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=24.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=108.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end   
+    from object 
+   where typ=4303
+    and key2 < @begindate
+    and (key3='R' or (key3 = 'S' and link1 in (select id from object where typ=4502 and a17='Posted')))
+ group by key1
+ 
+ insert @wt (ord, [description], num6, num18, num24, num108)  
+  select 'A2','Additional Stamps Received',
+  case when cast(key1 as money)=6.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=18.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=24.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=108.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end   
+   from object 
+   where typ=4303 
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'R'
+    and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end > 0
+ group by key1
+
+ insert @wt (ord, [description], num6, num18, num24, num108)  
+  select 'A3','Stamps Sold to Taxpayers',
+  case when cast(key1 as money)=6.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=18.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=24.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=108.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00) else 0.00 end   
+   from object 
+   where typ=4303
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'S'
+    and link1 in (select id from object where typ=4502 and a17='Posted')  
+ group by key1
+
+ insert @wt (ord, [description], num6, num18, num24, num108)  
+  select 'A4','Deffective/Spoiled/Stamps Returned to OTC',
+  case when cast(key1 as money)=6.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=18.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=24.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=108.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end   
+   from object 
+   where typ=4303
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'R'
+    and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end < 0
+ group by key1
+
+ insert @wt (ord, [description], num6, num18, num24, num108)  
+  select 'A5','Ending Inventory',
+  case when cast(key1 as money)=6.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=18.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=24.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end,   
+  case when cast(key1 as money)=108.00 then isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00) else 0.00 end   
+   from object 
+   where typ=4303
+    and key2 <= @enddate
+    and (key3='R' or (key3 = 'S' and link1 in (select id from object where typ=4502 and a17='Posted')))
+ group by key1
+
+insert @rt (ord, [description], num6, num18, num24, num108)
+ select ord, [description], sum(num6), sum(num18), sum(num24), sum(num108)
+   from @wt
+  group by ord, [description]
+
+ update @rt set amount = num6*6 + num18*18 + num24*24 + num108*108 where id > 0
+
+
+ insert @wt2 (ord, [description])
+  select 'A1','Beginning Inventory'
+   union
+  select 'A2','Additional Stamps Received'
+   union
+  select 'A3','Stamps Sold to Taxpayers'
+   union
+  select 'A4','Deffective/Spoiled/Stamps Returned to OTC'
+   union
+  select 'A5','Ending Inventory'
+
+ insert @rt (ord, [description])
+  select * from @wt2 where ord not in (select ord from @rt)
+
+
+ return
+end
