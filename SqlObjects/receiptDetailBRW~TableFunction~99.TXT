@@ -14,8 +14,8 @@ create function dbo.receiptDetailBRW(@receiptId int, @showGL int, @showFunds int
  trustAccount varchar(50),
  trustAccountDesc varchar(50), 
  sCode varchar(60),
- fCode varchar(60)  
-)
+ fCode varchar(60),
+ blob varchar(max))
 begin
 
  declare @styp char(1) = 'o'
@@ -55,6 +55,74 @@ begin
 
   update @rettable 
       set subDescription = subDescription2 where ord<>'aa1'
+
+
+
+-- Insert Message for MV Stamps Needed
+ declare @mvStampRdTotal money,
+         @mvStampTotal money,
+         @mvStampDiff money
+
+ select @mvStampRdTotal = isnull(sum(amount),0.00) 
+  from receiptdetail 
+  where slink = @slink 
+   and fundcode in (select accountcode from glaccounts where accounttype='PURPOSE' and code = 'MOTORSTAMP')
+
+ select @mvStampTotal = isnull(sum(cast(a2 as money)),0.00) from object where typ=4302 and link1 = @receiptId
+
+ select @mvStampDiff = isnull(@mvStampRdTotal,0.00) - isnull(@mvStampTotal,0.00)
+
+ if @mvStampDiff > 0.00 
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'az',0,'','',0,4
+  insert @rettable (ord, id, description, subdescription, blob, colorFlag)
+   select 'aza',-89999999,'MV Stamp Detail Needed...',dbo.formatCurr(@mvStampDiff),'@new=4302;@number='+cast(cast(@mvStampDiff/3.5 as int) as varchar)+';@amount='+cast(@mvStampDiff as varchar)+';', 1
+ end
+
+-- Insert MV Stamps
+ if exists(select * from object where typ=4302 and link1 = @receiptId)
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'azb',0,'','',0,4
+  insert @rettable (ord, id, description, amount)
+   select 'azc', id, rtrim(cast(cast(a1 as int) as varchar))+' MV Stamps @ '+dbo.formatCurr(cast(key1 as money)), cast(a2 as money)
+    from object where typ=4302 and link1 = @receiptId
+ end
+
+
+-- Insert Message for Farm Stamps Needed
+ declare @farmStampRdTotal money,
+         @farmStampTotal money,
+         @farmStampDiff money
+
+ select @farmStampRdTotal = isnull(sum(amount),0.00) 
+  from receiptdetail 
+  where slink = @slink 
+   and fundcode in (select accountcode from glaccounts where accounttype='PURPOSE' and code = 'FARMSTAMP')
+
+ select @farmStampTotal = isnull(sum(cast(a2 as money)),0.00) from object where typ=4303 and link1 = @receiptId
+
+ select @farmStampDiff = isnull(@farmStampRdTotal,0.00) - isnull(@farmStampTotal,0.00)
+
+ if @farmStampDiff > 0.00 
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'az',0,'','',0,4
+  insert @rettable (ord, id, description, subdescription, blob, colorFlag)
+   select 'aza',-89999999,'Farm Stamp Detail Needed...',dbo.formatCurr(@farmStampDiff),'@new=4303;', 1
+ end
+
+-- Insert Farm Stamps
+ if exists(select * from object where typ=4303 and link1 = @receiptId)
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'azb',0,'','',0,4
+  insert @rettable (ord, id, description, amount)
+   select 'azc', id, rtrim(cast(cast(a1 as int) as varchar))+' Farm Stamps @ '+dbo.formatCurr(cast(key1 as money)), cast(a2 as money)
+    from object where typ=4303 and link1 = @receiptId
+ end
+
 
 
  if exists(select * from dbo.journalLink where receiptId = @receiptId)
