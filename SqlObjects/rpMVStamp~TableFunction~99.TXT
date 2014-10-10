@@ -1,0 +1,59 @@
+create function rpMVStamp(@begindate varchar(20), @enddate varchar(20))
+ returns @rt table(id int identity(1,1),
+                  ord varchar(100),
+                  [description] varchar(200),
+                  num int,
+                  amount money)
+as 
+begin
+ insert @rt (ord, [description], num, amount)  
+  select 'A1','Beginning Inventory',isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S'   then -1 else 1 end),0.00), isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end * case   when key3='S' then -1 else 1 end),0.00)
+    from object 
+   where typ=4302 
+    and key2 < @begindate
+    and (key3='R' or (key3 = 'S' and link1 in (select id from object where typ=4502 and a17='Posted')))
+ 
+ insert @rt (ord, [description], num, amount)  
+  select 'A2','Additional Stamps Received',
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00),   
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end),0.00)
+   from object 
+   where typ=4302 
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'R'
+    and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end > 0
+
+ insert @rt (ord, [description], num, amount)  
+  select 'A3','Stamps Sold to Taxpayers',
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00), 
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end),0.00)
+   from object 
+   where typ=4302 
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'S'
+    and link1 in (select id from object where typ=4502 and a17='Posted')  
+
+ insert @rt (ord, [description], num, amount)  
+  select 'A4','Deffective/Spoiled/Stamps Returned to OTC',
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00), 
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end),0.00)
+   from object 
+   where typ=4302 
+    and key2 >= @begindate
+    and key2 <= @enddate
+    and key3 = 'R'
+    and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end < 0
+
+ insert @rt (ord, [description], num, amount)  
+  select 'A5','Ending Inventory',
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end * case when key3='S' then -1 else 1 end),0.00),
+    isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end * case when key3='S' then -1 else 1 end),0.00)
+   from object 
+   where typ=4302 
+    and key2 <= @enddate
+    and (key3='R' or (key3 = 'S' and link1 in (select id from object where typ=4502 and a17='Posted')))
+
+ return
+end

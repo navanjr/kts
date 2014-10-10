@@ -1,4 +1,4 @@
-CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int, @forceInvoiceId int = null, @forceAmount money = null)
+CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int, @forceInvoiceId int = null, @forceAmount money = null, @forceInterestDate int = null)
 as
 begin
  declare 
@@ -24,7 +24,14 @@ begin
   end
  else
   begin
-   select @penaltyDate = dbo.clariondate(getdate())
+   if isnull(@forceInterestDate,0)>0
+   begin
+    select @penaltyDate = @forceInterestDate
+   end
+   else
+   begin
+    select @penaltyDate = dbo.clariondate(getdate())
+   end
   end
 
  select top 1 @invoiceDate = dbo.clariondate(getdate()),

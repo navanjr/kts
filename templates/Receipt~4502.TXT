@@ -1,6 +1,8 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&''')))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1);
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
+@gfwindow=do(450,notify=);
+
 \00020500;
 @dup;
 @gobot=1;
@@ -45,7 +47,8 @@ key7=apiUpdate
 @menuprocess=
  insertSelections=;
 
-
+@calcmailLog=
+ recalc('TEM:ID=4514','id in (select mailLogId from paid where slink=''o'&obj:id&''')',,'044');
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
@@ -219,6 +222,7 @@ close('ok');
  prop(160,color,15570276),
  create(161,9,3,85,'&Delete'),
  prop(161,7c04h,56),
+ if(obj:a17<>'Posted',create(162,9,3,214,'&Get Pymts')),
  blankEm=,
  if(tier=4,intReceipt=),
  blankEmMort=,
@@ -228,7 +232,15 @@ close('ok');
  lcPostDate=kp('select dbo.depositDate('''&gcRecType&''')'),
  if(obj:a17<>'Posted' and obj:a17<>'VOID' and obj:key2<>lcPostDate,set(4,lcPostDate)),
  if(obj:key3='INDIV',prop(117,'text','Print Quote')),
+ if(gcMailLogId+0>0,attachMailPayments=),
  update;
+
+@attachMailPayments=break(obj:a17='Posted'),
+ break(gcMailLogId+0<1),
+ sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&gcMailLogId&' and isnull(slink,'''')<'' 0'''),
+ sql('exec dbo.receiptStageGL '&obj:id),
+ refreshDetail=
+;
 
 
 @acc012=thetabord=;
@@ -267,7 +279,7 @@ close('ok');
  do(450,'check='),
  break(gccontinue='TRUE'),
  set(008,gcOPerson),
- gcOPerson='';
+ update;
 
 
 \t009detailId;\d009010;r \h009010;r
@@ -311,7 +323,7 @@ close('ok');
     set(032,lcnewdate);
 \t033Term; \t034@n10.1; @acc034=lcBranch=3,mortCalc=;
 \t035Amount;@acc036=lcBranch=3,mortCalc=;
-\t037Rate; @acc038=lcBranch=4,mortCalc=;
+\t037Rate; @acc038=break(obj:a16+0=0),lcBranch=4,mortCalc=;
 \t047Tax Amount; \t048@n-19.2; @sel048=focus(048); @acc048=mortManualCalc=;
 \t069Fee Amount; \t070@n-19.2; @sel070=focus(070); @acc070=mortManualCalc=;
 \h029038obj:key3<>'MTG';r 
@@ -578,7 +590,7 @@ close('ok');
  break(obj:key3='INDIV'),
  gcAmount=0,
  gcApportionCode='MISCREPORT',
- gcApportionToDate=obj:key2,
+ gcApportionToDate=today(),
  trreport('ReceiptBreakdown=',5038,'printReceiptBreakdown='),
  gcAccountId=0,
  gcApportionCode='',
@@ -665,14 +677,14 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  break(obj:key3<>'MTG'),
  brwreload(2);
 
-@lbrwclick150= if(obj:a17='Posted',doposted=),
+@lbrwclick150=if(obj:a17='Posted',doposted=),
  lcrdId=kpbrwid(1)*-1,
  lcTyp=left(lcrdId,1),
  lcrdId=sub(lcrdId,2,25),
  break(lcrdId+0<1),
  if(lcTyp+0=3 and obj:a17='Posted' and cur:securitylevel>75,donewtaxreceiptno=),
- if(lcTyp+0=8,menu8=),
  break(obj:a17='Posted'),
+ if(lcTyp+0=8,menu8=),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
  lcid=kp('select substring(slink,2,25) from receiptdetail where id='&lcrdId+0),
@@ -682,7 +694,15 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
 ;
 @menu8=
  lcid=lcrdId,
- imaging=;
+ lcrdBRWId=kpbrwid(1),
+ if(lcrdBRWId+0 <-1,lcblob=kp('select blob from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') where id = '&lcrdBRWId),lcblob=''),
+ if(lcblob>' 0',,imaging=),
+ if(readstring(lcblob,'@new=')>0,donew=),
+ refreshDetail=;
+
+@donew=
+ if(readstring(lcblob,'@new=')=4302,neww(readstring(lcblob,'@new='),,-03=obj:id,006='S',008=readstring(lcblob,'@number='),010=readstring(lcblob,'@amount='))),
+ if(readstring(lcblob,'@new=')=4303,neww(readstring(lcblob,'@new='),,-03=obj:id,006='S'));
 
 @taxitemchoose=m('','Add a new?',,'NEW PENALTY|NEW FEE|APPLY AMOUNT|CANCEL'),
 if(gcretval+0=1,donewpenalty=),
@@ -741,7 +761,9 @@ acc551=
 @brw1=
  if(obj:a17='Posted',doposted=),
  break(obj:a17='Posted'),
- lcid=kpbrwid(1)*-1,
+ lccheckid=kpbrwid(1), 
+ if(lccheckid+0>0,change(lccheckid)),
+ lcid=lccheckid*-1,
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  if(lcTyp+0=5,doFixReceiptDetail=),
@@ -773,7 +795,8 @@ acc551=
  if(lcTyp+0=4,change(lcid)),
  if(lcTyp+0=9,doPostedMenu9=),
  break(lcTyp<>8),
- imaging=;
+ lcrdId=lcId,
+ menu8=;
 
 @imaging=
  if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
@@ -887,7 +910,7 @@ gcPrintOneTaxReceiptId=0,
   m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
   break(gcretval<>2),
  gclocation='Receipt_Adjust_'&lcinvoicetype,
- gcslink='t'&lcid,
+ gcslink='o'&obj:id,
  gcdecisionId=0,
  gcmethod='CHECK',
  do(450,'check='),
@@ -913,6 +936,13 @@ gcPrintOneTaxReceiptId=0,
  if(lcTyp=9,deleteReceiptDetail=),
  if(lcTyp=8,deletePayment=),
  if(lcTyp=6,removeInvoice=),
+;
+
+@acc162=break(obj:a17='Posted'),
+ select(1,4514,'typ=4514 and a19>''0''','Select Envelope to Work...'),
+ sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&pic:id&' and isnull(slink,'''')<'' 0'''),
+ sql('exec dbo.receiptStageGL '&obj:id),
+ refreshDetail=
 ;
 
 @deleteReceiptDetail=
@@ -946,6 +976,7 @@ gcPrintOneTaxReceiptId=0,
  if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
  checkCert=,
+ calcmailLog=,
  gccertId=0,
  lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
  if(lccheck+0 > 0,dodecal=),
@@ -1024,7 +1055,8 @@ o066004; o006066; o098008; o012098; o068064;
  break(gcretval<>2),
  d1select('exec dbo.receiptCRUD 3,'&obj:id&',@deletePosted=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'receiptCRUD...'));
-@bb3=Copy Receipt; 
+
+@bb3=Copy MISC Rcpt; 
  @bbproc3=
   d1select('exec dbo.cloneReceipt '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Copy Receipt...'),change(obj7:d1));

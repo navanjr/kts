@@ -12,10 +12,13 @@
 100L(2)~From~#5#|M
 60L(2)~Post Mark~@d2@#6#|M
 60L(2)~Status~#29#|M
-60L(2)~Complete~#31#|M
+60L(2)~Waiting~#31#|M
 60R(2)~Total~#54#|M
 100L(2)~Comment~#58#|M
+100L(2)~Reviewed By~#32#|M
 ;
+@filtername=All,Pending;
+@filter='typ=4514','typ=4514 and a19>''0''';
 
 @nox=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0'; 
 @noexit=
@@ -46,11 +49,19 @@ close('ok');
  insert(-02=4514,006='DROP BOX LOG',096='NEW'),
  change(obj1:id);
 
+@newInternet=
+ insert(-02=4514,006='INTERNET PAYMENT',096='NEW'),
+ change(obj1:id);
+
 @loadwindow=
  brwstuff=,
- gcscanid=obj:id;
+ gcscanid=obj:id,
+ gcMailLogId=obj:id;
 
-@closewindow=set(096,''),update,gcscanid=0;
+@closewindow=set(096,''),
+  update,
+  gcscanid=0,
+  gcMailLogId=0;
 
 @brwstuff=
  gcbrw1sql='select id,description,subdescription,amount from dbo.mailLogBRW('&obj:id&') order by ord',
@@ -86,13 +97,22 @@ close('ok');
   if(gcType='MAIL LOG',newMail=),
   if(gcType='DROP BOX LOG',newDropBox=);
 
+\h111obj:a19+0<1;
+\t111Create Receipt;
+ @acc111=gcMailLogId=obj:id,
+ do(4502,customMethod=);
+
+\t113Review;
+ @acc113=set(046,cur:fullname);
+
 \t001Log Number; \p0027cfah,13499135; \p0027c13h,700; \p0027c0ch,1; \d002; \00020500;
 \t003Received Date; \t004@d2; \f004=c; \p0047cfah,13499135; \p0047c13h,700; \p0047c0ch,1; \d004;
  \w00200455;r2 
 \t005Log Type; \w00680; \p0067cfah,13499135; \p0067c13h,700; \d006;
 \d008010obj:a17='Posted';r
 \t007Received From; 
-\t009PM Date; \t010@d2;
+\t009PM/Effective Dt; \t010@d2;
+ @acc010=update;
 \t041Received by;  \f042=cur:fullname; \d042;
 
 \h019028obj:a17='Posted';r
@@ -101,13 +121,15 @@ close('ok');
 \t023Check #; \w02450; @acc024=lcField=24,applyPayment=;
 \t025Bank Drawn On; \w02675; \l0264509;r026002028004; @lf026=,2; @acc026=lcField=26,if(obj:a11>' 0',applyPayment=); @nopop026;
 \t027Location; \w02875; @acc028=lcField=28,applyPayment=; 
+ @sel028=if(obj:a7<' 0',focus(020));
  \y01969; \x01965; \y02081; \x02065;
  \y02169; \x021120; \y02281; \x022120;
  \y02369; \x023175; \y02481; \x024175;
  \y02569; \x025230; \y02681; \x026230;
  \y02769; \x027310; \y02881; \x028310;
 \t039Status; \d040; \s040-'select dbo.mailLogPosted('&obj:id+0&')';
-\t043Complete; \d044; \s044-'select dbo.mailLogComplete('&obj:id+0&')';
+\t043Waiting; \d044; \s044-'select dbo.mailLogComplete('&obj:id+0&')';
+\t045Reviewed By; \d046;
 
 
 @applyPayment=
@@ -140,7 +162,7 @@ close('ok');
 
 @blankEm=
  set(-07,''),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),
- set(020,''),set(022,''),set(024,''),set(026,''),set(028,'');
+ set(020,''),set(022,''),set(024,''),set(026,''),set(028,''),focus(020);
 
 @refreshDetail=
  brwreload(1),

@@ -4,6 +4,7 @@
 @loadbrowse=menuprocess=;
 @menuprocess=gctax=instring('@group=tax;',cur:options,1,1),new(50);
 @wbgcolor=kp('select dbo.keyColor(185,122,87)');
+@gfwindow=do(450,notify=);
 
 @checkFiscalCalendar=d1select('select max(depositDate) from dbo.posTF()'),
 lcDate=obj7:d1,
@@ -31,7 +32,8 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
  if(lcDefaultAction='browse',browseReceipts=),
  if(lcDefaultAction='browseOfficial',browseOfficial=),
  gcReceiptType='',
- if(lcDefaultAction='report',printMyBalanceReport=);
+ if(lcDefaultAction='report',printMyBalanceReport=),
+ if(lcMenu=5,menu5=),;
 
 @lbrwclick150=
  lcId=kpbrwid(1),
@@ -40,6 +42,7 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
  if(lcMenu=2,menu2=),
  if(lcMenu=3,menu3=),
  if(lcMenu=4,menu4=),
+ if(lcMenu=5,menu5=),
  refreshbrw=;
 
  if(gcReceiptType='ALL',rightClickLinkOptionsDate=,rightClickLinkOptionsRecType=);
@@ -81,6 +84,8 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
  if(gcretval=2,changeDate=),
  if(gcretval=3,depositdatemanual=);
 
+@menu5=browse(1,4514,'typ=4514 and a19>''0''');
+
 @browseReceiptsAll=
  writecurdata(@BrowFil4502=,'3'),
  gcDashRecType='ALL',
@@ -102,6 +107,8 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
 
 @printMyBalanceReport=
  setvars=,
+ m('Would you like to see all the detail?','Print Detail',,6),
+ if(gcretval=2,gcPrintDetail='Y',gcPrintDetail=''),
  trreport('balanceReport',5018,'printBalanceReport=');
 
 @printMyBalanceReportFiltered=
@@ -140,13 +147,14 @@ d1select('exec dbo.createFiscalPeriod '&lcDate+0);
  if(lcReportId+0>0,sql('update object set key1='''&today()&''',key2='''&today()&''' where id='&lcReportId)),
  if(lcReportId+0>0,change(lcReportId),new(4506,002=obj:key1,004=obj:c1));
 
-@mailLog=m('What List Should I Put this on?','Which List?',,'MAIL LOG|DROP BOX LOG|CANCEL'),
- break(gcretval<>1 and gcretval<>2),
+@mailLog=m('What List Should I Put this on?','Which List?',,'MAIL LOG|DROP BOX LOG|INTERNET PAYMENTS|CANCEL'),
+ break(gcretval<>1 and gcretval<>2 and gcretval<>3),
  if(gcretval+0=1,do(4514,newMail=)),
- if(gcretval+0=2,do(4514,newDropBox=));
+ if(gcretval+0=2,do(4514,newDropBox=)),
+ if(gcretval+0=3,do(4514,newInternet=));
 
 
-\t108Mail Log; @acc108=mailLog=; \h108cur:securitylevel<100;
+\t108Mail Log; @acc108=mailLog=; 
 \t109O&fficial Deposit; @acc109=new(4522);
 \t110&Vouchers; @acc110=gcVoucher=1,openImporter=;
 \t111&Warrants; @acc111=gcVoucher=0,openImporter=;

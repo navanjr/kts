@@ -2,6 +2,8 @@
 @nolock;
 @noconfirmdelete;
 
+@gfwindow=do(450,notify=);
+
 @menuprocess=
  lcHostName=kp('select host_name()'),
  lcinquiry=kp('select top 1 id from object where typ=4003 and key2='''&lcHostName&''''),
@@ -68,13 +70,17 @@
  create(358,9,513,310,'Load Payments'),
  create(359,9,513,324,'Reset Import'),
  create(360,9,513,338,'Create Receipts'),
+ create(361,9,513,352,'Mail Log'),
  halfToggle=;
 
 @lbrw3forecolor=obj7:c9=1,255,obj7:c9=2,32768,obj7:c9=3,8388736;
 @lbrw1color=obj7:c10=3,16760879,obj7:c10=2,13428479,obj7:c10=1,13499135,obj7:c10=4,16711935,obj7:c10=5,255,obj7:c10=6,32768,obj7:c10=7,8388608;
 @lbrw2color=obj7:c10=0,13428479;
 
-\h358360cur:securitylevel<50;r
+\w361=119;
+ @acc361=do(50,mailLog=);
+
+\h358361cur:securitylevel<50;r
 \w360=119;
  @acc360=d1select('select count(*) from dbo.ccPaymentImportBRW('&obj:id&',null) where colorFlag=0'),
  lcCountGood=obj7:d1,
@@ -606,12 +612,15 @@
   d1select('exec dbo.receiptNew ''TAX'', @receiptId='&obj:id),
  if(readstring(obj7:d1,'@code=')>0,newReceiptFail=,newReceiptRocks=);
 @newReceiptRocks=
+ lcreceiptid=obj7:d1,
+ d1select('select a2 from object where typ=4514 and id='&gcMailLogId+0&''),
+ if(obj7:d1+0>0,gcInterestToDate=obj7:d1,gcInterestToDate=today()),
  lcbrwRefresh='',
  if(gcTaxToggleH=21759,halfToggle=),
  sel078=,
  focus(78),
- sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj7:d1),
- change(obj7:d1,,1),
+ sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&lcreceiptid+0&','&gcInterestToDate+0&''),
+ change(lcreceiptid,,1),
  resetfocus();
 @newReceiptFail=
  m(readstring(obj7:d1,'@message='),'New Tax Receipt...');
@@ -644,7 +653,8 @@
  gcReceiptId=obj:id,
  sql('update object set a16='''&gcInterestToDate&''' where id='&obj:id),
  sql('exec dbo.taxrollInvoiceLinkReceipt '&obj:id&','&obj:id),
- trreport('SelectedTaxes',5031,'printSelectedTaxes=');
+ trreport('SelectedTaxes',5031,'printSelectedTaxes='),
+ gcInterestToDate='';
 
 \t112&UnSelect All;
 @acc112=
@@ -705,6 +715,7 @@
 
 \t120View G/L; @acc120=new(4020,,-68=kpbrwid(1)*-1); \h120cur:securitylevel<100; 
 
-\h108113instring('@group=publicuser',cur:options,1,1)>0;r
+\h108110instring('@group=publicuser',cur:options,1,1)>0;r
+\h112113instring('@group=publicuser',cur:options,1,1)>0;r
 \h115116instring('@group=publicuser',cur:options,1,1)>0;r
 \h118119instring('@group=publicuser',cur:options,1,1)>0;r

@@ -154,6 +154,7 @@ begin
     select @continue = 'TRUE', 
            @blob = '@continue=TRUE;@level='+cast(@levelToken as varchar)+';@message=Approved by '+@approvedIni+';'
     select @blob
+    update securitydecision set notify = 'DONE' where id = @idToken
     return
    end
   end
@@ -164,8 +165,8 @@ begin
     select @continue = 'FALSE', 
       @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=Entered request for approval;'
     select @blob
-    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results)
-     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob
+    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, notify)
+     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, 'APPROVE'
     return
    end
    if @level > 3 and @requestIni not in (select ini from users where securitylevel > 80)
@@ -241,7 +242,8 @@ begin
      approvedDateTime = getdate(),
      approvedPerson = @approvedPerson,
      approvedNotes = @approvedNotes,
-     results = @blob
+     results = @blob,
+     notify = 'NOTIFY'
     where id = @decisionId
 
     return
@@ -257,7 +259,8 @@ begin
      approvedDateTime = getdate(),
      approvedPerson = @approvedPerson,
      approvedNotes = @approvedNotes,
-     results = @blob
+     results = @blob,
+     notify = 'NOTIFY'
     where id = @decisionId
 
     return
@@ -273,7 +276,8 @@ begin
      approvedDateTime = getdate(),
      approvedPerson = @approvedPerson,
      approvedNotes = @approvedNotes,
-     results = @blob
+     results = @blob,
+     notify = 'NOTIFY'
     where id = @decisionId
 
     return

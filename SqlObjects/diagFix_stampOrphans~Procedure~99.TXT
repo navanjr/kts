@@ -1,0 +1,58 @@
+create proc diagFix_stampOrphans(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(distinct id),  
+   @message = 'Stamps are orphaned'
+  from object 
+  where typ in (4302,4303)
+   and key3 = 'S'
+   and link1 not in (select id from object where typ=4502)
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select *
+  from object 
+  where typ in (4302,4303)
+   and key3 = 'S'
+   and link1 not in (select id from object where typ=4502)
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  update object set typ=typ*-1
+   where typ in (4302,4303)
+    and key3 = 'S'
+    and link1 not in (select id from object where typ=4502)
+
+  return  
+ end
+
+
+end

@@ -12,7 +12,9 @@ begin
   @varianceItemTotal money,
   @sBDate int,
   @sEDate int,
-  @tally int
+  @tally int,
+  @accounttype varchar(50),
+  @glBalance money
  
  declare @priorBS table(id int)
 
@@ -26,6 +28,13 @@ begin
   @sBDate = cast(a1 as int),
   @sEDate = cast(a2 as int)
  from object where typ = 4780 and id = @id
+
+ select @accounttype = a.accounttype,
+        @glBalance = d.amount 
+   from glaccounts a, (select g.accountcode, sum(g.amount) as amount from gldetail g, glaccounts ac 
+     where ac.accountid = @accountid and g.accountcode = ac.accountcode group by g.accountcode) d 
+  where a.accountid = @accountid
+   and d.accountcode = a.accountcode
 
  insert @priorBS select id from object where typ = 4780 and a2 < @sBDate and a2>'0'
 
@@ -65,7 +74,7 @@ begin
   + ';@credits=' + cast(@credits as varchar)
   + ';@variance=' + cast(@variance as varchar)+';'
   + ';@varianceItemTotal=' + cast(isnull(@varianceItemTotal,0) as varchar)+';'
- 
+  + case when @accounttype = 'INVESTMENT' then '@glBalance='+cast(@glBalance as varchar)+';' else '' end
  return @retvar
 
 end

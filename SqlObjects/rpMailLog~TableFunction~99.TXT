@@ -1,0 +1,46 @@
+create function dbo.rpMailLog(@begindate int, @enddate int) 
+returns @rt table(id int, 
+  logtype varchar(100),
+  number varchar(50),
+  datereceivedno int,
+  datereceived varchar(20),
+  receivedby varchar(100),
+  name varchar(100),
+  postmarkdateno int,
+  postmarkdate varchar(20),
+  logtotal money,
+  paycode varchar(100),
+  amount money,
+  receiptcontrolnumber varchar(50),
+  receipttotal money,
+  receiptby varchar(100),
+  reviewedby varchar(100)
+)
+as
+begin
+ insert @rt
+  select 
+    m.id,
+    m.key3,
+    m.key1,
+    case when isnumeric(m.key2)=1 then cast(m.key2 as int) else 0 end,
+    case when isnumeric(m.key2)=1 then dbo.date1(m.key2) else '' end,
+    m.a18,
+    m.a1,
+    case when isnumeric(m.a2)=1 then cast(m.a2 as int) else 0 end,
+    case when isnumeric(m.a2)=1 then dbo.date1(m.a2) else '' end,
+    case when isnumeric(m.c7)=1 then cast(m.c7 as money) else 0.00 end,
+    p.paycode,
+    p.amount,
+    r.key1,
+    case when isnumeric(r.c9)=1 then cast(r.c9 as money) else 0.00 end,
+    r.a18,
+    m.a20
+   from object m
+    left outer join paid p on p.mailLogId = m.id
+    left outer join object r on r.typ=4502 and dbo.slinktype(p.slink) = 'o' and r.id = dbo.slinkid(p.slink)
+   where m.typ=4514
+    and m.key2 >= @begindate
+    and m.key2 <= @enddate
+ return
+end

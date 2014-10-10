@@ -1668,6 +1668,7 @@ class ktsMenu():
             'PHYSICALSTREETNUMBER': [['PHYSICALSTREETNUMBER'], 'string'],
             'PHYSICALSTREET': [[ 'PHYSICALSTREET'], 'string'],
             'PHYSICALTOWN': [[ 'PHYSICALTOWN'], 'string'],
+            'PHYSICALSTREETDIRECTION': [[ 'PHYSICALSTREETDIRECTION'], 'string'],
         }
         aaMasterFields = []
         for key, fieldArray in fields.items():

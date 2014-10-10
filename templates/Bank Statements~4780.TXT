@@ -4,6 +4,7 @@
 @afterloadwindow=
  prop(104,'7C02H',63),
  prop(104,'7C03H',54);
+@recalc=sums=;
 
 @nolock;
 @dk1;
@@ -18,7 +19,8 @@
  iw('\t000Please Enter Date...;\t001Begin Date; \t002@d2; \w00250; \f002'&gcBeginDate&';'),
  break(gcretval='esc'),
  gcBeginDate=obj7:key1,
- sql('exec dbo.bankStatementCRUD '&gcBeginDate+0);
+ sql('exec dbo.bankStatementCRUD '&gcBeginDate+0),
+ recalc('TEM:ID=4780','typ=4780 and a1='&gcBeginDate+0);
 
 @bb5=&Recon All;
 @bbproc5=
@@ -194,6 +196,14 @@
 @sums=
  lcSEB=kp('select dbo.sumTextArea('''&clip(obj:e2)&''')'),
  set(012,lcSEB),
+ lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
+ lcSINVB='FALSE',
+ if(lcSEB=0,lcSINVB='TRUE'),
+ if(lcSINVB='TRUE',lcSEB=readstring(lcBlob,'@glBalance=')),
+ if(lcSINVB='TRUE',set(012,lcSEB)),
+ if(lcSINVB='TRUE',set(104,lcSEB)),
+ update,
+ lcSINVB='FALSE',
  lcBlob=kp('select dbo.bankStatementBlob('&obj:id&')'),
  set(014,readstring(lcBlob,'@tally=')),
  set(046,readstring(lcBlob,'@bBalance=')),

@@ -33,6 +33,7 @@ begin
 end
 
 declare @ct table(id int identity(1,1),
+                  yearcode varchar(20),
                   comment varchar(100),
                   sourceCode varchar(60),
                   sourceDesc varchar(50),
@@ -43,6 +44,7 @@ declare @ct table(id int identity(1,1),
                   amount money)
 
 declare @pt table(id int identity(1,1),
+                  yearcode varchar(20),
                   comment varchar(100),
                   sourceCode varchar(60),
                   sourceDesc varchar(50),
@@ -54,7 +56,7 @@ declare @pt table(id int identity(1,1),
                   glbalance money)
 
 insert @ct
-select max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount) 
+select '',max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount) 
  from gldetail 
  where [date]<=@date 
   and ISNULL(bsId,0)=0 
@@ -66,9 +68,12 @@ select max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount)
  update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
  update c set fundCode = case when aptabletype > ' 0' and aptabletype not in ('T','L') then 'TABLE' else targetAccountCode end from @ct c, glAccounts a where ACRCode=accountcode
  update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
+ update c set yearcode = ty.yearcode from @ct c, glaccounts a, (select * from dbo.taxyears(@date)) ty 
+  where c.contraid = a.accountid
+   and left(a.accountcode,4)=ty.year
  
 insert @pt
-select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),'')+' Tax','','','','',
+select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),''),isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')),'')+' Tax','','','','',
  'State Tax '
  +cast(YEAR(dbo.date1(@date)) as varchar)
  +cast(MONTH(dbo.date1(@date)) as varchar)
@@ -85,20 +90,43 @@ declare @accountStage table(id int identity(1,1),
                             sourceCode varchar(60),
                             contraId int,
                             amount money,
-                            pamount money)
+                            pamount money,
+                            processcode int,
+                            yearcode varchar(20))
 
 insert @accountStage
- select ACRCode,comment,sourceCode,contraId,amount*-1,ISNULL((select sum(p.amount) from @pt p where p.contraId=c.contraId),0) from @ct c where fundCode = ''
+ select ACRCode,comment,sourceCode,contraId,amount*-1,0,0,yearcode from @ct c where fundCode = ''
+
+declare @idToken int,
+        @contraIdToken int,
+        @yearcodeToken varchar(20),
+        @contraAmountToken money,
+        @appliedAmountToken money = 0,
+        @ACRCodeToken varchar(100),
+        @pIdToken int,
+        @pAmountToken money
+
+while exists(select * from @accountstage where processcode=0)
+begin
+ select top 1 @idToken = id, @contraAmountToken = amount * -1, @yearcodeToken = yearcode, @appliedAmountToken = 0, 
+              @contraIdToken = contraId from @accountstage where processcode=0 order by contraid desc
+  while exists(select * from @pt where yearcode=@yearcodeToken)
+  begin
+   select top 1 @pIdToken = id, @ACRCodeToken = ACRCode,@pAmountToken = amount from @pt where yearcode=@yearcodeToken order by contraid
+     insert @accountStage select @ACRCodeToken, @yearcodeToken+' Tax','',@contraIdToken,@pAmountToken,0,2,@yearcodeToken
+     select @appliedAmountToken = @appliedAmountToken + @pAmountToken
+   delete from @pt where id = @pIdToken
+  end
+ select @contraIdToken 
+ update @accountstage set pamount = @appliedAmountToken, processcode=1 where id = @idToken
+end
 
 insert @accountStage
- select sourcecode,comment,'',null, (pamount+amount)*-1,0 from @accountStage where pamount+amount <> 0.00
+ select sourcecode,comment,'',null, (pamount+amount)*-1,0,0,yearcode from @accountStage where pamount+amount <> 0.00 and processcode=1
 
 update p set sourceCode = c.sourceCode from @pt p, @ct c where c.fundCode='' and c.contraId=p.contraId
 
 delete from @ct where fundCode=''
-
-insert @accountStage
- select ACRCode,comment,sourceCode,contraId, amount,0 from @pt 
 
 delete from receiptDetail where slink=@slink
 delete from gldetailStage where slink=@slink and isnull(comment2,'')<>'Adjusted'
