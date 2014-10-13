@@ -17,8 +17,10 @@
 100L(2)~Comment~#58#|M
 100L(2)~Reviewed By~#32#|M
 ;
+
+@gfbnr=cur:securitylevel>45;
 @filtername=All,Pending;
-@filter='typ=4514','typ=4514 and a19>''0''';
+@filter='id>0','typ=4514 and a19>''0''';
 
 @nox=kp('select count(*) from paid where mailLogId='&obj:id+0&'')<1 and lower(obj:a17)<>'posted' and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and obj:a1 < ' 0' and obj:a2+0<5 and obj:d1<' 0'; 
 @noexit=
@@ -40,6 +42,8 @@ update,
 close('ok');
 
 \u002104;r
+
+@browseinsert=do(50,mailLog=);
 
 @newMail=
  insert(-02=4514,006='MAIL LOG',096='NEW'),
@@ -88,14 +92,20 @@ close('ok');
  if(gcretval+0=2,gcSeries='DROP BOX LOG'),
  if(gcSeries=' ',close('cancel')),
  set(6,gcSeries),
+ set(096,'NEW'),
  update;
+
 \h161obj:a17='Posted';
 
 \t109Add Another;
  @acc109=gcType=obj:key3,
+  gcRecalcId=obj:id,
+  calcrecord(),
   close('ok'),
   if(gcType='MAIL LOG',newMail=),
-  if(gcType='DROP BOX LOG',newDropBox=);
+  if(gcType='DROP BOX LOG',newDropBox=),
+  calcrecord(gcRecalcId),
+  recalc('TEM:ID=4514','typ=4514 and a17 <> ''Posted''');
 
 \h111obj:a19+0<1;
 \t111Create Receipt;
