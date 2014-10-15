@@ -1664,7 +1664,7 @@ class ktsMenu():
             'landAssessed': [['LANDASSESSEDVALUE'], 'int'],
             'improvedassessed': [['IMPROVEDASSESSEDVALUE'], 'int'],
             'miscAssessed': [['MISCELLANEOUSASSESSED'], 'int'],
-            'propLoc': [['PHYSICALSTREETNUMBER', 'PHYSICALSTREET', 'PHYSICALTOWN'], 'string'],
+            'propLoc': [['PHYSICALSTREETNUMBER','PHYSICALSTREETDIRECTION' , 'PHYSICALSTREET', 'PHYSICALTOWN'], 'string'],
             'PHYSICALSTREETNUMBER': [['PHYSICALSTREETNUMBER'], 'string'],
             'PHYSICALSTREET': [[ 'PHYSICALSTREET'], 'string'],
             'PHYSICALTOWN': [[ 'PHYSICALTOWN'], 'string'],
