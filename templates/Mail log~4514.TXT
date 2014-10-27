@@ -218,9 +218,24 @@ close('ok');
  if(lcTyp+0=8,imaging=);
 
 @imaging=
- if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
+ if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Void Payment|Cancel'),m('Would you like to:',,,'Change Info|Void Payment|Cancel')),
+ lcvalue=gcretval,
+ if(acImaging='FALSE' and lcvalue=1,changecheckinfo=),
+ if(acImaging='FALSE' and lcvalue=2,voidpayment=),
  break(acImaging='FALSE'),
- case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+ case(lcvalue=1,scanpaid=,lcvalue=2,viewpaid=,lcvalue=3,changecheckinfo=,lcvalue=4,voidpayment=);
+
+@voidpayment=
+ m('Voiding a payment cannot be undone. Are you sure you wish to continue?','Void Payment...',,6,4),
+ break(gcretval<>2),
+ gclocation='MailLog_Void_Payment',
+ gcslink='p'&lcid,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
+ sql('update paid set slink=''o'&obj:id&''' where id='&lcid&' and maillogid='&obj:id+0),
+ refreshDetail=;
 
 @scanpaid=gcscanid='p'&lcid,
  do(1,scan=),
