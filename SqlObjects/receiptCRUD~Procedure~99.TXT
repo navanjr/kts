@@ -422,6 +422,47 @@ begin
         end
    end
 
+-- Adjust Purpose Balance
+ if @mode = 7 and @receiptId > 0 
+    begin
+         -- create new JE
+               	select  @jeType = 'Adjust Trust Balance', 
+                        @accountDesc = 'Trust Balance Adjustment Receipt # ' +cast(key1 as varchar) 
+                 from object where id = @receiptId 
+
+            exec dbo.journalEntryCRUD
+                 @mode = 0,
+                 @description = @accountDesc,
+                 @jeType = @jeType,
+                 @resultCode = @resultCode output,
+                 @resultMessage = @resultMessage output,
+                 @newId = @newId output
+                 select @slink = 'o' + cast(@newId as varchar)
+
+            insert into journalLink
+                select @newId,0,0,@receiptId
+
+         
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId)
+                  select accountId,purpose,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptId from dbo.purposedetail where receiptId = @receiptId
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select a.accountId,a.accountcode,a.accountDesc,amount,'o'+cast(@newId as varchar)
+                     from dbo.purposedetail d, glaccounts a 
+                     where d.receiptId = @receiptId
+                       and a.accountcode=d.purpose+'_'
+
+         select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
+         
+         exec dbo.glpost @newId, 'o'
+
+    end
+
+
+
 
  return
 end
