@@ -213,6 +213,7 @@ close('ok');
  d1select('select case when sum(isnull(amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetailreports where slink in (select * from dbo.receiptSLinks('&obj:id&')) and accountType = ''ACCRUED RECEIVABLE'''),
  gcAlreadyCancelled=obj7:d1,
  if(obj:key3='TAX',prop(001,'text','Control Number')),
+ if(obj:key3='TRUST',create(152,9,475,131,'Ad&just')),prop(152,'width',67),
  tsc,
  break(obj:a17='Posted'),
  if(obj:key3='MISC' or obj:key3='INDIV',create(160,9,3,66,'&New Detail')),
@@ -234,6 +235,28 @@ close('ok');
  if(obj:key3='INDIV',prop(117,'text','Print Quote')),
  if(gcMailLogId+0>0,attachMailPayments=),
  update;
+
+@acc152=m('Are you sure that you want to adjust the trust balance of this receipt?','Are you sure?',,6),
+ break(gcretval<>2),
+ gclocation='Trust_Balance_Adjust',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
+ d1select('select top 1 purpose from dbo.purposedetail where receiptid='&obj:id&' order by amount desc'),
+ gcpurpose=obj7:d1,
+ d1select('select accountdesc from dbo.glaccounts where accountcode='''&gcpurpose&''''),
+ gcpurposedesc=obj7:d1,
+ d1select('select top 1 amount from dbo.purposedetail where receiptid='&obj:id&' order by amount desc'),
+ gcamount=obj7:d1,
+ iw('@afterloadwindow=set(004,-'&gcamount&');\t000Please Enter Purpose and Amount...;\t001Purpose Desc; \f002'&gcpurposedesc&'; \l0024701;r002004040002; @lf002=''typ=4701 and a1=''''PURPOSE'''''',2; \t003Adjust By; \t004@n-19.2; \t039Purpose; \f040'&gcpurpose&'; \h039; \d040; \x040-50;'),
+ lcblob='@purpose='&obj7:a17&';@adjustAmount='&obj7:key2&';',
+ d1select('exec dbo.receiptCRUD 7, '&obj:id&', @blob='''&lcblob&''''),
+ calcrecord(),
+ tsc,
+ refreshDetail=
+;
 
 @attachMailPayments=break(obj:a17='Posted'),
  break(gcMailLogId+0<1),
@@ -440,7 +463,7 @@ close('ok');
 \x067+207; \x068+177;r2
 \t055VIN#;
 \t057Title#;
-\t059In Trust; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
+\t059In Trust; \w06050; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
 \t061Year; \t062@n4; \w06230;
 \t063Item; \w06460;
 \t067Decal#; \y067068-13;r \l0684301;r068002056006058012054008;
@@ -577,7 +600,8 @@ close('ok');
  gcdecisionId=0,
  gcmethod='CHECK',
  do(450,'check='),
- break(gccontinue<>'TRUE'), d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
+ break(gccontinue<>'TRUE'),
+ d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
  if(lcjeId>0,change(lcjeId)),
