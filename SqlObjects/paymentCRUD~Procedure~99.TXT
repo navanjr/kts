@@ -279,7 +279,10 @@ begin
 
   end
 
-  declare @registerDateOverride varchar(20) = 'FALSE'
+  declare @registerDateOverride varchar(20) = 'FALSE',
+          @TrustGetsOwnRegister varchar(20)
+
+  select @TrustGetsOwnRegister = dbo.settingsf('site.TrustGetsOwnRegister','FALSE')
 
   if dbo.nextObjectAutoNumberControl(4771,@paymentType)='Official Voucher'
   begin
@@ -290,7 +293,7 @@ begin
          
    select @vfiscalYear = fiscalYear from dbo.fiscalCalendar where coalesce(nullif(@postDate,''),cast(dbo.clarionToday() as varchar)) between startDate and endDate
    set @nextNumAdditionalWhere = 'olink1 = ''' + @vfiscalYear + ''' '
-   if @paymentType = 'Trust Voucher'
+   if @paymentType = 'Trust Voucher' and @TrustGetsOwnRegister = 'TRUE'
     set @nextNumAdditionalWhere = @nextNumAdditionalWhere + ' and a4 = ''' + @debitAcct + ''' '
   end
 
