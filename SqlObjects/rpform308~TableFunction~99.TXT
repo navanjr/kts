@@ -7,6 +7,8 @@ returns @rt table(fundCode varchar(60),
                   sourceDesc varchar(50),
                   amountToApportion money,
                   detCount int,
+                  longSource int,
+                  longDesc int,
                   receiptDescription varchar(250))
 as
 begin
@@ -15,20 +17,22 @@ begin
 
  select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
  insert @rt
- select fundCode, FundDesc,postDate1, ReceiptNo, sourceDesc, amountToApportion,detCount,[description] from dbo.reportMiscReceiptDetail(@begindate,@enddate) 
+ select fundCode, FundDesc,postDate1, ReceiptNo, sourceDesc, amountToApportion,detCount,len(sourceDesc)/22,len([description])/20,[description] from dbo.reportMiscReceiptDetail(@begindate,@enddate) 
   where isnull(form308,0)=1 
 
  insert @rt
- select accountCode as fundCode,accountDesc as FundDesc,'' as postDate1,'' as receiptNo,sourceDesc,sum(amount)*-1 as amountToApportion, 0 as detCount, comment 
+ select accountCode as fundCode,accountDesc as FundDesc,'' as postDate1,'' as receiptNo,sourceDesc,sum(amount)*-1 as amountToApportion, 0 as detCount,len(sourceDesc)/22,len(comment)/20, comment 
   from rpMonthEndDetail(@begindate,@enddate,'TRUE') 
   where apportionContraCode<>@miscCollectionAccountCode and apportionContraCode <> accountcode  
    and accountType in (select accounttype from dbo.glbankfundtypes('FUND'))
    and accountcode in (select accountcode from glaccounts where form308='1')
   group by accountcode,accountDesc,SourceDesc, comment
   
-  update r set detcount = rs.detcount 
+  update r set detcount = rs.detcount+rs.ls+rs.ld 
    from @rt r, 
-     (select fundCode, count(*) as detcount from @rt group by fundCode) rs 
+     (select fundCode, count(*) as detcount,
+       isnull((select sum(longSource) from @rt where fundcode=r.fundcode),0) as ls, 
+       isnull((select sum(longDesc) from @rt where fundcode=r.fundcode),0) as ld from @rt r group by fundCode) rs
    where r.fundCode = rs.fundCode
  return
 end
