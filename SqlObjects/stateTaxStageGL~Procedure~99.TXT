@@ -18,7 +18,7 @@ declare @appvworksum money,
 if isnull(@date,0)=0
 select @date = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
 
-exec dbo.importAppvwork 
+--exec dbo.importAppvwork 
 
 insert @wt
 select * from dbo.stateTaxImport() 
@@ -53,7 +53,8 @@ declare @pt table(id int identity(1,1),
                   ACRCode varchar(60),
                   contraId int,
                   amount money,
-                  glbalance money)
+                  glbalance money,
+                  processcode int)
 
 insert @ct
 select '',max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount) 
@@ -80,10 +81,10 @@ select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((selec
  +cast(DAY(dbo.date1(@date)) as varchar)
  +' '
  +ISNULL((select left(accountcode,4) from glaccounts where accountid=w.contraId),'')+'_ACR',
- contraId,SUM(amount),ISNULL((select sum(amount) from gldetail where [date]<=@date and accountcode=(select accountcode from glaccounts where accountid=w.contraId)),0)
+ contraId,SUM(amount),ISNULL((select sum(amount) from gldetail where [date]<=@date and accountcode=(select accountcode from glaccounts where accountid=w.contraId)),0),0
  from @wt w
  group by contraId
-
+select * from @pt
 declare @accountStage table(id int identity(1,1),
                             accountcode varchar(60),
                             comment varchar(50),
@@ -110,12 +111,12 @@ while exists(select * from @accountstage where processcode=0)
 begin
  select top 1 @idToken = id, @contraAmountToken = amount * -1, @yearcodeToken = yearcode, @appliedAmountToken = 0, 
               @contraIdToken = contraId from @accountstage where processcode=0 order by contraid desc
-  while exists(select * from @pt where yearcode=@yearcodeToken)
+  while exists(select * from @pt where yearcode=@yearcodeToken and processcode=0)
   begin
-   select top 1 @pIdToken = id, @ACRCodeToken = ACRCode,@pAmountToken = amount from @pt where yearcode=@yearcodeToken order by contraid
+   select top 1 @pIdToken = id, @ACRCodeToken = ACRCode,@pAmountToken = amount from @pt where yearcode=@yearcodeToken and processcode=0 order by contraid
      insert @accountStage select @ACRCodeToken, @yearcodeToken+' Tax','',@contraIdToken,@pAmountToken,0,2,@yearcodeToken
      select @appliedAmountToken = @appliedAmountToken + @pAmountToken
-   delete from @pt where id = @pIdToken
+   update @pt set processcode = 1 where id = @pIdToken
   end
  select @contraIdToken 
  update @accountstage set pamount = @appliedAmountToken, processcode=1 where id = @idToken
@@ -138,7 +139,7 @@ select accountCode,comment,sourcecode,contraId,amount,@slink from @accountStage
 
 update g set accounttype=a.accounttype from gldetailstage g, glaccounts a where g.accountcode=a.accountcode and slink=@slink
 --update g set sourceid=a.accountid from gldetailstage g, glaccounts a where g.sourcecode=a.accountcode and slink=@slink and g.sourcecode>' 0'
-
+select * from @pt
 
 delete from object where TYP=4022 and Key1 in (select LEFT(ACRCode,LEN(ACRCode)-4) from @pt)
 
