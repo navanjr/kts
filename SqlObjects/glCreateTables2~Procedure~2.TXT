@@ -24,6 +24,10 @@ begin
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settings' and COLUMN_NAME = 'settingType')
    alter table settings add settingType varchar(50)
 
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settings' and COLUMN_NAME = 'settingValue' and character_maximum_length=150)
+  alter table settings alter column settingValue varchar(1000)
+
+
 -- create or update G/L Account Types
  exec dbo.createAccountTypes
 -- create or update Receipt Types
@@ -225,7 +229,7 @@ Level:
   CREATE TABLE [dbo].[settingsHistory](
 	[id] [int] not null,
 	[settingName] [varchar](200) NULL,
-	[settingValue] [varchar](150) NULL,
+	[settingValue] [varchar](1000) NULL,
 	[modifiedDateTime] [datetime] NULL,
 	[modifiedBy] [varchar](150) NULL,
 	[parentId] [varchar](50) NOT NULL,
@@ -237,6 +241,8 @@ Level:
    alter table settings add notes varchar(max) not null default ''
  if  not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settingsHistory' and COLUMN_NAME = 'notes')
    alter table settingsHistory add notes varchar(max) not null default ''
+ if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'settingsHistory' and COLUMN_NAME = 'settingValue' and character_maximum_length=150)
+  alter table settingsHistory alter column settingValue varchar(1000)
 
  exec dbo.conversion_reKey @method='fix'
 
