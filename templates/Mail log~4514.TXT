@@ -1,4 +1,6 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&'))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&'))'),1),countImage=;
+@countImage=sql('update object set imagecount=isnull((select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where maillogId='&obj:id&'))),0) where id='&obj:id);
+
 @newselbrowse=gcscanid=obj:id;
 @nodel;
 @gobot=1;
@@ -219,7 +221,8 @@ close('ok');
  lcTyp=left(lcid,1),
  lcid=sub(lcid,2,25),
  break(lcid+0<1),
- if(lcTyp+0=8,imaging=);
+ if(lcTyp+0=8,imaging=),
+ calcrecord();
 
 @imaging=
  if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Void Payment|Cancel'),m('Would you like to:',,,'Change Info|Void Payment|Cancel')),
@@ -243,11 +246,13 @@ close('ok');
 
 @scanpaid=gcscanid='p'&lcid,
  do(1,scan=),
- gcscanid=obj:id;
+ gcscanid=obj:id,
+ calcrecord();
 
 @viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
  break(readstring(obj7:d1,'@code=')=1),
  gcobjid=obj7:d1,
  neww(3208),
- gcscanid=obj:id;
+ gcscanid=obj:id,
+ calcrecord();
