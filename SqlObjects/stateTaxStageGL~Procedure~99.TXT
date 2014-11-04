@@ -84,7 +84,7 @@ select isnull((select yearcode from dbo.taxyears(@date) where year=ISNULL((selec
  contraId,SUM(amount),ISNULL((select sum(amount) from gldetail where [date]<=@date and accountcode=(select accountcode from glaccounts where accountid=w.contraId)),0),0
  from @wt w
  group by contraId
-select * from @pt
+
 declare @accountStage table(id int identity(1,1),
                             accountcode varchar(60),
                             comment varchar(50),
@@ -101,6 +101,7 @@ insert @accountStage
 declare @idToken int,
         @contraIdToken int,
         @yearcodeToken varchar(20),
+        @sourcecodetoken varchar(60),
         @contraAmountToken money,
         @appliedAmountToken money = 0,
         @ACRCodeToken varchar(100),
@@ -110,11 +111,11 @@ declare @idToken int,
 while exists(select * from @accountstage where processcode=0)
 begin
  select top 1 @idToken = id, @contraAmountToken = amount * -1, @yearcodeToken = yearcode, @appliedAmountToken = 0, 
-              @contraIdToken = contraId from @accountstage where processcode=0 order by contraid desc
+              @contraIdToken = contraId, @sourcecodetoken = sourcecode from @accountstage where processcode=0 order by contraid desc
   while exists(select * from @pt where yearcode=@yearcodeToken and processcode=0)
   begin
    select top 1 @pIdToken = id, @ACRCodeToken = ACRCode,@pAmountToken = amount from @pt where yearcode=@yearcodeToken and processcode=0 order by contraid
-     insert @accountStage select @ACRCodeToken, @yearcodeToken+' Tax','',@contraIdToken,@pAmountToken,0,2,@yearcodeToken
+     insert @accountStage select @ACRCodeToken, @yearcodeToken+' Tax', @sourcecodetoken, @contraIdToken, @pAmountToken,0,2,@yearcodeToken
      select @appliedAmountToken = @appliedAmountToken + @pAmountToken
    update @pt set processcode = 1 where id = @pIdToken
   end
