@@ -33,8 +33,10 @@ declare @wt table(
  reportOrder varchar(60),
  comment varchar(250)
 )
-insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder)
-select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
+insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,comment)
+select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+ case when sourcetype='4513' then comment else '' end
+ from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0)<1
@@ -43,7 +45,8 @@ and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 
 union all
 
-select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
+select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+ case when sourcetype='4513' then comment else '' end from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
@@ -54,7 +57,8 @@ and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 -- Get warrants whose treasurers checks were created the first day of the month but were cleared to the last months bank statement
 union all
 
-select fpCode, fpDesc, accountCode, accountDesc, amount*-1, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder from gldetailreports 
+select fpCode, fpDesc, accountCode, accountDesc, amount*-1, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+ case when sourcetype='4513' then comment else '' end from gldetailreports 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
