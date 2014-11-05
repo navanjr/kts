@@ -1,0 +1,54 @@
+create function dbo.rpOwnerReport(
+ @taxyear int
+) returns @rt table(
+ taxrollId int,
+ invoiceId int,
+ name varchar(50),
+ parcel varchar(50),
+ item numeric(20,7),
+ legal varchar(max),
+ netAssessed money,
+ acres varchar(50),
+ lots varchar(50),
+ district varchar(50),
+ mobile varchar(50),
+ exemptions varchar(50),
+ HalfTax money,
+ TotalTaxDue money,
+ OwnerNumber numeric(20,7),
+ ItemCount int
+) as 
+begin
+
+  insert @rt
+   select
+    a.id,
+    b.id,
+    a.ownerName,
+    a.fullPidNumber,
+    a.itemNumber,
+    a.legalDescription,
+    a.netAssessedValue,
+    a.acres,
+    a.lots,
+    a.schoolDistrictTaxRate,
+    a.mfgHomeAssessed,
+    a.baseExemption,
+    0,0,
+    cast(ownernumber as int),
+    0  
+   from adtax a, invoices b
+  where a.id = b.taxrollId and a.realTaxYear = @taxYear  
+
+ update @rt set item = dbo.taxCorrectionsSF(item,taxrollId,'008')
+
+ update @rt set halfTax = isnull((select sum(invoiceDue) from dbo.unpaidTF(invoiceId,0) where trCode = 'Half Tax' and trSection = 2),0)
+ update @rt set totalTaxDue = isnull((select sum(invoiceDue) from dbo.unpaidTF(invoiceId,0) where trCode = 'Total Tax' and trSection = 2),0)
+
+ delete from @rt where totaltaxdue = 0
+
+ update r set ItemCount = cnt.cnt from @rt r, (select count(*) as cnt,cast(ownernumber as int) as ownernumber from @rt cnt group by cast(ownernumber as int)) cnt where cast(r.ownernumber as int)=cast(cnt.ownernumber as int)
+
+ delete from @rt where ItemCOunt = 1
+ return
+end
