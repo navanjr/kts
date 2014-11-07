@@ -13,6 +13,7 @@ create function [dbo].[unpaidTF](
  subjectToPenalty int,
  penaltyPercent decimal(19,9),
  penalty Money,
+ fees money,
  link2parentInvoice int,
  trcode varchar(50),
  trSection int,
@@ -212,7 +213,9 @@ if @typ='S'
    select sum(isnull(invoicedue,0)), 'totaldue',4,'Total',5,@name,@parcel from @rt where trSection = 4 and trcode not in ('halftax','secondhalf')
 
 
+
 --------Section 5
+ update rt set rt.fees = (select sum(isnull(r.invoiceDue,0)) from @rt r where r.link2parentInvoice = rt.invoiceid) from @rt as rt
 
  --Half Tax
   if isnull((select sum(invoiceDue) from @rt where trcode = 'Current Yr Tax'),0) > 25 and @typ<>'S' and dbo.readstring('@SecondHalf=',@docVariables) not in ('yes','true')
@@ -232,12 +235,12 @@ if @typ='S'
  --Past Due
  if exists(select * from @rt where trcode = 'past due' and recordtype <> 's')
   insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
-   select sum(isnull(invoicedue,0)+isnull(penalty,0)), 'pastdue',5,'Past Due',7,@name,@parcel from @rt where trcode = 'past due' and recordtype <> 's'
+   select sum(isnull(invoicedue,0)+isnull(penalty,0)+isnull(fees,0)), 'pastdue',5,'Past Due',7,@name,@parcel from @rt where trcode = 'past due' and recordtype <> 's'
 
  --Special Assessments
  if exists(select * from @rt where trcode = 'past due' and recordtype = 's')
   insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
-   select sum(isnull(invoicedue,0)+isnull(penalty,0)), 'pastdue',5,'Special Assessments',8,@name,@parcel from @rt where trcode = 'past due' and recordtype = 's'
+   select sum(isnull(invoicedue,0)+isnull(penalty,0)+isnull(fees,0)), 'pastdue',5,'Special Assessments',8,@name,@parcel from @rt where trcode = 'past due' and recordtype = 's'
  	
  return
 end
