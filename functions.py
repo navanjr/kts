@@ -1704,8 +1704,8 @@ class ktsMenu():
             #     '0000-04-02N-02E-0-011-00',
             # ]
             tally = 0
-            tallyTotal = len(package['rows'])
-            if len(package['rows']) > 0:
+            if 'rows' in package and len(package['rows']) > 0:
+                tallyTotal = len(package['rows'])
                 for row in package['rows']:
                     token = []
                     for adtax, aaMasterArray in fields.items():
