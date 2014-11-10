@@ -1,0 +1,89 @@
+create function dbo.imageViewCount(@scanId varchar(16)) returns int
+as 
+begin
+
+ declare @ini varchar(50),
+         @objectType int,
+         @slinkTyp varchar(1),
+         @slinkId int,
+         @imgCnt int = 0,
+         @imgCntPlus int
+
+ --bail if scanid is zero or blank
+ if len(isnull(@scanId,''))<2
+ begin
+  return 0
+ end
+
+ if isnumeric(@scanId)=1
+  begin
+   select @imgCntPlus = isnull(count(*),0) from imglinks where objidref = @scanId
+
+   select @imgCnt = @imgCnt + @imgCntPlus
+
+   
+   select @objectType = typ from object where id = @scanId
+   
+   if @objectType in (4502,4522)
+    begin
+     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+        (select id from object where typ = 3209 and key1 in 
+            (select 'p' + cast(id as varchar) from paid where slink = 'o'+cast(@scanId as varchar)))
+
+     select @imgCnt = @imgCnt + @imgCntPlus
+
+     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+        (select mailLogId from paid where slink = 'o'+cast(@scanId as varchar))
+
+     select @imgCnt = @imgCnt + @imgCntPlus
+
+   end   
+   if @objectType = 4513
+   begin
+    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+       (select id from object where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid where depositId = cast(@scanId as int)))
+
+     select @imgCnt = @imgCnt + @imgCntPlus
+
+/*
+     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+        (select mailLogId from paid where depositId = cast(@scanId as int))
+
+     select @imgCnt = @imgCnt + @imgCntPlus
+*/
+
+   end
+   if @objectType = 4514
+    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+       (select id from object where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid where mailLogId = cast(@scanId as int)))
+   
+     select @imgCnt = @imgCnt + @imgCntPlus
+   
+  end
+ else
+  begin
+   select @slinkTyp = left(@scanId,1)
+
+   select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+      (select id from object where typ = 3209 and key1 = @scanId)
+
+   select @imgCnt = @imgCnt + @imgCntPlus
+
+   if @slinkTyp = 't'
+   begin
+    select @slinkId = cast(substring(@scanId,2,15) as int)
+
+    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
+      (select id from object where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
+
+    select @imgCnt = @imgCnt + @imgCntPlus
+ 
+   end
+
+  end
+
+ return @imgCnt
+ 
+end
