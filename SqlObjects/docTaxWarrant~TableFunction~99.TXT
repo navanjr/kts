@@ -12,7 +12,8 @@ returns @rt table (invoiceId int,
 		sheriffFee money,
 		totalDue money,
 		documentDate varchar(20),
-		addressee varchar(2000))
+		addressee varchar(2000),
+                taxtype varchar(50))
 as
 begin		
 declare
@@ -45,7 +46,7 @@ if @addressOnly!=1
  select  @documentDate = settingValue from settings where settingName = @documentName+'.documentDate'
 
 --insert invoices
-declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAmount money,penalty money,fees money)
+declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAmount money,penalty money,fees money,invoiceType varchar(5))
 
  insert @wt
    select id,
@@ -53,7 +54,8 @@ declare @wt table(invoiceId int,itemNumber varchar(50),taxYear varchar(50),taxAm
 	  taxYear,
 	  taxdue,
 	  penalty,
-	  fees
+	  fees,
+          invoiceType
          from docUnpaidTf(@invoiceid, @interestDate)
          where invoicetype is not null         
  
@@ -101,7 +103,8 @@ insert @rt
 	@sheriff,
 	0,
 	@documentDate,
-	@addressee
+	@addressee,
+        case when max(invoiceType) = 'B' then 'Business' when max(invoiceType) = 'I' then 'Individual' when max(invoiceType) = 'R' then 'Real Estate' else 'Personal' end
 	from @wt
 
 update

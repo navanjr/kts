@@ -231,8 +231,8 @@
   prop(172,'FontStyle',700),
   prop(172,'Font','Arial'),
   brw(161,2,gcsql2,3,155,400,120,'200L(2)~~#2#|20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n-14.2b@#7#|M45R(2)~Unpaid~@n-14.2b@#8#|M35C(2)~Sel~#9#|M',7,1),
-  gcsql3='select Id,notedate,comment,color from dbo.taxrollSearchCommentBRW(0) order by commentType,notedate desc',
-  brw(162,3,gcsql3,3,296,400,75,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),
+  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),color from dbo.taxrollSearchCommentBRW(0) order by commentType,notedate desc',
+  brw(162,3,gcsql3,3,296,400,75,'15L(2)~Img~#4#|M45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),
   prop(160,'SelectedFillColor',65535),
   prop(161,'SelectedFillColor',16777215),
   prop(160,'SelectedColor',0),
@@ -484,7 +484,8 @@
 
 @scanpaid=gcscanid='cb'&kpbrwid(3),
  do(1,scan=),
- gcscanid='t'&lcSearchId;
+ gcscanid='t'&lcSearchId,
+ refreshBRW3=;
 
 @viewpaid=gcscanid='cb'&kpbrwid(3),
  neww(3208),
@@ -539,7 +540,7 @@
 
 @refreshBRW3=
   break(instring('@group=publicuser',cur:options,1,1)>0),
-  gcsql3='select Id,notedate,comment,color from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by commentType, notedate desc',
+  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),color from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by commentType, notedate desc',
   brwreload(3,gcsql3);
 
 \t001&Year; \w00230; \x002-40; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
@@ -667,7 +668,8 @@
  @acc113=lcSearchId=kpbrwid(1)*-1,
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1 or lcSearchId>9000000),
-  browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')');
+  writecurdata(@BrowFil4502=,3),
+  browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')',,,,'Y');
 
 \t115Select &Parcel;
 @acc115=

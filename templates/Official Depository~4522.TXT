@@ -1,4 +1,4 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref in ('&obj:id&',(select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&''')))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1);
 @newselbrowse=gcscanid=obj:id;
 @defaultbrowsekey=2;
 @gobot=1;
@@ -76,6 +76,12 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  lcDeleteMessage=choose(obj:a17='Posted','This record has been posted and can only be deleted if the fiscal period is not locked.||Are you sure you wish to delete this Official Deposit?'),
  m(lcDeleteMessage,'Delete...','EXCLEM.ICO','&Yes|&No|&Cancel'),
  break(gcretval<>1),
+ gclocation='Official_Deposit_Delete',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  d1select('exec dbo.officialDepositCRUD 3,'&obj:id&', @deletePosted=''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Deleting Official Deposit...'));
  
@@ -112,6 +118,10 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
  set(8,obj7:key2),
  set(10,obj7:a3),
  set(48,obj7:b2),
+ update,
+ if(obj:a17<>'Posted',sql('exec dbo.officialDepositStageGL '&obj:id+0)),
+ brwreload(1),
+ refreshDetail=,
  tsc,
  focus(050);
 
@@ -121,6 +131,10 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
 
 \t009Official Account; \l0104701;r010002048004; @lf010='a1=''OFFICIAL'' and b3!=1',2; \q010; \h009010lcTrustDep>0;r \d010obj:a17='Posted';
  \t047OfficialAccountDesc; \h047; \d048; \x048184; \w048151; \h047048lcTrustDep>0;r
+ @acc010=update,if(obj:a17='',sql('exec dbo.officialDepositStageGL '&obj:id)),
+ brwstuff=,
+ refreshDetail=,
+ tsc,;
 
 \t039Status; \w04055; \p0407cfah,13499135; \p0407c13h,700; \p0407c06h,1; \d040;
 \t041Received by;  \f042=cur:fullname; 
@@ -201,6 +215,12 @@ kp('select count(id) from paid where officialDepositId='&obj:id)
 @voidReceipt=
  m('Voiding a Official Deposit can not be un-done are you sure you wish to continue?','Void Official Deposit...',,6,4),
  break(gcretval<>2),
+ gclocation='Official_Deposit_Void',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  d1select('exec dbo.officialDepositVoid '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Deposit...')),
  refreshDetail=,

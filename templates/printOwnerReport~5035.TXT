@@ -28,3 +28,33 @@
   edt,
   nl,
   bnd('H','Count: '&format(lcCount,@n12.0b),800,,1500,'Report Total',2000R,,-700,format(lcHalfTot,@n-12.2),-700,format(lcTaxTot,@n-12.2),-700), );
+
+@printyear=
+ do(452,getSiteInfo=),
+ tr(grp(1,obj5:a13,
+  do(
+   lcHalfTot=0,
+   lcTaxTot=0,
+   lcCount=0,
+  ),
+  do(bnd('H','Count: '&format(lcCount,@n12.0b),800,,1500,'Report Total',2000R,,-700,format(lcHalfTot,@n-12.2),-700,format(lcTaxTot,@n-12.2),-700),
+   detendpage,),
+  ),
+  prn(printed),prn(page),
+  prn('Owner Number Report',t1),
+  prn(gcCounty&' County',t2), 
+  prn('Tax Year: '&gcRpYear,t3),
+  prn('Owner Number: '&obj5:a13,t4), 
+  bnd('HOU','Item #',800,'Parcel',1500,'Name',2000,'Net Assessed',-700,'Half',-700,'Tax Due',-700 ), 
+  det('select item,parcel,name,netAssessed,halfTax,TotalTaxDue,taxrollId,acres,lots,district,mobile,exemptions,ownernumber from dbo.rpOwnerReport('&gcRpYear&') order by OwnerNumber, item'),
+   lcLegal=kp('select legaldescription from adtax where id = '&obj5:a7),
+   bnd('D',format(obj5:a1,@n12.1b),800,obj5:a2,1500,obj5:a3,2000,format(obj5:a4,@n-12.0),-700,format(obj5:a5,@n-12.2),-700,format(obj5:a6,@n-12.2),-700),
+   prn(,,,6),bnd(,'Acres: ',500R,obj5:a8,500,'Lots: ',500R,obj5:a9,500,'School District: ',1000R,obj5:a10,1000,'Mobile Home: ',500R,obj5:a11,500),prn(,,,10),
+   prn(,,,7),bnd(,'Legal: ',500R,lcLegal,4500W),prn(,,,10),
+   bnd('U','',7000),
+   lcHalfTot=lcHalfTot+obj5:a5,
+   lcTaxTot=lcTaxTot+obj5:a6,
+   lcCount=lcCount+1,
+  edt,
+  nl,
+ );

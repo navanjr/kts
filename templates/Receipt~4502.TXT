@@ -1,7 +1,8 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1);
+@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
-@gfwindow=do(450,notify=);
+@gfwindow=gcscanid=obj:id,do(450,notify=),recalc=,update,tsc;
+@countImage=sql('update object set imagecount=isnull((select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))),0) where id='&obj:id);
 
 \00020500;
 @dup;
@@ -47,8 +48,7 @@ key7=apiUpdate
 @menuprocess=
  insertSelections=;
 
-@calcmailLog=
- recalc('TEM:ID=4514','id in (select mailLogId from paid where slink=''o'&obj:id&''')',,'044');
+@calcmailLog=sql('update object set a19=isnull((select dbo.mailLogComplete(id)),0) where typ=4514 and id in (select maillogid from paid where slink=''o'&obj:id&''')');
 
 @nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
@@ -213,6 +213,7 @@ close('ok');
  d1select('select case when sum(isnull(amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetailreports where slink in (select * from dbo.receiptSLinks('&obj:id&')) and accountType = ''ACCRUED RECEIVABLE'''),
  gcAlreadyCancelled=obj7:d1,
  if(obj:key3='TAX',prop(001,'text','Control Number')),
+ if(obj:key3='TRUST',create(152,9,475,131,'Ad&just')),prop(152,'width',67),
  tsc,
  break(obj:a17='Posted'),
  if(obj:key3='MISC' or obj:key3='INDIV',create(160,9,3,66,'&New Detail')),
@@ -235,10 +236,35 @@ close('ok');
  if(gcMailLogId+0>0,attachMailPayments=),
  update;
 
+@acc152=m('Are you sure that you want to adjust the trust balance of this receipt?','Are you sure?',,6),
+ break(gcretval<>2),
+ gclocation='Trust_Balance_Adjust',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
+ d1select('select top 1 purpose from dbo.purposedetail where receiptid='&obj:id&' order by amount desc'),
+ gcpurpose=obj7:d1,
+ d1select('select accountdesc from dbo.glaccounts where accountcode='''&gcpurpose&''''),
+ gcpurposedesc=obj7:d1,
+ d1select('select top 1 amount from dbo.purposedetail where receiptid='&obj:id&' order by amount desc'),
+ gcamount=obj7:d1,
+ iw('@afterloadwindow=set(004,-'&gcamount&');\t000Please Enter Purpose and Amount...;\t001Purpose Desc; \f002'&gcpurposedesc&'; \l0024701;r002004040002; @lf002=''typ=4701 and a1=''''PURPOSE'''''',2; \t003Adjust By; \t004@n-19.2; \t039Purpose; \f040'&gcpurpose&'; \h039; \d040; \x040-50;'),
+ lcblob='@purpose='&obj7:a17&';@adjustAmount='&obj7:key2&';',
+ d1select('exec dbo.receiptCRUD 7, '&obj:id&', @blob='''&lcblob&''''),
+ calcrecord(),
+ tsc,
+ refreshDetail=
+;
+
 @attachMailPayments=break(obj:a17='Posted'),
  break(gcMailLogId+0<1),
  sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&gcMailLogId&' and isnull(slink,'''')<'' 0'''),
  sql('exec dbo.receiptStageGL '&obj:id),
+ get(gcMailLogId),
+ lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
+ set(008,lcNameString),
  refreshDetail=
 ;
 
@@ -437,7 +463,7 @@ close('ok');
 \x067+207; \x068+177;r2
 \t055VIN#;
 \t057Title#;
-\t059In Trust; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
+\t059In Trust; \w06050; \t060@n14.2;  \s060-'select dbo.receiptTrustBalance('&obj:id&',null)'; \p0607cfah,13499135; \d060; 
 \t061Year; \t062@n4; \w06230;
 \t063Item; \w06460;
 \t067Decal#; \y067068-13;r \l0684301;r068002056006058012054008;
@@ -574,7 +600,8 @@ close('ok');
  gcdecisionId=0,
  gcmethod='CHECK',
  do(450,'check='),
- break(gccontinue<>'TRUE'), d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
+ break(gccontinue<>'TRUE'),
+ d1select('exec dbo.receiptCRUD @mode='&gcMode+0&', @receiptId='&obj:id+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
  if(readstring(obj7:d1,'@code=')=0,lcjeId=readstring(obj7:d1,'@jeId=')),
  if(lcjeId>0,change(lcjeId)),
@@ -801,18 +828,21 @@ acc551=
 @imaging=
  if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
  break(acImaging='FALSE'),
- case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=);
+ case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=),
+ recalc=,tsc;
 
 @scanpaid=gcscanid='p'&lcid,
  do(1,scan=),
- gcscanid=obj:id;
+ gcscanid=obj:id,
+ recalc=,tsc;
 
 @viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
  break(readstring(obj7:d1,'@code=')=1),
  gcobjid=obj7:d1,
  neww(3208),
- gcscanid=obj:id;
+ gcscanid=obj:id,
+ recalc=,tsc;
 
 @changecheckinfo=lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),
@@ -940,7 +970,11 @@ gcPrintOneTaxReceiptId=0,
 
 @acc162=break(obj:a17='Posted'),
  select(1,4514,'typ=4514 and a19>''0''','Select Envelope to Work...'),
- sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&pic:id&' and isnull(slink,'''')<'' 0'''),
+ break(pic:id<1),
+ get(pic:id),
+ sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&obj7:id&' and isnull(slink,'''')<'' 0'''),
+ lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
+ set(008,lcNameString),
  sql('exec dbo.receiptStageGL '&obj:id),
  refreshDetail=
 ;

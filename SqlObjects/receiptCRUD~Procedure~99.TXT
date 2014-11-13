@@ -188,8 +188,8 @@ begin
 
 
          -- create gldetailstaged linked to object record
-                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2,contraId)
-                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptSLink,contraId from gldetail where slink = @receiptSLink
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,slink2,contraId,sourcecode)
+                  select accountId,accountCode,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptSLink,contraId,sourcecode from gldetail where slink = @receiptSLink
                         and accountCode not in (select accountCode from glaccounts where accountType='SUSPENSE')
 
          -- create gldetailstage linked to penalty invoice
@@ -317,7 +317,7 @@ begin
    end
 
 -- remove paid records
-   update paid set slink = null where slink = 'o'+cast(@receiptId as varchar) and isnull(mailLogId,0)>0
+   update paid set slink = case when @voidReceipt = 'TRUE' then 'o'+cast(mailLogId as varchar) else null end where slink = 'o'+cast(@receiptId as varchar) and isnull(mailLogId,0)>0
    delete from paid where slink = 'o'+cast(@receiptId as varchar) and isnull(mailLogId,0)=0
 
 --remove receiptLinks and their GL
@@ -421,6 +421,70 @@ begin
          select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
         end
    end
+
+-- Adjust Purpose Balance
+ if @mode = 7 and @receiptId > 0 
+    begin
+
+    declare @purpose varchar(60),
+            @adjustAmount money
+
+    select @purpose = dbo.readstring('@purpose=',@blob)
+    select @adjustAmount = dbo.readstring('@adjustAmount=',@blob)
+
+         -- create new JE
+               	select  @jeType = 'Adjust Trust Balance', 
+                        @accountDesc = 'Trust Balance Adjustment Receipt # ' +cast(key1 as varchar) 
+                 from object where id = @receiptId 
+
+            exec dbo.journalEntryCRUD
+                 @mode = 0,
+                 @description = @accountDesc,
+                 @jeType = @jeType,
+                 @resultCode = @resultCode output,
+                 @resultMessage = @resultMessage output,
+                 @newId = @newId output
+                 select @slink = 'o' + cast(@newId as varchar)
+
+            insert into journalLink
+                select @newId,0,0,@receiptId
+
+    if isnull(@adjustAmount,0)=0         
+     begin
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId)
+                  select accountId,purpose,accountDesc,amount*-1,'o'+cast(@newId as varchar),@receiptId from dbo.purposedetail where receiptId = @receiptId
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select a.accountId,a.accountcode,a.accountDesc,amount,'o'+cast(@newId as varchar)
+                     from dbo.purposedetail d, glaccounts a 
+                     where d.receiptId = @receiptId
+                       and a.accountcode=d.purpose+'_'
+
+     end
+    else
+     begin
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink,contraId)
+                  select accountId,accountcode,accountDesc,@adjustAmount,'o'+cast(@newId as varchar),@receiptId 
+                    from dbo.glaccounts where accountcode = @purpose
+
+         -- create gldetailstaged linked to object record
+                insert into gldetailstage(accountId,accountCode,accountDesc,amount,slink)
+                  select accountId,accountcode,accountDesc,@adjustAmount*-1,'o'+cast(@newId as varchar)
+                    from dbo.glaccounts where accountcode = @purpose+'_'
+
+
+
+     end
+         select '@code=0;@message=Created Journal Entry;@jeId='+cast(@newId as varchar(15))+';'
+         
+         exec dbo.glpost @newId, 'o', @verbose='FALSE'
+
+    end
+
+
 
 
  return

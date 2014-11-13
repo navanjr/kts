@@ -5,6 +5,7 @@ as
 begin
 
  declare @useFiscalCalendar varchar(5),
+         @useCurrentCollections varchar(5),
          @current varchar(4),
          @prior varchar(5),
          @noPrior varchar(5)
@@ -13,6 +14,8 @@ begin
 
  
  select @useFiscalCalendar = settingvalue from settings where settingname='site.useFiscalCalendarforCurrentTax'
+
+ select @useCurrentCollections = settingvalue from settings where settingname='site.useCollectionsforCurrentTax'
 
  if @useFiscalCalendar = 'TRUE'
  begin
@@ -46,6 +49,35 @@ begin
  end
  else
  begin
+  if @useCurrentCollections = 'TRUE'
+  begin
+  insert @years
+  select top 1 'Current',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+      and accounttype = 'FUND'
+      and accountcode in (select accountcode from gldetail)
+    order by left(accountcode,4) desc
+
+  if @noPrior != 'TRUE'
+   insert @years
+   select top 1 'Prior',left(accountcode,4) from glaccounts 
+     where isnumeric(left(accountcode,4))=1 
+       and accountcode like '%ADVALOREM%'
+       and left(accountcode,4) not in (select [year] from @years) 
+       and left(accountcode,4) < (select top 1 [year] from @years order by [year] desc) 
+     order by left(accountcode,4) desc
+
+  insert @years
+  select distinct 'Back',left(accountcode,4) from glaccounts 
+    where isnumeric(left(accountcode,4))=1 
+      and accountcode like '%ADVALOREM%'
+      and left(accountcode,4) not in (select [year] from @years) 
+      and left(accountcode,4) < (select top 1 [year] from @years order by [year] desc) 
+    order by left(accountcode,4) desc
+  end
+  else 
+  begin
   insert @years
   select top 1 'Current',left(accountcode,4) from glaccounts 
     where isnumeric(left(accountcode,4))=1 
@@ -66,6 +98,7 @@ begin
       and accountcode like '%ADVALOREM%'
       and left(accountcode,4) not in (select [year] from @years) 
     order by left(accountcode,4) desc
+ end
  end
 
  return

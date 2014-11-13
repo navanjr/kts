@@ -1,0 +1,79 @@
+create proc dbo.diagFix_orphanedPenalties(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(si.id),  
+   @message = 'Orphaned Fees.'
+  from invoices si
+  where si.TYP='P'
+   and si.invoiceId > 0
+   and si.id not in (select invoiceid from receiptlink)
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from invoices si
+  where si.TYP='P'
+   and si.invoiceId > 0
+   and si.id not in (select invoiceid from receiptlink)
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  declare @ids table(id int)
+  declare @subInvoiceIdToken int = 0,
+          @slinkToken varchar(16)
+
+  insert @ids
+   select distinct si.id
+   from invoices si
+   where si.TYP='P'
+    and si.invoiceId > 0
+    and si.id not in (select invoiceid from receiptlink)
+ 
+  while exists(select * from @ids) 
+  begin
+   select top 1 @subInvoiceIdToken = id, @slinkToken = 't'+cast(id as varchar) from @ids
+
+   begin transaction
+   delete glDetailStage where slink = @slinkToken
+   delete glDetail where slink = @slinkToken
+   delete invoices where id = @subInvoiceIdToken
+   commit transaction
+
+
+
+   delete from @ids where id = @subInvoiceIdToken
+  end
+
+  return  
+ end
+
+
+end

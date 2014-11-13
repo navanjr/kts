@@ -1704,7 +1704,8 @@ class ktsMenu():
             #     '0000-04-02N-02E-0-011-00',
             # ]
             tally = 0
-            if len(package['rows']) > 0:
+            if 'rows' in package and len(package['rows']) > 0:
+                tallyTotal = len(package['rows'])
                 for row in package['rows']:
                     token = []
                     for adtax, aaMasterArray in fields.items():
@@ -1718,9 +1719,11 @@ class ktsMenu():
 
                     setString = ', '.join(token)
                     sqlString = "update adtax set %s where realTaxYear = '%s' and fullPidNumber = '%s'" % (setString, taxYear, row['fullpidnumber'])
+                    print '.... %s' % tallyTotal
                     q = self.sqlQuery(sqlString, True)
                     if q['code'][0] == 0:
                         tally += 1
+                        tallyTotal -= 1
                     else:
                         print 'oops...', q
             print 'ok i sent %s updates' % tally

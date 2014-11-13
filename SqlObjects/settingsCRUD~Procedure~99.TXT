@@ -1,6 +1,6 @@
 create proc dbo.settingsCRUD(
  @settingName varchar(200) = null,
- @settingValue varchar(150) = null,
+ @settingValue varchar(1000) = null,
  @settingDescription varchar(500) = null,
  @settingId int = null,
  @method varchar(20) = 'POST',
@@ -18,8 +18,8 @@ begin
  begin
   exec dbo.logit @@procid, 'Initializing Settings...'
   declare @defaultSettings table(
-   name varchar(50),
-   value varchar(50),
+   name varchar(200),
+   value varchar(1000),
    description varchar(500),
    parentId varchar(15),
    removeSettingName varchar(200) default '',
@@ -94,7 +94,9 @@ begin
    union
   select 'site.detailCashonDeposit', 'FALSE', 'Detail cash on Bank Deposit like Checks', 'o' + cast(@siteId as varchar),'site.detailCashonOfficialDeposit','boolean'
    union
-  select 'site.useFiscalCalendarforCurrentTax', 'TRUE', 'This causes the reports to use teh fiscal calendar rather than the latest tax year to determine which year is labeled current tax', 'o' + cast(@siteId as varchar),'','boolean'
+  select 'site.useFiscalCalendarforCurrentTax', 'TRUE', 'This causes the reports to use the fiscal calendar rather than the latest tax year to determine which year is labeled current tax', 'o' + cast(@siteId as varchar),'','boolean'
+   union
+  select 'site.useCollectionsforCurrentTax', 'FALSE', 'This causes the reports to use the current collections rather than the latest tax year to determine which year is labeled current tax', 'o' + cast(@siteId as varchar),'','boolean'
    union
   select 'site.onlineSchoolReports', 'FALSE', 'allows sending school report to the treasurer api', 'o' + cast(@siteId as varchar),'','boolean'
    union
@@ -153,8 +155,22 @@ begin
   select 'site.StateSuperintendent', 'Janet Barresi', 'Name os the State School Superintendent', 'o' + cast(@siteId as varchar),'','string' 
  union
   select 'site.taxYearsExcludePrior', 'FALSE', 'Sets the Tax years to only include Current and Back no Prior.', 'o' + cast(@siteId as varchar),'','boolean'
-
-
+   union
+  select 'site.TrustGetsOwnRegister', 'FALSE', 'Trust Vouchers get their own series of Register Numbers.', 'o' + cast(@siteId as varchar),'','boolean'
+   union
+  select 'site.taxStatementFooter', '', 'Footer Note on the statement', 'o' + cast(@siteId as varchar),'','text' 
+   union
+  select 'site.taxStatementMiddle', 'PAYMENT DUE DATES AND PENALTY You must pay 1/2 or all by December 31st Taxes delinquent January 1st and must be paid in full with interest accruing at 1 1/2% per month until paid. Taxes $25.00 or less due in full by December 31st.', 'Middle Note on the statement', 'o' + cast(@siteId as varchar),'','text' 
+   union
+  select 'site.taxStatementBarcode', 'TRUE', 'Middle Note on the statement', 'o' + cast(@siteId as varchar),'','boolean' 
+   union
+  select 'site.taxStatementPayableTo', '', 'Payableto', 'o' + cast(@siteId as varchar),'','text' 
+   union
+  select 'site.taxStatementBackTax', 'TRUE', 'Show back taxes on statement', 'o' + cast(@siteId as varchar),'','boolean' 
+   union
+  select 'site.tax_year_searchable', '2014', 'Latest Year to search on the web', 'o' + cast(@siteId as varchar),'','int'
+   union
+  select 'site.tax_year_payable', '2014', 'Latest Year to allow web payments', 'o' + cast(@siteId as varchar),'','int'
 
 ---Backup
    union
