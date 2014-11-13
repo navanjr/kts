@@ -12,6 +12,7 @@ returns @rt table(accountCode varchar(60) default '',
                   September varchar(60) default '',
                   October varchar(60) default '',
                   November varchar(60) default '',
+                  November2 varchar(60) default '',
                   December varchar(60) default '',
                   December2 varchar(60) default '',
                   January varchar(60) default '',
@@ -109,13 +110,14 @@ insert @wt (apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourc
   group by apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA
   
 
-insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,July,August,September,October,November,December,December2,January,January2,February,February2,March,March2,April,May,June,Total,ord)
+insert @rt (accountCode,accountDesc,sourceSECA,sourceDesc,July,August,September,October,November,november2,December,December2,January,January2,February,February2,March,March2,April,May,June,Total,ord)
  select accountCode,accountDesc,sourceSECA,sourceDesc,
   sum(case when apportionmonth=7 then amount else 0 end),
   sum(case when apportionmonth=8 then amount else 0 end),
   sum(case when apportionmonth=9 then amount else 0 end),
   sum(case when apportionmonth=10 then amount else 0 end),
-  sum(case when apportionmonth=11 then amount else 0 end),
+  sum(case when apportionmonth=11 and apportionday<20 then amount else 0 end),
+  sum(case when apportionmonth=11 and apportionday>=20 then amount else 0 end),
   sum(case when apportionmonth=12 and apportionday<20 then amount else 0 end),
   sum(case when apportionmonth=12 and apportionday>=20 then amount else 0 end),
   sum(case when apportionmonth=1 and apportionday<20 then amount else 0 end),
@@ -140,7 +142,7 @@ insert @rt (accountcode,accountdesc,sourceDesc, ord)
   group by accountcode,accountdesc
 
 
-insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,november,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
+insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,november,november2,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
  select accountcode,accountdesc,
   'Total Revenue Rec''d',
   sum(cast(July as money)),
@@ -148,6 +150,7 @@ insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,nov
   sum(cast(September as money)),
   sum(cast(october as money)),
   sum(cast(november as money)),
+  sum(cast(november2 as money)),
   sum(cast(december as money)),
   sum(cast(december2 as money)),
   sum(cast(January as money)),
@@ -164,7 +167,7 @@ insert @rt (accountcode,accountdesc,sourceDesc,july,august,september,october,nov
   from @rt
   group by accountcode,accountdesc
 
-insert @rt (sourceDesc,july,august,september,october,november,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
+insert @rt (sourceDesc,july,august,september,october,november,november2,december,december2,january,january2,february,february2,march,march2,april,may,june,total, ord)
  select 
   'Grand Total Revenue Rec''d',
   sum(cast(July as money)),
@@ -172,6 +175,7 @@ insert @rt (sourceDesc,july,august,september,october,november,december,december2
   sum(cast(September as money)),
   sum(cast(october as money)),
   sum(cast(november as money)),
+  sum(cast(november2 as money)),
   sum(cast(december as money)),
   sum(cast(december2 as money)),
   sum(cast(January as money)),
