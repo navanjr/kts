@@ -225,7 +225,8 @@ if @typ='S'
  --Current Year Tax
   insert @rt (invoiceDue,trcode,trSection,origin,ord)
    select invoiceDue, 'currenttax',5,'Current Yr Tax',1 from @rt where trcode = 'Current Yr Tax'
-
+if @typ<>'S'
+ begin
 --Spacing lines
   insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
     select 0, '',5,'',5,@name,@parcel 
@@ -241,6 +242,7 @@ if @typ='S'
  if exists(select * from @rt where trcode = 'past due' and recordtype = 's')
   insert @rt (invoiceDue,trcode,trSection,origin,ord,name,parcel)
    select sum(isnull(invoicedue,0)+isnull(penalty,0)+isnull(fees,0)), 'pastdue',5,'Special Assessments',8,@name,@parcel from @rt where trcode = 'past due' and recordtype = 's'
+ end
  	
  return
 end
