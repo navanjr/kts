@@ -33,6 +33,7 @@ begin
   @paidRatioGreaterThanFlag int = dbo.splitF(@switches,null,2),
   @includePriorYears int = dbo.splitF(@switches,null,3),
   @combineYears int = dbo.splitF(@switches,null,4),
+  @hasBackTaxes int = dbo.splitF(@switches,null,5),
   @dTypeCode varchar(50)
 
  declare @invoiceTypes table(typ varchar(1))
@@ -194,6 +195,9 @@ if not exists(select * from @selectedMortgageCodes)
     delete @wt where paidRatio != @paidRatio-- and statementId = 0
   end
  end
+
+ if @hasBackTaxes = '1'
+   delete @wt where parcel not in (select parcel from invoices where taxyear<@taxYear and parcel>'  0')
 
  if @mode = 'SUMMARY'
  begin
