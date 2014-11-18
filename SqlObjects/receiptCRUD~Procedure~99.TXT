@@ -254,6 +254,14 @@ begin
    select '@code=1;@message=Receipt has been apportioned, aborting delete;'
    return
   end
+
+-- bail if deposited
+  if exists(select * from paid where slink=@slink and isnull(depositId,0)>0)
+  begin
+   exec dbo.logit @@procid, 'Receipt has been deposited... Bailing.'
+   select '@code=1;@message=Receipt has been deposited, aborting delete;'
+   return
+  end
   
   declare @receiptlinks table (slink varchar(15))
   insert @receiptlinks
