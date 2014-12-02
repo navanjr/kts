@@ -162,9 +162,11 @@
  @acc354=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1),
+  lcAdtaxRecordId=kp('select taxrollid from invoices where id='&gcInvoiceId),
+  lcAdtaxRecordValid=kp('select case when recordtype=''S'' then ''TRUE'' else ''FALSE'' end from adtax where id='&lcAdtaxRecordId),
   lcinvoiceType=kp('select typ from invoices where id='&gcInvoiceId),
-  if(lcinvoiceType='S' or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
-  break(lcinvoiceType='S' or gcInvoiceId>9000000),
+  if((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
+  break((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId>9000000),
   gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
   iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004N;'),
   break(gcretval='esc'),
