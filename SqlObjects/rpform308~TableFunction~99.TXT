@@ -28,7 +28,7 @@ begin
    and accountcode in (select accountcode from glaccounts where form308='1')
   group by accountcode,accountDesc,SourceDesc, comment
   
-  update r set detcount = rs.detcount+rs.ls+rs.ld 
+  update r set detcount = rs.detcount+case when rs.ls > rs.ld then rs.ls else 0 end+case when rs.ld >= rs.ls then rs.ld else 0 end
    from @rt r, 
      (select fundCode, count(*) as detcount,
        isnull((select sum(longSource) from @rt where fundcode=r.fundcode),0) as ls, 
