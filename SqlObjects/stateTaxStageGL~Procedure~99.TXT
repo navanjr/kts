@@ -18,7 +18,7 @@ declare @appvworksum money,
 if isnull(@date,0)=0
 select @date = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
 
-exec dbo.importAppvwork 
+--exec dbo.importAppvwork 
 
 insert @wt
 select * from dbo.stateTaxImport() 
@@ -67,7 +67,7 @@ select '',max(comment),sourcecode,'','','',accountCode,contraId,SUM(amount)
   having SUM(amount)<> 0.00
  
  update c set sourceDesc = accountDesc from @ct c, glAccounts a where sourceCode=accountcode
- update c set fundCode = case when aptabletype > ' 0' and aptabletype not in ('T','L') then 'TABLE' else targetAccountCode end from @ct c, glAccounts a where ACRCode=accountcode
+ update c set fundCode = case when aptabletype > ' 0' and aptabletype not in ('T','L') then 'TABLE' /*when targetAccountCode  in (select accountcode from glCollectionAccount where collectionDescription like '%Ad%') then ''*/ else targetAccountCode end from @ct c, glAccounts a where ACRCode=accountcode
  update c set fundDesc = accountDesc from @ct c, glAccounts a where fundCode=accountcode
  update c set yearcode = ty.yearcode from @ct c, glaccounts a, (select * from dbo.taxyears(@date)) ty 
   where c.contraid = a.accountid
