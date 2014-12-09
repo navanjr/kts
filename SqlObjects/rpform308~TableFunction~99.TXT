@@ -13,7 +13,10 @@ returns @rt table(fundCode varchar(60),
 as
 begin
                 
- declare @miscCollectionAccountCode varchar(60)
+ declare @miscCollectionAccountCode varchar(60),
+         @excludeTaxes varchar(10)
+
+ select @excludeTaxes = dbo.settingsF('site.form308ExcludesTaxes','FALSE')
 
  select @miscCollectionAccountCode = key3 from object where typ=4503 and key1='MISC'
  insert @rt
@@ -23,7 +26,8 @@ begin
  insert @rt
  select accountCode as fundCode,accountDesc as FundDesc,'' as postDate1,'' as receiptNo,sourceDesc,sum(amount)*-1 as amountToApportion, 0 as detCount,len(sourceDesc)/22,len(comment)/20, comment 
   from rpMonthEndDetail(@begindate,@enddate,'TRUE') 
-  where apportionContraCode<>@miscCollectionAccountCode and apportionContraCode <> accountcode  
+  where apportionContraCode not in ((select @miscCollectionAccountCode union select case when @excludeTaxes = 'TRUE' then accountcode else '' end from glaccounts where bssummary = 'Ad Valorem Tax'))
+   and apportionContraCode <> accountcode  
    and accountType in (select accounttype from dbo.glbankfundtypes('FUND'))
    and accountcode in (select accountcode from glaccounts where form308='1')
   group by accountcode,accountDesc,SourceDesc, comment
