@@ -439,11 +439,13 @@
  refreshBRW=;
 
 @releaseProtest=
-  lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
+  lcCheckYear=kp('select taxyear from invoices where id='&lcId),
+  lcCheckItem=kp('select item from invoices where id='&lcId),
+  lccheck=kp('select amount from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0),
   break(lccheck+0<.01),
   if(gcjeid+0<1,newje=,lcchange='dont'),
   break(gcjeid+0<1),
-  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where invoiceId='&lcId&' 
+  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0&' 
     and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
   sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
   if(lcchange<>'dont',change(gcjeid)),
