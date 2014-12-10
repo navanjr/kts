@@ -27,28 +27,39 @@ begin
 
  if isnumeric(@scanId)=1
   begin
-   insert into object (typ,link1,link2,link3,key1,key2) 
-    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref = @scanId
+   insert into object (typ,link1,link2,link3,key1,key2,key3) 
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,isnull((select key1 from object where id = @scanId),'') 
+      from imglinks where objidref = @scanId
    
    select @objectType = typ from object where id = @scanId
    
    if @objectType in (4502,4522)
     begin
-     insert into object (typ,link1,link2,link3,key1,key2) 
-      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-        (select id from object where typ = 3209 and key1 in 
-            (select 'p' + cast(id as varchar) from paid where slink = 'o'+cast(@scanId as varchar)))
+     insert into object (typ,link1,link2,link3,key1,key2,key3) 
+      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,p.checkno 
+      from imglinks il, object o, paid p 
+       where il.objidref = o.id
+        and o.typ=3209
+        and o.key1 = 'p'+cast(p.id as varchar)
+        and p.slink = 'o'+cast(@scanId as varchar)
 
-     insert into object (typ,link1,link2,link3,key1,key2) 
-      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-        (select mailLogId from paid where slink = 'o'+cast(@scanId as varchar))
+     insert into object (typ,link1,link2,link3,key1,key2,key3) 
+      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,
+       isnull((select key1 from object where id = p.mailLogId),'') as key3
+       from imglinks il, paid p
+        where il.objidref = p.mailLogId
+         and p.slink = 'o'+cast(@scanId as varchar)
    end   
    if @objectType = 4513
    begin
-    insert into object (typ,link1,link2,link3,key1,key2) 
-     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-       (select id from object where typ = 3209 and key1 in 
-           (select 'p' + cast(id as varchar) from paid where depositId = cast(@scanId as int)))
+    insert into object (typ,link1,link2,link3,key1,key2,key3) 
+     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,
+       isnull((select key1 from object where id = dbo.slinkid(p.slink)),'') as key3
+      from imglinks il, object o, paid p 
+       where il.objidref = o.id
+        and o.typ=3209
+        and o.key1 = 'p'+cast(p.id as varchar)
+        and p.depositId = cast(@scanId as int)
 
 /*
      insert into object (typ,link1,link2,link3,key1,key2) 
