@@ -138,7 +138,11 @@ declare @wt1 table(invoiceId int, due money, feedue money, process int)
 declare
    @due money = 0,
    @feeDue money = 0,
-   @invoiceIdToken int = 0
+   @invoiceIdToken int = 0,
+   @receiptDate varchar(20) 
+
+select @receiptDate = key2 from object where typ=4502 and id = @recId
+
 
 
 insert @wt1 (invoiceId, process)
@@ -151,7 +155,7 @@ while exists(select * from @wt1 where process=0)
   select 
    @due = sum(case when accountType = 'RECEIVABLE' then amount else 0 end),
    @feeDue = sum(case when accountType = 'RECEIVABLE' then feeamount else 0 end)
-   from dbo.invoiceGLTotalTF(@invoiceIdToken)
+   from dbo.invoiceGLTotalTFHistory(@invoiceIdToken,@receiptDate)
    where status='Posted'
 
   update @rt set 
