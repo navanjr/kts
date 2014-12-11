@@ -1,0 +1,57 @@
+create proc dbo.diagFix_missingapideletedinvoices(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+
+ if @method = 'GET'
+ begin 
+
+  select
+   @class = 'API',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(i.id),
+   @message = 'missing apideleted invoice records...'
+    from invoices i 
+    where invoiceamount = 0
+     and not exists (select * from apiDeleted where blob like '%invoice_link=' + cast(Id as varchar) + ';%') 
+
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 't'+cast(Id as varchar),
+   'invoices', 'invoice_link=' + cast(abs(id) as varchar) + ';'
+    from invoices i 
+    where invoiceamount = 0
+     and not exists (select * from apiDeleted where blob like '%invoice_link=' + cast(Id as varchar) + ';%')
+
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert apiDeleted(slink,apiResource,blob)
+  select 't'+cast(Id as varchar),
+   'invoices', 'invoice_link=' + cast(abs(id) as varchar) + ';'
+    from invoices i 
+    where invoiceamount = 0
+     and not exists (select * from apiDeleted where blob like '%invoice_link=' + cast(Id as varchar) + ';%') 
+  return
+
+ end
+
+end
