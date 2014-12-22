@@ -1,0 +1,52 @@
+create proc dbo.diagFix_depositNumber(
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'Deposits',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Non standard bank deposit numbers'
+  from Object
+  where typ=4513
+   and rtrim(key1)<>rtrim(dbo.popro6(key1,5,0))
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+
+
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * 
+  from Object
+  where typ=4513
+   and rtrim(key1)<>rtrim(dbo.popro6(key1,5,0))
+ end
+
+ if @method = 'FIX'
+ begin  
+  update object set key1=dbo.popro6(key1,5,0)   
+    where typ=4513
+     and rtrim(key1)<>rtrim(dbo.popro6(key1,5,0))
+  return
+
+ end
+
+end
