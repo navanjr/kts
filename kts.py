@@ -1,7 +1,7 @@
 from functions import *
 
 sysArgs = sys.argv
-autoArgs = ['ftp', 'conv', 'backupNow', 'api', 'compress']
+autoArgs = ['ftp', 'conv', 'backupNow', 'api', 'compress','import']
 
 if len(sysArgs) > 1 and sysArgs[1] not in autoArgs:
     database = sysArgs[1]
