@@ -1,6 +1,6 @@
 if exist uktsbeta.exe del uktsbeta.exe
   
-pkzipc -add -sfx -dir ..\uktsbeta *.*
+pkzipc -add -sfx -dir ..\uktsbeta c:\client\key\kts\*.*
  
 rem ftp -n -s:ktsbeta.ftp 
 
