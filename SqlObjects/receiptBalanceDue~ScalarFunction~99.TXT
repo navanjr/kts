@@ -42,11 +42,12 @@ if @receiptType = 'TAX'
  select @glAmtStage = sum(a.amount) 
  from glDetailStage a, glAccounts b 
   where a.accountId = b.accountId and 
-  b.accountType = 'RECEIVABLE' and 
+  b.accountType = 'suspense' and 
+  b.accountdesc <> 'temporary suspense' and 
   left(slink,1) <> 't' and 
   slink in (select slink from dbo.receiptSLinks(@receiptId))
 
- select @due = isnull(@totalDue,0) + isnull(@glAmtStage,0)
+ select @due = isnull(@totalDue,0) - isnull(@glAmtStage,0)
  return @due
 
  end

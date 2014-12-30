@@ -1,17 +1,24 @@
 create proc dbo.ktsBat(
  @commandString varchar(max),
- @output nvarchar(max) = null output
+ @output nvarchar(max) = null output,
+ @overridepath varchar(2000) = null
 ) as
 begin
 
 -- run a kts.bat menu command...
-
  set nocount on
 
  declare
   @cmd varchar(8000),
   @gitRepo varchar(max) = (select path from dbo.paths() where name = 'gitRepo'),
-  @retInt int
+  @retInt int,
+  @gitRepoDefault varchar(max) = (select path from dbo.paths() where name = 'gitRepo')
+
+ if isnull(@overridepath,'NULL') <> 'NULL'
+  begin
+   --exec dbo.settingsCRUD 'git.gitPath', @overridepath, @method = 'POST'
+   set @gitRepo = @overridepath
+  end
 
  declare @wt table(id int identity(1,1), data varchar(max))
 
@@ -26,5 +33,6 @@ begin
  exec dbo.logit @@procid, 'Done!... @retInt', @retInt, '@output', @output
 
  select * from @wt
+
 
 end

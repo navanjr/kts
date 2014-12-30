@@ -1,7 +1,7 @@
 CREATE procedure [dbo].[subInvoiceCRUD](
  @mainInvoiceId int,
  @invoiceDate varchar(10),
- @description varchar(60),
+ @description varchar(50),
  @sourceCode varchar(50),
  @fundCode varchar(50),
  @subInvoiceType varchar(1) = 'F',
@@ -36,7 +36,7 @@ begin
   @item varchar(50)
 
 
- declare @rd table(description varchar(60),
+ declare @rd table(description varchar(50),
    subDescription varchar(60),
    sourceCode varchar(60),
    fundCode varchar(60), 
@@ -125,7 +125,8 @@ begin
      dbo.readstring('@ini=',dbo.whoAmI()) + ' - ' + @blob+char(13)+char(10)+dbo.splitF(dbo.whoAmI(),';',1) +';'
      from invoices where id=@mainInvoiceId
       
-   set @invoiceId=isnull((select top 1 id from invoices where [POSTDATE]=@invoiceDate and invoiceId=@mainInvoiceId order by id desc),0)
+   select @invoiceId = SCOPE_IDENTITY() 
+
    set @slink='t'+cast(@invoiceId as varchar)
 
 /*if dbo.readstring('@addComment=',@blob) = 'TRUE'
@@ -186,4 +187,7 @@ begin
   set @newInvoiceId = @invoiceId
   exec dbo.invoiceUpdate @invoiceId
   exec dbo.invoiceUpdate @mainInvoiceId
+
+  if left(@description,4) = 'VOID'
+    exec dbo.diagFix_missingapideletedinvoices @method='FIX'
 end

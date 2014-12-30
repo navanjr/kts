@@ -88,7 +88,8 @@ begin
   physical_street_number varchar(50),
   physical_street varchar(50),
   physical_town varchar(50),
-  physical_street_direction varchar(50)
+  physical_street_direction varchar(50),
+  account_number varchar(50)
  )
 
  declare @taxyears table(year varchar(4))
@@ -97,6 +98,26 @@ begin
  else
   insert @taxyears select realTaxYear from adtax group by realtaxyear
 
+ declare @adtaxIds table(id int, modified datetime, apiUpdated datetime)
+ 
+ insert @adtaxIds
+  select a.id, a.modified, a.apiUpdated 
+   from adtax a join invoices i on i.TAXROLLID = a.ID 
+    where OWNERNAME>'  0' and a.id > 0 and isnull(a.apiUpdated,0) < a.modified  
+ 
+ update aid set modified = tc.modified 
+  from @adtaxIds aid, (select max(modified) as modified, taxrollid from taxrollcorrections group by taxrollid) tc
+  where aid.id = tc.taxrollid 
+   and tc.modified > aid.modified
+  
+ insert @adtaxIds  
+  select taxrollid, max(modified), (select apiUpdated from adtax where id = taxrollid)
+   from taxrollcorrections
+    where taxrollid not in (select id from @adtaxIds)
+   group by taxrollid
+ 
+ delete from @adtaxIds where isnull(apiUpdated,0) > isnull(modified,0)  
+ 
  if @method = 'JOB'
  begin
   select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
@@ -109,10 +130,10 @@ begin
   declare @status table(taxyear varchar(4), total int, stale int, percentStale money)
 
   if not @taxyear = 'ALL'
-   insert @status select realTaxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+   insert @status select realTaxYear, count(*), sum((case when isnull(apiUpdated,0) < modified then 1 else 0 end)), null
     from adtax where realtaxyear in (select year from @taxyears) group by realtaxyear
   else
-   insert @status select 'ALL', count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
+   insert @status select 'ALL', count(*), sum((case when isnull(apiUpdated,0) < modified then 1 else 0 end)), null
     from adtax where realtaxyear in (select year from @taxyears)
 
   while exists(select * from @taxyears)
@@ -166,7 +187,8 @@ declare @rt table (
  physicalstreetnumber varchar(50),
  physicalstreet varchar(50),
  physicaltown varchar(50),
- physicalstreetdirection varchar(50)
+ physicalstreetdirection varchar(50),
+ account_number varchar(50)
 )
 insert into @rt
  select top (@batchSize)
@@ -200,9 +222,12 @@ insert into @rt
    a.physicalstreetnumber,
    a.physicalstreet,
    a.physicaltown,
-   a.physicalstreetdirection
-   from adtax a join invoices i on i.TAXROLLID = a.ID where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and a.id > 0
-    and isnull(a.apiUpdated,0) < a.modified
+   a.physicalstreetdirection,
+   cast(a.ownernumber as varchar) as account_number
+   from adtax a join invoices i on i.TAXROLLID = a.ID 
+    join @adtaxIds aid on aid.id = a.id
+    where REALTAXYEAR in (select year from @taxyears) 
+
    order by OWNERNAME, ITEMNUMBER  
 insert into @wt
 select
@@ -241,7 +266,8 @@ select
    physicalstreetnumber,
    physicalstreet,
    physicaltown,
-   physicalstreetdirection
+   physicalstreetdirection,
+   account_number
  from @rt
 
 -- bail if your done or update batchSize from tally, maybe... 
@@ -297,6 +323,7 @@ select
   insert @jsonPrep select parentId,null,'physical_street', dbo.stripChars(physical_street,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'physical_town', dbo.stripChars(physical_town,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'physical_street_direction', dbo.stripChars(physical_street_direction,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'account_number', dbo.stripChars(account_number,@goofyChars),'string' from @wt
 
 -- insert lowest level object wrapper
   select @tokenId = MAX(id) + 1 from @jsonPrep

@@ -22,9 +22,28 @@ begin
   
 -- Insert Accrued Receivables for the refund
  insert gldetailstage (accountId, contraId, accountCode, accountDesc, amount, comment, comment2, slink, slink2)
- select 
+ select top 1 
    a.[accountId],a.[contraId],a.[accountCode],left('Stage '+a.accountDesc,49),cast(b.a5 as money)*-1,a.[comment],a.[comment2],@slink,a.[slink2]
  from gldetail a, object b where b.typ=4775 and a.slink2=b.olink2 and b.link1=@jeId and cast(b.a5 as money)>0
+
+-- Insert ContraAccount for the refund
+ insert gldetailstage (accountId, accountCode, accountDesc, amount, comment, comment2, slink)
+ select top 1 
+   ac.[accountId],ac.[accountCode],left('Stage '+ac.accountDesc,49),cast(b.a5 as money),a.[comment],a.[comment2],@slink
+ from gldetail a, object b, glaccounts ac 
+ where ac.accountid = a.contraid and 
+  b.typ=4775 and a.slink2=b.olink2 and b.link1=@jeId and cast(b.a5 as money)>0
+
+-- Insert Expense for the refund
+ insert gldetailstage (accountId, accountCode, accountDesc, amount, comment, comment2, slink)
+ select top 1 
+   ex.[accountId],ex.[accountCode],left('Stage '+ex.accountDesc,49),cast(b.a5 as money),a.[comment],a.[comment2],@slink
+ from gldetail a, object b, glaccounts ac, glaccounts ex 
+ where ac.accountid = a.contraid
+  and ex.targetaccountcode = ac.accountcode and ex.accounttype = 'EXPENSE'
+  and b.typ=4775 and a.slink2=b.olink2 and b.link1=@jeId and cast(b.a5 as money)>0
+
+
 
 -- Insert Fund for the refund
  insert gldetailstage (accountId, accountCode, accountDesc, amount, slink, comment2)

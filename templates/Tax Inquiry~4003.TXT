@@ -139,7 +139,7 @@
 
 \t101Raw Import Data; \x1013; \y101140; @acc102=update,refreshBRW=; \h101102len(clip(obj:e1))=0;r
  \p1027cfah,13499135; p1027c13h,700; \p1027c10h,courier new; \p1027c11h,8;
- \x1023; \y102152; \w102480; \z102100; \d102obj:c4=0;
+ \x1023; \y102152; \w102480; \z102100; \r102obj:c4=0;
 
 \t103Raw Import Data2; \h103; \h104len(clip(obj:e2))=0;
  @acc104=acc102=;
@@ -156,15 +156,18 @@
 \v353121; \w353=119;
  @acc353=
   gcInvoiceId=kpbrwid(1)*-1,
-  do(4006,menuprocess=);
+  do(4006,menuprocess=),
+  refreshBRW=;
 
 \v354119; \w354=119;
  @acc354=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1),
+  lcAdtaxRecordId=kp('select taxrollid from invoices where id='&gcInvoiceId),
+  lcAdtaxRecordValid=kp('select case when recordtype=''S'' then ''TRUE'' else ''FALSE'' end from adtax where id='&lcAdtaxRecordId),
   lcinvoiceType=kp('select typ from invoices where id='&gcInvoiceId),
-  if(lcinvoiceType='S' or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
-  break(lcinvoiceType='S' or gcInvoiceId>9000000),
+  if((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId>9000000, m('We are not currently able to set a mortgage code for this record.')), 
+  break((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId>9000000),
   gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId),
   iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004N;'),
   break(gcretval='esc'),
@@ -192,10 +195,10 @@
   gcmethod='CHECK',
   do(450,'check='),
   break(gccontinue<>'TRUE'),
-  iw(',.t000Void Invoice?!!!., ,.y001002+13.,r ,.t001Description., ,.x002-20., ,.t003Are you sure you want to void this invoice?., ,.p0037c13h,700.,,.p0037c12h,255., ,.y003004-13.,r ,.h004., ,.w003180.,'),
+  iw(',.t000Void Invoice?!!!., ,.y001002+13.,r ,.t001Description., ,.t002@s44., ,.x002-20., ,.t003Are you sure you want to void this invoice?., ,.p0037c13h,700.,,.p0037c12h,255., ,.y003004-13.,r ,.h004., ,.w003180.,'),
   break(gcretval='esc'),
   lcamount=obj7:key2+obj7:key3,
-  lcDesc='VOID:'&kpfq(obj7:key1),
+  lcDesc=left('VOID:'&kpfq(obj7:key1),49),
   sql('exec dbo.subInvoiceCRUD '&gcInvoiceId&', '&today()&', '''&lcDesc&''', '''', '''', ''A'', '&lcamount+0),
   sql('exec invoiceUpdate '&gcInvoiceId+0),
   refreshBRW=;
@@ -437,11 +440,13 @@
  refreshBRW=;
 
 @releaseProtest=
-  lccheck=kp('select amount from dbo.protestDetail where isnull(invoiceId,'''') = '&lcId&''),
+  lcCheckYear=kp('select taxyear from invoices where id='&lcId),
+  lcCheckItem=kp('select item from invoices where id='&lcId),
+  lccheck=kp('select amount from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0),
   break(lccheck+0<.01),
   if(gcjeid+0<1,newje=,lcchange='dont'),
   break(gcjeid+0<1),
-  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where invoiceId='&lcId&' 
+  sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0&' 
     and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
   sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
   if(lcchange<>'dont',change(gcjeid)),

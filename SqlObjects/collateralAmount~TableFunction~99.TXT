@@ -49,15 +49,17 @@ insert @collateralDetail
         
 
 insert @rt (bankAccountCode, bankAccountDesc, bankName, glBalance, outstandingPayments, statementBalance, processcode, notCoveredAmount, unusedCollateral,CDARS,bankAccountType)
- select accountCode,
-        accountDesc,
+ select a.accountCode,
+        a.accountDesc,
         bankName, 
-        isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode),0),
-        isnull((select sum(g.amount*-1) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and amount < 0.00 and isnull(bsId,0)=0),0),
-        isnull((select sum(g.amount) from gldetail g where g.[date]<=@effectiveDate and g.accountcode=a.accountcode and (amount > 0.00 or isnull(bsId,0)>0)),0),
-        0,0.00,0.00,CDARS,a.accounttype
- from glaccounts a
+        sum(g.amount),
+        sum(case when amount < 0.00 and isnull(bsId,0)=0 then g.amount*-1 else 0 end),
+        sum(case when (amount > 0.00 or isnull(bsId,0)>0) then g.amount else 0 end),
+        0,0.00,0.00,a.CDARS,a.accounttype
+ from glaccounts a, gldetail g
   where a.accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in ('SUSPENSE','CASH'))
+    and a.accountcode = g.accountcode
+    and g.[date] <= @effectiveDate
  group by a.accountcode,a.accountdesc,a.bankName,a.CDARS,a.accounttype
 
 delete from @rt where statementBalance = 0.00

@@ -143,6 +143,12 @@ close('ok');
 @browsedelete=
  if(cur:securitylevel<81 and obj:a17='Posted',m('You do not have security clearance to delete this posted receipt.')),
  break(cur:securitylevel<81 and obj:a17='Posted'),
+ gclocation='Receipt_Delete',
+ gcslink='o'&obj:id,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'),
  if(obj:a17='Posted',lcDeleteMessage='This record has been posted and can only be deleted if the fiscal period is not locked.|Do you wish to continue with this attempt to delete this Receipt?',lcDeleteMessage='Are you sure you wish to delete this Receipt?'),
  m(lcDeleteMessage,'Delete...','EXCLEM.ICO',6,4),
  break(gcretval<>2),
@@ -160,7 +166,7 @@ close('ok');
  gcCheckDeposited=kp('select case when '&obj:id&' in (select objLinkId from dbo.depositPaidUnPosted() where depositId=0)
  and '&obj:id&' not in (select objLinkId from dbo.depositPaidUnPosted() where depositId>0)
  then ''FALSE'' else ''TRUE'' end'),
- prop(120,'color',65280),
+ rop(120,'color',65280),
  gcscanid=obj:id,
  gcOPerson='';
 
@@ -1032,8 +1038,7 @@ sql('update object set key2=''I'' where typ=4100 and key1='''&obj:b4&'''');
 @getRecNum=
  if(obj:key3='TAX',sql('exec dbo.taxReceiptNumber '&obj:id)),
  break(obj:key1>'00000'),
- sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&''''),
- rekey('id='&obj:id);
+ sql('exec dbo.receiptNumber '&obj:id&', '''&obj:key3&'''');
 
 @printRec=
  update,

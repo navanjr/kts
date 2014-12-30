@@ -53,6 +53,11 @@ begin
   @pType varchar(50) = '',
   @warrantsHitLedgerWhenRegistered varchar(5) = dbo.settingsf('site.warrantsHitLedgerWhenRegistered','FALSE')
 
+  declare @trackAppropriationLedger varchar(20)
+
+  select @trackAppropriationLedger=settingValue from settings where settingName='site.trackAppropriationLedger'
+
+
  if @paymentType = 'warrant'
    select @postDate = dbo.readstring('@postDate=',dbo.paymentPostDateLogic(@voucherDate))
    
@@ -480,10 +485,7 @@ begin
   begin
 
 
-    declare @trackAppropriationLedger varchar(20),
-            @targetFundCodeToken varchar(50)
-
-     select @trackAppropriationLedger=settingValue from settings where settingName='site.trackAppropriationLedger'
+    declare @targetFundCodeToken varchar(50)
 
      select @targetFundCodeToken = rtrim(targetAccountCode) from glaccounts where accountCode = @debitAcct
 
@@ -507,12 +509,14 @@ begin
         declare @budgetIdToken int,
             @budgetAccountNumberToken varchar(50),
             @budgetAccountCodeToken varchar(50),
-            @budgetFundCodeToken varchar(50)
+            @budgetFundCodeToken varchar(50),
+            @budgetAccountJSON varchar(max)
       
       
         while exists(select * from @budgetAccounts where processCode = 0)
         begin
-         select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts where processCode = 0
+         select top 1 @budgetIdToken = id, @budgetAccountNumberToken = accountNumber from @budgetAccounts 
+            where processCode = 0
      
          exec dbo.budgetAccountVerification
             @budgetAccountNumberToken, 
@@ -526,7 +530,7 @@ begin
             budgetFundCode = @budgetFundCodeToken,
             processCode = 1
           where id = @budgetIdToken
-
+ 
         end
 
        insert @stageRows 
@@ -536,6 +540,14 @@ begin
 
 
      end
+
+     select acctCode as accountcode, amount into #tempappledgerstage from @stageRows 
+         where glType in ('budgetAccountCode','budgetFundCode')
+
+     exec dbo.table2json @tempTableName='#tempappledgerstage', @json = @budgetAccountJSON output
+
+     update object set e2 = @budgetAccountJSON where typ=4771 and id = @newId
+
     end
   end
 
@@ -636,7 +648,18 @@ begin
    union all
     select @creditAcct, @amount * -1, 'creditAcct'
 
- 
+  if @paymentType = 'Warrant' and @trackAppropriationLedger='TRUE' and len(cast((select e2 from object where id = @id) as varchar(100))) > 2
+  begin
+   declare @json varchar(max) 
+   select @json=e2 from object where id=@id
+   
+   insert @stageRows
+     select ac.stringvalue as accountcode, cast(am.stringvalue as money) as amount,'budgetAccounts'
+      from 
+       (select * from dbo.parseJSON(@json) where name = 'accountcode') ac,
+       (select * from dbo.parseJSON(@json) where name = 'amount') am
+      where ac.parent_ID=am.parent_ID
+  end
   select @log = cast(count(*) as varchar) from @stageRows
   exec dbo.logit @@procid, '@stageRows record count', @log
 

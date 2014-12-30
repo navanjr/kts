@@ -3,12 +3,12 @@
 
 @button1=Login,,,login,secur06.ico,45,,always;
 @button16=Exit [F12],,,press,wizdown.ico,40r,123,always;
-@title='KellPro Treasurers System Version v1.22';
-@ktsTag=v1.22;
+@title='KellPro Treasurers System Version v1.23';
+@ktsTag=v1.23;
 
 @namesearch=browse(1,10,,,,1);
+@help='ktsManual.pdf';
 
-@help='kts.CHM';
 \p0007a15h,c:\client\key\kellpro2.bmp;  
 \p0007a16h,1;  
 
@@ -23,6 +23,8 @@
  acImaging=kp('select dbo.settingsf(''site.enableImaging'',''FALSE'')'),
  if(acImaging='TRUE',acImag=1,acImag=0);
 
+@updatetemplates='kts';
+@kppostupdate=sql('exec dbo.ktsbat ''import'', @overridepath = '''&kp('exepath')&'\kts'&'''');
 
 @button15=Scan [Ctrl-F11],634,,,,55,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
 @tb15=if(acImaging='TRUE',scan=);
@@ -34,6 +36,16 @@ if(gcscanid+0>0,scanit=,m('Please select a record to scan into...'));
 
 @scanit=scandirect(gcscanid,1),calcrecord(gcscanid);
 
+@button4=Help,112,,cs,,45,openHelp=;
+  @openHelp=lcsystem='KTS',
+   send(lcsystem&'Manual.ftp','open ftp.kellpro.com'),
+   send(lcsystem&'Manual.ftp','type binary',1),
+   send(lcsystem&'Manual.ftp','get "/pub/manual/'&lcsystem&'Manual.pdf" '&lcsystem&'Manual.pdf',1),
+   send(lcsystem&'Manual.ftp','quit',1),
+   runw('ftp -A -s:'&lcsystem&'Manual.ftp'),
+   start(lcsystem&'Manual.pdf'),exit;
+
+
 @button11=Image Viewer,,,,,45,,,kp('select case when dbo.settingsf(''site.enableImaging'',''FALSE'')=''TRUE'' then 1 else 0 end');
 @tb11=d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
@@ -44,3 +56,4 @@ if(gcscanid+0>0,scanit=,m('Please select a record to scan into...'));
 @button13=Log KP Edit,,,,,45,,,cur:securitylevel=100;
 @tb13=sql('  insert kplog
    select top 1 kplid+1, '&today()&', '&clock()&', '''&CUR:ini&''','''','''',0,0,0,''KellPro Edit'',''KellPro Entered Information'' from kplog order by KPLID desc');
+

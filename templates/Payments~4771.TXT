@@ -83,7 +83,7 @@
  break(gcretval<>'OK'),
  lcComment=obj7:d1,
  lcResonToCancel=obj7:key2,
- d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&lcComment&''', @reasonToCancel='''&lcResonToCancel&''''),
+ d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&kpfq(lcComment)&''', @reasonToCancel='''&kpfq(lcResonToCancel)&''''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
 
 @cancelRoutineV=
@@ -209,9 +209,9 @@ bbproc4=
 \t015Credit Account; \l0164701;r016002054004;  @lf016='typ=4701 and '&choose(obj:a18='Warrant','a1 in (''ACCRUED PAYABLE'')','a1 in (''BANK'',''INVESTMENT'') and b3!=1'),2;
 \t017Purpose;\l0184701;r018002056004; @lf018='typ=4701 and a1=''PURPOSE'' and b3!=1',2;
   \h017018obj:a18<>'Trust Voucher';r
- \w01401870;r2 \d010018obj:a15+0=1;r2
+ \w01401870;r2 \d010020obj:a15+0=1;r2
 
-\t019Official Payor; \h019020right(obj:a18,7)<>'Voucher';r \d020; \y019020-13;r
+\t019Official Payor; \h019020right(obj:a18,7)<>'Voucher' or left(obj:a18,5)='Trust';r \y019020-13;r
 \t021DepositAccount;
 \t023BankAcct;
 \h021024;r
@@ -241,7 +241,7 @@ bbproc4=
 @postandprint=
  lcContinue='TRUE',
  update,
- postGL=,
+ if(obj:a17<>'Posted',postGL=),
  break(lcContinue<>'TRUE'),
  if(right(obj:a18,13)<>'Miscellaneous' and obj:a18<>'Transfer',closeIt=,miscCloseStuff=);
 

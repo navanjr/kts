@@ -47,9 +47,10 @@ begin
    return
 
 
-  insert object (typ,key1,key3,olink1,e2,d1) select 4502,'00000',upper(@series),'newReceipt',@blob,@comments  
-  set @newReceiptId = (select top 1 id from object where typ=4502 and olink1='newReceipt' order by id desc)  
-  update object set olink1 = '' where typ=4502 and id = @newReceiptId
+  insert object (typ,key1,key3,e2,d1) select 4502,'00000',upper(@series),@blob,@comments  
+
+  select @newReceiptId = SCOPE_IDENTITY()
+
   return
  end
 
@@ -252,6 +253,14 @@ begin
   begin
    exec dbo.logit @@procid, 'Receipt has been apportioned... Bailing.'
    select '@code=1;@message=Receipt has been apportioned, aborting delete;'
+   return
+  end
+
+-- bail if deposited
+  if exists(select * from paid where slink=@slink and isnull(depositId,0)>0)
+  begin
+   exec dbo.logit @@procid, 'Receipt has been deposited... Bailing.'
+   select '@code=1;@message=Receipt has been deposited, aborting delete;'
    return
   end
   

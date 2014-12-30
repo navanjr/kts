@@ -22,6 +22,8 @@ begin
 
  declare @tokenId int, @tally int
  declare @wt table(invoiceid int)
+ declare @tokenTaxYear numeric(5,0),
+         @tokenItemNumber numeric(7,1)
 
 
 -- delete all invoices that were passed in the ids datatype
@@ -120,7 +122,17 @@ begin
   -- delete invoice, stage and gl
   if isnull(@invoiceId,0) > 0
   begin
+   select @tokenTaxYear = taxyear, @tokenItemNumber = item from invoices where id = @invoiceId
+
    begin transaction
+   delete taxrolldetail where id in (select td.id 
+      from taxrolldetail td, invoices i 
+      where td.taxyear = i.taxyear
+         and td.itemnumber = i.item
+         and i.id = @invoiceId
+         and td.taxyear > 0
+         and td.itemnumber > 0)
+
    delete glDetailStage where slink = @slink
    delete glDetail where slink = @slink
    delete invoices where id = @invoiceId
