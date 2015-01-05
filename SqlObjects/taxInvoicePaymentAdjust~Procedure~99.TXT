@@ -38,6 +38,11 @@ begin
 end
 
 if @ACRAccountCode not in (select accountcode from glaccounts where accounttype='ACCRUED RECEIVABLE')
+ select @ACRAccountCode = a.accountcode from glaccounts a where a.accounttype='ACCRUED RECEIVABLE' 
+  and targetaccountcode = (select top 1 accountcode from dbo.targetFundInvoice(@invoiceId) order by apportionpercent desc)
+
+
+if @ACRAccountCode not in (select accountcode from glaccounts where accounttype='ACCRUED RECEIVABLE')
 begin
  select '@code=1;@message=Accrued Receivable does not exist Posting Failed!;'
  return
