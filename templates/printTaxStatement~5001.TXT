@@ -161,7 +161,11 @@ taxStatementBr=;
   lcDetFont='Courier New',
   lcFont='Arial',
   lcFontSize=11,
-  d1select('declare @x varchar(max) = '''' select  @x = @x + ''@'' + trcode + ''='' + isnull(cast(invoiceDue as varchar),'''') + '';''  from unpaidTF('&gcInvoiceId&','&gcDocumentId+0&')   where trSection=4  select @x'),
+  d1select('exec dbo.settingsCRUD @parentId=''o'&gcDocumentId&''', @method=''GET'', @verbose=''TRUE'''),
+  lcDocVarBlob=obj7:d1,
+  lcStatementTitleSuffix=choose(readstring(lcDocVarBlob,'@2ndHalfFlag=')='TRUE','SECOND HALF TAX STATEMENT','TAX STATEMENT'),
+  lchalftaxcrit=choose(readstring(lcDocVarBlob,'@2ndHalfFlag=')='TRUE',' and trcode <> ''halftax'' ',''),
+  d1select('declare @x varchar(max) = '''' select  @x = @x + ''@'' + trcode + ''='' + isnull(cast(invoiceDue as varchar),'''') + '';''  from unpaidTF('&gcInvoiceId&','&gcDocumentId+0&')   where trSection=4 '&lchalftaxcrit&' select @x'),
   lcTotals=obj7:d1, 
  tr(
    lcMil=0,
