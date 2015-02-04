@@ -12,6 +12,7 @@ create procedure dbo.receiptCRUD(
  @voidFees int = 0,
  @blob varchar(8000)=''
 ) as
+
 /*
  remember
   C = 0
@@ -19,6 +20,7 @@ create procedure dbo.receiptCRUD(
   U = 2
   D = 3
 */
+
 begin
  
   exec dbo.logit @@procid, '@mode',@mode
@@ -228,6 +230,11 @@ begin
         return
     
         end
+
+     update gldetailstage set comment2 = c.accountcode + ' / '+ gldetailstage.sourcecode from gldetailstage, glaccounts c 
+       where gldetailstage.contraid = c.accountid 
+         and isnull(gldetailstage.contraid,0) > 0
+         and slink in (select slink from dbo.journalSLinks(@newId)) 
     end
 
 
