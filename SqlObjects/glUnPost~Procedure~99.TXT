@@ -91,7 +91,7 @@ begin
  end
 
 -- bail if linked to a bankstatement
- if isnull(@objTyp,0) in (4513)
+ if isnull(@objTyp,0) in (4513,4512)
  begin
   if exists (select * from gldetail where slink=@slink and isnull(bsid,0)>0)
   begin
@@ -100,18 +100,50 @@ begin
     @message = 'Unposting can not be done on this as it is already linked to a Bank Statement... Sorry.;'
     GOTO bail 
   end
+  if exists (select * from gldetail where slink=@slink and isnull(dateCleared,0)>0)
+  begin
+   select
+    @code = 1,
+    @message = 'Unposting can not be done on this as it is already been cleared... Sorry.;'
+    GOTO bail 
+  end
  end
-
+/*
+-- bail if complex Journal entry
+ if isnull(@objTyp,0) in (4512)
+ begin
+  if exists (select * from journallink where jeid=dbo.slinkId(@slink)
+  begin
+   select
+    @code = 1,
+    @message = 'Unposting can not be done on this JE as it has children ... Sorry.;'
+    GOTO bail 
+  end
+ 
+ end
+*/
  exec dbo.logit @@procId, '@slink', @slink, '@objTyp', @objTyp, '@postDate', @postDate
 
  declare @slinksToRemove table(slink varchar(15))
- if @objTyp in (4513,4522,4512,4771)
+ if @objTyp in (4513,4522,4771)
   insert @slinksToRemove select @slink
  if @objTyp = 4502
   insert @slinksToRemove select slink from receiptSLinks(dbo.slinkId(@slink)) where dbo.slinkType(slink) in ('o','l')
+ if @objTyp = 4512
+  insert @slinksToRemove select slink from journalSlinks(dbo.slinkId(@slink)) where dbo.slinkType(slink) in ('o','j')
 
 -- we are good so lets delete glDetail and leave it to the calling proc to re-stage
  begin transaction
+
+ if isnull(@objTyp,0) in (4512)
+ begin
+  insert gldetailstage ([fpid],[fpCode],[fpDesc],[accountId],[accountCode],[accountDesc],[contraId],[date],[amount],[slink],[slink2],[comment],[comment2],[targetAccountId],[sourcecode],[creationdate],[creationtime],[apportionContraCode],[accounttype])
+   SELECT d.fpid,d.fpCode,d.fpDesc,d.accountId,d.accountCode,d.accountDesc,d.contraId,d.[date],d.amount,d.slink,d.slink2,d.comment,d.comment2,d.targetAccountId,d.sourcecode,d.creationdate,d.creationtime,d.apportionContraCode,a.accounttype
+    FROM gldetail d, glaccounts a
+     WHERE d.accountcode=a.accountcode
+     AND slink=@slink
+ end
+
  exec dbo.logit @@procId, 'begin transaction', '@slink', @slink, '@objTyp', @objTyp
  delete glDetail where slink in (select slink from @slinksToRemove)
 
