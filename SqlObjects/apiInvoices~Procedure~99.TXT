@@ -131,7 +131,11 @@ begin
     @apiDeletedFields blobFields,
     @payload varchar(max),
     @deletedTally int
-
+	 
+	 declare @deletedInvoiceQueue table(slink varchar(50))
+   
+	 insert @deletedInvoiceQueue select 't' + dbo.splitF(blob,'|',1) from @deletedInvoiceStringBlob
+		 
 -- reset the batch size for use in the final comparison
    select @deletedBatchSize = count(*) from @deletedInvoiceStringBlob
 
@@ -156,7 +160,9 @@ begin
 	  update apiDeleted set apiUpdated = @theDate
 	    where apiResource = 'invoices' 
 	      and isnull(apiUpdated,0) < modified
-	      and slink in (select 't' + dbo.splitF(blob,'|',1) from @deletedInvoiceStringBlob)
+	      and slink in (select slink from @deletedInvoiceQueue)
+				--(select 't' + dbo.splitF(blob,'|',1) from @deletedInvoiceStringBlob)
+				-- REMOVED BY Nate: using this splitF() this way made this update very slow.
     exec dbo.logit @@procid, 'Success...', @dump,'updated apiDeleted rows... @@rowcount', @@rowCount, @override = 'TRUE'
    end
    else
