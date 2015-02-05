@@ -180,6 +180,13 @@ update w set
 delete from @wt2 where parentInvoiceId > 0
 
 --Collect information on Tax Receipts with more than one line of receiptDetail
+
+declare @multslinks table(slink varchar(16))
+insert into @multslinks
+ select d.slink from @wt w, gldetail d, glaccounts a 
+    where d.slink=w.slink and d.accountCode=a.accountCode and a.accountType='ACCRUED RECEIVABLE' and w.recType='TAX' 
+     group by d.slink having count(*)>1
+
 insert @wt2 (slink,adjust,recId,parentInvoiceId)
      select
            c.slink,
@@ -191,8 +198,7 @@ insert @wt2 (slink,adjust,recId,parentInvoiceId)
    and b.accountType='ACCRUED RECEIVABLE'
    group by a.slink,a.accountCode) d
  where c.recType='TAX' and c.slink=d.slink and c.slink in 
-  (select d.slink from @wt w, gldetail d, glaccounts a 
-    where d.slink=w.slink and d.accountCode=a.accountCode and a.accountType='ACCRUED RECEIVABLE' and w.recType='TAX' group by d.slink having count(*)>1)
+  (select slink from @multslinks)
 
 update w set fee = adjust, adjust=0 from @wt2 w where adjust not in (select top 1 adjust from @wt2 where slink=w.slink order by adjust desc)
 
