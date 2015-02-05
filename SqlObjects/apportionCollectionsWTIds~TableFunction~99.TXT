@@ -162,7 +162,7 @@ begin
     begin
      declare @jeType varchar(50)
      select @jeType = a18 from object where id=@accountId
-    if @jeType like '%Protest%'
+/*    if @jeType like '%Protest%'
     begin
    -- Add glDetail when apportioning protest by journal entry
        insert into @twt
@@ -183,7 +183,8 @@ begin
       and amount > 0
     end
    else
-    begin
+*/
+--    begin
      insert into @twt
      select
       a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],
@@ -194,9 +195,12 @@ begin
       '' as acrAccountCode,
       '' as acrAccountDesc,
       '',8   
-      from gldetail a where left(slink,1)='o' and dbo.slinkId(a.slink)=@accountId and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
-      and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
-     end
+      from gldetail a 
+       where slink in (select slink from dbo.journalSLinks(@accountId))
+        and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
+        and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+        and isnull(contraid,0)>0
+--     end
     end
 
    if @accountType = 4502

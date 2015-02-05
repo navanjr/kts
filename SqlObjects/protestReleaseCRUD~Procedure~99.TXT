@@ -1,0 +1,138 @@
+create procedure dbo.protestReleaseCRUD(@invoiceid int,
+ @method varchar(20),
+ @returnamount money = 0,
+ @interestamount money = 0,
+ @interestaccountcode varchar(60) = '',
+ @interestsourcecode varchar(60) = '',
+ @refundaccountcode varchar(60) = '',
+ @protestamount money = 0) 
+as
+begin
+declare @acrcode varchar(60),
+        @sourcecode varchar(60),
+        @protestcode varchar(60),
+        @advaloremcode varchar(60),
+        @receivablecode varchar(60),
+        @contraid int,
+        @releasecontraid int,
+        @returnpercent decimal(20,10),
+        @releaseinterest money,
+        @returninterest money,
+        @newid int 
+  
+declare @jestage table(accountcode varchar(60), amount money, contraid int, sourcecode varchar(60), comment2 varchar(50))        
+
+declare @jlstage table(accountcode varchar(60), amount money, contraid int, sourcecode varchar(60), comment2 varchar(50))        
+
+select top 1 @acrcode=accountcode,@contraid=contraid, @protestamount=case when isnull(@protestamount,0)=0 then sum(amount) else @protestamount end from gldetail where slink in 
+(select 'l'+cast(id as varchar) from receiptlink where invoiceid = @invoiceid
+  union all
+  select 'j'+cast(id as varchar) from journallink where invoiceid = @invoiceid)
+and accountcode in (select accountcode from glaccounts where accounttype='ACCRUED RECEIVABLE')
+and isnull(bsid,0)=0
+group by accountcode,contraid
+
+if @method = 'GETAMOUNT'
+ begin
+  select '@code=0;@protestamount='+cast(@protestamount as varchar)+';'
+  return
+ end
+
+if @method = 'RELEASE'
+begin
+
+ if @interestamount > 0 and (len(@interestaccountcode) < 1 or len(@interestsourcecode) < 1)
+ begin
+  select '@code=1;@message=Interest was indicated, but either the source or account was missing...;'
+  return
+ end
+
+ if @returnamount > 0 and len(@refundaccountcode) < 1
+ begin
+  select '@code=1;@message=A return to taxpayer was indicated but there was no refund account...;'
+  return
+ end
+
+-- Gather Information
+ select @sourcecode = left(@acrcode,len(@acrcode)-4)
+ select @protestcode = accountcode from glaccounts where accountid=@contraid
+ select @advaloremcode = left(@protestcode,5)+'ADVALOREM'
+ select @releasecontraid = accountid from glaccounts where accountcode = @advaloremcode
+ select @receivablecode = accountcode from glaccounts where accounttype='RECEIVABLE' and targetaccountcode = @advaloremcode
+ select @returnpercent = @returnamount/case when isnull(@protestamount,0) <> 0 then @protestamount else 1 end
+ select @returninterest = round(@returnpercent * @interestamount,2)
+ select @releaseinterest = @interestamount - @returninterest
+
+--stage pull from protest account
+ insert @jestage (accountcode, amount)
+  select @protestcode, @protestamount
+   union all
+  select @interestaccountcode, @interestamount
+
+ insert @jlstage
+  select @acrcode, @protestamount * -1, @contraid, @sourcecode, @protestcode + ' / ' + @sourcecode
+  
+--stage amount to be refunded
+ insert @jestage (accountcode, amount)
+  select @refundaccountcode, @returnamount * -1
+   union all 
+  select @refundaccountcode, @returninterest * -1
+   
+ insert @jlstage (accountcode, amount)
+  select @receivablecode, @returnamount
+   
+--stage amount to be released
+ insert @jestage (accountcode, amount)
+  select @advaloremcode, (@protestamount-@returnamount) * -1
+   union all 
+  select @advaloremcode, @releaseinterest * -1
+
+ insert @jestage 
+  select @acrcode, @releaseinterest, @releasecontraid, @interestsourcecode, @advaloremcode + ' / ' + @interestsourcecode
+   union all
+  select @interestsourcecode, @releaseinterest * -1, null, null, null 
+   
+ insert @jlstage 
+  select @acrcode, (@protestamount-@returnamount), @releasecontraid, @sourcecode, @advaloremcode + ' / ' + @sourcecode
+
+ delete from @jestage where amount = 0
+ delete from @jlstage where amount = 0   
+ 
+ declare @resultCode varchar(50) = '',
+         @resultMessage varchar(1000) = '',
+         @slink varchar(16) = '',
+         @jlslink varchar(16) = ''
+
+ -- create new JE
+ exec dbo.journalEntryCRUD
+   @mode = 0,
+   @description = 'Release of Protest',
+   @jeType = 'Protest Release',
+   @resultCode = @resultCode output,
+   @resultMessage = @resultMessage output,
+   @newId = @newId output
+
+ select @slink = 'o' + cast(@newId as varchar)
+
+-- create journalLink
+  insert into journalLink
+    select @newId,@invoiceid,0,0 
+
+  select @jlslink = 'j' + cast(id as varchar) from journallink j where j.jeId = @newId and j.invoiceid = @invoiceid
+
+-- create gldetailstage 
+  insert gldetailstage (slink, accountid, accountcode, accountdesc, amount, contraid, sourcecode, comment2)
+   select @slink, a.accountid, j.accountcode, a.accountdesc, j.amount, j.contraid, j.sourcecode, j.comment2 
+    from @jestage j, glaccounts a
+     where j.accountcode=a.accountcode
+
+    union all
+
+   select @jlslink, a.accountid, j.accountcode, a.accountdesc, j.amount, j.contraid, j.sourcecode, j.comment2 
+    from @jlstage j, glaccounts a
+     where j.accountcode=a.accountcode
+
+ select '@code=0;@jeid='+cast(@newid as varchar)+';'
+ return
+ end 
+end

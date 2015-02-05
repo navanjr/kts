@@ -440,6 +440,24 @@
  refreshBRW=;
 
 @releaseProtest=
+ gcInvoiceId=lcid,
+ break(gcInvoiceId+0<1),
+ d1select('exec dbo.protestReleaseCRUD '&gcInvoiceId+0&', ''GETAMOUNT'''),
+ gcProtestAmount=readstring(obj7:d1,'@protestamount'),
+ iw('\t000Release Protest; 
+\t001Protest Amount; \t002@n-19.2; \f002'&gcProtestAmount&'; \w00250; @acc002=set(006,obj:key1-obj:key2);
+\t003Return Amount; \t004@n-19.2; \w00450; @acc004=set(006,obj:key1-obj:key2);
+\t005Release Amount;\t006@n-19.2; \f006'&gcProtestAmount&'; \w00650; @acc006=set(004,obj:key1-obj:key3);   
+\t007Interest Amount; \t008@n-19.2; \w00850; 
+\t041Refund Account; \l0424701;r042004080002; \x041042-65;r \x080-130; \t079Code;\h079; @lf042=''a1 in (''''FUND'''') and b3!=1'',2; \q080obj:key2+0>0;
+\t045Interest From Acct; \l0464701;r046004084002; \x045046-65;r \x084-130; \t083Code;\h083; @lf046=''a1 in (''''FUND'''') and b3!=1'',2; \q084obj:a1+0>0;
+\t047Interest Source; \l0484701;r048004086002; \x047048-65;r \x086-130; \t085Code;\h085; @lf048=''a1 in (''''SOURCE'''') and b3!=1'',2; \q086obj:a1+0>0;
+'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.protestReleaseCRUD '&gcInvoiceId+0&', ''RELEASE'', '&obj7:key2+0&', '&obj7:a1+0&', '''&obj7:c4&''', '''&obj7:c5&''', '''&obj7:c2&''', '&obj7:key1+0),
+ if(readstring(obj7:d1,'@code=')+0>0,m(readstring(obj7:d1,'@message=')),change(readstring(obj7:d1,'@jeid='),,1));
+
+
   lcCheckYear=kp('select taxyear from invoices where id='&lcId),
   lcCheckItem=kp('select item from invoices where id='&lcId),
   lccheck=kp('select amount from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0),
