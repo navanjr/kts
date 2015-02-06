@@ -77,14 +77,31 @@ if dbo.settingsf('site.receiptListUseOwnerName','FALSE') = 'TRUE'
      taxYear = apyear, 
      school = apdistrict, 
      rate = aprate,
-     assessmentCityCode = case when invoiceType in ('S','O') then (select top 1 accountCode from dbo.targetFund(b.accountcode) order by apportionPercent desc) else ''  end,
-     assessmentCityDesc = case when invoiceType in ('S','O') then (select top 1 accountDesc from dbo.targetFund(b.accountcode) order by apportionPercent desc) else '' end
+     assessmentCityCode = (select top 1 accountCode from dbo.targetFund(b.accountcode) order by apportionPercent desc),
+     assessmentCityDesc = (select top 1 accountDesc from dbo.targetFund(b.accountcode) order by apportionPercent desc) 
  from @wt w,gldetail a, glaccounts b 
  where a.accountCode=b.accountCode 
    and b.accountType='ACCRUED RECEIVABLE' 
    and a.slink=w.slink 
    and left(w.recType,3) = 'TAX'
    and parentInvoiceId=0
+   and invoiceType in ('S','O')
+
+ update w 
+ set paid = amount, 
+     taxYear = apyear, 
+     school = apdistrict, 
+     rate = aprate,
+     assessmentCityCode = '',
+     assessmentCityDesc = ''
+ from @wt w,gldetail a, glaccounts b 
+ where a.accountCode=b.accountCode 
+   and b.accountType='ACCRUED RECEIVABLE' 
+   and a.slink=w.slink 
+   and left(w.recType,3) = 'TAX'
+   and parentInvoiceId=0
+   and invoiceType not in ('S','O')
+   and (paid != amount or taxYear != apyear or school != apdistrict or rate != aprate)
 
  update w 
  set taxYear = apyear, 
