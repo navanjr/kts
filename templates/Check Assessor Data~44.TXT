@@ -9,6 +9,7 @@
 @wbgcolor=kp('select dbo.keyColor(185,122,87)');
 
 @loadwindow=
+ sql('exec dbo.settingsCRUD @method=''INITIALIZE'''),
  gcvars=,
  brwstuff=;
 
@@ -45,26 +46,60 @@
 @lbrw1color=obj7:c10='5',13499135,obj7:c10='2',2350115,obj7:c10='1',2157055; 13499135; 2157055; 2350115; 7467519
 
 @brw1=
- d1select('exec dbo.aamasterCheckClicked '&kpbrwid(1)*-1),
- if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
- refreshbrw=;
+ lbrwclick150=;
 
-lbrwclick150=
+@lbrwclick150=
  bustItUp=,
- if(lcMode+0=7,toggleCompression=),
- if(lcMode+0=8,jobOptions=),
- if(lcMode+0=9,backupFileOptions=);
+ if(lcMode+0=5,5Options=),
+ if(lcMode+0=6,6Options=);
+
 @bustItUp=
  if(kpbrwid(1)=0,bustItUpReset=),
  lcMode=left(kpbrwid(1)*-1,1),
  lcId=sub(kpbrwid(1)*-1,2,10);
+
+
 @bustItUpReset=
  lcMode=0,
  lcId=0;
 
+@5Options=
+ d1select('exec dbo.aamasterCheckClicked '&lcId),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'aamasterCheck...')),
+ refreshbrw=;
+
+@6Options=
+ d1select('exec dbo.settingsCRUD @method=''GET'', @verbose=''TRUE'', @settingId='&lcId+0),
+ lcArea=kpsegment(readstring(obj7:d1,'@name='),'.',1),
+ lcArea=choose(lcArea>'  0', lcArea,'taxroll'),
+ lcName=kpsegment(readstring(obj7:d1,'@name='),'.',2),
+ lcDescrip=readstring(obj7:d1,'@description='),
+ lcValue=kp('select dbo.readstring(''@value='','''&obj7:d1&''')'),
+ lcType=readstring(obj7:d1,'@type='),
+ gcDialog=choose(instring('file',lower(lcDescrip),1,1)>0,'',''),
+ case(instring('|',lcType,1,1)>0,comboSetting=,lower(lcValue)<>'true' and lower(lcValue)<>'false',editVariable=,else,toggleIt=);
+
+@comboSetting=
+ iw('@select=150;,.t000'&str_replace(lcName,'site.','')&'..., ,.t001Value., ,.f002='&lcValue&'., ,.h002., ,.t003'&lcDescription&'., ,.w003200., ,.z00326., ,.h004., ,[loadwindow=create(150,33,64,1,'''',002),prop(150,''From'','''&lcType&'''),prop(150,''Width'',118),prop(150,''Height'',12),prop(150,''Readonly'',0),prop(150,''Drop'',5),prop(150,7cfah,16777215).,'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.settingsCRUD '''&lcArea&'.'&lcName&''','''&obj7:key1&''''),
+ refreshBrw=;
+
+@editVariable=
+ iw('@loadwindow=if(gcDialog=1,create(1,9)); @acc001=filedialog(''Locate file...'',),set(002,gcretval); \t001'&lcDescrip&';\f002'&lcValue&';'),
+ break(gcretval<>'OK'),
+ d1select('exec dbo.settingsCRUD '''&lcArea&'.'&lcName&''','''&obj7:key1&''''),
+ refreshBrw=;
+ 
+@toggleIt=
+ m('Choose one of the following options...','Taxroll Import...','question.ico','&Toggle|E&xit'),
+ break(gcretval<>1),
+ sql('exec dbo.settingsCRUD @settingId='&lcid&', @method=''TOGGLE'''),
+ refreshBrw=;
+
 \t108&Manage Addresses;
 @acc108=
- gcInvoiceId=kp('select invoiceId from aamasterCheck where brwid='&kpbrwid(1)*-1),
+ gcInvoiceId=kp('select invoiceId from aamasterCheck where brwid='&sub(kpbrwid(1)*-1,2,10)),
  do(4006,menuprocess=);
 
 \t110&Toggle All;

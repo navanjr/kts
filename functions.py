@@ -1146,7 +1146,7 @@ class ktsMenu():
         result = {}
         gitDict = {}
         try:
-            rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','conversion','logging')")['rows']
+            rows = self.sqlQuery("select settingName, settingValue from settings where dbo.splitF(settingName,'.',1) in ('git','conversion','logging','checkassessor')")['rows']
         except KeyError:
             print 'unable to locate settings, probably because the SQL environment is not working yet.'
             return
@@ -1331,7 +1331,10 @@ class ktsMenu():
             package['description'] = cursor.description
         except (pyodbc.ProgrammingError, pyodbc.Error) as err:
             package['error'] = err
+            print package['error']
         connection.close()
+#        for key, value in package.items():
+#            print key, value
         return package
 
     def tpsXXXXadtax(self):
@@ -1628,6 +1631,7 @@ class ktsMenu():
     def aamasterCheckVariables(self):
         columns = []
         columns.append('autonumber varchar(50)')
+        columns.append('itemnumtaxid varchar(50)')
         columns.append('ownername varchar(50)')
         columns.append('businessname varchar(50)')
         columns.append('address1 varchar(50)')
@@ -1639,7 +1643,7 @@ class ktsMenu():
         columns.append('zip2 varchar(50)')
         columns.append('zip3 varchar(50)')
         columns.append('country varchar(50)')
-        columnNames = [x.split(' ')[0] for x in columns]
+        columnNames = [x.split(' ')[0].upper() for x in columns]
         uniqueColumns = []
         uniqueColumns.append('brwid int identity(1,1)')
         uniqueColumns.append('selectedFlag int')
@@ -1730,13 +1734,24 @@ class ktsMenu():
 
 
     def tpsAamasterCheck(self):
+        aamasterpath = self.settingsF('checkassessor.sourcepath')
+        aamaster = self.settingsF('checkassessor.sourceFile')
         columns, columnNames, uniqueColumns = self.aamasterCheckVariables()
-        sqlString = "select {fields} from aamaster".format(fields=', '.join(columnNames))
-        aamasterpath = self.settingsF('conversion.aamasterpath')
+        if(aamaster.lower() != 'aamaster.tps'):
+            columnNames.remove('businessname'.upper())
+            columnNames.remove('country'.upper())
+        if(aamaster.lower() == 'aamaster.tps'):
+            columnNames.remove('itemnumtaxid'.upper())
+        sqlString = "select \"{fields}\" from {tableName}".format(fields='", "'.join(columnNames), tableName=aamaster.lower().replace('.tps', ''))
+#        sqlString = "select * from {tableName}".format(tableName=aamaster.lower().replace('.tps', ''))
+        connDatabase = '%s\\%s' % (aamasterpath, aamaster)
+        print 'jeremy - connDatabase', connDatabase
+        print 'jeremy - aamasterpath', aamasterpath
+        print 'jeremy - aamaster', aamaster
         if not aamasterpath:
             print 'missing path to aamaster... fail!'
             return
-        package = self.tpsSelect(sqlString, 'aamaster')
+        package = self.tpsSelect(sqlString, aamaster.lower().replace('.tps', ''), connDatabase=connDatabase)
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
             self.aamasterCheckDropAndCreate()

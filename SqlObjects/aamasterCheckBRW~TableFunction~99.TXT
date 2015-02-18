@@ -18,7 +18,8 @@ begin
   @c varchar(10) = ' | ',
   @total int,
   @selected int,
-  @updated int
+  @updated int,
+  @fullFilePath varchar(1000) = dbo.settingsF('checkassessor.sourceFile','')
 
  declare @flags table(flag int)
 
@@ -28,18 +29,23 @@ begin
  if dbo.splitf(@filters,':',1) = 1
   insert @flags select 2
 
- 
+---settings
+ insert @rt (display, ord) select 'Check Assessor Settings', '_b_0'
+ insert @rt (brwid, display, ord)
+   select '6'+cast(id*-1 as varchar),' -'+description+':'+dbo.splitf(display,':',2)+dbo.splitf(display,':',3),'_b'+description from dbo.settingsBRW('checkAssessor') 
+ insert @rt (display, ord) select '', '_bzz'    
+
+
+
 -- line 1
   insert @rt
-  select brwid,
+   select cast('5'+cast(brwid as varchar) as int),
    '    ' + ktsAutoNumber + ' - '
    + case reason
-      when 'address' then coalesce(nullif(businessname,''),ownerName)
-
-      when 'business name' then businessName + ' / ' + ktsbusinessName
-      when 'owner name' then ownerName + ' / ' + ktsownerName
-     end,
-
+	  when 'address' then coalesce(nullif(businessname,''),ownerName)
+	  when 'business name' then businessName + ' / ' + ktsbusinessName
+	  when 'owner name' then ownerName + ' / ' + ktsownerName
+	 end,
    reason,
    selectedFlag,
    reason + 'b' + right('0000000' + ktsAutoNumber,8) + 'a'
@@ -49,9 +55,9 @@ begin
 
 -- line 2
   insert @rt
-  select brwid,
+   select cast('5'+cast(brwid as varchar) as int),
     '      A: ' + stuff(dbo.joinStr(@c,address1) + dbo.joinStr(@c,address2) + dbo.joinStr(@c,address3)
-     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,zip2) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country)
+     + dbo.joinStr(@c,city) + dbo.joinStr(@c,state) + dbo.joinStr(@c,zip1) + dbo.joinStr(@c,zip2) + dbo.joinStr(@c,zip3) + dbo.joinStr(@c,country) 
      ,1,len(@c),''),
    reason,
    selectedFlag,
@@ -62,7 +68,7 @@ begin
 
 -- line 3
   insert @rt
-  select brwid,
+   select cast('5'+cast(brwid as varchar) as int),
     '      T: ' + stuff(dbo.joinStr(@c,ktsaddress1) + dbo.joinStr(@c,ktsaddress2) + dbo.joinStr(@c,ktsaddress3)
      + dbo.joinStr(@c,ktscity) + dbo.joinStr(@c,ktsstate) + dbo.joinStr(@c,ktszip1) + dbo.joinStr(@c,ktszip2) + dbo.joinStr(@c,ktszip3) + dbo.joinStr(@c,country)
      ,1,len(@c),''),
@@ -75,7 +81,7 @@ begin
 
 -- line 4
   insert @rt
-  select brwid,
+   select cast('5'+cast(brwid as varchar) as int),
     '      D: ' + stuff(
     dbo.joinStr(@c,dbo.readstring('@address1=',defaultAddressBlob))
     + dbo.joinStr(@c,dbo.readstring('@address2=',defaultAddressBlob))
@@ -95,7 +101,7 @@ begin
 
 -- line 5
   insert @rt
-  select brwid,
+   select cast('5'+cast(brwid as varchar) as int),
     '',
    reason,
    0,

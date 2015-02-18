@@ -9,6 +9,8 @@ begin
 
   set @taxYear = coalesce(@taxyear,(select dbo.splitF(dbo.date1(dbo.clarionToday()),'/',3)-1))
 
+  exec dbo.logit @@procid, 'taxYear', @taxYear
+
 ---create indexes
 IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aamasterCheck]') AND name = N'balanceDue Includes 1')
  CREATE NONCLUSTERED INDEX [balanceDue Includes 1]  ON [dbo].[aamasterCheck] ([balanceDue]) INCLUDE ([brwid],[selectedFlag],[reason],[ownername],[businessname],[ktsautonumber],[ktsownername],[ktsbusinessname])
@@ -18,6 +20,8 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[aa
  CREATE NONCLUSTERED INDEX [balanceDue includes 3] ON [dbo].[aamasterCheck] ([balanceDue])INCLUDE ([brwid],[selectedFlag],[reason],[country],[ktsautonumber],[ktsaddress1],[ktsaddress2],[ktsaddress3],[ktscity],[ktsstate],[ktszip1],[ktszip2],[ktszip3])
 
 
+if charindex('aamaster',dbo.settingsf('checkassessor.sourceFile','')) = 0 
+  update aamasterCheck set autonumber = itemnumtaxid
 
   update a set
     a.invoiceId = b.id,
