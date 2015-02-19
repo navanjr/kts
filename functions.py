@@ -1632,6 +1632,7 @@ class ktsMenu():
         columns = []
         columns.append('autonumber varchar(50)')
         columns.append('itemnumtaxid varchar(50)')
+        columns.append('fullpidnumber varchar(50)')
         columns.append('ownername varchar(50)')
         columns.append('businessname varchar(50)')
         columns.append('address1 varchar(50)')
@@ -1649,12 +1650,12 @@ class ktsMenu():
         uniqueColumns.append('selectedFlag int')
         uniqueColumns.append('invoiceId int')
         uniqueColumns.append('adtaxId int')
-        uniqueColumns.append('fullpidnumber varchar(50)')
         uniqueColumns.append('taxYear varchar(10)')
         uniqueColumns.append('defaultAddressBlob varchar(max)')
         uniqueColumns.append('balanceDue money')
         uniqueColumns.append('reason varchar(50)')
         uniqueColumns.append('taxrollDetailId int')
+        uniqueColumns.append('afullpidnumber varchar(50)')
         return columns, columnNames, uniqueColumns
 
     def aamasterCheckDropAndCreate(self):
@@ -1745,9 +1746,9 @@ class ktsMenu():
         sqlString = "select \"{fields}\" from {tableName}".format(fields='", "'.join(columnNames), tableName=aamaster.lower().replace('.tps', ''))
 #        sqlString = "select * from {tableName}".format(tableName=aamaster.lower().replace('.tps', ''))
         connDatabase = '%s\\%s' % (aamasterpath, aamaster)
-        print 'jeremy - connDatabase', connDatabase
-        print 'jeremy - aamasterpath', aamasterpath
-        print 'jeremy - aamaster', aamaster
+        print ' - connDatabase', connDatabase
+        print ' - aamasterpath', aamasterpath
+        print ' - aamaster', aamaster
         if not aamasterpath:
             print 'missing path to aamaster... fail!'
             return
