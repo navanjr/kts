@@ -2,6 +2,21 @@
 @dup;
 @noconfirmdelete;
 
+@loadwindow=create(171,12,190,3,'County School - 4-Mill by ADA',88),create(172,12,190,16,'Joint School - 4-Mill Sent Away',90);
+
+\h087090;r
+\t087County School;
+\t089Joint School;
+
+@acc171=update,if(obj:c6='1',setcounty=,setjoint=),acc006=,tsc;
+@acc172=update,if(obj:c7='1',setjoint=,setcounty=),acc006=,tsc;
+
+@setcounty=et(090,''),et(088,'1'),
+ sql('update object set b11=''1'', b12='''' where typ=4010 and key1='''&obj:key2&'''');
+
+@setjoint=et(088,''),et(090,'1'),
+ sql('update object set b11='''', b12=''1'' where typ=4010 and key1='''&obj:key2&'''');
+
 @menuprocess=
  lcinquiry=kp('select id from object where typ=4018 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''''),
  if(lcinquiry+0>0,change(lcinquiry),new(4018));
@@ -17,7 +32,7 @@
 @calculate=046=obj:b1+obj:b2+obj:b3+obj:b4+obj:b5+obj:b6+obj:b7+obj:b8+obj:b9+obj:b10+obj:b11+obj:b12+obj:b13+obj:b14+obj:b15;
 
 @afterloadwindow=
- if(tier=-2,acc006=);
+ acc006=;
 
 @acc106=
  update,
@@ -40,21 +55,35 @@ Millage CRUD...'));
  break(obj:key1<'  0'),
  break(obj:key2<'  0'),
  break(obj:key3<'  0'),
+ d1select('select b11 from object where typ=4010 and key1='''&obj:key2&''''),
+ set(088,obj7:d1),
+ d1select('select b12 from object where typ=4010 and key1='''&obj:key2&''''),
+ set(090,obj7:d1),
  lcInt=8,
- sqlloop('select millageName,millageAmount from
+ sqlloop('select millageName,millageAmount,code,message from
  dbo.taxRateMillageNew('''&obj:key1&''','''&obj:key2&''','''&obj:key3&''')
  order by ord',setMillage=),
+ if(lcInt+0<38,blankem=), 
  calcfld(046);
+
+@blankem=
+ lcInt=lcInt+2,
+ set(lcInt,''),
+ set(lcInt+38,''),
+ if(lcInt+0<38,blankem=);
 
 @setMillage=
  lcInt=lcInt+2,
  lcMillName=obj5:a1,
  lcMillAmt=obj5:a2,
  set(lcInt,lcMillName),
- set(lcInt+38,lcMillAmt);
+ set(lcInt+38,lcMillAmt),
+ if(obj5:a3+0>0,m(obj5:a4));
 
 \t001Tax Year; \f002=right(format(today(),'@d2'),4);
-\t003District; \l0044010; @lf004='typ = 4010 and (key1 in (select orgschooldistrictmain from adtax where realtaxyear='&obj:key1&') or '&instring('@group=tax;',lower(cur:options),1,1)+0&' < 1)';
+\t003District; \l0044010,1;r004002088068090070; @lf004='typ = 4010 and (key1 in (select orgschooldistrictmain from adtax where realtaxyear='&obj:key1&') or '&instring('@group=tax;',lower(cur:options),1,1)+0&' < 1)';
+
+\h171172obj:link1<1;r
 \t005Rate Name; \l0064011; @lf006='typ=4011 and (key1 in (select orgschooldistricttaxrate from adtax where realtaxyear='&obj:key1&' and orgschooldistrictmain='''&obj:key2&''') or '&instring('@group=tax;',lower(cur:options),1,1)+0&' < 1)';
 \t009037Millage;r2 \x00903720;r2 \n010038;r2
  \l0104008; \l0204008; \l0304008;

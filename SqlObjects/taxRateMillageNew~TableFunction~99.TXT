@@ -6,7 +6,9 @@ create function dbo.taxRateMillageNew(
  setId int,
  millageName varchar(50),
  millageAmount varchar(50),
- ord varchar(100)
+ ord varchar(100),
+ code int,
+ message varchar(250)
 ) as
 
 begin
@@ -16,5 +18,14 @@ begin
  update @rt set
   millageAmount = (select top 1 a2 from object where typ = 4012 and key1 = @district and key2 = @rateName and key3 = @year and a1 = millageName) 
 
+ update @rt set code = 1, message = '4-mill is set to split by ADA' 
+  where millageName like '%Gen%4%Mil%' 
+   and @district in (select key1 from object where typ=4010 and b11 <>'1')
+
+ update @rt set code = 1, message = '4-mill set to be sent to another county' 
+  where millageName like '%J%4%Mil%' 
+   and @district in (select key1 from object where typ=4010 and b12 <>'1')
+
+ delete from @rt where code=1 and case when isnumeric(millageAmount)=1 then cast(millageAmount as money) else 0.00 end =0.00
  return
 end
