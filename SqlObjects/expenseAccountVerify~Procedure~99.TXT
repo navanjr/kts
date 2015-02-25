@@ -1,0 +1,22 @@
+create procedure dbo.expenseAccountVerify
+as
+begin
+ declare @wt table(accountcode varchar(60))
+
+ insert @wt
+  select accountcode+'_EXP' from glaccounts where accountid in (select distinct contraid from gldetail)
+    and accountcode+'_EXP' not in (select accountcode from glaccounts where accounttype='EXPENSE')
+
+ declare @accountcodeToken varchar(60)
+
+ while exists (select * from @wt)
+ begin
+  select top 1 @accountcodeToken = accountcode from @wt
+
+   exec dbo.glaccountverification @accountcodeToken, 'EXPENSE', 'CREATE'
+
+  delete from @wt where accountcode = @accountcodeToken
+ end
+
+ select '@code=0;@message=Completed Expense Verification;'
+end

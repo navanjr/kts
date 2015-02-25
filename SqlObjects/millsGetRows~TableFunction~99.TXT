@@ -49,25 +49,56 @@ begin
 
  if @typ=4013
  begin
-  insert @rt (description, millAmount, accountCode)
-  select key2+' By ADA',case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,key2 from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+  if exists(select * from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00)
+   begin
+    insert @rt (description, millAmount, accountCode)
+    select key2+' By ADA',
+           case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
+           case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end
+     from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+   end
+  else
+   begin
+    insert @rt (description, millAmount, accountCode)
+     select left(@year+' ADA Missing',50), 1, left('@message='+@year+' ADA Missing;',50)
+   end
  end
 
  if @typ=4014
  begin
-  insert @rt (description, millAmount, accountCode)
-  select key2+' By Population' ,case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,key2 from object where typ = @typ and key1 = @year and a2 = @code and cast(key3 as money)<>0.00
+  if exists(select * from object where typ = @typ and key1 = @year and a2 = @code and cast(key3 as money)<>0.00)
+   begin
+    insert @rt (description, millAmount, accountCode)
+    select key2+' By Population' ,
+           case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
+           case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end
+     from object where typ = @typ and key1 = @year and a2 = @code and cast(key3 as money)<>0.00
+   end
+  else
+   begin
+    insert @rt (description, millAmount, accountCode)
+     select left(@year+' '+@code+'Population Info Missing',50), 1, left('@message='+@year+' '+@code+' Population Info Missing;',50)
+   end
+
  end
 
  if @typ=4022
  begin
-  insert @rt (description, millAmount, accountCode, stepDesc, altSource)
-  select key2,
-   case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
-   key2,
-   a1,
-   case when a2 > ' 0' then a2 else null end 
-   from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+  if exists(select * from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00)
+   begin
+    insert @rt (description, millAmount, accountCode, stepDesc, altSource)
+    select key2,
+     case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
+     case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end,
+     a1,
+     case when a2 > ' 0' then a2 else null end 
+     from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+   end
+  else
+   begin
+    insert @rt (description, millAmount, accountCode)
+     select left(@year+' Apportion Table Info Missing',50), 1, left('@message='+@year+' Apportion Table Info Missing;',50)
+   end
  end
 
  if @typ=4512

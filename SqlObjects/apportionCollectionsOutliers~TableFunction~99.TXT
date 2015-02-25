@@ -1,0 +1,26 @@
+create function dbo.apportionCollectionsOutliers(@accountcode varchar(60),@amount money)
+returns @rt table(accountCode varchar(50), accountDesc varchar(50),apportionAmount money, originalAmount money, amountOut money)
+as
+begin
+
+declare @wt table(accountCode varchar(50),amount money, accountDesc varchar(50))
+
+declare @accountType varchar(60),
+        @accountId int,
+        @apportionAmount money
+
+select @accountType=accountType,@accountId=accountId from dbo.glaccounts where accountCode=@accountcode
+
+if @accountType='ACCRUED RECEIVABLE'
+begin
+ insert @wt
+ select creditcode,amount,'' from dbo.apportionCollectionsWT( @accountId, 0, 'TRUE', null, @amount) where creditcode in (select accountcode from glaccounts where  accountType in (select accountType from dbo.glbankfundtypes('FUND')))
+end
+
+select @apportionAmount = isnull(sum(amount),0) from @wt
+
+insert @rt
+ select @accountcode, accountDesc, @apportionAmount, @amount, @apportionAmount-@amount from glaccounts where accountcode=@accountcode
+
+return
+end

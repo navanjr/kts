@@ -12,21 +12,113 @@ create function dbo.apportionCollectionsBRW( @accountId int, @apportionToDate in
  contraAccountDesc varchar(60),
  acrAccountId int,
  acrAccountCode varchar(60),
- acrAccountDesc varchar(60)
+ acrAccountDesc varchar(60),
+ ord varchar(200)
 )
 begin
 
 -- debits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount), a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, 'A'+isnull(contraAccountCode,'')+isnull(acrAccountCode,'')
  from dbo.apportionCollectionsWT( @accountId, @apportionToDate,'', @gldetailId, null) a, glAccounts b where a.debitCode > '  0' and a.debitCode = b.accountCode
   group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc 
  
 -- credits
  insert @rt
- select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc  
+ select b.accountId, b.accountCode, case when isnull(stepDesc,'')>'0' then stepDesc else b.accountDesc end, sum(a.amount) * -1, a.comment, a.stepDesc, isnull(a.slink2,''), contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, 'A'+contraAccountCode+acrAccountCode  
  from dbo.apportionCollectionsWT( @accountId, @apportionToDate,'', @gldetailId, null) a, glAccounts b where a.creditCode > '  0' and a.creditCode = b.accountCode
   group by b.accountId, b.accountCode, a.stepDesc, b.accountDesc, a.comment, a.stepDesc, a.slink2, contraId, a.sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc 
+
+declare @sum money
+
+select @sum = sum(amount) from @rt
+
+if @sum <> 0.00
+begin
+ declare @acrcodes table(
+   acrAccountcode varchar(60), 
+   accountid int, 
+   accountdesc varchar(50), 
+   originalAmount money, 
+   diff money, 
+   processcode int)
+
+ declare @accountcodeToken varchar(60), 
+         @accountAmountToken money,
+         @amountOutToken money
+
+ insert @acrcodes (acrAccountcode, accountid, accountdesc, originalAmount, processcode)
+  select accountcode, accountid, accountdesc, sum(amount)*-1, 0 from @rt 
+   where accountcode in (select accountcode from glaccounts where  accountType = 'ACCRUED RECEIVABLE')
+  group by accountcode, accountid, accountdesc
+
+ while exists(select * from @acrcodes where processcode = 0)
+ begin
+  select top 1 @accountcodeToken = acrAccountcode, @accountAmountToken = originalAmount from @acrcodes where processcode = 0
+
+  select top 1 @amountOutToken = amountOut from dbo.apportionCollectionsOutliers(@accountcodeToken, @accountAmountToken)
+
+  if @amountOutToken <> 0
+   begin
+    update @acrcodes set processcode = 1, diff = @amountOutToken where acrAccountcode = @accountcodeToken
+   end
+  else
+   begin
+    delete from @acrcodes where acrAccountcode = @accountcodeToken
+   end
+ end
+
+ if exists(select * from @acrcodes where processcode = 1 and diff <> 0.00)
+ begin
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, '', '', 0, '', '', 'B    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, 'Please Fix the following', 'Double-Click to Open Account', 0, '', 'Please Fix the following', 'C    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select accountid, acrAccountcode, accountdesc, diff, '', 'Please Fix the following', 'D'+acrAccountcode
+     from @acrcodes where processcode = 1 and diff <> 0.00
+ end
+
+ declare @fixits table(creditcode varchar(60), stepDesc varchar(60), amount money)
+
+ insert @fixits
+  select creditcode, stepDesc, amount 
+   from dbo.apportionCollectionsWT( @accountId, @apportionToDate,'', @gldetailId, null) a 
+   where left(a.creditCode,1)='@'
+
+ if exists(select * from @fixits a where left(creditCode,9)='@objectid')
+ begin
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, '', '', 0, '', '', 'E    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, 'Please Fix the following', 'Double-Click to Open', 0, '', 'Please Fix the following', 'F    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord) 
+   select cast(dbo.readstring('@objectid=',creditcode) as int), 'Missing Account', '', amount, '', '', 'G'+creditcode
+    from @fixits
+    where left(creditCode,9)='@objectid'
+
+ end  
+
+ if exists(select * from @fixits a where left(creditCode,8)='@message')
+ begin
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, '', '', 0, '', '', 'H    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+   select 0, 'Please Fix the following', 'Fix from Lookups Menu', 0, '', 'Please Fix the following', 'I    '
+
+  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord) 
+   select 0, 'Missing Table', dbo.readstring('@message=',creditcode), amount, '', '', 'J'+creditcode
+    from @fixits
+    where left(creditCode,8)='@message'
+
+ end  
+
+end
 
  return
 end
