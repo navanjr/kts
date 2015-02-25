@@ -64,42 +64,52 @@ select 'ADA_'+cast(taxyear as varchar(4))+'_ACR', '4 MILL', sum(fourmill),contra
   having sum(fourmill) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
-select key2, 'JOINT 4 MILL', sum(fourmill), contraAccount,SCHDIST 
+select  
+  case when key2 > ' 0' then key2 else '@objectid='+cast(tsd.id as varchar)+';' end, 
+  'JOINT 4 MILL', sum(fourmill), contraAccount,SCHDIST 
  from @wt, object tsd 
  where schdist in (select key1 from object where typ=4010 and B12='1')
   and tsd.typ=4010 
    and tsd.key1=schdist
- group by contraAccount,schdist,key2
+ group by contraAccount,schdist,key2,tsd.id
   having sum(fourmill) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2, '', sum(cogen),contraAccount 
+select
+  case when key2 > ' 0' then key2 else '@objectid='+cast(ta.id as varchar)+';' end, 
+       '', sum(cogen),contraAccount 
  from @wt, object ta where ta.typ=4035 and ta.key1='COGEN' 
- group by contraAccount,key2
+ group by contraAccount,key2,ta.id
   having sum(cogen) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2, '', sum(cobuild),contraAccount 
+select
+  case when key2 > ' 0' then key2 else '@objectid='+cast(ta.id as varchar)+';' end, 
+  '', sum(cobuild),contraAccount 
  from @wt, object ta where ta.typ=4035 and ta.key1='COBUILD' 
- group by contraAccount,key2
+ group by contraAccount,key2,ta.id
   having sum(cobuild) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2, '', sum(cosink),contraAccount 
+select
+  case when key2 > ' 0' then key2 else '@objectid='+cast(ta.id as varchar)+';' end, 
+  '', sum(cosink),contraAccount 
  from @wt, object ta where ta.typ=4035 and ta.key1='COSINK' 
- group by contraAccount,key2
+ group by contraAccount,key2,ta.id
   having sum(cosink) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode)
-select key2, '', sum(cohealth),contraAccount 
+select
+  case when key2 > ' 0' then key2 else '@objectid='+cast(ta.id as varchar)+';' end, 
+  '', sum(cohealth),contraAccount 
  from @wt, object ta where ta.typ=4035 and ta.key1='COHEALTH' 
- group by contraAccount,key2
+ group by contraAccount,key2,ta.id
   having sum(cohealth) <> 0.00
  
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(votgen),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTGEN' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
@@ -107,8 +117,8 @@ select case
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(votbuil),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTBUIL' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
@@ -116,8 +126,8 @@ select case
  
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(votsink),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='VOTSINK' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
@@ -125,8 +135,8 @@ select case
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(other1),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER1' 
  group by contraAccount,key2,a13,taxratecode,a4,a5
@@ -134,8 +144,8 @@ select case
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(other2),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER2' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
@@ -143,8 +153,8 @@ select case
  
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(other3),contraAccount, max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER3' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
@@ -152,8 +162,8 @@ select case
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(other4),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER4' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
@@ -161,35 +171,47 @@ select case
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,taxrate)
 select case 
-  when a4='1' then isnull((select trn.key2 from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
-  when a5='1' then isnull((select trn.key3 from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
+  when a4='1' then isnull((select case when trn.key2 > ' 0' then trn.key2 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'') 
+  when a5='1' then isnull((select case when trn.key3 > ' 0' then trn.key3 else '@objectid='+cast(trn.id as varchar)+';' end from object trn where trn.typ=4011 and trn.key1=taxratecode),'')
   else key2 end, a13, sum(other5),contraAccount,max(taxratecode) 
  from @wt, object ta where ta.typ=4035 and ta.key1='OTHER5' 
  group by contraAccount,key2,a13,a4,a5,taxratecode
  having sum(other5) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
-select key2+case when b10='1' then '_GENERAL' else '' end, 'GENERAL', sum(schgen),contraAccount,schdist 
+select 
+  case when key2 > ' 0' then 
+   key2+case when b10='1' then '_GENERAL' else '' end
+  else '@objectid='+cast(tsd.id as varchar)+';' end,
+  'GENERAL', sum(schgen),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
- group by contraAccount,schdist, key2, b10
+ group by contraAccount,schdist, key2, b10, tsd.id
  having sum(schgen) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
-select key2+case when b10='1' then '_BUILDING' else '' end, 'BUILDING', sum(schbuil),contraAccount,schdist 
+select
+  case when key2 > ' 0' then 
+   key2+case when b10='1' then '_BUILDING' else '' end
+  else '@objectid='+cast(tsd.id as varchar)+';' end,
+  'BUILDING', sum(schbuil),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
- group by contraAccount,schdist, key2, b10
+ group by contraAccount,schdist, key2, b10, tsd.id
  having sum(schbuil) <> 0.00
 
 insert @rt (accountcode,schoolpagescat,amount,contraAccountCode,schdist)
-select key2+case when b10='1' then '_SINKING' else '' end, 'SINKING', sum(schsink),contraAccount,schdist 
+select 
+  case when key2 > ' 0' then 
+   key2+case when b10='1' then '_SINKING' else '' end
+  else '@objectid='+cast(tsd.id as varchar)+';' end,
+   'SINKING', sum(schsink),contraAccount,schdist 
  from @wt, object tsd
   where tsd.typ=4010 
    and tsd.key1=schdist
- group by contraAccount,schdist, key2, b10
+ group by contraAccount,schdist, key2, b10, tsd.id
  having sum(schsink) <> 0.00
 
 
@@ -198,6 +220,16 @@ insert @rtf
   from @rt r, glaccounts a, glaccounts c
   where r.accountcode=a.accountcode and c.accountcode=r.contraAccountCode
   group by r.accountcode,a.accountdesc,r.schoolpagescat,contraAccountCode,c.accountid
+
+insert @rtf (accountcode,amount)
+ select accountcode, amount
+ from @rt
+ where left(accountcode,1)='@'
+
+insert @rtf (accountcode,amount)
+ select '@message=Missing '+right(left(accountcode,8),4)+' ADA Account;', amount
+ from @rt
+ where left(accountcode,3)='ADA' and accountcode not in (select accountcode from glaccounts)
   
  return
  
