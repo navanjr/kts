@@ -231,6 +231,10 @@ where d.sourceCode=a.accountCode
 declare @schoolHeadings table(id int identity(1,1),heading varchar(50),processFlag int)
 insert @schoolHeadings
 select distinct sourceDesc,0 from @det where (accountType like '%SCHOOL%' or accountType='VOTECH') and amount <> 0.00
+delete from @schoolheadings where id > 12
+
+update @det set sourcedesc = 'OTHER' where (accountType like '%SCHOOL%' or accountType='VOTECH') 
+ and sourcedesc not in (select heading from @schoolheadings)
 
 insert @det2
  select a.accountCode,a.accountDesc,a.accountType,a.comment2,sourceDesc, sum(amount)*-1, max(a.ord) from @det a 
@@ -243,7 +247,6 @@ delete from @det where accountType like '%SCHOOL%' or accountType='VOTECH'
 insert @rt (accountType,accountCode,accountDesc,comment2)
 select distinct accountType,accountCode,accountDesc,comment2 from @det2 d 
  where comment2 not in (select comment2 from @rt where accountType=d.accountType and accountCode=d.accountCode and accountDesc=d.accountDesc) 
-
 
 update r set amount1=b.amount, heading1 = c.heading from @rt r, @det2 b, @schoolHeadings c
    where r.accountType=b.accountType 
@@ -341,14 +344,12 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @scho
      and b.journalDesc=c.heading
      and c.id=12
 
-update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @schoolHeadings c
+update r set amount13=b.amount, heading13 = 'OTHER' from @rt r, @det2 b
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
      and r.comment2=b.comment2
-     and b.journalDesc=c.heading
-     and c.id=13
-
+     and b.journalDesc='OTHER'
 
 
 
@@ -382,6 +383,10 @@ declare @cityHeadings table(id int identity(1,1),heading varchar(50),processFlag
 insert @cityHeadings
 select distinct sourceDesc,0 from @det where accountType='CITY' and amount <> 0.00
 
+delete from @cityHeadings where id > 12
+
+update @det set sourcedesc = 'OTHER' where accountType='CITY' 
+ and sourcedesc not in (select heading from @cityHeadings)
 
 
 insert @det2
@@ -493,13 +498,12 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @city
      and b.journalDesc=c.heading
      and c.id=12
 
-update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @cityHeadings c
+update r set amount13=b.amount, heading13 = 'OTHER' from @rt r, @det2 b
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
      and r.comment2=b.comment2
-     and b.journalDesc=c.heading
-     and c.id=13
+     and b.journalDesc='OTHER'
 
 update r set heading1 = isnull((select max(heading1) from @rt r where r.accountType='CITY'),''), 
              heading2 = isnull((select max(heading2) from @rt r where r.accountType='CITY'),''),
@@ -530,6 +534,11 @@ declare @fundHeadings table(id int identity(1,1),heading varchar(50),processFlag
 
 insert @fundHeadings
 select distinct journalDesc,0 from @det2 where accountType='FUND' and amount <> 0.00
+
+delete from @fundHeadings where id > 12
+
+update @det set sourcedesc = 'OTHER' where accountType='FUND' 
+ and sourcedesc not in (select heading from @fundHeadings)
 
 delete from @det where accountType='FUND'
 
@@ -634,7 +643,7 @@ update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @fund
      and b.journalDesc=c.heading
      and c.id=12
 
-update r set amount13=b.amount, heading13 = c.heading from @rt r, @det2 b, @fundHeadings c
+update r set amount12=b.amount, heading12 = c.heading from @rt r, @det2 b, @fundHeadings c
    where r.accountType=b.accountType 
      and r.accountCode=b.accountCode
      and r.accountDesc=b.accountDesc
