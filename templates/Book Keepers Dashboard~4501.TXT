@@ -115,14 +115,24 @@
 
 @menu9=d1select('select settingvalue from settings where settingname=''site.stateTaxSystemImport'''),
  if(obj7:d1='TRUE',gcmessadd='|Import State System Taxes',gcmessadd=''),
- gcmess='Open &Account|&Stage Apportionment|Stage All Apportionment|sho&w'&gcmessadd&'|&Cancel',
+ gcmess='Open &Account|&Stage Apportionment|Stage All Apportionment|Un-Stage Apportionment|sho&w'&gcmessadd&'|&Cancel',
  m('Accounts|    Please choose one of the following options...','Right Click Menu...','question.ico',gcmess),
- break(gcretval=4),
+ break(gcretval=5),
  if(gcretval=1,openGLAccount=),
  if(gcretval=2,apportmentStage=),
  if(gcretval=3,apportmentStageAll=),
- if(gcretval=4,m(lcTyp&'-'&lcid)),
- if(gcretval=5 and len(gcmessadd)>0,importStateTaxes=),;
+ if(gcretval=4,apportionmentUnStage=),
+ if(gcretval=5,m(lcTyp&'-'&lcid)),
+ if(gcretval=6 and len(gcmessadd)>0,importStateTaxes=),;
+
+@apportionmentUnStage=
+ d1select('select id from object where typ=4512 and key2='''&obj:c1&''' and a18=''APPORTIONMENT'''),
+ if(obj7:d1+0 > 0,m('Are you sure that you want to unstage the apportionment for '&format(obj:c1,@d2)&'?','Unstage Apportionment?',,6),m('No Apportionment found to unstage.')),
+ break(gcretval<>2),
+ d1select('exec dbo.journalEntryCRUD 6, @postdate='&obj:c1+0),
+ m('Finished Unstage'),
+ refreshBRW=;
+;
 
 @importStateTaxes=setvars=,neww(4798);
 

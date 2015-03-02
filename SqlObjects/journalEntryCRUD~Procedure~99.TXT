@@ -24,6 +24,26 @@ begin
 
  exec dbo.logit @@procid, '@mode', @mode
 
+ --Unstage Apportionment
+ if @mode = 6 and isnull(@postDate,0) > 0
+ begin
+  declare @deleteids table(jeid int)
+  declare @deleteidtoken int
+  
+  insert @deleteids
+   select id from object where typ=4512 and key2=@postDate and a18='APPORTIONMENT'
+
+  while exists(select * from @deleteids)
+  begin
+   select top 1 @deleteidtoken = jeid from @deleteids
+
+   exec dbo.journalEntryCRUD 3, @deleteidtoken
+
+   delete from @deleteids where jeid = @deleteidtoken
+  end
+
+ end
+
  -- Delete
  if @mode = 3
  begin
