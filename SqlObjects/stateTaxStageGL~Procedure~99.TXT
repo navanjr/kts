@@ -10,6 +10,8 @@ declare @wt table(id int,
  contraId int,
  schdist varchar(50),
  taxrate varchar(50))
+
+declare @contraAccounts table(accountcode varchar(50),expcode varchar(50))
  
 declare @appvworksum money,
         @wtsum money,
@@ -18,10 +20,30 @@ declare @appvworksum money,
 if isnull(@date,0)=0
 select @date = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
 
-exec dbo.importAppvwork 
+--exec dbo.importAppvwork 
+
+insert @contraAccounts
+ select distinct taxyear+'_ADVALOREM', taxyear+'_ADVALOREM'+'_EXP' from dbo.temp_appvwork
+
+declare @contraAccountCodeToken varchar(50),
+        @expenseAccountCodeToken varchar(50)
+
+while exists(select * from @contraAccounts where accountcode not in (select accountcode from glaccounts))
+begin
+ select @contraAccountCodeToken = accountcode,
+        @expenseAccountCodeToken = expcode
+  from @contraAccounts 
+  where accountcode not in (select accountcode from glaccounts)
+
+  exec dbo.glaccountverification @contraAccountCodeToken, 'FUND', 'CREATE', @collectionDesc = 'Ad Valorem Tax'
+  exec dbo.glaccountverification @expenseAccountCodeToken, 'EXPENSE', 'CREATE', @targetAccountCode = @contraAccountCodeToken
+
+
+end
 
 insert @wt
 select * from dbo.stateTaxImport() 
+
 
 select @appvworksum = sum(taxcoll) from temp_appvwork
 select @wtsum = sum(amount) from @wt where left(accountcode,1)<>'@'
