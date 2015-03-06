@@ -1,7 +1,9 @@
 create procedure dbo.bankStatementCRUD(
  @date varchar(20),
  @accountId int = null,
- @newBSId int = null output
+ @newBSId int = null output,
+ @mode int = null,
+ @bankStatementId int = null
 ) as 
 
 begin
@@ -12,6 +14,23 @@ begin
 
  select @firstDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime), 0))
  select @lastDay = dbo.clariondate(dateadd(month, datediff(month, 0, @datetime) + 1, 0) - 1)
+
+-- Delete Bank Statement
+ if isnull(@mode,0) = 3
+ begin
+  -- Check for items cleared to this statement
+  if exists(select * from gldetail where bsId = @bankStatementId)
+   begin
+    select '@code=1;@message=This bank statement has items cleared to it and may not be deleted.;'
+    return
+   end
+  else
+   begin
+    update object set typ = -4780 where typ = 4780 and id = @bankStatementId
+    select '@code=0;!message=Deleting bank statement.;'
+    return
+   end
+ end
 
  if isnull(@accountId,0) > 0
  begin
