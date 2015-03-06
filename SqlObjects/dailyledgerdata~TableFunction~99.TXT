@@ -282,6 +282,11 @@ where sourceDate<=@endDate
 and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
 group by accountCode, accountDesc, accountType, ledgerGroup, reportOrder
 
+if @showdetail = 'FINANCIAL'
+begin
+ delete from @wt where accountcode in (select accountcode from glaccounts where financialGroup='X')
+ set @showdetail = 'FALSE'
+end
 
 insert @wt2
 select accountCode, accountDesc, sum(isnull(beginbalance,0)), sum(isnull(paid,0)), sum(isnull(appout,0)), sum(isnull(appin,0)), sum(isnull(specappout,0)), sum(isnull(specappin,0)), sum(isnull(tranout,0)), sum(isnull(tranin,0)), sum(isnull(fundtranout,0)), sum(isnull(fundtranin,0)), sum(isnull(deposits,0)), sum(isnull(elecdeposits,0)), sum(isnull(endbalance,0)), accountType, ledgerGroup,'',reportOrder, max(origin) from @wt
@@ -298,7 +303,7 @@ update @wt2 set
  paid=paid*-1 
 where accountType in (select accountType from dbo.glBankFundTypes('BANK'))
 
-if @showDetail = 'FALSE'
+if @showDetail <> 'TRUE'
 begin
 
 -- Grouping begins
