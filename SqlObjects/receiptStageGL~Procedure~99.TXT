@@ -113,7 +113,7 @@ begin
 -- Here we go with the Paid Block
  if exists(select * from paid where slink = @slink)
  begin
-  declare @ap table(
+  declare @ap table(id int identity(1,1),
    accountId int,
    contraId int,
    amount money,
@@ -197,6 +197,15 @@ else
 
   update @ap set prorate = amount / cast(@tokenAmount as decimal(19,10))
   update @ap set payAmount = round(@paidTotal * prorate,2)
+
+  declare @sumPayAmount money, @apDiff money  
+  select @sumPayAmount = sum(payAmount) from @ap 
+  select @apDiff = @sumPayAmount + @paidTotal 
+  
+  if isnull(@apDiff,0.00) <>  0.00 
+   update @ap set payAmount = payAmount - @apDiff where id = 1
+   
+
   insert @accountsWorking select accountId, contraId, payAmount, comment, sourceCode, '', 0 from @ap
 
 -- balance issues? suspend it, cause they are just in the middle of keying in all the payments.  it will balance at post time.
