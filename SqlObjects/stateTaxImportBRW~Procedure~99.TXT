@@ -11,6 +11,8 @@ declare @slink varchar(20)='o'+cast(@objectId as varchar)
 
 declare @contraAccounts table(accountId int, accountcode varchar(60), accountdesc varchar(50), glBalance money, accrued money, diff money)
 
+declare @contraYears table(yearcode varchar(60), glBalance money, accrued money, diff money)
+
 if isnull(@enddate,'')<'00'
 begin
 select @enddate = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
@@ -47,16 +49,22 @@ update c set accountcode = a.accountcode,
      and acr.contraId = c.accountId
      and s.contraId = c.accountId
 
+insert @contraYears
+ select y.yearcode, sum(glbalance), sum(accrued), sum(diff)
+  from @contraAccounts c, (select * from dbo.taxyears(@enddate)) y
+  where c.accountcode = y.year+'_ADVALOREM'
+  group by y.yearcode
+
 ---GL Balances
-if exists(select * from @contraAccounts where diff <> 0.00)
+if exists(select * from @contraYears where diff <> 0.00)
 begin
  insert @rt (display, ord) select '', 'a_'
  insert @rt (display, ord) select 'Accounts Out of Balance', 'a_0'
  insert @rt (brwid, display, amount, ord)
-   select cast('-4'+cast(accountid as varchar) as int),
-    ' '+accountDesc+': ',diff,
-    'a_'+accountDesc 
-    from @contraAccounts where diff <> 0.00
+   select 0,
+    ' '+yearcode+' Tax: ',diff,
+    'a_'+yearcode 
+    from @contraYears where diff <> 0.00
 end
 
 ---Staged Receipt Detail
@@ -79,6 +87,39 @@ begin
      from gldetailStage where slink=@slink
        and accounttype = 'ACCRUED RECEIVABLE' and amount > 0 and isnull(contraId,0)<>0
        and isnull(comment2,'')=''
+
+ if not exists(select * from gldetailstage where slink=@slink)
+ begin
+  declare @fixits table(accountcode varchar(60), amount money)
+
+  insert @fixits
+   select accountcode, amount from dbo.stateTaxImport() where left(accountcode,1)='@'
+
+  if exists(select * from @fixits where left(accountcode,2)='@m')
+  begin
+   insert @rt (brwid,display, ord) select 0,'Missing Information', '1_0'
+   insert @rt (brwid, display, amount, ord)
+    select 0, dbo.readstring('@message=',accountcode), amount, '1_1'+accountcode
+     from @fixits 
+     where left(accountcode,2)='@m'
+
+   insert @rt (display, ord) select '', '1_z'
+  end
+
+  if exists(select * from @fixits where left(accountcode,9)='@objectid')
+  begin
+   insert @rt (brwid,display, ord) select 0,'Missing Accounts', '2_0'
+   insert @rt (brwid, display, amount, ord)
+    select dbo.readstring('@objectid=',accountcode), 'Double-Click here to fix', amount, '2_1'+accountcode
+     from @fixits 
+     where left(accountcode,9)='@objectid'
+
+   insert @rt (display, ord) select '', '2_z'
+  end
+
+ end
+
+
 end
 else
 begin
