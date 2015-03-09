@@ -120,13 +120,23 @@ begin
    and b.a18<>'Treasurers Check'
   group by a.accountCode, a.accountDesc, b.key2, b.a2, b.key3, b.id, b.a18
   having sum(amount) > 0
-
+/*
  update a set
   rowType = 5, 
   selectedFlag = dbo.splitF(b.data,':',3)
  from @rt a, dbo.split(@warrantBlob,'|') b
  where a.id = dbo.splitF(b.data,':',1) and origin = 10
+*/
+ declare @warblob table(id int, flag varchar(20))
 
+ insert @warblob
+  select dbo.splitF(b.data,':',1), dbo.splitF(b.data,':',3) from dbo.split(@warrantBlob,'|') b 
+  
+ update a set
+  rowType = 5, 
+  selectedFlag = b.flag
+ from @rt a, @warblob b
+ where a.id = b.id and origin = 10
  
 -- add header rows for fund
  insert @rt (id, description, subDescription, ord, rowType, dbAmount, crAmount, origin)
