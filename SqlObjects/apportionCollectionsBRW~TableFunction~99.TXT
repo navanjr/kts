@@ -47,39 +47,6 @@ begin
          @accountAmountToken money,
          @amountOutToken money
 
- insert @acrcodes (acrAccountcode, accountid, accountdesc, originalAmount, processcode)
-  select accountcode, accountid, accountdesc, sum(amount)*-1, 0 from @rt 
-   where accountcode in (select accountcode from glaccounts where  accountType = 'ACCRUED RECEIVABLE')
-  group by accountcode, accountid, accountdesc
-
- while exists(select * from @acrcodes where processcode = 0)
- begin
-  select top 1 @accountcodeToken = acrAccountcode, @accountAmountToken = originalAmount from @acrcodes where processcode = 0
-
-  select top 1 @amountOutToken = amountOut from dbo.apportionCollectionsOutliers(@accountcodeToken, @accountAmountToken)
-
-  if @amountOutToken <> 0
-   begin
-    update @acrcodes set processcode = 1, diff = @amountOutToken where acrAccountcode = @accountcodeToken
-   end
-  else
-   begin
-    delete from @acrcodes where acrAccountcode = @accountcodeToken
-   end
- end
-
- if exists(select * from @acrcodes where processcode = 1 and diff <> 0.00)
- begin
-  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
-   select 0, '', '', 0, '', '', '2B    '
-
-  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
-   select 0, 'Please Fix the following', 'Double-Click to Open Account', 0, '', 'Please Fix the following', '1C    '
-
-  insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
-   select accountid, acrAccountcode, accountdesc, diff, '', 'Please Fix the following', '1D'+acrAccountcode
-     from @acrcodes where processcode = 1 and diff <> 0.00
- end
 
  declare @fixits table(creditcode varchar(60), stepDesc varchar(60), amount money)
 
@@ -118,6 +85,43 @@ begin
 
  end  
 
+ if not exists(select * from @rt where left(ord,1) = '1')
+ begin
+  insert @acrcodes (acrAccountcode, accountid, accountdesc, originalAmount, processcode)
+   select accountcode, accountid, accountdesc, sum(amount)*-1, 0 from @rt 
+    where accountcode in (select accountcode from glaccounts where  accountType = 'ACCRUED RECEIVABLE')
+   group by accountcode, accountid, accountdesc
+
+  while exists(select * from @acrcodes where processcode = 0)
+  begin
+   select top 1 @accountcodeToken = acrAccountcode, @accountAmountToken = originalAmount from @acrcodes where processcode = 0
+
+   select top 1 @amountOutToken = amountOut from dbo.apportionCollectionsOutliers(@accountcodeToken, @accountAmountToken)
+
+   if @amountOutToken <> 0
+    begin
+     update @acrcodes set processcode = 1, diff = @amountOutToken where acrAccountcode = @accountcodeToken
+    end
+   else
+    begin
+     delete from @acrcodes where acrAccountcode = @accountcodeToken
+    end
+  end
+
+  if exists(select * from @acrcodes where processcode = 1 and diff <> 0.00)
+  begin
+   insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+    select 0, '', '', 0, '', '', '2B    '
+
+   insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+    select 0, 'Please Fix the following', 'Double-Click to Open Account', 0, '', 'Please Fix the following', '1C    '
+
+   insert @rt (accountId, accountCode, accountDesc, amount, comment, contraAccountCode, ord)
+    select accountid, acrAccountcode, accountdesc, diff, '', 'Please Fix the following', '1D'+acrAccountcode
+     from @acrcodes where processcode = 1 and diff <> 0.00
+  end
+ end
+ 
 end
 
  return
