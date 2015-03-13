@@ -1,4 +1,4 @@
-create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50),@showDetail varchar(5))
+create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50),@showDetail varchar(20))
  returns @rt table(
  accountCode varchar(50),
  accountDesc varchar(50),
@@ -400,13 +400,13 @@ update r set financialReportGroup = case when a.financialGroup='A' then 'Trust a
  from @rt r, glaccounts a where r.accountcode=a.accountcode
 
 update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 
- from @rt r, (select max(financialGroup) as financialGroup,accountType as accountCode, ledgerGroup from glaccounts group by    accountType, ledgerGroup) a where r.accountCode=a.accountCode and (r.ledgerGroup < ' 0') and r.accountType='FUND'
+ from @rt r, (select max(financialGroup) as financialGroup,accountType as accountCode, ledgerGroup from glaccounts where accountcode in (select distinct accountcode from @wt) group by    accountType, ledgerGroup) a where r.accountCode=a.accountCode and (r.ledgerGroup < ' 0') and r.accountType='FUND'
 
 update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 
  from @rt r, (select max(financialGroup) as financialGroup,'Back Tax' as accountCode from glaccounts where right(accountcode,9)='ADVALOREM') a where r.accountCode=a.accountCode and (r.ledgerGroup < ' 0') and r.accountType='FUND'
 
 update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 
- from @rt r, glaccounts a where r.ledgerGroup=a.ledgerGroup and r.ledgerGroup>' 0'
+ from @rt r, glaccounts a where r.ledgerGroup=a.ledgerGroup and r.ledgerGroup>' 0' and a.accountcode in (select distinct accountcode from @wt)
 
 return
 end
