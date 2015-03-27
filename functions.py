@@ -121,6 +121,7 @@ class ktsMenu():
         self.createCommand('aamasterUpdate', ['aamasterUpdate', ], 'update adtax with data from aamaster', self.tpsAamasterUpdate, 'conversion')
         self.createCommand('aamasterKey', ['aamasterKey', ], 'print data from aamaster', self.tpsAamasterKey, 'conversion')
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
+        self.createCommand('importTaxLv', ['importTaxLv', ], 'copies XXXXtxlv data into kts for invoicing', self.tpsXXXXtxlv, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
         self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
@@ -1365,6 +1366,40 @@ class ktsMenu():
             columnNames = columnNames + ['PAIDOFFDATE','PROPERTYLIENCODE1','PROPERTYLIENAMOUNT1','PROPERTYLIENCODE2','PROPERTYLIENAMOUNT2','LASTTRANDATE','TAXCORRECTIONDATE','TAXCORRECTIONINITIALS','FLAG1']
             columnNames = columnNames + ['FLAG2','FLAG3','LEGALDESCRIPTION']
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+    def tpsXXXXtxlv(self):
+        importFileRaw = self.settingsF('taxroll.importTaxLevyFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select * from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create TaxLevyImport...', self.sqlQuery('exec dbo.createTaxLevyImport', True)['code']
+            columnNames = ['SCHOOLDISTRICTTAXRATE','SCHOOLDISTIRCTMAIN','TREASURERTOTALMILLS','ASSESSORTOTALMILLS','COUNTY4MILL','PERCENTCOUNTY4MILL','COUNTYGENERAL','PERCENTCOUNTYGENERAL','COUNTYBUILDING','PERCENTCOUNTYBUILDING']
+            columnNames = columnNames + ['COUNTYSINKING','PERCENTCOUNTYSINKING','COUNTYHEALTH','PERCENTCOUNTYHEALTH','SCHDISTGENERAL','PERCENTSCHDISTGENERAL','SCHDISTBULDING','PERCENTSCHDISTBULDING','SCHDISTSINKING','PERCENTSCHDISTSINKING']
+            columnNames = columnNames + ['VOTECHGENERAL','PERCENTVOTECHGENERAL','VOTECHBUILDING','PERCENTVOTECHBUILDING','VOTECHSINKING','PERCENTVOTECHSINKING','OTHERNAME1','MILLOTHER1','PERCENTOTHER1']
+            columnNames = columnNames + ['OTHERNAME2','MILLOTHER2','PERCENTOTHER2','OTHERNAME3','MILLOTHER3','PERCENTOTHER3','OTHERNAME4','MILLOTHER4','PERCENTOTHER4','OTHERNAME5','MILLOTHER5','PERCENTOTHER5']
+            sqlInsert = "insert TaxLevyImport ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(package['rows']):
                 formatedRow = [str(x).replace("'", "''") for x in row]

@@ -47,6 +47,7 @@ delete @rateNames where name like '%PERCENT%'
 delete @rateNames where name like '%othername%'
 delete @rateNames where name like '%percentother%'
 delete @rateNames where name like '%TOTALMILLS%'
+delete @rateNames where name = 'ID'
 delete @rateNames where name < '  0'
 
 insert @districtNames 
@@ -99,13 +100,27 @@ update @rates set rate = mill / (select totalMills from @districtNames where id 
 -- clean up all the "other" column names
 update @rates set rateCol = newName from @rates, @replaceNames where rateCol = oldname
 
+--- Create missing School Districts
+insert object (typ,key1) select distinct 4010, rtrim(district) from @rates where rtrim(district) not in (select key1 from object where typ=4010)
+
+--- Create missing tax rates
+insert object (typ,key1) select distinct 4011, rtrim(rateName) from @rates where rtrim(rateName) not in (select key1 from object where typ=4011)
+
+--- Create missing rate names  rateCol
+insert object (typ,key1) select distinct 4008, rtrim(rateCol) from @rates where rtrim(rateCol) not in (select key1 from object where typ=4008)
+
+
 -- prepare for import to object table
-update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4701 and b.a1='SCHOOL'
+update a set a.districtId = b.id from @rates a, Object b where rtrim(a.district) = rtrim(b.Key1) and b.Typ = 4010
 update a set a.rateNameId = b.id from @rates a, Object b where rtrim(a.rateName) = rtrim(b.Key1) and b.Typ = 4011
+
+--select * from @rates
 
 -- remove any rates that wont import
 delete @rates where ISNULL(districtId,0)=0 
 delete @rates where ISNULL(rateNameId,0)=0 
+
+--select * from @rates
 
 -- Manual verify totals  make sure they match
 update @districtNames set flag = 0

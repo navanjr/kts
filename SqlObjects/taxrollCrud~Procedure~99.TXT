@@ -136,6 +136,24 @@ begin
 
    return
   end
+
+-- import tax levies to taxLevyimport...
+ if @method = 'importTaxLevy'
+  begin
+   set @cmd = 'conv importTaxLv'
+   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT
+
+   declare @year varchar(4) = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'file'),4)
+
+   select @year
+
+   if isnumeric(@year)=1
+   begin
+    exec dbo.taxRateImport @year, 'TaxLevyImport'
+   end
+  return
+ end
+
  
 
 -- move records from adtaxCheck into adtax...
