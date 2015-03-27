@@ -1,0 +1,35 @@
+create procedure dbo.importAllFees
+as
+begin
+
+declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'path'),
+        @cmd varchar(8000),
+        @cmdOutput varchar(8000),
+        @nameToken varchar(1000),
+        @pathToken varchar(1000),
+        @year varchar(4)
+        
+declare @infoTable table(name varchar(1000), filepath varchar(1000), processcode int)
+
+insert @infoTable
+select name,[path],0 from dbo.dirRead(@path) where name like '%info.tps' and isnumeric(left(name,4))=1
+
+while exists(select * from @infoTable where processcode=0)
+begin
+ select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
+   exec dbo.settingsCRUD 'taxroll.importTaxFeeFile', @pathToken
+   set @cmd = 'conv importTaxFee'
+   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT
+   select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxFeeFile',''),'file'),4)
+   if isnumeric(@year)=1
+   begin
+    insert dbo.TaxFeeAll
+     select cast(@year as int), * from dbo.TaxFeeImport where @year+cast(itemnumber as varchar) not in 
+      (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from dbo.TaxFeeAll)
+   end
+ 
+ update @infoTable set processcode = 1 where name = @nameToken
+end
+
+
+end
