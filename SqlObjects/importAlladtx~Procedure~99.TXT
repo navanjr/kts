@@ -1,0 +1,29 @@
+create procedure dbo.importAlladtx
+as
+begin
+
+declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importFile',''),'path'),
+        @nameToken varchar(1000),
+        @pathToken varchar(1000)
+        
+declare @infoTable table(name varchar(1000), filepath varchar(1000), processcode int)
+
+insert @infoTable
+select name,[path],0 from dbo.dirRead(@path) where name like '%adtx.tps' and isnumeric(left(name,4))=1 order by name desc
+
+while exists(select * from @infoTable where processcode=0)
+begin
+ select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
+   exec dbo.settingsCRUD 'taxroll.importFile', @pathToken
+
+   exec dbo.taxrollCRUD @method = 'adTaxAdd'
+
+   exec dbo.taxrollCRUD @method = 'importTax'
+
+   delete from adtax where balancedue = 0.00
+ 
+ update @infoTable set processcode = 1 where name = @nameToken
+end
+
+
+end
