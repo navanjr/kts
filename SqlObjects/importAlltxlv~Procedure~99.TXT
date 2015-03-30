@@ -2,6 +2,8 @@ create procedure dbo.importAlltxlv
 as
 begin
 
+exec dbo.createTaxLevyImport
+
 declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'path'),
         @cmd varchar(8000),
         @cmdOutput varchar(8000),
@@ -14,14 +16,17 @@ declare @infoTable table(name varchar(1000), filepath varchar(1000), processcode
 insert @infoTable
 select name,[path],0 from dbo.dirRead(@path) where name like '%txlv.tps' and isnumeric(left(name,4))=1
 
-while exists(select * from @infoTable where processcode=0)
+while exists(select * from @infoTable)
 begin
- select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
-   exec dbo.settingsCRUD 'taxroll.importTaxLeviFile', @pathToken
+ select top 1 @nameToken = name, @pathToken = filepath from @infoTable
+   exec dbo.settingsCRUD 'taxroll.importTaxLevyFile', @pathToken
+
+   select dbo.settingsF('taxroll.importTaxLevyFile','')
+
    set @cmd = 'conv importTaxLv'
    exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT
 
-   select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxLeviFile',''),'file'),4)
+   select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'file'),4)
 
    if isnumeric(@year)=1
    begin
@@ -30,7 +35,7 @@ begin
 
    end
  
- update @infoTable set processcode = 1 where name = @nameToken
+ delete from @infoTable where name = @nameToken
 end
 
 

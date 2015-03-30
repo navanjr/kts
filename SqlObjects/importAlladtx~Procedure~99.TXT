@@ -4,7 +4,8 @@ begin
 
 declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importFile',''),'path'),
         @nameToken varchar(1000),
-        @pathToken varchar(1000)
+        @pathToken varchar(1000),
+        @year varchar(4)
         
 declare @infoTable table(name varchar(1000), filepath varchar(1000), processcode int)
 
@@ -15,6 +16,11 @@ while exists(select * from @infoTable where processcode=0)
 begin
  select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
    exec dbo.settingsCRUD 'taxroll.importFile', @pathToken
+
+   select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importFile',''),'file'),4)
+
+   if cast(isnull(@year,'0') as int) in (select distinct realtaxyear from adtax)
+    return
 
    exec dbo.taxrollCRUD @method = 'adTaxAdd'
 

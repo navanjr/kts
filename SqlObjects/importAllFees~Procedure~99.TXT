@@ -2,6 +2,8 @@ create procedure dbo.importAllFees
 as
 begin
 
+exec dbo.createTaxFeeImport
+
 declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'path'),
         @cmd varchar(8000),
         @cmdOutput varchar(8000),
@@ -31,5 +33,6 @@ begin
  update @infoTable set processcode = 1 where name = @nameToken
 end
 
+ delete from TaxFeeAll where cast(realtaxyear as varchar)+cast(itemnumber as varchar) not in (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from adtax)
 
 end

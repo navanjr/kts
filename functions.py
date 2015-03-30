@@ -1376,7 +1376,7 @@ class ktsMenu():
             print 'ok i inserted %s records' % tally
 
     def tpsXXXXtxlv(self):
-        importFileRaw = self.settingsF('taxroll.importTaxLevyFile')
+        importFileRaw = self.settingsF('taxroll.importTaxLevyFile','')
         importFileName = importFileRaw.split('\\')[-1]
         if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
             importFileNameOld = importFileName
