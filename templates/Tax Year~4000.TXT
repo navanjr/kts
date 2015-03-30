@@ -165,7 +165,7 @@ acc049=
 @deleteInvoices=
  sql('exec dbo.invoiceCRUD @mode=3, @taxyear='''&obj:key1&'''');
 
-\t011Mike_Fee; \s012-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''mike_fee''';
+\t011Mike_Fee; \s012-'select value from mike_taxfeeTF('''&obj:key1&''') where code in (''mike_fee'',''state_fee'') and isnull(value,''NULL'')<>''NULL''';
 \t013SubInvoice; \s014-'select value from mike_taxfeeTF('''&obj:key1&''') where code = ''subInvoice''';
 \p0120147c10h,'Courier New';r2 \p0120147c11h,8;r2 \w012014100;r2
 @acc013=
@@ -174,7 +174,8 @@ acc049=
  if(gcretval=2,deleteMikeFees=);
 
 @importMikeFees=
- d1select('exec dbo.mike_taxFeeImport @taxyear='''&obj:key1&''''),
+ d1select('select sum(amount) from dbo.state_tax_fee() where taxyear='''&obj:key1&''''),
+ if(obj7:d1+0>0,d1select('exec dbo.state_FeeImport @taxyear='''&obj:key1&''''),d1select('exec dbo.mike_taxFeeImport @taxyear='''&obj:key1&'''')),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Import mike_fee...')),
  refreshbrw=;
 

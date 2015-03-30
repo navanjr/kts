@@ -1,0 +1,115 @@
+create proc dbo.state_FeeImport(
+ @taxyear varchar(4),
+ @debugMode varchar(5) = 'FALSE' 
+) as
+begin
+ set nocount on
+
+ exec dbo.logit @@procid, 'Started... @taxyear', @taxyear, '@debugMode', @debugMode
+
+ declare @wt TABLE(
+    [id] int identity(1,1),
+	[mainIvoiceId] int NOT NULL,
+	[invoiceDate] varchar(10) NULL,
+	[Desc] varchar(50) NOT NULL,
+	[sourceCode] varchar(50) NOT NULL,
+	[fundCode] varchar(50) NOT NULL,
+	[subInvoiceType] varchar(1) NOT NULL,
+	[amount] numeric(9, 2) NOT NULL,
+        originId int not null
+)
+
+ declare 
+  @otherSource varchar(50),
+  @otherFund varchar(50)
+ 
+ select 
+  @otherSource = key2,
+  @otherFund  = key3
+ from object
+ where typ = 4504
+  and key1 = 'OTHER'
+  and a1 = 'TAX'
+
+ if isnull(@otherSource,'') < '  0' or isnull(@otherFund,'') < '  0'
+ begin
+  exec dbo.logit @@procid, 'missing needed tax description. OTHER/TAX', 'Failing gracefully... :)'
+  select '@code=1;@message=Missing needed tax description. OTHER/TAX;'
+  return
+ end
+
+ declare @tokenId int,
+  @mainIvoiceIdToken int,
+  @invoiceDateToken varchar(10),
+  @DescToken varchar(11),
+  @sourceCodeToken varchar(50),
+  @fundCodeToken varchar(50),
+  @subInvoiceTypeToken varchar(1),
+  @amountToken numeric(9, 2),
+  @originIdToken int,
+  @tally int
+
+
+ insert @wt
+ select i.id as mainIvoiceId,dbo.clariondate(GETDATE()) as [invoiceDate],
+  feetype as [Desc],
+  @otherSource as sourceCode,
+  @otherFund as fundCode,
+  'F' as subInvoiceType,
+  a.amount,
+  a.id
+ from invoices i, dbo.state_tax_fee() a
+ where 
+  a.taxYear = i.TAXYEAR
+  and a.itemnumber = i.ITEM
+  and i.id not in (select invoiceId from invoices)
+  and a.taxyear = @taxyear
+  and a.id not in (select originId from invoices where origin = 'state_fee')
+
+ delete from @wt where amount = 0.00
+
+ select @tally = count(*) from @wt
+ exec dbo.logit @@procid, 'fixing to process @wt, rows', @tally
+
+ if @debugMode = 'TRUE'
+ begin
+  select * from @wt
+  return
+ end
+
+ while exists(select * from @wt)
+ begin
+  select top 1 
+   @tokenId = id,
+   @mainIvoiceIdToken =mainIvoiceId,
+   @invoiceDateToken =invoiceDate,
+   @DescToken =[Desc],
+   @sourceCodeToken =sourceCode,
+   @fundCodeToken =fundCode,
+   @subInvoiceTypeToken =subInvoiceType,
+   @amountToken =amount,
+   @originIdToken = originId
+ from @wt
+
+  exec dbo.subInvoiceCRUD
+   @mainIvoiceIdToken,
+   @invoiceDateToken,
+   @DescToken,
+   @sourceCodeToken,
+   @fundCodeToken,
+   @subInvoiceTypeToken,
+   @amountToken,
+   @smode = 1,
+   @origin = 'state_fee',
+   @originId = @originIdToken,
+   @skipSQLTransactionOnGLPost = 'TRUE',
+   @verbose = 'FALSE'
+
+ exec dbo.logit @@procid, 'SubInvoice countdown... @tally', @tally
+ set @tally = @tally - 1
+
+ delete from @wt where id=@tokenId
+ end
+
+
+end

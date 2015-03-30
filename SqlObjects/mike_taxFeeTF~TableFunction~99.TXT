@@ -15,8 +15,14 @@ begin
  insert @rt
  select 'subInvoice',
   convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(invoiceDue) as money),1)
- from invoices where taxyear = @taxyear and origin = 'mike_fee'
+ from invoices where taxyear = @taxyear and origin in ('mike_fee','state_fee')
 
+ insert @rt
+ select 'state_fee',
+  convert(varchar, count(*),1) + ' - ' + convert(varchar, cast(sum(amount) as money),1)
+ from dbo.state_tax_fee() where cast(taxyear as varchar(4)) = @taxyear
+  and amount != 0
+ 
 
  return
 
