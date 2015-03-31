@@ -21,18 +21,21 @@ begin
  select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
    exec dbo.settingsCRUD 'taxroll.importTaxNoteFile', @pathToken
    set @cmd = 'conv importTaxNote'
-   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT, @silentmode = 'FALSE'
+   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT, @silentmode = 'TRUE'
    select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxNoteFile',''),'file'),4)
    if isnumeric(@year)=1
    begin
     insert dbo.TaxNoteAll
-     select cast(@year as int), * from dbo.TaxNoteImport where @year+cast(itemnumber as varchar) not in 
-      (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from dbo.TaxNoteAll)
+     select cast(@year as int), * from dbo.TaxNoteImport
    end
  
  update @infoTable set processcode = 1 where name = @nameToken
 end
 
 delete from TaxNoteAll where cast(realtaxyear as varchar)+cast(itemnumber as varchar) not in (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from adtax)
+
+insert object (typ,key1,a1,a2,a3,a4,a5,a6,a7,e1)
+ select 4002, itemnumber, realtaxyear, notedate, actiondate, '1', id, 'state_conversion', notecode, note
+  from TaxNoteAll where cast(id as varchar) not in (select a5 from object where typ=4002)
 
 end
