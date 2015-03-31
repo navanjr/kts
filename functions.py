@@ -123,6 +123,7 @@ class ktsMenu():
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importTaxLv', ['importTaxLv', ], 'copies XXXXtxlv data into kts for invoicing', self.tpsXXXXtxlv, 'conversion')
         self.createCommand('importTaxFee', ['importTaxFee', ], 'copies XXXXinfo data into kts for invoicing', self.tpsXXXXfee, 'conversion')
+        self.createCommand('importTaxNote', ['importTaxNote', ], 'copies XXXXnote data into kts for invoicing', self.tpsXXXXnote, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
         self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
@@ -1441,6 +1442,38 @@ class ktsMenu():
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
             print 'ok i inserted %s records' % tally
+
+    def tpsXXXXnote(self):
+        importFileRaw = self.settingsF('taxroll.importTaxNoteFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select ITEMNUMBER,USERINITIALS,NOTEDATE,NOTETIME,NOTECODE,ACTIONDATE,NOTE from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create TaxNoteImport...', self.sqlQuery('exec dbo.createTaxNoteImport', True)['code']
+            columnNames = ['ITEMNUMBER','USERINITIALS','NOTEDATE','NOTETIME','NOTECODE','ACTIONDATE','NOTE']
+            sqlInsert = "insert TaxNoteImport ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
 
     def gsiTaxroll(self):
         def map(row):

@@ -1,0 +1,38 @@
+create procedure dbo.importAllNotes
+as 
+begin
+
+exec dbo.createTaxNoteImport
+
+declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importTaxLevyFile',''),'path'),
+        @cmd varchar(8000),
+        @cmdOutput varchar(8000),
+        @nameToken varchar(1000),
+        @pathToken varchar(1000),
+        @year varchar(4)
+        
+declare @infoTable table(name varchar(1000), filepath varchar(1000), processcode int)
+
+insert @infoTable
+select name,[path],0 from dbo.dirRead(@path) where name like '%note.tps' and isnumeric(left(name,4))=1
+
+while exists(select * from @infoTable where processcode=0)
+begin
+ select top 1 @nameToken = name, @pathToken = filepath from @infoTable where processcode = 0
+   exec dbo.settingsCRUD 'taxroll.importTaxNoteFile', @pathToken
+   set @cmd = 'conv importTaxNote'
+   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT, @silentmode = 'FALSE'
+   select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxNoteFile',''),'file'),4)
+   if isnumeric(@year)=1
+   begin
+    insert dbo.TaxNoteAll
+     select cast(@year as int), * from dbo.TaxNoteImport where @year+cast(itemnumber as varchar) not in 
+      (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from dbo.TaxNoteAll)
+   end
+ 
+ update @infoTable set processcode = 1 where name = @nameToken
+end
+
+delete from TaxNoteAll where cast(realtaxyear as varchar)+cast(itemnumber as varchar) not in (select cast(realtaxyear as varchar)+cast(itemnumber as varchar) from adtax)
+
+end
