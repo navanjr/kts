@@ -125,6 +125,7 @@ class ktsMenu():
         self.createCommand('importTaxFee', ['importTaxFee', ], 'copies XXXXinfo data into kts for invoicing', self.tpsXXXXfee, 'conversion')
         self.createCommand('importTaxNote', ['importTaxNote', ], 'copies XXXXnote data into kts for invoicing', self.tpsXXXXnote, 'conversion')
         self.createCommand('importSpeTax', ['importSpeTax', ], 'copies spetax data into kts for invoicing', self.tpsspetax, 'conversion')
+        self.createCommand('importMort', ['importMort', ], 'copies mortg data into kts', self.tpsmort, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
         self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
@@ -1495,7 +1496,7 @@ class ktsMenu():
             print '   oops pyodbc error... %s' % package['error']
         if len(package['rows']) > 0:
             print 'how many? ', len(package['rows'])
-            print 'create TaxNoteImport...', self.sqlQuery('exec dbo.createSpeTaxImport', True)['code']
+            print 'create SpeTaxImport...', self.sqlQuery('exec dbo.createSpeTaxImport', True)['code']
             columnNames = ['NUMBER','PIDSORTNUMBER','TRANSACTIONDATE','FULLPIDNUMBER','ITEMNUMBER','OWNERNUMBER','OWNERNAME','BUSINESSNAME','ADDRESS1','ADDRESS2']
             columnNames = columnNames + ['CITY','STATE','ZIP1','ZIP2','COUNTRY','SCHOOLDISTRICTTAXRATE','SCHOOLDISTRICTMAIN','SPECIALTAX1','COMMENT1']
             columnNames = columnNames + ['SPECIALTAX2','COMMENT2','SPECIALTAX3','COMMENT3','SPECIALTAX4','COMMENT4','SPECIALTAX5','COMMENT5','SPECIALTAX6','COMMENT6']
@@ -1508,6 +1509,39 @@ class ktsMenu():
                     tally = tally + 1
             print 'ok i inserted %s records' % tally
 
+
+    def tpsmort(self):
+        importFileRaw = self.settingsF('taxroll.importMortFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select * from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create MortImport...', self.sqlQuery('exec dbo.createMortImport', True)['code']
+            columnNames = ['AUTONUMBERKEY','MORTGAGECODE','NAME','ADDRESS1','ADDRESS2']
+            columnNames = columnNames + ['CITY','STATE','COUNTRY','ZIP1','ZIP2','ZIP3','PHONEVOICE','PHONEFAX','EMAILADDRESS','CHANGEDATE']
+            columnNames = columnNames + ['CHANGEINITIALS','COMMENTS']
+            sqlInsert = "insert MortImport ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
 
 
     def gsiTaxroll(self):

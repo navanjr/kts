@@ -26,6 +26,8 @@ elif len(sysArgs) > 2 and sysArgs[1] in autoArgs:
         menu.tpsXXXXnote()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importSpeTax':
         menu.tpsspetax()
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'importMort':
+        menu.tpsmort()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importGSITax':
         menu.gsiTaxroll()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importDBF':

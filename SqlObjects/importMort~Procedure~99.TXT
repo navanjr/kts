@@ -1,0 +1,34 @@
+create procedure dbo.importMort
+as 
+begin
+
+exec dbo.createMortImport
+
+declare @path varchar(max) = dbo.pathFile(dbo.settingsF('taxroll.importMortFile',''),'path'),
+        @cmd varchar(8000),
+        @cmdOutput varchar(8000),
+        @nameToken varchar(1000),
+        @pathToken varchar(1000),
+        @year varchar(4)
+        
+   set @cmd = 'conv importMort'
+   exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT, @silentmode = 'TRUE'
+
+
+insert object (typ,key1,key3,a1,a2,a3,a4,a5,a6,a7,a9,e1)
+ SELECT 4030 as typ 
+      ,[MORTGAGECODE] as key1
+      ,[NAME] as key3
+      ,[ADDRESS1] as a1
+      ,[ADDRESS2] as a2
+      ,[CITY] as a3
+      ,[STATE] as a4
+      ,[ZIP1] as a5
+      ,[PHONEVOICE] as a6
+      ,[PHONEFAX] as a7
+      ,[EMAILADDRESS] as a9
+      ,[COMMENTS] as e1
+  FROM [MortImport]
+  WHERE cast(MORTGAGECODE as varchar) not in (select key1 from object where typ=4030)
+
+end
