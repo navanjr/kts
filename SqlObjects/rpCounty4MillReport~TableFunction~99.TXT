@@ -27,7 +27,8 @@ declare @det table(
 	[journalType] [varchar](50) NOT NULL default '',
 	[sourceDesc] [varchar](50) NOT NULL default '',
 	[sourceSECA] [varchar](50) NOT NULL default '',
-	[journalDesc] [varchar](50) NOT NULL default ''
+	[journalDesc] [varchar](50) NOT NULL default '',
+        apportionContraCode varchar(50) NOT NULL default ''
 )
 
 insert @det
@@ -42,12 +43,14 @@ select isnull(accountType,''),
 	isnull(journalType,''),
 	isnull(sourceDesc,''),
 	isnull(sourceSECA,''),
-	isnull(journalDesc,'') from rpMonthEndDetail(@beginDate,@endDate, 'FALSE') 
+	isnull(journalDesc,''),
+        isnull(apportionContraCode,'') 
+ from rpMonthEndDetail(@beginDate,@endDate, 'FALSE') 
  where isnull(sourceCode,'Not Found') in (select accountCode from glAccounts)
   and accountType in (select accountType from dbo.glBankFundTypes('FUND'))
   and left(journalType,13) = 'APPORTIONMENT'
 
-update @det set comment2='4 MILL' where accountType in ('SCHOOL','FUND') and comment2 like '%MIL%' and comment2 like '%4%' and comment2 not like '%JOINT%' 
+update @det set comment2='4 MILL' where accountType in ('SCHOOL','FUND') and comment2 like '%MIL%' and comment2 like '%4%' and comment2 not like '%JOINT%'  and right(apportionContraCode,10)='_ADVALOREM'
 
 update @det set comment2='4 MILL' where accountType in ('SCHOOL','FUND') and comment2 like '%By ADA%' and sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M')
 
