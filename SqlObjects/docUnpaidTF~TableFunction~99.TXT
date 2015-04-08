@@ -31,7 +31,13 @@ declare @taxYear varchar(4),
 	@name varchar(50),
         @interestDateInt int = dbo.clariondate(@interestDate),
         @Type varchar(10),
-        @limitToCurrentDelinquent varchar(50) = dbo.settingsF('site.collectionsLimitTaxwarrantPub1Year','FALSE') 
+        @limitToCurrentDelinquent varchar(50) = dbo.settingsF('site.collectionsLimitTaxwarrantPub1Year','FALSE'), 
+        @colStartDate varchar(10),
+        @colEndDate varchar(10)
+
+select top 1 @colStartDate = key1,
+       @colEndDate = c1
+      from object where Typ = 4026 order by ID 
 
 select	@taxYear = taxYear, 
 	@item = ITEM, 
@@ -98,7 +104,7 @@ if @Parcel>'  0'
 		from invoices where id in (select invoiceLinkId from taxrollDetail where parcelNumber = @parcel and invoiceLinkId>0 and dType='Attach') 
                                     and id not in (select invoiceId from @wt)
 
- delete from @wt where invoiceId in (select invoiceLinkId from taxrolldetail where dtype='Exclude')
+  delete from @wt where invoiceId in (select invoiceLinkId from taxrolldetail where dtype='Exclude' and dbo.clariondate(documentdatetime) between @colStartDate and @colEndDate)
 
 update w set 
 		w.perTyp = a.perTyp, 
