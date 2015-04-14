@@ -7,17 +7,19 @@ declare @slinks table(slink varchar(15))
 
 if @switch = 0 
      begin
+     insert @slinks
+      select 'l'+cast(b.id as varchar) from receiptlink b 
+        WHERE b.invoiceId = @invoiceId  
+			and b.receiptId = @recId
 	insert into @wt  
-		select amount,accountCode,''
-			from gldetail a,receiptlink b 
-			where	
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-					and b.invoiceId = @invoiceId  
-					and b.receiptId = @recId
-	update w set AccType = accountType from @wt w, glAccounts a where w.AccCode=a.accountcode and accountType='Receivable'
-	
-	delete from @wt where AccType<>'Receivable' or taxAmount > 0
-        delete from @slinks where slink>'0'
+		select g.amount,g.accountCode,a.accountType
+			from gldetail g, @slinks b, glAccounts a
+			where g.slink=b.slink
+			 and g.accountcode=a.accountcode
+			 and a.accountType='Receivable'
+			
+    delete from @wt where taxAmount > 0
+    delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
 
@@ -25,17 +27,19 @@ if @switch = 0
 
 if @switch = 1
      begin
-	insert into @wt  
-		select amount,accountCode,''
-			from gldetail a,receiptlink b 
-			where
-                                left(a.slink,1)='l' and dbo.slinkId(a.slink)=b.id
-					and b.invoiceId = @invoiceId  
-					and b.receiptId < @recId
+     insert @slinks
+      select 'l'+cast(b.id as varchar) from receiptlink b 
+        WHERE b.invoiceId = @invoiceId  
+		and b.receiptId = @recId
 
-	update w set AccType = accountType from @wt w, glAccounts a where w.AccCode=a.accountcode and accountType='Receivable'
-	
-	delete from @wt where AccType<>'Receivable' or taxAmount > 0
+	insert into @wt  
+		select g.amount,g.accountCode,a.accounttype
+			from gldetail g, @slinks b, glAccounts a  
+			where g.slink=b.slink
+                         and g.accountcode=a.accountcode
+                         and a.accounttype='Receivable'
+
+	delete from @wt where taxAmount > 0
         delete from @slinks where slink>'0'
 
 	select @retVal = isnull(SUM(abs(taxAmount)),0) from @wt
