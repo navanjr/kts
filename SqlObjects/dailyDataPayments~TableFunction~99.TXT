@@ -38,7 +38,8 @@ begin
   maxNumber varchar(50),
   amount money,
   rowCnt int,
-  glBalance money
+  glBalance money,
+  fy varchar(50)
  )
 
  declare @wtRaw table(
@@ -47,7 +48,8 @@ begin
   accountDesc varchar(50),
   paymentType varchar(50),
   number varchar(50),
-  amount money
+  amount money,
+  fy varchar(50)
  )
 
 -- insert all raw payment data
@@ -58,7 +60,7 @@ begin
   left(rtrim(a.accountDesc) + case when @paymentType='Miscellaneous' then ' '+a.bsSummary else '' end,50),
   dbo.nextObjectAutoNumberControl(4771,p.paymentType),
   case when @accountType <> 'Official' then p.treasurersNumber else p.clerksNumber end,
-  g.amount
+  g.amount, p.fiscalyear
  from dbo.glDetail g
  join payments p on g.slink = p.slink 
  join dbo.glaccounts a on g.accountId = a.accountId 
@@ -79,12 +81,13 @@ begin
   max(number),
   sum(amount),
   count(*),
-  0
+  0, fy
  from @wtRaw
  group by
   accountId,
   accountDesc,
-  paymentType
+  paymentType,
+  fy
 
  update a set a.glBalance = (select sum(amount) from glDetail where accountId = a.accountId) from @wt a
 
@@ -100,7 +103,7 @@ begin
    clerksNumber,
    0,
    1,
-   0
+   0, p.fiscalyear
   from payments p
   where paymenttype in ('Official Voucher','Trust Voucher')
    and [status] = 'VOID'
@@ -113,7 +116,7 @@ begin
  insert @rt
  select
   cast('8' + cast(paymentId as varchar) as int),
-  @ordSeed + cast(accountId as varchar) + '',
+  @ordSeed + fy + cast(accountId as varchar) + '',
   dbo.dailyDataFormatCollections(accountDesc,minNumber,maxNumber,rowCnt,amount,43),
   dbo.padLeft(convert(varchar,glBalance,1),' ',16),
   '   ' + dbo.padRight(accountDesc,' ',61),  
@@ -126,6 +129,10 @@ begin
 
 -- headers
  insert @rt select 0,@ordSeed+'00a','','','','','','','lineFeed',0,null
+
+ if @sectionTitle = 'PAID WARRANTS'
+  insert @rt select  0,@ordSeed + fy + '00aa1',''
+  + dbo.padRight('FISCAL YEAR: '+fy,' ',30),'','' + 'FISCAL YEAR: '+fy,'','','','detail',1,null from @wt group by fy
  insert @rt
  select 0,@ordSeed+'00aa','  '
   + dbo.padRight(@sectionTitle,' ',20)

@@ -249,7 +249,8 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
      clerksNumber,
      clerksDate,
      payee,
-     amount
+     amount,
+     fiscalYear
     from dbo.payments where dateregistered between '&gcBeginDate&' and '&gcEndDate&' and
      paymentType=''Warrant'' and 
      warrantLinkId+0=0 and 
@@ -285,9 +286,9 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
   if(gcFiscalYear>' 0',lcFiscalYearCrit=' and fiscalyear='''&gcFiscalYear&'''',lcFiscalYearCrit=''),
   if(gcFiscalYear>' 0',lcFiscalYearTit='As Of: '&format(lcAsOfDate,@d2)&'  For Fiscal Year: '&gcFiscalYear,lcFiscalYearTit='As Of: '&format(lcAsOfDate,@d2)),
   lcPaymentType='WARRANT',
-  lcsql='select foreignNumber,foreignDate,controlNumber,postDate,BalanceAsOf,payee,contraPaymentType,contraPostDate,ord 
+  lcsql='select foreignNumber,foreignDate,controlNumber,postDate,BalanceAsOf,payee,contraPaymentType,contraPostDate,ord,fiscalYear 
  from dbo.paymentReports('''&lcPaymentType&''','''&lcAsOfDate&''',null) 
-  where paymentType=''Warrant'' '&lcFiscalYearCrit&' '&choose(gcFundCode>'  0',' and fundCode='''&gcFundCode&'''','')&' '&choose(gcCheckBox+0>'0',' and foreignDate<='&lcAsOfDate,'')&' order by ord, foreignNumber', 
+  where paymentType=''Warrant'' '&lcFiscalYearCrit&' '&choose(gcFundCode>'  0',' and fundCode='''&gcFundCode&'''','')&' '&choose(gcCheckBox+0>'0',' and foreignDate<='&lcAsOfDate,'')&' order by fiscalyear, ord, foreignNumber', 
   lcWarrantTot=0,
   lcBoxColor=14539482,
   lcReportTotal=0,
@@ -318,9 +319,9 @@ lcsql='select id,treasurersNumber,dateRegistered,clerksNumber,clerksDate,amount,
    prn(,lcLm,lcTm+25,,,),
    bnd('H','Warnt No.',700,'Date Issued',750,'Regist No.',700,'Regist Date',750,'Amount',700C,'Pay To Whom',2000,'Current Status',700),
    nl,
-    grp(1,obj5:a9,
+    grp(1,obj5:a10&obj5:a9,
       do(
-      bnd('H','Fund: '&obj5:a9,5000)),do(
+      bnd('H','Fund: '&clip(obj5:a9)&' - '&obj5:a10,5000)),do(
       bnd('H','Total:',2900R,format(lcWarrantTot,@n$14.2),1000R,),
       lcWarrantTot=0,
       nl,
