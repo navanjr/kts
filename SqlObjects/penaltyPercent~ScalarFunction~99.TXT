@@ -11,6 +11,7 @@ begin
         @rate int,
         @defaultdate varchar (10),
         @begindate varchar (10),
+        @beginday int,
         @enddate varchar (10),
         @typ varchar (1),
         @calcMethod varchar (1),
@@ -22,6 +23,7 @@ begin
         
         
  select @typ = [typ], @interestDate = interestDate,@taxYear = taxYear from invoices where id=@invoiceId
+
  select top 1
   @calcMethod = a19, 
   @gracesetting = a20,
@@ -89,10 +91,19 @@ begin
 
 
  set @months = datediff(m, @begindate, @paydate) 
- if day(@paydate) < @grace
+
+ if @typ in ('O','S')
+  begin
+   select @beginday = day(dbo.date1(@interestDate))
+   set @months = @months + 1
+  end
+
+ if day(@paydate) < case when isnull(@beginday,0) > 0 then @beginday else @grace end
  begin
   set @months = @months - 1
  end
+
+ 
 
  if @calcMethod = 'M'
  begin
