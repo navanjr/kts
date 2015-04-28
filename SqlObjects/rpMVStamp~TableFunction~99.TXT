@@ -3,6 +3,7 @@ create function rpMVStamp(@begindate varchar(20), @enddate varchar(20))
                   ord varchar(100),
                   [description] varchar(200),
                   num int,
+                  sequence varchar(50),
                   amount money)
 as 
 begin
@@ -24,9 +25,10 @@ begin
     and key3 = 'R'
     and case when isnumeric(a1)=1 then cast(a1 as int) else 0 end > 0
 
- insert @rt (ord, [description], num, amount)  
+ insert @rt (ord, [description], num, sequence, amount)  
   select 'A3','Stamps Sold to Taxpayers',
     isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int) else 0 end),0.00), 
+    min(a3)+'-'+max(a4),
     isnull(sum(case when isnumeric(a1)=1 then cast(a1 as int)*cast(key1 as money) else 0 end),0.00)
    from object 
    where typ=4302 
