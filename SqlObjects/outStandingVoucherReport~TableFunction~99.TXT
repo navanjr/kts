@@ -12,7 +12,8 @@ CREATE function dbo.outStandingVoucherReport(
  vType varchar(10),
  actionDate varchar(50),
  ord varchar(250),
- paymentId int
+ paymentId int,
+ fiscalYear varchar(10)
 ) as
 begin
  if isnull(@paymentType,'')<' 0'
@@ -30,7 +31,8 @@ begin
   case contraPaymentType when 'Cleared Bank' then 'P' when 'Cancel Voucher' then 'C' when 'Cancel Warrant' then 'C' else left(contraPaymentType,1) end,
   dbo.date1(contraPostDate),
   left(fundaccount,20)+cast(postDate as varchar)+cast(controlNumber as varchar)+cast(dbo.popro6(foreignNumber,6,1) as varchar)+'b',
-  dbo.slinkId(slink)
+  dbo.slinkId(slink),
+  fiscalyear
  from dbo.paymentReports('Bank',@endDate,null) 
   where isnull(paymentType,'') like '%'+@paymentType+'%' 
 
