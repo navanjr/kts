@@ -82,11 +82,12 @@
 @cancelProcedureSir=
  m(lcMessage,lcCaption,'question.ico',6,4),
  break(gcretval<>2),
- iw(',.t003Reason., ,.l0044773., ,.t097Comment., ,.y097=001., ,.y098=002., ,.x097=001., ,.x098=002., ,.w098200., ,.o004098., ,[select=098.,'),
+ iw(',.t003Reason., ,.l0044773., ,.t097Comment., ,.y097=001., ,.y098=002., ,.x097=001., ,.x098=002., ,.w098200., ,.o004098., ,[select=098., ,.t005Stop Expires., ,.t006@d2., ,.w00650.,'),
  break(gcretval<>'OK'),
  lcComment=obj7:d1,
  lcResonToCancel=obj7:key2,
- d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&kpfq(lcComment)&''', @reasonToCancel='''&kpfq(lcResonToCancel)&''''),
+ lcStopExpires=obj7:key3,
+ d1select('exec dbo.paymentCancel '&gcPaymentId&', @method='''&gcMethod&''', @areYouSure=''YES'', @comments='''&kpfq(lcComment)&''', @reasonToCancel='''&kpfq(lcResonToCancel)&''', @stopexpires='&lcStopExpires+0&''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),readstring(obj7:d1,'@caption=')));
 
 @cancelRoutineV=
@@ -96,10 +97,11 @@
 @cancelRoutine=
  m('Are you sure you wish to Cancel this '&lcPaymentType&'?','Cancel '&lcPaymentType&'...','Question.ico',6,4),
  break(gcretval<>2),
- iw(',.t097Comment., ,.y097098=001.,r ,.x097=001., ,.x098=002., ,.w098200.,'),
+ iw(',.t097Comment., ,.y097098=001.,r ,.x097=001., ,.x098=002., ,.w098200., ,.t003Stop Expires., ,.t004@d2., ,.w00450.,'),
  break(gcretval<>'OK'),
  gccomment=obj7:d1,
- d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id&', @comments='''&gccomment&''''),
+ lcStopExpires=obj7:key2,
+ d1select('exec dbo.paymentCRUD  @mode = 0, @paymentType = ''Cancel '&lcPaymentType&''', @id = '&obj:id&', @comments='''&gccomment&''', @stopexpires='&lcStopExpires+0&''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Cancel '&lcPaymentType&'...'));
 
 bb4=&Print Item;  
@@ -294,6 +296,8 @@ bbproc4=
 \t057Warrant; \h057058obj:a18<>'Treasurers Check';r \w05855; \y057058=006;r
  \s058-'select key1 from object where typ=4771 and link1='''&obj:id&''' and a18 = ''Warrant''';
 
+\t059Stop Expires; \t060@d2; \w06050; \h059060upper(left(obj:a14,4))<>'STOP';r
+\y059060=045;r
 \t101Comment;
 
 \t108Post and &Print; 

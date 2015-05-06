@@ -5,7 +5,8 @@ create proc dbo.paymentCancel(
  @areYouSure varchar(5) = 'NO',
  @comments varchar(max) = '',
  @reasonToCancel varchar(50) = null, 
- @cancelExpiredVouchers varchar(5) = null 
+ @cancelExpiredVouchers varchar(5) = null,
+ @stopexpires int = 0 
 ) as 
 begin
  set nocount on
@@ -37,7 +38,8 @@ begin
     @areYouSure = 'YES',
     @comments = @comments,
     @reasonToCancel = @reasonToCancel,
-    @cancelExpiredVouchers = 'FALSE'
+    @cancelExpiredVouchers = 'FALSE',
+    @stopexpires = @stopexpires
 
    delete @ids where id = @idToken
   end
@@ -130,7 +132,7 @@ begin
    set @cancelPaymentType = dbo.proper(@method) + ' Miscellaneous'
 
   exec dbo.logit @@procid, 'canceling or voiding...(1)  @cancelPaymentType', @cancelPaymentType
-  exec dbo.paymentCRUD  @mode = 0, @paymentType = @cancelPaymentType, @id = @id, @comments = @comments, @reasonToCancel = @reasonToCancel
+  exec dbo.paymentCRUD  @mode = 0, @paymentType = @cancelPaymentType, @id = @id, @comments = @comments, @reasonToCancel = @reasonToCancel, @stopexpires = @stopexpires
   return
  end
 

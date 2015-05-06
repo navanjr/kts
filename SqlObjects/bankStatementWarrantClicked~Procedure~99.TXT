@@ -107,6 +107,25 @@ begin
 -- exec dbo.bankStatementWarrantClicked @bankStatementId = @bankStatementId, @brwId = @tokenBrwId, @ini = @ini
   end
 
+  set @warrantsBlob = ''
+  select
+   @warrantsBlob = @warrantsBlob + cast(brwid as varchar) + ':' 
+   + rtrim(fundCode) + ':'
+   + rtrim(paymentNumber) + '|'
+  from @buyWt
+
+  if exists (select * from object where typ=4782 and link1 = @bankStatementId and key1=@ini)
+   begin
+    update object set e1 = @warrantsBlob where typ=4782 and link1 = @bankStatementId and key1=@ini
+   end
+  else
+   begin
+    insert object (typ,link1,key1,e1)
+     select 4782, @bankStatementId, @ini, @warrantsBlob
+   end
+
+  exec dbo.logit @@procid, '@brwid', @brwid, 'action', @log, '@objectId', @bankStatementId, '@warrantsBlob', @warrantsBlob
+
 
   return
  end

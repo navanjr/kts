@@ -27,7 +27,8 @@ create proc dbo.paymentCRUD(
  @accountNumberBLOB varchar(max) = '',
  @reasonToCancel varchar(50) = '',
  @clearingDate int = null,
- @quietMode varchar(5) = 'FALSE'
+ @quietMode varchar(5) = 'FALSE',
+ @stopexpires int = 0
 ) as 
 begin
 
@@ -390,7 +391,7 @@ begin
    typ,
    key1, key2, Key3, a1,
    a2, a3, a4, b3, a5, b4, A17, a18,
-   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14, oLink1
+   a7, a8, a9, c10, a16, e1, c5, a12, a13, a14, oLink1, b7
   )
   output inserted.id into @newIdWt
   select 
@@ -415,7 +416,8 @@ begin
    @myIni,
    @myStation,
    @reasonToCancel,
-   case when @amount = 0 and @paymentType = 'official voucher' then @vfiscalYear  when @paymentType = 'warrant' then @fiscalYear else '' end
+   case when @amount = 0 and @paymentType = 'official voucher' then @vfiscalYear  when @paymentType = 'warrant' then @fiscalYear else '' end,
+   @stopexpires
  end try
  begin catch
   set @log = error_message()
