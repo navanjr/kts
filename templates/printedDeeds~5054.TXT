@@ -3,9 +3,11 @@
 @bbproc1=
  printDeedCountyBatch=;
 
-@printDeed=
+@printDeed=lcLegal=kp('select a3 from object where typ=452 and key1=''Print Deed'''),
+ if(lcLegal='Y',gcpageMax=7420,gcpageMax=4420),
  lcDeed=kp('select top 1 dType from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype in (''indivDeed'',''countyDeed'') order by id desc'),
- if(lcDeed='countyDeed',preCountyCheck=,preIndivCheck=);
+ if(lcDeed='countyDeed',preCountyCheck=,preIndivCheck=),
+ gcpageMax=0;
 
 @preIndivCheck=
  lcDeedBlobHead=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),
@@ -43,9 +45,8 @@
  lcTm=1200,
  lcDeedBlob=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype in (''indivDeed'',''countyDeed'') order by id desc'),'~{~',''''),
  lcLegal=str_replace(kp('select top 1 dbo.readstring(''@legal='',comments) from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype in (''indivDeed'',''countyDeed'') order by id desc'),'~{~',''''),
-tr( 
- legal,
- bnd(,'SA&I Form 304',1000),
+tr(nl, 
+ bnd(,'',1000,'SA&I Form 304',1000),
  prn(,,lcTm,14,'bold'),
  bnd(,'COUNTY TREASURER''S RESALE DEED',4700C),
  bnd(,'(COUNTY)',8200C),
@@ -73,7 +74,7 @@ tr(
  lin(lcLm-25,pagey,7500+25,pagey),
  bnd(,str_replace(lcLegal,'~:~',';'),2750W,readstring(lcDeedBlob,'@town='),1150W,readstring(lcDeedBlob,'@sec='),400W,readstring(lcDeedBlob,'@twp='),400W,readstring(lcDeedBlob,'@rnge='),500C,format(readstring(lcDeedBlob,'@bidAmount='),@n$-14.2b),800C),
  nl,
- prn(,,lcTm+7420),
+ prn(,,lcTm+gcpageMax),
  lin(lcLm+4050,lclStartB,lcLm+4050,pagey),
  lin(lcLm+4550,lclStartB,lcLm+4550,pagey),
  lin(lcLm+5050,lclStartB,lcLm+5050,pagey),
@@ -107,9 +108,8 @@ tr(
  lcTm=1200,
  lcDeedBlob=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),
  lcLegal=str_replace(kp('select top 1 dbo.readstring(''@legal='',comments) from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),
-tr(
- legal,
- bnd(,'SA&I Form 303',1000),
+tr(nl,
+ bnd(,'',1000,'SA&I Form 303',1000),
  prn(,,lcTm,14,'bold'),
  bnd(,'COUNTY TREASURER''S RESALE DEED',4700C),
  bnd(,'(INDIVIDUAL)',8200C),
@@ -137,7 +137,7 @@ tr(
  lin(lcLm-25,pagey,7500+25,pagey),
  bnd(,str_replace(lcLegal,'~:~',';'),2750W,readstring(lcDeedBlob,'@town='),1150W,readstring(lcDeedBlob,'@sec='),400W,readstring(lcDeedBlob,'@twp='),400W,readstring(lcDeedBlob,'@rnge='),500C,format(readstring(lcDeedBlob,'@bidAmount='),@n$-14.2b),800C),
  nl,
- prn(,,lcTm+7420),
+ prn(,,lcTm+gcpageMax),
  lin(lcLm+4050,lclStartB,lcLm+4050,pagey),
  lin(lcLm+4550,lclStartB,lcLm+4550,pagey),
  lin(lcLm+5050,lclStartB,lcLm+5050,pagey),
