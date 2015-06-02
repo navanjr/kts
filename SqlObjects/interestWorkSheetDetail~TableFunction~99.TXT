@@ -86,14 +86,15 @@ insert @rt
  having sum(w.amount) <> 0.00
  
 insert @rt
- select 'Balance '+left(o.b3,30),datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1, o.a4, o.b3
-   from object o, gldetail g, glaccounts a, glaccounts ita
+ select 'Balance '+left(b.accountdesc,30),datepart(mm,dbo.date1(@firstDayPriorMonth)),datepart(yyyy,dbo.date1(@lastDayPriorMonth)), a.interesttoaccountcode, ita.accountDesc, '', sum(g.amount)*-1, o.a4, b.accountdesc
+   from object o, gldetail g, glaccounts a, glaccounts ita, glaccounts b
     where o.typ=4601 
      and g.accountcode=o.a3
      and a.accountcode = o.a3
+     and b.accountcode = o.a4
      and ita.accountCode = a.interesttoaccountcode
      and g.[date]<= cast(@lastDayPriorMonth as int)
-    group by o.b3, a.interesttoaccountcode, ita.accountDesc, o.a4
+    group by b.accountdesc, a.interesttoaccountcode, ita.accountDesc, o.a4
     having sum(g.amount) <> 0.00
 
 --Johnstons General Balance Routine
