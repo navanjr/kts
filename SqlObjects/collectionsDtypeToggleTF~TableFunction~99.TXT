@@ -21,14 +21,15 @@ create function dbo.collectionsDtypeToggleTF(
  taxRuleDue money,
  invoiceBlob varchar(max),
  rowType int,
- ord varchar(250)
+ ord varchar(250),
+ name varchar(250)
 ) as
 begin
 
  declare @limitToCurrentDelinquent varchar(50) = dbo.settingsF('site.collectionsLimitTaxwarrantPub1Year','FALSE') 
 
  if @dtype = 'RESALE'
-  insert @rt(id,taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
+  insert @rt(id,taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, name)
    select  d.id, d.id, d.parcelNumber, d.parcelNumber, 0.0,
    max(i.taxYear),
    min(i.taxYear),
@@ -50,14 +51,20 @@ begin
     order by ii.taxyear desc
     for xml path('')
    ),1,1,''),
-   0   
+   0,
+   isnull((
+    select top 1 ii.NAME
+    from invoices ii
+    where (ii.PARCEL = d.parcelNumber /* or ii.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach')*/) and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
+    order by ii.taxyear desc
+   ),'')   
   from taxrollDetail d
   left outer join invoices i on (i.PARCEL = d.parcelNumber or i.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach'))  and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
   where dbo.clariondate(d.creationDateTime) between @date and @date+@days and d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
   group by d.id, d.parcelNumber
  
  else
-  insert @rt(id, taxrollDetailId, keyCode, item, parcel, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType)
+  insert @rt(id, taxrollDetailId, keyCode, item, parcel, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, name)
   select  d.id, d.id, cast(d.itemNumber as varchar), d.itemNumber, '',
    max(i.taxYear),
    min(i.taxYear),
@@ -79,7 +86,13 @@ begin
     order by ii.taxyear desc
     for xml path('')
    ),1,1,''),
-   0 
+   0,
+   isnull((
+    select top 1 ii.NAME
+    from invoices ii
+    where ii.item = d.itemNumber and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0 and case when @dtype = 'taxwarrant' and @limitToCurrentDelinquent = 'True' then @taxYear else ii.taxYear end = ii.taxYear
+    order by ii.taxyear desc
+   ),'') 
   from taxrollDetail d
   left outer join invoices i on d.itemNumber = i.item and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0  
    and case when @dtype = 'taxwarrant' and @limitToCurrentDelinquent = 'True' then @taxYear else i.taxYear end = i.taxYear

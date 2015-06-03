@@ -24,7 +24,8 @@ create function dbo.collectionsBRW(
  rowType int,
  ord varchar(250),
  ordB varchar(250),
- documentStatus varchar(50)
+ documentStatus varchar(50),
+ name varchar(max)
 ) as
 begin
 
@@ -39,7 +40,7 @@ declare
  declare @fees table(keyCode varchar(50))
  insert @fees select keyCode from dbo.collectionsAddFeesTF(@dtype,@documentId,@date, @days)
 
- insert @rt( id, taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, documentStatus )
+ insert @rt( id, taxrollDetailId, keyCode, parcel, item, taxYearMax, taxYearMin, invoiceCount, invoiceDue, subInvoiceDue, taxRuleDue, invoiceBlob, rowType, documentStatus, name )
  select
   a.id,
   a.taxrollDetailId,
@@ -54,7 +55,8 @@ declare
   a.taxRuleDue,
   a.invoiceBlob,
   a.rowType,
-  case when c.keyCode is null then '' else 'Fees Added' end + case when b.keyCode is null then '' else case when c.keyCode is null then '' else ',' end + 'Printed' end 
+  case when c.keyCode is null then '' else 'Fees Added' end + case when b.keyCode is null then '' else case when c.keyCode is null then '' else ',' end + 'Printed' end,
+  name 
  from dbo.collectionsDtypeToggleTF(@dtype,@taxrollDetailId,@taxYear,@date,@days) a
  left outer join @printed b on a.keyCode = b.keyCode
  left outer join @fees c on a.keyCode = c.keyCode
@@ -65,9 +67,9 @@ delete r from @rt r,taxrolldetail t where t.dtype='bankrupt' and isnull(actionDa
  update @rt set
   invoiceIdMain = left(invoiceBlob,9),
   AddFeeToinvoiceId = (select top 1 left(data,9) from  dbo.split(invoiceBlob,'|') order by case when @AddFeeNewest = 'FALSE' then id  else 10000-id end desc),
-  display = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
-  ord = replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&') + keyCode,
-  ordB = keyCode + replace(dbo.splitF(invoiceBlob,':',3),'&amp;','&'),
+  display = replace(name,'&amp;','&'),
+  ord = replace(name,'&amp;','&') + keyCode,
+  ordB = keyCode + replace(name,'&amp;','&'),
   totalDue = invoiceDue + subInvoiceDue + taxRuleDue--,
   --item = case when dbo.splitF(invoiceBlob,':',2) = '' then 0.0 else dbo.splitF(invoiceBlob,':',2) end
 
