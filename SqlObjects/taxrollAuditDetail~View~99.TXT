@@ -17,6 +17,8 @@ select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=gld
       else 0 end  as penaltyAmount
 from dbo.gldetailreports 
 where apdistrict > ' 0' and sourcekey3 not in ('misc','apportion excess TIF proceeds','TAX INCREMENT DISTRICT 1')
+  and isnull(sourced1,'') not like '%@excludeauditdetail;%'
+
 union all 
 select a.*,
  case when right(b.accountDesc,7) = 'PROTEST' then '7. Unapportioned Protest'
@@ -29,6 +31,7 @@ where a.contraId = b.accountId
   and a.accounttype='ACCRUED RECEIVABLE'
   and isnull(a.contraId,0) > 0
   and isnull(a.bsId,0) = 0
+  and isnull(a.sourced1,'') not like '%@excludeauditdetail;%'
 
 /*
 --This Code is for pulling the audit report
