@@ -3,7 +3,8 @@ create view dbo.taxrollAuditDetail
 
 
 select *,
- case when accountType = 'SOURCE' and origin like '%Origin%' then '1. Original Tax'
+ case when isnull(sourced1,'') like '%@excludeauditdetail;%' then '6. Apportioned'
+      when accountType = 'SOURCE' and origin like '%Origin%' then '1. Original Tax'
       when accountType = 'SOURCE' and origin = 'mike_taxroll' then '1. Original Tax'
       when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' and slink not in (select 't'+cast(i.id as varchar) from journalLink j, invoices i where i.typ='A' and i.postdate=gldetailreports.date and i.invoiceid=j.invoiceid and jeid in (
 select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=gldetailreports.date)) then '2. Taxroll Correction' 
@@ -17,8 +18,6 @@ select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=gld
       else 0 end  as penaltyAmount
 from dbo.gldetailreports 
 where apdistrict > ' 0' and sourcekey3 not in ('misc','apportion excess TIF proceeds','TAX INCREMENT DISTRICT 1')
-  and isnull(sourced1,'') not like '%@excludeauditdetail;%'
-
 union all 
 select a.*,
  case when right(b.accountDesc,7) = 'PROTEST' then '7. Unapportioned Protest'
