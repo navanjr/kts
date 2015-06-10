@@ -153,7 +153,17 @@ begin
   from paid p, @slinks s 
   where depositId = @depositId
     and p.id = s.paidid
+    and s.paycode <> s.BankStatementGroup
   group by s.BankStatementGroup, s.paycode, s.checkno, s.drawnon, s.location
+
+  insert @accounts (accountid,amount,paycode, origin)
+  select 
+   @contraId, sum(p.amount), s.paycode, 2
+  from paid p, @slinks s 
+  where depositId = @depositId
+    and p.id = s.paidid
+    and s.paycode = s.BankStatementGroup
+  group by s.BankStatementGroup, s.paycode
 
   insert @accounts (accountid, amount, origin)
   select 
