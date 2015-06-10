@@ -159,6 +159,24 @@ begin
  insert @rt (id,ord,rowstring,glBalanceString,rowstring1,sourceNo,recordCnt,sourceAmt, origin)
   select 0,@seedString + 'BB',' ' + replicate('-',69),'',' ' + replicate('-',69),replicate('-',22),replicate('-',10),replicate('-',16), 7
 
+--Maturing Investments
+ insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob,origin)
+  select 
+    cast('-6' + cast(o.accountId as varchar) as int),
+    @seedString+'D'+o.accountCode+ '  a',
+    ' ' + left(dbo.padRight(o.accountDesc,' ',61),35)+' Investment Maturing ' + dbo.date1(i.a18),
+    o.accountCode,
+    o.accountDesc, 
+    4,
+    '@bankStatementAccountCode=' + rtrim(o.accountCode) + ';@bankAccountCode=' + rtrim(o.accountCode)
+    + ';@bankName='+rtrim(o.BankName)+';@accountType='+rtrim(o.accountType)+';',
+    7
+   from dbo.glAccounts o, object i 
+   where i.typ=4706 and i.key3<'5' and i.a18 <= dbo.clariondate(getdate())-11
+    and o.accountid=i.link1
+    and o.accountType in (select accountType from dbo.glBankFundTypes('BANK'))
+
+
 --Insert missing Bank accounts
  insert @rt(id,ord,rowstring,depositAccountCode,depositAccountDesc,brwBGColor,blob,origin)
    select 
