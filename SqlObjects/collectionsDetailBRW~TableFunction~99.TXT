@@ -72,18 +72,20 @@ begin
 
  if @dtype = 'RESALE'
  begin
-  insert @rt
-  select
-   '7'+cast(id as varchar),
-   dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(replace(cast(comments as varchar(max)),'~{~','''') as varchar(max)),
-   dbo.clarionDate(documentDateTime),
-   @dtype,
-   @keyCode,
-   documentName,
-   0,
-   999999 - dbo.clarionDate(documentDateTime)
-  from taxrollDetail where parcelNumber = @parcel
-   and dtype in ('print','resale','taxwarrant','AddFee')
+  if @parcel > ' 0'
+  begin
+   insert @rt
+    select
+     '7'+cast(id as varchar),
+     dbo.padright(dbo.date1(dbo.clarionDate(documentDateTime)),' ',10)+': '+cast(replace(cast(comments as varchar(max)),'~{~','''') as varchar(max)),
+     dbo.clarionDate(documentDateTime),
+     @dtype,
+     @keyCode,
+     documentName,
+     0,
+     999999 - dbo.clarionDate(documentDateTime)
+   from taxrollDetail where parcelNumber = @parcel 
+    and dtype in ('print','resale','taxwarrant','AddFee')
 
   insert @rt
   select
@@ -138,6 +140,7 @@ begin
     from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10)) where len(data)>0
   
    update r set r.display = r.display + '*' from @rt r, dbo.collectionsBRW(@dtype,null,@date,@days,@taxrollDetailId) c where '9'+cast(c.addFeeToInvoiceId as varchar) = r.id
+  end
 
  end
 

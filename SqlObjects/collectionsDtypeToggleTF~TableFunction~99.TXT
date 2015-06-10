@@ -47,7 +47,7 @@ begin
       + isnull(ii.subInvoiceDue,0) 
       + isnull(ii.taxRuleDue,0) as varchar)
     from invoices ii
-    where (ii.PARCEL = d.parcelNumber /* or ii.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach')*/) and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
+    where ii.PARCEL = d.parcelNumber and d.parcelNumber > ' 0' and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
     order by ii.taxyear desc
     for xml path('')
    ),1,1,''),
@@ -55,12 +55,13 @@ begin
    isnull((
     select top 1 ii.NAME
     from invoices ii
-    where (ii.PARCEL = d.parcelNumber /* or ii.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach')*/) and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
+    where ii.PARCEL = d.parcelNumber and d.parcelNumber > ' 0'  and isnull(ii.invoiceDue + ii.subInvoiceDue + ii.taxRuleDue,0) != 0
     order by ii.taxyear desc
    ),'')   
   from taxrollDetail d
-  left outer join invoices i on (i.PARCEL = d.parcelNumber or i.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and t.invoiceLinkId>0 and t.dtype='Attach'))  and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
+  left outer join invoices i on ((i.PARCEL = d.parcelNumber and d.parcelNumber > ' 0' ) or i.ID in (select t.invoiceLinkId from taxrollDetail t where t.parcelNumber = d.parcelNumber and d.parcelNumber > ' 0'  and t.invoiceLinkId>0 and t.dtype='Attach'))  and isnull(i.invoiceDue + i.subInvoiceDue + i.taxRuleDue,0) != 0 
   where dbo.clariondate(d.creationDateTime) between @date and @date+@days and d.actionDate = 0 and d.dtype = @dtype and d.id = case when @taxrollDetailId > 0 then @taxrollDetailId else d.id end
+   and d.parcelNumber >  '      ' 
   group by d.id, d.parcelNumber
  
  else
