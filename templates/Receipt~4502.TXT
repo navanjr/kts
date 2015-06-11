@@ -194,6 +194,7 @@ close('ok');
  set(-69,0),
  if(obj:key3='TAX' or obj:key3='MISC',create(550,12,5,100,'show &Funds',-69),),
  create(551,12,5,124,'Exempt',-70),
+ if(gcmallogid+0<1,create(552,12,5,136,'Create Mail Log',-71),),
  lcShowGL=readstring(cur:options,'@showgl='),
  gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',
  brw(150,1,gcbrw1sql,65,81,320,200,'138L(2)~~#2#M120L(2)~~#3#M60R(2)~Amount~@n-14.2b@#4#M',7,1),
@@ -273,6 +274,7 @@ close('ok');
  get(gcMailLogId),
  lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
  set(008,lcNameString),
+ set(-71,1),
  refreshDetail=
 ;
 
@@ -984,6 +986,7 @@ gcPrintOneTaxReceiptId=0,
  sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&obj7:id&' and isnull(slink,'''')<'' 0'''),
  lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
  set(008,lcNameString),
+ set(-71,1),
  sql('exec dbo.receiptStageGL '&obj:id),
  refreshDetail=
 ;
@@ -1019,6 +1022,7 @@ gcPrintOneTaxReceiptId=0,
  if(obj:olink3+0<>1,postGL=,set(040,'Exempt')),
  printRec=,
  checkCert=,
+ if(gcmaillogid+0<1 and obj:olink4=1,createmaillog=),
  calcmailLog=,
  gccertId=0,
  lccheck=kp('select dbo.mobileHomeCheck('&obj:id&')'),
@@ -1031,6 +1035,14 @@ gcPrintOneTaxReceiptId=0,
 @markcert=m('Would you like for me to mark this certificate as redeemed?','Mark Certificate',,6),
 break(gcretval<>2),
 sql('update object set key2=''I'' where typ=4100 and key1='''&obj:b4&'''');
+
+@createmaillog=
+ d1select('exec dbo.nextObjectAutoNumber @typ=4514, @seriesString=''MAIL LOG'', @ignoreDeleted = ''FALSE'', @verbose=''TRUE'''),
+ insert(-02=4514,002=obj7:d1,004=today(),006='MAIL LOG',008=obj:a1,010=today()),
+ gcMailLogId=obj1:id,
+ d1select('update paid set maillogid='&gcMailLogId&' where slink=''o'&obj:id&''''),
+ calcmailLog=,
+ gcMailLogId=0;
 
 @dodecal=m('There appears to be at least one mobile home related to this receipt would you like to record decal(s)?','Record Decals?',,6),
  break(gcretval+0<>2),

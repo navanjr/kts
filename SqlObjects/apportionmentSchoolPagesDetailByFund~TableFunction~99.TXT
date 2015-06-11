@@ -35,7 +35,8 @@ create function dbo.apportionmentSchoolPagesDetailByFund(@beginDate int,@endDate
 	[heading11] varchar(50) NOT NULL default '',
 	[heading12] varchar(50) NOT NULL default '',
 	[heading13] varchar(50) NOT NULL default '',
-        [ord] [varchar](50) NOT NULL default ''
+        [ord] [varchar](50) NOT NULL default '',
+        [schoolfund] varchar(5) NOT NULL default 'FALSE'
 )
 
 as
@@ -674,11 +675,20 @@ from @rt r where r.accountType='FUND'
 update @rt set district = left(rtrim(accountCode)+' '+rtrim(accountDesc),50) where accountType like '%SCHOOL%' or accountType = 'VOTECH'
 update @rt set district = left(rtrim(accountDesc),50) where isnull(district,'') < ' 0'
 
+if dbo.settingsf('site.dependentSchoolsGetOwnSection','FALSE') = 'TRUE'
+begin
+ update r set schoolfund='TRUE' from @rt r, glaccounts a where a.accountcode = r.accountcode and a.schoolfund='1'
+
+ update @rt set accountType = 'DEPENDENT SCHOOL' where schoolfund = 'TRUE' and accounttype = 'FUND'
+end
+
+
 update @rt set reportOrder = case when accountType = 'JOINT SCHOOL' then '1000'+reportOrder
                                   when accountType = 'COUNTY SCHOOL' then '2000'+reportOrder
                                   when accountType = 'VOTECH' then '3000'+reportOrder
                                   when accountType = 'SCHOOL TOTAL' then '5000'+reportOrder 
-                                  when accountType = 'CITY' then '4000' 
+                                  when accountType = 'CITY' then '4000'+reportOrder 
+                                  when accountType = 'DEPENDENT SCHOOL' then '6500' 
                                   else '6000' end
 
 
