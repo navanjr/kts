@@ -11,7 +11,11 @@ create function dbo.depositBalanceTF(@d1 int,@d2 int,@deputy varchar(50),@deposi
                         recId int,
                         checkNo varchar(50),
                         bankName varchar(100),
-                        payor varchar(50))
+                        payor varchar(50),
+                        paidid int,
+                        imagecnt int,
+                        processcode int
+)
 as
 begin
 declare @bankDesc varchar(50) 
@@ -35,9 +39,11 @@ if @depositId = 0
      receiptId,
      checkno,
      drawnon,
-     receivedOf
-     
-     from dbo.depositAvailablePayments where 
+     receivedOf,
+     id,
+     isnull((select count(o.id) from object o where o.typ=3209 and o.key1 = 'p'+cast(a.id as varchar)),0),
+     0
+     from dbo.depositAvailablePayments a where 
      isnull(depositId,0) = case when @depositId!=0 then @depositId else isnull(depositId,0) end 
      and deputy like case when @deputy!='0' then '%'+@deputy+'%' else deputy end 
      and station like case when @station!='0' then @station else station end
@@ -53,20 +59,20 @@ if @depositId = 0
 	select  recTyp,Deputy+recTyp+'bbbccc'
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp
          
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+paycode+'ccc1',Deputy+' '+paycode, sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,paycode,recTyp
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select Deputy+' '+recTyp,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+'zzzzccc3',Deputy+' Total'
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select Deputy+' '+recTyp,'',dbo.formatCurr(SUM(cast(amount as money))),Deputy+recTyp+'zzzzccc3',Deputy+' Total', sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' group by deputy,recTyp		
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ddd1',paycode
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ddd1',paycode, sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' group by paycode	
 	
-  insert @rt (receivedOf,ref,Amount,ord)
-	select 'Report Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzeee'
+  insert @rt (receivedOf,ref,Amount,ord,imagecnt)
+	select 'Report Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzeee', sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' 
 	
  end
@@ -87,8 +93,11 @@ if @depositId = 0
      receiptId,
      checkno,
      drawnon,
-     receivedOf
-     from dbo.depositAvailablePayments where 
+     receivedOf,
+     id,
+     isnull((select count(o.id) from object o where o.typ=3209 and o.key1 = 'p'+cast(a.id as varchar)),0),
+     0
+     from dbo.depositAvailablePayments a where 
      isnull(depositId,0) = @depositId
      and paycodeDepositType not in ('E','B')
      order by receiptType, deputy, paycode, receiptNo		
@@ -98,12 +107,12 @@ if @depositId = 0
 	select  '','zzCheckbbbccc'
 	
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ccc1',paycode
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzz'+paycode+'ccc1',paycode,sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' group by paycode
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select 'To Bank Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzCheckccc3','To Bank Total'
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select 'To Bank Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzCheckccc3','To Bank Total',sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' 
 
   insert @rt (receivedOf,ord)
@@ -130,8 +139,11 @@ if @depositId = 0
      receiptId,
      checkno,
      drawnon,
-     receivedOf
-     from dbo.depositAvailablePayments where 
+     receivedOf,
+     id,
+     isnull((select count(o.id) from object o where o.typ=3209 and o.key1 = 'p'+cast(a.id as varchar)),0),
+     0
+     from dbo.depositAvailablePayments a where 
      isnull(depositId,0) = @depositId
      and paycodeDepositType in ('E','B')
      order by receiptType, deputy, paycode, receiptNo		
@@ -140,16 +152,16 @@ if @depositId = 0
 	select  '','zzzzzz+paycode+bbbccc'
          from @rt where left(ord,6)='zzzzzz' group by paycode
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzz'+paycode+'ccc3',paycode+' Total'
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select paycode,'',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzz'+paycode+'ccc3',paycode+' Total',sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' and left(ord,5)='zzzzz' group by paycode	
 	
   insert @rt (receivedOf,ord)
 	select top 2 '','zzzzzzzzz+paycode+bbbccc'
          from @rt group by paycode
 
-  insert @rt (receivedOf,ref,Amount,ord,paycode)
-	select 'Grand Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzzzzeee','Grand Total'
+  insert @rt (receivedOf,ref,Amount,ord,paycode,imagecnt)
+	select 'Grand Total','',dbo.formatCurr(SUM(cast(amount as money))),'zzzzzzzzzeee','Grand Total',sum(imagecnt)
 	from @rt  where RIGHT(ord,3)='bbb' 
 
  end
@@ -164,9 +176,5 @@ if @depositId = 0
  if @detailCashonDeposit != 'TRUE'
    delete from @rt where paycode in ('cash','coin') and RIGHT(ord,3)='bbb'
 
-         
-
-
-
-  return 
- end   
+ return 
+end   

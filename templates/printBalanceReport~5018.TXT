@@ -21,11 +21,15 @@
     ref,
     bankref,
     deputy,
-    ord
+    ord,
+    imagecnt,
+    case when isnull(imagecnt,0) > 0 then ''*'' else '''' end as imageflag
     from dbo.depositBalanceTf('&gcBeginDate+0&','&gcEndDate+0&','''&lcDeputy&''','&gcDepId+0&','''&lcStation&''','''&lcRecType&''','''&gcBankAccount&''','''&gcPrintDetail&''') order by ord',
    lcBoxColor=14539482,
  tr(
  lcy=lcTm,
+ if(curpag=1),
+  do(lctotimg=0, lctotpaid=0),
  box(lcLm-200,lcTm-50,lcLm+3200,lcTm+500,0,lcBoxColor),
   prn(printed,lcLm-100,lcTm),
   prn(page),
@@ -44,13 +48,18 @@
   prn(,lcLm,lcy),
   bnd(,'',2000),
     det(gcsql5018),
-    if(right(obj5:a6,3)='bbb' and gcPrintDetail='Y'),bnd('D',obj5:a1,1000,obj5:a2,1000R,obj5:a3,2000,format(obj5:a4,@s18),1500,obj5:a5,1500),
+    if(right(obj5:a6,3)='bbb' and gcPrintDetail='Y'),bnd('D',obj5:a1,1000,obj5:a2,1000R,obj5:a3,2000,format(obj5:a4,@s18),1500,obj5:a5,1500,obj5:a8,30),
     if(right(obj5:a6,3)='ccc'),do(nl,bnd('HU',obj5:a1,2100)), 
     if(right(obj5:a6,3)='cc1'),do(bnd('D',obj5:a1,1000,obj5:a2,1000R)),
     if(right(obj5:a6,3)='cc3'),do(bnd('HO',obj5:a1,1000,obj5:a2,1000R)),
     if(right(obj5:a6,3)='dd1'),do(if(lcRowOrd='cc3'),do(nl),bnd('H',obj5:a1,1000,obj5:a2,1000R)),
     if(right(obj5:a6,3)='eee'),do(bnd('HO',obj5:a1,1000,obj5:a2,1000R)),
     lcRowOrd=right(obj5:a6,3),
+    if(right(obj5:a6,3)='bbb'),do(lctotimg=lctotimg+obj5:a7, lctotpaid=lctotpaid+1),
   edt,
+ nl,
+ nl,
+ nl,
+ bnd(,'Total Images:',800,lctotimg,200,'Total Items:',800,lctotpaid,200),
 );
 
