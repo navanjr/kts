@@ -51,6 +51,9 @@ declare @det table(apportionmonth int,
                    journalDesc varchar(50),
                    amount money)
 
+declare @feesGetOwnColumn varchar(5)
+ select @feesGetOwnColumn = isnull(settingValue,'FALSE') from settings where settingname='site.feesGetOwnColumn'
+
 declare @exclude varchar(max) = ''
  select @exclude= @exclude + accountcode from glaccounts where bsSummary like '%Ad Val%'
 
@@ -102,8 +105,16 @@ update @years set ord='0002' where yearcode = 'Prior'
 update @years set ord='0003' where yearcode = 'Back'
 update @years set yearcode = yearcode+' Tax'
 
-
-update d set sourceCode = upper(y.yearcode),sourceDesc = upper(y.yearcode), sourceSECA = y.ord from @det d, @years y where d.journalDesc=y.journalDesc
+if @feesGetOwnColumn = 'TRUE'
+ begin
+    update d set sourceCode = upper(y.yearcode),sourceDesc = upper(y.yearcode), sourceSECA = y.ord from @det d, @years y      where d.journalDesc=y.journalDesc 
+      and sourceCode+'_ACR' 
+       in (select accountcode from glaccounts where aptabletype='M')
+ end
+else
+ begin
+   update d set sourceCode = upper(y.yearcode),sourceDesc = upper(y.yearcode), sourceSECA = y.ord from @det d, @years y where     d.journalDesc=y.journalDesc
+ end
 
 insert @wt (apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA,amount)
  select apportionmonth,apportionday,accountCode,accountDesc,sourceDesc,sourceSECA,sum(amount) from @det
