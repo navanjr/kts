@@ -35,7 +35,8 @@ begin
   @checkReq int,
   @bankReq int,
   @receiptBalanceDue money,
-  @changeAmount money
+  @changeAmount money,
+  @returncode varchar(300)
 
  delete from paid where paycode='CASH' and slink=@slink and checkno='CASH RETURNED' and @checkNumber<>'CASH RETURNED'
 
@@ -102,9 +103,11 @@ begin
 
 -- add to the gl stage
   if @receiptType = 'TAX'
-   exec dbo.receiptTaxStageGL @receiptId, @mode
+   exec dbo.receiptTaxStageGL @receiptId, @mode, @returncode=@returncode output
   else
    exec dbo.receiptStageGL @receiptId
+
+ 
 
  if @checkNumber<>'CASH RETURNED'
  begin
@@ -139,12 +142,12 @@ begin
 
 -- add to the gl stage
   if @receiptType = 'TAX'
-   exec dbo.receiptTaxStageGL @receiptId, @mode
+   exec dbo.receiptTaxStageGL @receiptId, @mode, @returncode=@returncode output
   else
    exec dbo.receiptStageGL @receiptId
   end
 
-
+  
 
 -- get the balance of the glStage to check your work
   if @receiptType = 'TAX'
@@ -175,7 +178,14 @@ begin
    exec dbo.logit @@procid, 'Commit transaction...'
    commit transaction
 
- select '@code=0;@message=Payment applied OK.;'
+ if len(isnull(@returncode,''))>2
+  begin
+   select '@code=0;@printmessage=Y;@message='+@returncode+';'
+  end
+ else 
+  begin
+   select '@code=0;@message=Payment applied OK.;'
+  end
  return
 
 end

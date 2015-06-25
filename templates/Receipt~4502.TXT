@@ -209,7 +209,8 @@ close('ok');
 @acc550=
  refreshDetail=;
 @acc551=update,
- sql('exec dbo.receiptStageGL '&obj:id),
+ d1select('exec dbo.receiptStageGL '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
  refreshDetail=;
 
 
@@ -270,7 +271,8 @@ close('ok');
 @attachMailPayments=break(obj:a17='Posted'),
  break(gcMailLogId+0<1),
  sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&gcMailLogId&' and isnull(slink,'''')<'' 0'''),
- sql('exec dbo.receiptStageGL '&obj:id),
+ d1select('exec dbo.receiptStageGL '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
  get(gcMailLogId),
  lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
  set(008,lcNameString),
@@ -532,6 +534,7 @@ close('ok');
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Receipt Payment...')),
  if(readstring(obj7:d1,'@code=')=2,applyPaymentA=),
  break(readstring(obj7:d1,'@code=')<>0),
+ if(readstring(obj7:d1,'@printmessage=')='Y',m(readstring(obj7:d1,'@message='),'Adding Receipt Payment...')),
  refreshDetail=,
  blankEm=,
  focus(020);
@@ -563,7 +566,8 @@ close('ok');
   break(gcretval<>2),
   sql('update receiptlink set protestAmount='&obj:b15&' where receiptId='&obj:id&' and invoiceId='&lcid),
   set(76,0),
-  sql('exec dbo.receiptTaxStageGL '&obj:id&',0'),
+  d1select('exec dbo.receiptTaxStageGL '&obj:id&',0'),
+  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
   refreshDetail=;
 
 \t091Due; \t092@n-14.2;  \s092-'select dbo.receiptBalanceDue('&obj:id&')'; \p0920947cfah,13499135;r2 \p0920947c13h,700;r2 \p0920947c0ch,1;r2 \d092094;r2 \h091092obj:key3='OFFICIAL';r
@@ -687,7 +691,8 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  break(gccontinue<>'TRUE'),
  d1select('exec dbo.glUnpost  @slink = ''o'&obj:id&''', @verbose = ''TRUE'''),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Undo G/L Posting...')),
- sql('exec dbo.receiptStageGL '&obj:id),
+ d1select('exec dbo.receiptStageGL '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
  close('ok');
 
 
@@ -987,7 +992,8 @@ gcPrintOneTaxReceiptId=0,
  lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
  set(008,lcNameString),
  set(-71,1),
- sql('exec dbo.receiptStageGL '&obj:id),
+ d1select('exec dbo.receiptStageGL '&obj:id),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
  refreshDetail=
 ;
 

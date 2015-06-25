@@ -1,4 +1,4 @@
-create procedure dbo.receiptTaxStageGL (@receiptId int, @mode int = 0) as
+create procedure dbo.receiptTaxStageGL (@receiptId int, @mode int = 0, @returncode varchar(300) = '' output) as
 begin
  declare @receiptSlink varchar(15) = 'o' + cast(@receiptId as varchar)
 
@@ -82,7 +82,8 @@ begin
   @applyTotal money,
   @prorate decimal(19,18),
   @processCount int,
-  @suspenseMethod varchar(50)
+  @suspenseMethod varchar(50),
+  @message varchar(250)
 
  select @suspenseMethod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
 
@@ -250,7 +251,7 @@ begin
 
 -- select @paidTotal = round(sum(amount),2) from @glSuspense
 
- select @paidTotal
+-- select @paidTotal
 
 -- Determine ETR Payments
   declare @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
@@ -288,7 +289,10 @@ begin
    if @dueToken <= @paidTotal
     set @paidTotal = @paidTotal - @dueToken
    else
-    set @paidTotal = 0
+    begin
+     set @paidTotal = 0
+     set @message = 'You have not taken in as much money as is expected. Please review your specified amount payments and correct them as necessary.'
+    end
 
   end
   update @wt set processFlag = 1 where id = @idToken
@@ -314,12 +318,18 @@ begin
    if @dueToken <= @paidTotal
     set @paidTotal = @paidTotal - @dueToken
    else
-    set @paidTotal = 0
+    begin
+     set @paidTotal = 0
+     set @message = 'You have not taken in as much money as is expected. Please review your full pay items and see if you should mark some as half pay.'
+    end
 
   end
   update @wt set processFlag = 1 where id = @idToken
  end
-
+-- if len(isnull(@message,''))>2
+-- begin
+--  select '@code=1;@message='+@message+';'
+-- end
 
   select @applyTotal = sum(round(due*methodRate,2)) from @wt where processFlag = 0
    exec dbo.logit @@procid, '@applyTotal = ', @applyTotal, @level = 2 
@@ -350,7 +360,10 @@ begin
    if @dueToken <= @paidTotal
     update @wt set applyAmount = @dueToken where id = @idToken
    else
-    update @wt set applyAmount = @paidTotal where id = @idToken
+    begin
+     update @wt set applyAmount = @paidTotal where id = @idToken
+     set @message = 'You have not taken in as much money as is expected. Please review your half pay items. You do not have enough money to pay a full 50%.'
+    end
 
    exec dbo.logit @@procid, '@dueToken = ', @dueToken, @level = 2 
 
@@ -594,5 +607,7 @@ end
  select @balance = sum(amount) from gldetailstage where slink in (select slink from @glStage)
  if @balance != 0
   exec dbo.logit @@procid, 'Oops, we have a problem...  @balance', @balance
+
+ set @returncode = @message
 
 end
