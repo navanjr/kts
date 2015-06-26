@@ -123,6 +123,17 @@ begin
     from object where typ=4303 and link1 = @receiptId
  end
 
+-- Insert Trust Vouchers
+ if exists(select * from gldetail where contraid = @receiptId and slink <> @slink and dbo.slinktype(slink)='o')
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+  select 'azd',0,'','',0,4
+  insert @rettable (ord, id, description, subdescription, amount, blob)
+   select 'aze', '-8'+cast(dbo.slinkId(slink) as varchar(15)), case when o.typ=4771 then 'Voucher #'+rtrim(o.key3) when o.typ=4512 then 'JE: '+rtrim(o.key1) else o.key1 end,
+  case when o.typ=4771 then 'Vendor: '+rtrim(o.a2) when o.typ=4512 then 'Purpose: '+rtrim(o.a18) else o.key3 end,
+    amount*-1,'@change=Y;'
+    from gldetail g, object o where g.contraid = @receiptId and g.slink <> @slink and o.id = dbo.slinkid(slink)
+ end
 
 
  if exists(select * from dbo.journalLink where receiptId = @receiptId)

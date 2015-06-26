@@ -512,7 +512,8 @@ close('ok');
   break(lcNewId+0<1),
   sql('update object set a6=purpose, a3='''&gcamt&''', b5=accountDesc, c9='''&gcamt&''' from object, dbo.purposedetail where object.id='&lcNewId&' and isnull(receiptId,0) = '&obj:id&' and purpose='''&gccode&''''),
   insert(-02=4775,-03=lcNewId,-04=obj:id,004=gccode,006=gcamt,008=obj:key1),
-  change(lcNewId);
+  change(lcNewId,,1),
+  refreshDetail=;
 
 @pickpurpose=select(1,4701,'typ=4701 and id in (select accountId from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00) and b3!=1'),
   gccode=PIC:key1;
@@ -741,6 +742,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  if(lcrdBRWId+0 <-1,lcblob=kp('select blob from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') where id = '&lcrdBRWId),lcblob=''),
  if(lcblob>' 0',,imaging=),
  if(readstring(lcblob,'@new=')>0,donew=),
+ if(readstring(lcblob,'@change=')='Y',change(lcid)),
  refreshDetail=;
 
 @donew=
