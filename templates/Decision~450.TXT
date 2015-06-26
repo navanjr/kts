@@ -13,8 +13,22 @@
  gcview=readstring(obj7:d1,'@view='),
  gctaxInquiry=readstring(obj7:d1,'@taxInquiry='),
  gctaxYear=readstring(obj7:d1,'@year='),
- if(gcview+0>0,change(gcview,1)),
- if(gctaxInquiry>' 0',viewtaxInquiry=);
+ gcreadexecproc=readstring(obj7:d1,'@execproc='),
+ gcopenme=readstring(obj7:d1,'@invoiceid='),
+ if(gcview+0>0 and len(gcexecproc)>1,change(gcview,,1)),
+ if(gcview+0>0 and len(gcexecproc)<2,change(gcview,1)),
+ if(gctaxInquiry>' 0' and gcreadexecproc<>'OPEN',viewtaxInquiry=),
+ if(gctaxInquiry>' 0' and gcreadexecproc='OPEN',launchcorrect=);
+
+@launchcorrect=
+  lcSearchId=gcopenme,
+  gcscanid='t'&lcSearchId,
+  break(lcSearchId+0<1),
+  if(lcSearchId>9000000,lcSource='ADTAX',lcSource='INVOICES'),
+  sql('dbo.taxRolladdressCheck '&lcSearchId),
+  d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''','''&lcSource&''''),
+  change(obj7:d1);
+
 
 @viewtaxInquiry=gcdecision='TRUE',
  neww(4003,,002=gctaxYear,004='Decision',078=gctaxInquiry),
@@ -27,7 +41,7 @@
  lcperson=obj7:d1,
  d1select('select count(*) from securityDecision where slink = '''&gcslink&''' and location = '''&gclocation&''' and requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''''),
  if(obj7:d1+0=0,setReason=,lcReason=''),
- d1select('exec dbo.decisionCheck '''&gcslink&''', '''&gclocation&''', '''&gcmethod&''', @requestperson = '''&lcperson&''', @requestNotes = '''&lcReason&''''),
+ d1select('exec dbo.decisionCheck '''&gcslink&''', '''&gclocation&''', '''&gcmethod&''', @requestperson = '''&lcperson&''', @requestNotes = '''&lcReason&''', @setExecProc='''&gcsetexecproc&''''),
  gccontinue=readstring(obj7:d1,'@continue='),
  if(gccontinue<>'TRUE',m(readstring(obj7:d1,'@message=')));
 
@@ -36,8 +50,10 @@
 @notify=
  d1select('select dbo.whoami()'),
  lcperson=obj7:d1,
- d1select('select count(*) from securityDecision where requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
- if(obj7:d1+0>0,donotifyapprove=),
+ d1select('select top 1 id from securityDecision where requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
+ gcDecisionId=obj7:d1,
+ if(gcDecisionId+0>0,donotifyapprove=),
+ gcDecisionId=0,
  break(cur:securitylevel+0<81),
  d1select('select count(*) from securityDecision where requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) != '''&cur:ini&''' and notify=''APPROVE'''),
  if(obj7:d1+0>0,donotifyrequest=);
@@ -46,8 +62,15 @@
  if(gcretval=1,new(4501,,080=0,082=0)),
  sql('update securityDecision set notify='''' where requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) != '''&cur:ini&''' and notify=''APPROVE''');
 
-@donotifyapprove=m('One of your security requests has been approved!'),
- sql('update securityDecision set notify=''DONE'' where requestDateTime >= GETDATE()-1 and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY''');
+@donotifyapprove=lcLocation=kp('select location from securitydecision where id='&gcDecisionId+0),
+ gcexecproc=kp('select execproc from securitydecision where id='&gcDecisionId+0),
+ m('Your security request to '&lcLocation&' has been approved! Would you like to go there now?','Go to...',,6),
+ sql('update securityDecision set notify=''DONE'' where id='&gcDecisionId+0&' and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
+ if(len(gcexecproc)<2,gcexecproc='FALSE'),
+ if(gcretval=2,viewproc=),
+ gcexecproc='';
+
+
 
 @setReason=iw('\t097Notes;\y097=001;\x097=001;\y098=002;\x098=002;\w098200;\t000Security Decision Notes;'),lcReason=kpfq(obj7:d1);
 

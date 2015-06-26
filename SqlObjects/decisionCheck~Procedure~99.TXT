@@ -9,7 +9,8 @@ create procedure dbo.decisionCheck(
  @approvedNotes varchar(max) = '',
  @decisionId int = 0,
  @continue varchar(20) = 'FALSE' output,
- @blob varchar(max) = '' output
+ @blob varchar(max) = '' output,
+ @setExecProc varchar(200) = ''
  )
 as
 begin
@@ -30,7 +31,8 @@ begin
  begin
   select @slink = slink,
         @slinkTyp = dbo.slinkType(slink),
-        @slinkId = dbo.slinkId(slink)
+        @slinkId = dbo.slinkId(slink),
+        @setExecProc = execproc
   from securityDecision 
   where id = @decisionId
   
@@ -41,7 +43,7 @@ begin
   else
    begin
     if @slinkTyp = 't'
-     select '@taxInquiry=' + cast(item as varchar) + ';@year=' + cast(taxyear as varchar) + ';'
+     select '@taxInquiry=' + cast(item as varchar) + ';@year=' + cast(taxyear as varchar) + ';@execproc=' + @setExecProc + ';@invoiceid=' + cast(id as varchar) + ';'
       from invoices
       where id = @slinkId
     else
@@ -123,8 +125,8 @@ begin
   begin
    select @continue = 'TRUE', @blob = '@continue=TRUE;@level=1;@message=Continue, no approval required;'
    select @blob
-   insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, level)
-    select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, @level
+   insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, level, execproc)
+    select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, @level, @setExecProc
    return
   end
 
@@ -165,8 +167,8 @@ begin
     select @continue = 'FALSE', 
       @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=Entered request for approval;'
     select @blob
-    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, notify)
-     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, 'APPROVE'
+    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, notify, execproc)
+     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, 'APPROVE', @setExecProc
     return
    end
    if @level > 3 and @requestIni not in (select ini from users where securitylevel > 80)
@@ -174,8 +176,8 @@ begin
     select @continue = 'FALSE', 
       @blob = '@continue=FALSE;@level='+cast(@level as varchar)+';@message=You do not have sufficient rights to make this request;'
     select @blob
-    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results)
-     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob
+    insert securityDecision (slink, location, requestDateTime, requestPerson, requestNotes, beforeData, results, execproc)
+     select @slink, @location, GETDATE(), @requestPerson, @requestNotes, @beforeData, @blob, @setExecProc
     return
    end
   end
