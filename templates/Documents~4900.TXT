@@ -73,6 +73,14 @@
 \t003FormLetterFlag; \h003004;r
 \t005Report Control; \l006452; 
 
+\t007Print Barcode;
+ \w00815;
+ \u008;
+ @choose008:TBN;
+ \f008N;
+ \m008[N]o,[T]op,[B]ottom;
+ \?008'[N]o,[T]op,[B]ottom';
+
 @addDeedReportControl=
  lcid=kp('select id from object where typ=452 and key1=''Print Deed'''),
  if(lcId+0=0,missingDeedReportControl=),
@@ -161,12 +169,17 @@
 
 @bbproc1=formLetter=;
 
-@formLetter=
+@formLetter=lcbarcode=kp('select a1 from object where id='&gcDocumentId+0),
+ e1select('select dbo.getTaxInvoiceBlob('&gcInvoiceId+0&')'),
+ lcInvoiceBlob=obj7:e1,
  lcE1='exec dbo.docFormLetter '&gcDocumentId&', '&gcInvoiceId&', '&gcTaxRollDetailId+0&','&gcBatchId+0,
  e1select(lcE1),
+ lcy=300,
  tr(
+  if(lcbarcode='T'),do(lcy=500,prn('*'&readstring(lcInvoiceBlob,'@TAXYEAR=')&readstring(lcInvoiceBlob,'@ITEM=')&'*',500,250,24,,'FREE 3 OF 9')),
   prn(,,,11,,'courier new'),
-  txt(obj7:e1,500,300,6000,1000,1,500),
+  txt(obj7:e1,500,lcy,6000,1000,1,500),
+  if(lcbarcode='B'),do(nl,nl,prn('*'&readstring(lcInvoiceBlob,'@TAXYEAR=')&readstring(lcInvoiceBlob,'@ITEM=')&'*',500,,24,,'FREE 3 OF 9')),
  );
 
 
