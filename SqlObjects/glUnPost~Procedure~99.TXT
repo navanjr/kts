@@ -89,7 +89,9 @@ begin
   begin
    select
     @code = 1,
-    @message = 'Unposting can not be done on this Official Deposit as it is already linked to a Bank Deposit... Sorry.;'
+    @message = 'Unposting can not be done on this Official Deposit as it is already linked to a Bank Deposit... Sorry.;',
+    @changeid = isnull((select top 1 isnull(depositId,0) from paid where (officialDepositId = dbo.slinkId(@slink) or slink = @slink)),0),
+    @action = 'OK|OPEN'
     GOTO bail
   end
  end
@@ -101,7 +103,9 @@ begin
   begin
    select
     @code = 1,
-    @message = 'Unposting can not be done on this as it is already linked to a Bank Statement... Sorry.;'
+    @message = 'Unposting can not be done on this as it is already linked to a Bank Statement... Sorry.;',
+    @changeid = isnull((select max(isnull(bsid,0)) from gldetail where slink = @slink),0),
+    @action = 'OK|OPEN'
     GOTO bail 
   end
   if exists (select * from gldetail where slink=@slink and isnull(dateCleared,0)>0)
