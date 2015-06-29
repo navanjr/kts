@@ -1,9 +1,9 @@
 @noupdate;
 @nosave;
 @loadwindow=
- create(150,12,3,30,'Detailed Report',80),
- create(151,12,76,30,'City/Schools',82),
- create(152,12,3,42,'Divide by Fiscal Year',84),
+ create(150,12,3,43,'Detailed Report',80),
+ create(151,12,76,43,'City/Schools',82),
+ create(152,12,3,55,'Divide by Fiscal Year',84),
  create(9,9),
  d1select('exec dbo.settingsCRUD @settingName=''PaidWarrantsExportPath'', @method=''GET'', @verbose=''TRUE'''),
  gcfilelocation=obj7:d1,
@@ -26,7 +26,12 @@
 \t003End Date;
 \t004@d2;
 \w00450;
-\t009File Location;
+\t005Fund; \l0064701; @lf006='typ=4701 and a1 in (select accounttype from dbo.glBankFundTypes(''FUND''))',2;
+ @acc006=set(44,PIC:key2);
+
+\t043Fund Name; \h043; \x044186;
+
+\t009File Location; \y009010=011;r
 
 \t081City/Schools; \h081082;r
 
@@ -48,11 +53,13 @@
  m('Warrants Exported for Clerk'); 
 
 @setVarsCS=
- lcsqlExport='select ''CS'', IssueDate, WarNo, payNo, PayDate, replace(replace(payee,'','',''''),char(13),'''') as vendor, cast(amount as varchar(30)) as amount, '''' as Interest, fiscalyear, comments, fund   from dbo.warrantExport('''&gcBeginDate&''','''&gcEndDate&''') where fund in (select key2 from object where typ=4704 and a16=''1'')',
+ if(obj:key3>' 0',gcFundWhere=' fund = '''&obj:key3&'''',gcFundWhere=' fund in (select key2 from object where typ=4704 and a16=''1'')'),
+ lcsqlExport='select ''CS'', IssueDate, WarNo, payNo, PayDate, replace(replace(payee,'','',''''),char(13),'''') as vendor, cast(amount as varchar(30)) as amount, '''' as Interest, fiscalyear, comments, fund   from dbo.warrantExport('''&gcBeginDate&''','''&gcEndDate&''') where '&gcFundWhere,
  lcFile='cs.txt';
 
 @setVars=
- lcsqlExport='select fiscalyear, fund, WarNo, PayDate,cast(amount as varchar(30)) as amount,cast(Interest as varchar(30)) as Interest,PayNo from dbo.warrantExport('''&gcBeginDate&''','''&gcEndDate&''') where fund not in (select key2 from object where typ=4704 and a16=''1'')',
+ if(obj:key3>' 0',gcFundWhere=' fund = '''&obj:key3&'''',gcFundWhere=' fund not in (select key2 from object where typ=4704 and a16=''1'')'),
+ lcsqlExport='select fiscalyear, fund, WarNo, PayDate,cast(amount as varchar(30)) as amount,cast(Interest as varchar(30)) as Interest,PayNo from dbo.warrantExport('''&gcBeginDate&''','''&gcEndDate&''') where ',
  lcFile='CTPRO.TXT';
 
 \t108View File;
@@ -61,6 +68,7 @@
 @acc106=
   gcBeginDate=obj:key1,
   gcEndDate=obj:key2,
+  gcFundCode=obj:key3,
   if(gcBeginDate+0<1,gcBeginDate=today()-10),
   if(gcEndDate+0<1,gcEndDate=today()),
   if(obj:c2+0=1,printDetailed=,printSummary=);
