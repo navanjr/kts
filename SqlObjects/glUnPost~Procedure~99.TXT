@@ -19,7 +19,9 @@ begin
   @log varchar(max),
   @objTyp int,
   @message varchar(max) = '',
-  @sql nvarchar(max) = ''
+  @sql nvarchar(max) = '',
+  @action varchar(max) = '',
+  @changeid int = 0
 
  exec dbo.glGetPostDateFromSlink
   @slink = @slink,
@@ -61,7 +63,9 @@ begin
   begin
    select
     @code = 1,
-    @message = 'Unposting can not be done on this receipt as it is already linked to a deposit... Sorry.;'
+    @message = 'Unposting can not be done on this receipt as it is already linked to a deposit... Sorry.;',
+    @changeid = isnull((select top 1 coalesce(nullif(depositId,0),nullif(officialDepositId,0)) from paid where slink = @slink),0),
+    @action = 'OK|OPEN'
     GOTO bail
   end
  end
@@ -168,7 +172,7 @@ begin
   
 
  bail:
-  select @log = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';'
+  select @log = '@code=' + cast(@code as varchar) + ';@message=' + @message + ';@action=' + @action + ';@changeid=' + cast(@changeid as varchar(15)) + ';'
   exec dbo.logit @@procId, '@slink', @slink, @log
   if @verbose = 'TRUE' select @log
   return
