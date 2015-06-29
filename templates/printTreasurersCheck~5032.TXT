@@ -64,11 +64,11 @@
   lcwarrantsHitLedgerWhenRegistered=obj7:d1,
   f(lcwarrantsHitLedgerWhenRegistered='TRUE' and gcSplitYear='1',gcorderme='rtrim(w.c10)+'': Fund: ''+fund',gcorderme='''Fund: ''+fund'),
   if(lcwarrantsHitLedgerWhenRegistered='TRUE',lcsql='select fund, Date, sum(warAmount) as warAmount, TreasurersCheck,'&gcorderme&' as ord, fundcode  
-    from(select w.key1 as TreasurersCheck, dbo.date1(d.dateCleared) as Date, d.amount*-1 as warAmount, w.key3 as warNumber, w.a1 as warDate, w.a2 as payee,
+    from (select w.key1 as TreasurersCheck, dbo.date1(d.dateCleared) as Date, d.amount*-1 as warAmount, w.key3 as warNumber, w.a1 as warDate, w.a2 as payee,
      (select accountDesc from glaccounts where accountCode=w.a4) as fund, w.c10 as FY, w.a4 as fundcode 
       from object w, gldetail d, glaccounts a 
       where w.typ=4771 and w.a18 = ''Warrant'' 
-       and d.slink in (''o''+cast(w.id as varchar),''o''+cast(w.link1 as varchar)) and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' ) data '&gcfundwhere&'
+       and d.slink in (''o''+cast(w.id as varchar),''o''+cast(w.link1 as varchar)) and d.accountcode=a.accountcode and a.accounttype = ''BANK'' and (w.a4='''&gcFundCode&''' or '''&gcFundCode&'''='''') and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' ) data
       group by '&gcorderme&',fund, Date, TreasurersCheck, fundcode order by '&gcorderme&',fund, Date'),
  tr(
   prn(printed),
@@ -106,7 +106,7 @@
      and d.slink in (''o''+cast(w.id as varchar),''o''+cast(w.link1 as varchar)) 
      and d.accountcode=a.accountcode 
      and a.accounttype = ''BANK'' 
-     and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' 
+     and d.dateCleared between '&gcBeginDate&' and '&gcEndDate&' and (w.a4='''&gcFundCode&''' or '''&gcFundCode&'''='''')
      order by ord, fund, TreasurersCheck'
 ;
 
