@@ -27,7 +27,7 @@ set nocount on
  declare @m varchar(max)= '',
          @cblob varchar(max) = ''
    select @cblob = case when rtrim(a.treamort) > '0'  then 'MORTGAGECODE|' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
-   select @cblob = @cblob  + stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,'') 
+   select @cblob = @cblob  + stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt','Pending Payment','Insufficient Check') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,'') 
    
    if charindex('mortgagecode',@cblob)>0
      select @m = ' - A Mortgage code on it.||'  
@@ -37,6 +37,10 @@ set nocount on
      select @m = @m + ' - Flagged as Exempt.||'
    if charindex('Bankrupt',@cblob)>0
      select @m  = @m +' - Flagged as Bankrupt.||'
+   if charindex('Pending Payment',@cblob)>0
+     select @m  = @m +' - A Pending Payment.||'
+   if charindex('Insufficient Check',@cblob)>0
+     select @m  = @m +' - Paid with an isufficient check.||'
    if @m>'  0'
      select '@code=1;@message=' + @m + ';'
    return
