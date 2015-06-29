@@ -43,7 +43,18 @@ begin
  else
 
   insert @rt
-  select 'a_' + cast(id as varchar), id*-1 as id, accountId, accountCode, accountDesc, amount, comment2, 0, 0, ''
+  select 'a_' + cast(id as varchar), 
+         id*-1 as id, 
+         accountId, 
+         accountCode, 
+         accountDesc, 
+         amount, 
+         case when len(comment2) > 2 then comment2 
+              when isnull(contraid,0) > 0 and len(sourcecode) > 2 
+               then left(rtrim(isnull((select a.accountcode from glaccounts a where a.accountid=gldetail.contraid),''))+' / '+rtrim(sourcecode),99) 
+         else comment2
+          end, 
+         0, 0, ''
   from glDetail where slink in (select slink from journalSlinks(@id) where left(slink,1)<>'t') 
 
 
