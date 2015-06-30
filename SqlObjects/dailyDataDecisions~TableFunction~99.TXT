@@ -47,7 +47,7 @@ begin
   isnull((select dbo.readstring('@ini=', requestPerson)),''),
   0
  from securityDecision
- where requestDateTime > GETDATE() - 1
+ where deniedDateTime is null
   and ISNULL(approvedPerson,'') < ' 0'
 
  update w
@@ -65,10 +65,10 @@ begin
  --insert main data
   insert @rt
   select cast('3' + cast(id as varchar) as int), 
-   @ordSeed + rtrim(requestini) + left(location,10), 
-   left('  ' + rtrim(requestini) + ': ' + location + ' - Notes: ' + requestNotes,249),
+   @ordSeed + dbo.clariondate(requestDateTime) + rtrim(requestini) + left(location,10), 
+   left('  ' + cast(requestDateTime as varchar(12)) + '  ' + rtrim(requestini) + ': ' + location + ' - Notes: ' + requestNotes,249),
    '', 
-   left('  ' + rtrim(requestini) + ': ' + location + ' - Notes: ' + requestNotes,249),
+   left('  ' + cast(requestDateTime as varchar(12)) + '  ' + rtrim(requestini) + ': ' + location + ' - Notes: ' + requestNotes,249),
    '', '', '', 'detail',    0, '@Decisions=1;'
   from @wt
 
