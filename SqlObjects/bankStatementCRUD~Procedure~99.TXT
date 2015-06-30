@@ -40,10 +40,10 @@ begin
   insert object (typ,link1,key1,key2,a1,a2,k2,e2,a3)
   output inserted.id into @newIdWt
   select 4780,accountid,accountcode,accountdesc,@firstDay,@lastDay,left(cast(999999-cast(@firstDay as int) as varchar)+accountcode,29),
-  case when accounttype='INVESTMENT' then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end,
-  case when accounttype='INVESTMENT' then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end  
+  case when accounttype in ('INVESTMENT','CASH') then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end,
+  case when accounttype in ('INVESTMENT','CASH') then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end  
   from glaccounts 
-  where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE','CASH')) 
+  where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE')) 
    and accountCode not in (select key1 from object where typ=4780 and a1=@firstDay)
    and accountId = @accountId
 
@@ -56,10 +56,10 @@ begin
 
   insert object (typ,link1,key1,key2,a1,a2,k2,e2,a3)
   select 4780,accountid,accountcode,accountdesc,@firstDay,@lastDay,left(cast(999999-cast(@firstDay as int) as varchar)+accountcode,29),
-  case when accounttype='INVESTMENT' then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end,
-  case when accounttype='INVESTMENT' then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end    
+  case when accounttype in ('INVESTMENT','CASH') then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end,
+  case when accounttype in ('INVESTMENT','CASH') then cast(isnull((select sum(gldetail.amount) from gldetail where gldetail.accountcode = glaccounts.accountcode),0.00) as varchar) else '' end    
   from glaccounts 
-  where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE','CASH')) 
+  where accounttype in (select accounttype from dbo.glbankfundtypes('BANK') where accounttype not in  ('SUSPENSE')) 
    and accountCode not in (select key1 from object where typ=4780 and a1=@firstDay)
    and inactive <> 1
 
