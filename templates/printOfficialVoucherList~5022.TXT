@@ -12,14 +12,16 @@
   lcFont='Arial',
   gcsql5022='select 
     dateRegistered, 
-    treasurersNumber,
+    case when otreasurersNumber > '' 0'' then otreasurersNumber else treasurersNumber end,
     clerksNumber,
     payee,
     debitAccountDesc,
     case when amount > 0 then amount else 0 end,
-    case when reasonCanceled > ''  0'' then reasonCanceled + '' - '' else '''' end + cast(comment as varchar),
+    cast(comment as varchar),
     creditAccountDesc,
-    case when amount <= 0 then amount*-1 else 0 end
+    case when amount <= 0 then amount*-1 else 0 end,
+    case when otreasurersNumber > '' 0'' then ''Cancel Register No. '' + treasurersNumber + '' - '' else '''' end,
+    case when reasonCanceled > ''  0'' then reasonCanceled + '' - '' else '''' end
     from dbo.payments where paymentType in (''Official Voucher'',''Cancel Voucher'',''Void Voucher'',''Trust Voucher'') and dateRegistered >= '''&gcBeginDate+0&''' and  dateRegistered <= '''&gcEndDate+0&''' and ('''&gcOfficialName&'''< '' 0'' or debitAccountDesc in (select b2 from object where typ=4601 and key2='''&gcOfficialName&''')) '&choose(gcFundCode>'  0',' and debitAccountCode='''&gcFundCode&'''','')&' order by treasurersNumber',
   lcRecCnt=0,
   lcVoucherTotal=0,
@@ -63,7 +65,7 @@
   nl,
   det(gcsql5022,,,,),
    prn(,,,lcHeaderFontSize-4,,lcDetFont),
-    bnd(,format(obj5:a1,@d2),550,obj5:a2,500,obj5:a3,500,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),2000,format(obj5:a6,@n-19.2b),800R,format(obj5:a9,@n-19.2b),800R, format(obj5:a7,@s25),2000),
+    bnd(,format(obj5:a1,@d2),550,obj5:a2,500,obj5:a3,500,left(format(obj5:a4,@s30),25),2000,left(format(obj5:a5,@s30),25),2000,format(obj5:a6,@n-19.2b),800R,format(obj5:a9,@n-19.2b),800R, obj5:a10&obj5:a11&obj5:a7,3000W),
     lcRecCnt=lcRecCnt+1,
     lcVoucherTotal=lcVoucherTotal+obj5:a6,
     lcVoucherCreditTotal=lcVoucherCreditTotal+obj5:a9,
