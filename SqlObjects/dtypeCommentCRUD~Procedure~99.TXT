@@ -134,7 +134,7 @@ begin
 
  
  
- if @mode = 'ATTACH' and @parcel>'  0'
+ if @mode = 'ATTACH' and @dType = 'RESALE' and @parcel>'  0' 
    begin
    if exists(select * from taxrollDetail where parcelNumber = @parcel and dtype = 'Exclude' and invoiceLinkId = @invoiceId)
     begin 
@@ -146,6 +146,21 @@ begin
    exec dbo.logit @@procid, '@dtype', @dtype, '@parcel', @parcel, '@invoiceId', @invoiceId
    return
    end
+
+
+ if @mode = 'ATTACH' and @dType = 'TAXWARRANT' and @item > 0.0
+   begin
+   if exists(select * from taxrollDetail where itemNumber = @item and dtype = 'Exclude' and invoiceLinkId = @invoiceId)
+    begin 
+     delete taxrollDetail where dtype = 'Exclude' and invoiceLinkId = @invoiceId
+     return
+    end
+   if not exists(select * from taxrollDetail where itemNumber = @item and dtype = @dtype and invoiceLinkId = @invoiceId)
+    insert taxRollDetail (itemNumber, dtype, comments,invoiceLinkId) select @item, @mode, @ini + ' - Initiated: ' + @dtype + ' Attached to Item: '+cast(@item as varchar), @invoiceId
+   exec dbo.logit @@procid, '@dtype', @dtype, '@invoiceId', @invoiceId
+   return
+   end
+
 
  if @mode = 'EXCLUDE'
  begin

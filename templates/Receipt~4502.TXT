@@ -1,4 +1,4 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
+rec@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
 @gfwindow=gcscanid=obj:id,do(450,notify=),recalc=,update,tsc;
@@ -1045,9 +1045,11 @@ gcPrintOneTaxReceiptId=0,
 break(gcretval<>2),
 sql('update object set key2=''I'' where typ=4100 and key1='''&obj:b4&'''');
 
-@createmaillog=
- d1select('exec dbo.nextObjectAutoNumber @typ=4514, @seriesString=''MAIL LOG'', @ignoreDeleted = ''FALSE'', @verbose=''TRUE'''),
- insert(-02=4514,002=obj7:d1,004=today(),006='MAIL LOG',008=obj:a1,010=today()),
+@createmaillog=d1select('select fiscalyear from dbo.fiscalcalendar where startdate <= '''&obj:key2&''' and enddate >= '''&obj:key2&''''),
+ lcmfy=obj7:d1,
+ lcwhereadd='@additionalWhereClause = '' olink1 = '''''&lcmfy&''''' ''', 
+ d1select('exec dbo.nextObjectAutoNumber @typ=4514, @seriesString=''MAIL LOG'', @ignoreDeleted = ''FALSE'', @verbose=''TRUE'', '&lcwhereadd),
+ insert(-02=4514,002=obj7:d1,004=today(),006='MAIL LOG',008=obj:a1,010=today(),-68=lcmfy),
  gcMailLogId=obj1:id,
  d1select('update paid set maillogid='&gcMailLogId&' where slink=''o'&obj:id&''''),
  calcmailLog=,

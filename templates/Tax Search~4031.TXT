@@ -2,8 +2,8 @@
 
 @menuprocess=
  lcHostName=kp('select host_name()'),
- lcinquiry=kp('select top 1 id from object where typ=4031 and key2='''&lcHostName&''''),
- if(lcinquiry+0>0,change(lcinquiry),new(4031,,004=lcHostName));
+ lcinquiry=kp('select top 1 id from object where typ=4031 and key2='''&lcHostName&''' order by id desc'),
+ if(lcinquiry+0>0,change(lcinquiry,,1),neww(4031,,004=lcHostName));
 
 @loadwindow=
  create(151,10,220,3,'Order By:'),
@@ -13,7 +13,8 @@
  createbrw=;
 
 @afterloadwindow=
- if(gcMethod='Attach' and gcCollectParcel>'  0' and gcDType='RESALE',prop(000,'TEXT','Attaching to parcel: '&gcCollectParcel));
+ if(gcMethod='Attach' and gcCollectParcel>'  0' and gcDType='RESALE',prop(000,'TEXT','Attaching to parcel: '&gcCollectParcel)),
+ if(gcMethod='Attach' and gcCollectItem>'  0' and gcDType='TAXWARRANT',prop(000,'TEXT','Attaching to item: '&gcCollectItem)),;
 
 @lbrw1color=obj7:c10=2,13428479,obj7:c10=1,13499135;
 
@@ -39,7 +40,7 @@
 @lbrwclick160=
  lcId=kpbrwid(1)*-1,
  break(lcId<1),
- if(gcMethod='Attach' and gcCollectParcel>'  0' and gcDType='RESALE',attachOptions=),
+ if(gcMethod='Attach' and ((gcCollectParcel>'  0' and gcDType='RESALE') or (gcDType='TAXWARRANT' and gcCollectItem>'  0')),attachOptions=),
  if(gcMethod='addOne' and gcBatchId+0>0,addOneBatch=);
 
 
@@ -62,9 +63,9 @@
  refreshBRW=;
 
 @Attach=
- m('Attach this Tax Item to parcel: '&gcCollectParcel,'Are you sure?....',,6,4),
+ if(gcDtype='RESALE',m('Attach this Tax Item to parcel: '&gcCollectParcel,'Are you sure?....',,6,4),m('Attach this Tax Item to item: '&gcCollectItem,'Are you sure?....',,6,4)),
  break(gcretval<>2),
- d1select('exec dbo.dTypeCommentCRUD @mode='''&gcMethod&''',@dType='''&gcDtype&''',@invoiceId='&lcId&',@parcel='''&gcCollectParcel&''''),
+ d1select('exec dbo.dTypeCommentCRUD @mode='''&gcMethod&''',@dType='''&gcDtype&''',@invoiceId='&lcId&',@parcel='''&gcCollectParcel&''',@item='&gcCollectItem),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message=')));
 
 @gfwindow=

@@ -196,8 +196,18 @@ if not exists(select * from @selectedMortgageCodes)
   end
  end
 
+/*
  if @hasBackTaxes = '1'
    delete @wt where parcel not in (select parcel from invoices where taxyear<@taxYear and parcel>'  0' and invoiceDue>0)
+*/
+
+ if @hasBackTaxes = '1'
+ begin
+  declare @pastdueparcels table(parcel varchar(100))
+  insert @pastdueparcels
+   select parcel from invoices where taxyear<@taxYear and parcel>'  0' and invoiceDue>0
+  delete @wt where parcel not in (select parcel from @pastdueparcels)
+ end 
 
  if @mode = 'SUMMARY'
  begin

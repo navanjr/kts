@@ -83,6 +83,27 @@ insert @wt
 		from invoices where (ITEM = @item and case when @type in ('r','s','o') then parcel else @parcel end = @parcel or PARCEL = @parcel and @parcel >'  0') and invoiceDue <> 0 and 
                 case when @type in ('b','i','p','m','u') and @limitToCurrentDelinquent = 'True' then @taxYear else taxYear end = taxYear
 
+
+if @item>'  0'
+
+ insert @wt
+	select	id,
+		taxrollId,
+		taxYear,
+		parcel,
+		invoiceAmount,
+		invoiceDue,
+		0, 
+		0,
+		interestDate,
+		TYP,
+	        '',
+                '',
+                '',
+                '',
+                item   					
+		from invoices where id in (select invoiceLinkId from taxrollDetail where itemNumber = cast(@item as numeric(7,1)) and invoiceLinkId>0 and dType='Attach') 
+                                    and id not in (select invoiceId from @wt)
 if @Parcel>'  0'
 
  insert @wt
