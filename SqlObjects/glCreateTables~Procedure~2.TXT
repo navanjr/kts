@@ -309,7 +309,7 @@ begin
 	[zip3] [nvarchar](4) NOT NULL,
 	[comments] [text] NOT NULL,
  dtype varchar(10) not null default '',
- documentName varchar(50) not null default '',
+ documentName varchar(100) not null default '',
  documentDateTime datetime not null default getdate(),
  creationDateTime datetime not null default getdate(),
  invoiceLinkId int not null default 0,
@@ -340,6 +340,9 @@ begin
    alter table taxRollDetail add actionDate int not null default 0
  if not exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'actionTime')
    alter table taxRollDetail add actionTime int
+
+  if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'taxRollDetail' and COLUMN_NAME = 'documentName' and character_maximum_length=50)
+   alter table taxRollDetail alter column documentName varchar(100)
 
 
 -- JOURNALLINK
@@ -814,7 +817,7 @@ begin
   create table dbo.documentProcessing (
    id int identity(1,1),
    invoiceId int,
-   documentName varchar(50),
+   documentName varchar(100),
    documentDate int,
    processCode varchar(50),
    printOrder varchar(50) not null default '',
@@ -822,6 +825,8 @@ begin
    name varchar(50) not null default ''
   ) 
 
+  if exists(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'documentProcessing' and COLUMN_NAME = 'documentName' and character_maximum_length=50)
+   alter table documentProcessing alter column documentName varchar(100)
 
 exec dbo.glCreateTables2
 end
