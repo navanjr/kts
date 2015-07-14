@@ -1,0 +1,68 @@
+create proc dbo.diagFix_SplitPropLoc(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as 
+begin
+ set nocount on
+
+declare @towns table(town varchar(100),townlength int, processcode int)
+declare @wt table(id int, proploc varchar(100), streetnumber varchar(100), street varchar(100),town varchar(100), direction varchar(5))
+
+insert @wt
+select id,rtrim(ltrim(proploc)),physicalstreetnumber, physicalstreet,physicaltown,physicalstreetdirection from adtax where recordtype='R' and physicalstreet <' 0' and physicalstreetnumber <' 0' and physicaltown <' 0' and proploc>' 0'
+
+insert @towns
+select distinct physicaltown, len(rtrim(physicaltown)),0 from adtax where physicaltown > ' 0' and charindex(',',physicaltown)=0 and isnumeric(left(physicaltown,1))=0
+select * from @towns
+update @wt set proploc = rtrim(left(proploc,len(proploc)-6)) where isnumeric(right(rtrim(proploc),5))=1 and charindex(' ',reverse(rtrim(proploc)))=6
+declare @towntoken varchar(50), @townlengthtoken int
+
+while exists(select * from @towns where processcode=0)
+begin
+ select top 1 @towntoken = town, @townlengthtoken = townlength from @towns where processcode=0
+ update @wt set proploc=left(proploc,len(proploc)-@townlengthtoken),town=@towntoken where right(proploc,@townlengthtoken)=@towntoken
+ update @towns set processcode=1 where rtrim(town)=rtrim(@towntoken)
+end
+update @wt set streetnumber=left(proploc,charindex(' ',proploc)),proploc=ltrim(substring(proploc,charindex(' ',proploc)+1,len(proploc)-charindex(' ',proploc)+1)) where isnumeric(left(proploc,1))=1
+update @wt set direction=case when charindex(' ',proploc)=2 and len(proploc)>2 then left(proploc,1) else '' end, street = case when charindex(' ',proploc)=2 and len(proploc)>2 then ltrim(substring(proploc,3,len(proploc)-2)) else proploc end 
+
+ if @method = 'GET'
+ begin 
+ 
+  select 
+   @class = 'adtax',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = COUNT(*),  
+   @message = 'Property locations that we can split for you.'
+  from @wt
+  where
+   streetnumber>' 0' or street >' 0'
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select * from @wt
+
+ end
+
+ if @method = 'FIX'
+ begin  
+
+  update a set physicalstreetnumber = case when physicalstreetnumber > ' 0' then physicalstreetnumber else b.streetnumber end, 
+               physicalstreet = case when physicalstreet > ' 0' then physicalstreet else b.street end,
+               physicaltown = case when physicaltown > ' 0' then physicaltown else b.town end,
+               physicalstreetdirection = case when physicalstreetdirection > ' 0' then physicalstreetdirection else b.direction end
+  from adtax a, @wt b 
+  where a.id=b.id
+ end
+
+end
