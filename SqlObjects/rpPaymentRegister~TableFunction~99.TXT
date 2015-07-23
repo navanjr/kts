@@ -107,7 +107,7 @@ end
  update a set
   a.amount = isnull(
   (select sum(b.amount) from warrants b
-   where b.PayDateNo < @beginDate and b.fundcode = a.fundcode and b.fundDesc = a.fundDesc and right(b.fiscalYear,4) = a.fiscalYear)
+   where b.PayDateNo < @beginDate and b.fundcode = a.fundcode and b.fundDesc = a.fundDesc and right(b.fiscalYear,4) = a.fiscalYear and b.PayDateNo>'1')
 ,'0')
  from @rt a
  where a.origin = 2
@@ -165,45 +165,7 @@ end
  from @rt 
  where origin in (1)
 
-/*
 
--- beginning summary
- insert @rt (payee, amount, fundCode, fundDesc, fiscalYear, reportOrder, ord, origin)
- select 
-  'Total Carried Forward',
-  sum(isnull(amount,0)),
-  FundCode,
-  FundDesc,
-  right(fiscalYear,4),
-  reportOrder,
-  dbo.padRight(rtrim(ltrim(coalesce('a' + nullif(reportOrder,''),'b' + fundCode))),'0',11) + '_'
-   + right(fiscalYear,4) + '_'
-   + dbo.padLeft('','0',7),
-  2
- from warrants 
- where PayDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
- group by right(fiscalYear,4),fundCode,FundDesc,reportOrder
-
--- ending totals
- insert @rt (payee, amount, fundCode, fundDesc, fiscalYear, ord, origin)
- select 
-  'Total ',
-  sum(isnull(amount,0)),
-  FundCode,
-  FundDesc,
-  right(fiscalYear,4),
-  dbo.padRight(rtrim(ltrim(coalesce('a' + nullif(reportOrder,''),'b' + fundCode))),'0',11) + '_'
-   + right(fiscalYear,4) + '_'
-   + dbo.padLeft('','9',7),
-  3
- from @rt 
- where PayDateNo < @beginDate and fundcode+fundDesc+right(fiscalYear,2) in (select fundcode+fundDesc+right(fiscalYear,2) from @rt)
- group by right(fiscalYear,4),fundCode,FundDesc,reportOrder
-
- update @rt set fiscalyear = cast(cast('20'+fiscalyear as int)-1 as varchar(4))+'-'+'20'+fiscalyear where fiscalyear > ' 0' and isnumeric(right(fiscalyear,2))=1
-      
- return
-*/
 
  return
 end
