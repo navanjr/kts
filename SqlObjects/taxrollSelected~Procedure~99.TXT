@@ -30,7 +30,7 @@ set nocount on
  declare @m varchar(max)= '',
          @cblob varchar(max) = ''
 
-   select @cblob = case when rtrim(case when @ignoreassessormtgcode = 'TRUE' then a.treamort else case when a.treamort > a.MORTGAGECODE then a.treamort else a.MORTGAGECODE end end) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
+   select @cblob = case when rtrim(case when @ignoreassessormtgcode = 'TRUE' then a.treamort else case when a.treamort > ' 0' then a.treamort else cast(a.MORTGAGECODE as varchar) end end) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
 
 
    select @cblob = @cblob  + isnull(stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt','Pending Payment','Insufficient Check') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,''),'') 
