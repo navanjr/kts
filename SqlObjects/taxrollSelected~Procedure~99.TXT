@@ -13,7 +13,10 @@ set nocount on
          @item varchar(60),
          @name varchar(60),
          @taxYear varchar(60),
-         @unPaidCnt int = 0
+         @unPaidCnt int = 0,
+         @ignoreassessormtgcode varchar(10)
+
+       select @ignoreassessormtgcode = dbo.settingsf('taxroll.ignoreAsessorMtgCodes','FALSE') 
    
 
        select top 1 @unPaidSelected = a15 from object where typ=40 
@@ -27,7 +30,7 @@ set nocount on
  declare @m varchar(max)= '',
          @cblob varchar(max) = ''
 
-   select @cblob = case when rtrim(a.treamort) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
+   select @cblob = case when rtrim(case when @ignoreassessormtgcode = 'TRUE' then a.treamort else a.MORTGAGECODE end) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
 
 
    select @cblob = @cblob  + isnull(stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt','Pending Payment','Insufficient Check') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,''),'') 
