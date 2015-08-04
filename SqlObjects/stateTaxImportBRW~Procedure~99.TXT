@@ -11,8 +11,6 @@ declare @slink varchar(20)='o'+cast(@objectId as varchar)
 
 declare @contraAccounts table(accountId int, accountcode varchar(60), accountdesc varchar(50), glBalance money, accrued money, diff money)
 
-declare @contraYears table(yearcode varchar(60), glBalance money, accrued money, diff money)
-
 if isnull(@enddate,'')<'00'
 begin
 select @enddate = dbo.clariondate(dateadd(month, datediff(month, 0, getdate()), -1))
@@ -49,22 +47,16 @@ update c set accountcode = a.accountcode,
      and acr.contraId = c.accountId
      and s.contraId = c.accountId
 
-insert @contraYears
- select y.yearcode, sum(glbalance), sum(accrued), sum(diff)
-  from @contraAccounts c, (select * from dbo.taxyears(@enddate)) y
-  where c.accountcode = y.year+'_ADVALOREM'
-  group by y.yearcode
-
 ---GL Balances
-if exists(select * from @contraYears where diff <> 0.00)
+if exists(select * from @contraAccounts where diff <> 0.00)
 begin
  insert @rt (display, ord) select '', 'a_'
  insert @rt (display, ord) select 'Accounts Out of Balance', 'a_0'
  insert @rt (brwid, display, amount, ord)
-   select 0,
-    ' '+yearcode+' Tax: ',diff,
-    'a_'+yearcode 
-    from @contraYears where diff <> 0.00
+   select cast('-4'+cast(accountid as varchar) as int),
+    ' '+accountDesc+': ',diff,
+    'a_'+accountDesc 
+    from @contraAccounts where diff <> 0.00
 end
 
 ---Staged Receipt Detail
