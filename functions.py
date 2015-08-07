@@ -128,6 +128,7 @@ class ktsMenu():
         self.createCommand('importMort', ['importMort', ], 'copies mortg data into kts', self.tpsmort, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
+        self.createCommand('importDEFTax', ['importDEFTax', ], 'copies TaxRoll data into kts for invoicing', self.defTaxroll, 'conversion')
         self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
 
         self.command = []
@@ -1744,6 +1745,296 @@ class ktsMenu():
         except ValueError, e:
             print e
             return []
+
+    def defTaxroll(self):
+        def map(row):
+            recordtype = row[0:1]
+            additionnumber = row[1:5]
+            townshipblock = row[5:8]
+            rangelot = row[8:11]
+            sectionnumber = row[11:13]
+            qtrsectionnumber = row[13:14]
+            parcelnumber = row[14:17]
+            propertysplit = row[17:19]
+            fullpidnumber = row[19:59]
+            pidsortnumber = row[59:77]
+            itemnumber = row[77:85]
+            realtaxyear = row[86:90]
+            ownername = row[90:130]
+            businessname = row[130:170]
+            address1 = row[170:210]
+            address2 = row[210:250]
+            address3 = row[250:290]
+            city = row[290:320]
+            state = row[320:322]
+            zip1 = row[322:327]
+            zip2 = row[327:331]
+            zip3 = row[331:335]
+            country = row[335:365]
+            orgschooldistrictmain = row[365:385]
+            schooldistrictmain = row[385:405]
+            orgschooldistricttaxrate = row[405:425]
+            schooldistricttaxrate = row[425:445]
+            firedistrict = row[445:460]
+            mortgagecode = row[460:467]
+            ownernumber = row[467:482]
+            acres = row[482:490]
+            lots = row[490:496]
+            mfghomeassessed = row[496:503]
+            grossassessed = row[503:512]
+            freeportexemption = row[512:521]
+            baseexemption = row[521:530]
+            dblexemption = row[530:539]
+            exemption1 = row[539:548]
+            exemption2 = row[548:557]
+            exemption3 = row[557:566]
+            netassessedvalue = row[566:575]
+            totaltaxrate = row[575:585]
+            originaltotaldue = row[585:597]
+            totaldue = row[597:609]
+            balancedue = row[609:621]
+            certificatenumber = row[621:636]
+            paidoffdate = row[636:646]
+            propertyliencode1 = row[646:651]
+            propertylienamount1 = row[651:659]
+            propertyliencode2 = row[659:664]
+            propertylienamount2 = row[664:672]
+            lasttrandate = row[672:682]
+            taxcorrectiondate = row[682:692]
+            taxcorrectioninitials = row[692:695]
+            flag1 = row[695:696]
+            flag2 = row[696:697]
+            flag3 = row[697:698]
+            pertyp = row[698:699]
+            proploc = row[699:750]
+            mort_cd = row[750:755]
+            morleg = row[755:756]
+            bankrupt = row[756:757]
+            landassessed = row[757:766]
+            improvedassessed = row[766:775]
+            miscassessed = row[775:784]
+            physicalstreetnumber = row[784:834]
+            physicalstreet = row[834:883]
+            physicaltown = row[883:934]
+            physicalstreetdirection = row[934:983]
+            legaldescription = row[983:3072]
+            return [
+                recordtype.strip(),
+                additionnumber.strip(),
+                townshipblock.strip(),
+                rangelot.strip(),
+                sectionnumber.strip(),
+                qtrsectionnumber.strip(),
+                parcelnumber.strip(),
+                propertysplit.strip(),
+                fullpidnumber.strip(),
+                pidsortnumber.strip(),
+                itemnumber.strip(),
+                realtaxyear.strip(),
+                ownername.strip(),
+                businessname.strip(),
+                address1.strip(),
+                address2.strip(),
+                address3.strip(),
+                city.strip(),
+                state.strip(),
+                zip1.strip(),
+                zip2.strip(),
+                zip3.strip(),
+                country.strip(),
+                orgschooldistrictmain.strip(),
+                schooldistrictmain.strip(),
+                orgschooldistricttaxrate.strip(),
+                schooldistricttaxrate.strip(),
+                firedistrict.strip(),
+                mortgagecode.strip(),
+                ownernumber.strip(),
+                acres.strip(),
+                lots.strip(),
+                mfghomeassessed.strip(),
+                grossassessed.strip(),
+                freeportexemption.strip(),
+                baseexemption.strip(),
+                dblexemption.strip(),
+                exemption1.strip(),
+                exemption2.strip(),
+                exemption3.strip(),
+                netassessedvalue.strip(),
+                totaltaxrate.strip(),
+                originaltotaldue.strip(),
+                totaldue.strip(),
+                balancedue.strip(),
+                certificatenumber.strip(),
+                paidoffdate.strip(),
+                propertyliencode1.strip(),
+                propertylienamount1.strip(),
+                propertyliencode2.strip(),
+                propertylienamount2.strip(),
+                lasttrandate.strip(),
+                taxcorrectiondate.strip(),
+                taxcorrectioninitials.strip(),
+                flag1.strip(),
+                flag2.strip(),
+                flag3.strip(),
+                pertyp.strip(),
+                proploc.strip(),
+                mort_cd.strip(),
+                morleg.strip(),
+                bankrupt.strip(),
+                landassessed.strip(),
+                improvedassessed.strip(),
+                miscassessed.strip(),
+                physicalstreetnumber.strip(),
+                physicalstreet.strip(),
+                physicaltown.strip(),
+                physicalstreetdirection.strip(),
+                legaldescription.strip()            ]
+        importFileRaw = self.settingsF('taxroll.importFile')
+        if not  importFileRaw:
+            print 'missing path to tax file... fail!'
+            return
+        rows = []
+        with open( importFileRaw, 'r') as content_file:
+            rawData = content_file.read()
+        i = 0
+        for row in rawData.split('\n'):
+            rows.append(map(row))
+
+        if len(rows) > 0:
+            print 'how many? ', len(rows)
+            print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
+            columnNames = ['recordType','additionnumber','townshipblock','rangelot','sectionnumber','qtrsectionnumber','parcelnumber','propertysplit']
+            columnNames = columnNames + ['fullpidnumber','pidsortnumber','itemnumber']
+            columnNames = columnNames + ['realtaxyear','ownername','businessname','address1','address2','address3','city','state','zip1','zip2','zip3']
+            columnNames = columnNames + ['country','orgschooldistrictmain','schooldistrictmain','orgschooldistricttaxrate','schooldistricttaxrate','firedistrict']
+            columnNames = columnNames + ['mortgagecode','ownernumber','acres']
+            columnNames = columnNames + ['lots','mfghomeassessed','grossAssessed','freeportexemption','baseexemption']
+            columnNames = columnNames + ['dblexemption','exemption1','exemption2','exemption3','netassessedvalue']
+            columnNames = columnNames + ['totaltaxrate','originaltotaldue','totaldue','balancedue','certificatenumber']
+            columnNames = columnNames + ['propertyliencode1','propertylienamount1','propertyliencode2','propertylienamount2']
+            columnNames = columnNames + ['taxcorrectioninitials','flag1','flag2','flag3','proploc','landassessed','improvedassessed','miscassessed']
+            columnNames = columnNames + ['physicalstreetnumber','physicalstreet','physicaltown','physicalstreetdirection','legaldescription']
+            sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(rows):
+                formatedRow = self.defFormatedRow(row)
+                print formatedRow
+                formatedRow = [str(x).replace("'", "''") for x in formatedRow]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                #print sqlInsert
+                #print sqlSelect
+                if len(formatedRow) > 1:
+                    if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                        tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+    def defFormatedRow(self,x):
+        try:
+            if x[10].strip().isdigit():
+                it = float(x[10].strip())*.1
+            else:
+                it = 0
+            if x[11].strip().isdigit():
+                ty = float(x[11].strip())*1
+            else:
+                ty = 0
+            if x[28].isdigit():
+                mc = float(x[28].strip())*1
+            else:
+                mc = 0
+            if x[29].isdigit():
+                on = float(x[29].strip())*.01
+            else:
+                on = 0
+            if x[30].isdigit():
+                ac = float(x[30].strip())*.01
+            else:
+                ac = 0
+            if x[31].isdigit():
+                lt = float(x[31].strip())*.01
+            else:
+                lt = 0
+            if x[32].isdigit():
+                mf = float(x[32].strip())*1
+            else:
+                mf = 0
+            if x[33].isdigit():
+                ga = float(x[33].strip())*1
+            else:
+                ga = 0
+            if x[34].isdigit():
+                fe = float(x[34].strip())*1
+            else:
+                fe = 0
+            if x[35].isdigit():
+                be = float(x[35].strip())*1
+            else:
+                be = 0
+            if x[36].isdigit():
+                de = float(x[36].strip())*1
+            else:
+                de = 0
+            if x[37].isdigit():
+                e1 = float(x[37].strip())*1
+            else:
+                e1 = 0
+            if x[38].isdigit():
+                e2 = float(x[38].strip())*1
+            else:
+                e2 = 0
+            if x[39].isdigit():
+                e3 = float(x[39].strip())*1
+            else:
+                e3 = 0
+            if x[40].isdigit():
+                nv = float(x[40].strip())*1
+            else:
+                nv = 0
+            if x[41].isdigit():
+                tr = float(x[41].strip())*.0000001
+            else:
+                tr = 0
+            if x[42].isdigit():
+                td = format(float(x[42].strip())*.1,'.2f')
+            else:
+                td = 0
+            if x[48].isdigit():
+                p1 = float(x[48].strip())*.01
+            else:
+                p1 = 0
+            if x[50].isdigit():
+                p2 = float(x[50].strip())*.01
+            else:
+                p2 = 0
+            if x[62].isdigit():
+                la = float(x[62].strip())*1
+            else:
+                la = 0
+            if x[63].isdigit():
+                ia = float(x[63].strip())*1
+            else:
+                ia = 0
+            if x[64].isdigit():
+                ma = float(x[64].strip())*1
+            else:
+                ma = 0
+            proploc = x[65].strip()+' '+x[66].strip()+' '+x[67].strip()+' '+x[68].strip()+' '+x[69].strip()+ '                                                        '
+            proploc = proploc.strip()
+            return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
+                    ,x[8].strip(),x[9].strip(),it
+                    ,ty,x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip(),x[21].strip()
+                    ,x[22].strip(),x[23].strip(),x[23].strip(),x[25].strip(),x[25].strip(),x[27].strip()
+                    ,mc,on,ac
+                    ,lt,mf,ga,fe,be
+                    ,de,e1,e2,e3,nv
+                    ,tr,td,td,td,x[45].strip()
+                    ,x[47].strip(),p1,x[49].strip(),p2
+                    ,x[53].strip(),x[54].strip(),x[55].strip(),x[56].strip(),proploc,la,ia,ma
+                    ,x[65].strip(),x[66].strip(),x[67].strip(),x[68].strip(),x[69].strip()]
+        except ValueError, e:
+            print e
+            return []
+
 
     def gsiAamasterCheck(self):
         def map(row):

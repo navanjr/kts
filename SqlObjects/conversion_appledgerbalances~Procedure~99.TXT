@@ -1,0 +1,42 @@
+create procedure conversion_appledgerbalances(@date varchar(20))
+as
+begin
+declare @fy varchar(20),
+        @acct varchar(60), 
+        @fund varchar(60),
+        @budget money,
+        @payment money
+
+declare @wt table(fy varchar(20), acct varchar(60), fund varchar(60), adate varchar(20), budget money, payment money)
+
+insert @wt
+select b.fy,b.acct,a.key3 as fund, 78377 as adate, budget, payment from kpojefferson.dbo.appledgerbal b, object a
+ where a.typ = 4705
+  and b.acct=a.key1
+while exists (select * from @wt)
+begin
+  select top 1 @fy=fy,@acct=acct,@fund=fund,@budget=budget,@payment=payment from @wt
+   if @budget <> 0.00
+    exec dbo.budgetAdjustmentCRUD 0,@acct,@fund,@fy,@date,@budget,0,'Budget Adjustment','Budget Balance '+dbo.date1(@date)
+   if @payment <> 0.00
+    exec dbo.budgetAdjustmentCRUD 0,@acct,@fund,@fy,@date,@payment*-1,0,'Budget Payment','Payment Balance '+dbo.date1(@date)
+  delete from @wt where fy=@fy and acct=@acct
+end
+  
+/*
+Code for Clerks KPO
+
+create view [dbo].[appledgerbal] as 
+select fy.key1 as fy,a.key1 as acct,sum(acctadjamt) as budget, sum(apramt) as payment from app_ledger_view alv, object fy, object a 
+ where alv.fiscalyearid=fy.id 
+   and alv.accountid=a.id
+   and a.typ=66
+   and fy.typ=56 
+   and fy.key1 in ('2014-2015','2015-2016') --replace with current fiscal years
+   and alv.[date]<=78378 --replace with @date
+   group by fy.key1,a.key1
+
+*/ 
+
+end
+
