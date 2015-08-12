@@ -52,7 +52,9 @@ begin
   @warrantPayee varchar(50) = '',
   @vfiscalYear varchar(20),
   @pType varchar(50) = '',
-  @warrantsHitLedgerWhenRegistered varchar(5) = dbo.settingsf('site.warrantsHitLedgerWhenRegistered','FALSE')
+  @warrantsHitLedgerWhenRegistered varchar(5) = dbo.settingsf('site.warrantsHitLedgerWhenRegistered','FALSE'),
+  @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')
+
 
   declare @trackAppropriationLedger varchar(20)
 
@@ -266,7 +268,7 @@ begin
 
 
    select
-    @fiscalYear = case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then a.c10 else @fiscalYear end,
+    @fiscalYear = case when @paymentNumberHonorsWarrantFY='TRUE' then a.c10 else @fiscalYear end,
     @postDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
     @paymentType = 'Treasurers Check',
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
@@ -277,7 +279,7 @@ begin
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
     @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' 
-     + rtrim(case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then a.c10 else @fiscalYear end) + '''',
+     + rtrim(case when @paymentNumberHonorsWarrantFY='TRUE' then a.c10 else @fiscalYear end) + '''',
     @warrantPayee = a.a2
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 

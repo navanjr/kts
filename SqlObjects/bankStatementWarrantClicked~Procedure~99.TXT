@@ -33,7 +33,8 @@ begin
   @amount money,
   @total money,
   @showAllWarrants int,
-  @fiscalYear varchar(20)
+  @fiscalYear varchar(20),
+  @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')
 
  select
   @accountId = link1,
@@ -163,9 +164,9 @@ begin
   begin
    select @fiscalYear = fiscalYear from dbo.fpinfo(dbo.clariondate(getdate())) 
    select
-    @fiscalYear = case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then p.c10 else @fiscalYear end,
+    @fiscalYear = case when @paymentNumberHonorsWarrantFY='TRUE' then p.c10 else @fiscalYear end,
     @fundCode = g.targetAccountCode,
-    @addWhere = 'a8 = ''' + g.targetAccountCode + ''' and c10='''+rtrim(case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then p.c10 else @fiscalYear end)+''''
+    @addWhere = 'a8 = ''' + g.targetAccountCode + ''' and c10='''+rtrim(case when @paymentNumberHonorsWarrantFY='TRUE' then p.c10 else @fiscalYear end)+''''
    from object p
     join dbo.glAccounts g on g.accountCode = p.a4
    where p.ID = dbo.brwidDecoderId(@brwId)
@@ -173,9 +174,9 @@ begin
    exec dbo.nextObjectAutoNumber
     4771, 'Treasurers Check', @ignoreDeleted = 'TRUE', @additionalWhereClause = @addWhere, @newNumber = @nextPaymentNumber output
 
-   select @nextPaymentNumber = case when cast(@nextPaymentNumber as int) >  isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode and fiscalYear=case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then @fiscalYear else fiscalYear end),'')
+   select @nextPaymentNumber = case when cast(@nextPaymentNumber as int) >  isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode and fiscalYear=case when @paymentNumberHonorsWarrantFY='TRUE' then @fiscalYear else fiscalYear end),'')
    then @nextPaymentNumber
-   else isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode  and fiscalYear=case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then @fiscalYear else fiscalYear end),'')
+   else isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode  and fiscalYear=case when @paymentNumberHonorsWarrantFY='TRUE' then @fiscalYear else fiscalYear end),'')
    end
 
    insert @buyWt (id, brwid, fundCode, paymentNumber)
