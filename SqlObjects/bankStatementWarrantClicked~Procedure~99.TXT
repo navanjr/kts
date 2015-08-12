@@ -17,7 +17,9 @@ begin
   id int,
   brwid int,
   fundCode varchar(50),
-  paymentNumber varchar(50)
+  paymentNumber varchar(50),
+  fiscalYear varchar(50),
+  objectid int
  )
 
  declare
@@ -44,7 +46,7 @@ begin
  from object
  where typ=4782 and link1 = @bankStatementId and key1=@ini
 
- insert @buyWt
+ insert @buyWt (id, brwid, fundCode, paymentNumber)
  select
   id,
   dbo.splitF(data,':',1), 
@@ -52,6 +54,10 @@ begin
   dbo.splitF(data,':',3) 
  from dbo.split(@warrantsBlob,'|')
  where data > '  0'
+
+ update @buyWt set objectid=dbo.brwidDecoderId(brwId)
+
+ update b set fiscalYear=o.c10 from @buyWt b, object o where b.objectid=o.id
 
  if @method = 'BUYMANY'
  begin
@@ -157,8 +163,9 @@ begin
   begin
    select @fiscalYear = fiscalYear from dbo.fpinfo(dbo.clariondate(getdate())) 
    select
+    @fiscalYear = case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then p.c10 else @fiscalYear end,
     @fundCode = g.targetAccountCode,
-    @addWhere = 'a8 = ''' + g.targetAccountCode + ''' and c10='''+rtrim(@fiscalYear)+''''
+    @addWhere = 'a8 = ''' + g.targetAccountCode + ''' and c10='''+rtrim(case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then p.c10 else @fiscalYear end)+''''
    from object p
     join dbo.glAccounts g on g.accountCode = p.a4
    where p.ID = dbo.brwidDecoderId(@brwId)
@@ -166,12 +173,12 @@ begin
    exec dbo.nextObjectAutoNumber
     4771, 'Treasurers Check', @ignoreDeleted = 'TRUE', @additionalWhereClause = @addWhere, @newNumber = @nextPaymentNumber output
 
-   select @nextPaymentNumber = case when cast(@nextPaymentNumber as int) >  isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode),'')
+   select @nextPaymentNumber = case when cast(@nextPaymentNumber as int) >  isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode and fiscalYear=case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then @fiscalYear else fiscalYear end),'')
    then @nextPaymentNumber
-   else isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode),'')
+   else isnull((select max(cast(paymentNumber as int)) + 1 from @buyWt where fundCode = @fundCode  and fiscalYear=case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then @fiscalYear else fiscalYear end),'')
    end
 
-   insert @buyWt
+   insert @buyWt (id, brwid, fundCode, paymentNumber)
    select 99999, @brwId, @fundCode, dbo.padLeft(@nextPaymentNumber,'0',5)
 
    set @log = 'selected'

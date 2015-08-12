@@ -261,10 +261,12 @@ begin
    end
 -- if you are buying a warrant with a treasurers check, payment type needs to change, among other things
 -- Notice the DB and CR accounts are swapped.
+      
    select @fiscalYear = fiscalyear from dbo.fpinfo(dbo.clarionDate(getDate()))
 
 
    select
+    @fiscalYear = case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then a.c10 else @fiscalYear end,
     @postDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
     @paymentType = 'Treasurers Check',
     @voucherDate = case when @voucherDate > 0 then @voucherDate else dbo.clarionDate(getDate()) end,
@@ -274,7 +276,8 @@ begin
     @officialName = a.a7,
     @officialDepositCode = b.targetAccountCode,
     @officialBankCode = a.a9,
-    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' + rtrim(@fiscalYear) + '''',
+    @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' 
+     + rtrim(case when dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')='TRUE' then a.c10 else @fiscalYear end) + '''',
     @warrantPayee = a.a2
    from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
