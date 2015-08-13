@@ -92,11 +92,14 @@ begin
 
  set @months = datediff(m, @begindate, @paydate) 
 
- if @typ in ('O','S')
-  begin
-   select @beginday = day(dbo.date1(@interestDate))
-   set @months = @months + 1
-  end
+ if dbo.settingsf('site.AssessmentPenaltySameAsAdvalorem','FALSE')='FALSE'
+ begin
+  if @typ in ('O','S')
+   begin
+    select @beginday = day(dbo.date1(@interestDate))
+    set @months = @months + 1
+   end
+ end
 
  if day(@paydate) < case when isnull(@beginday,0) > 0 then @beginday else @grace end
  begin
