@@ -215,8 +215,25 @@ set @searchString=replace(@searchString,'''','%')
     select @interestToDate = dbo.clariondate(getdate())
    end
 
+/*
 -- Remove voided invoices that have been reissued
   delete from @rt where cast(amount as money)=0.00 and cast(due as money) = 0.00 and taxrollid in (select taxrollid from @rt where cast(amount as money)<>0.00)  
+*/
+
+-- Remove voided invoices that have been reissued
+  declare @taxrollids table(taxrollid int)
+  
+  insert @taxrollids
+  select taxrollid from @rt where cast(amount as money)<>0.00
+
+  declare @voids table(id int, taxrollid int)
+  
+  insert @voids
+   select r.invoiceId, r.taxrollid from @rt r, @taxrollids t where r.taxrollid=t.taxrollid and cast(amount as money)=0.00 and cast(due as money) = 0.00 
+
+  delete from @rt where invoiceid in (select id from @voids)
+
+
 
 end
   if exists(select * from receiptLink where receiptId = @receiptId) or @importBRW = 'TRUE'
