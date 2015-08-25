@@ -32,19 +32,33 @@ begin
  from adtax
 
 --legal
+ declare @taxcorrections table(id int, taxrollid int)
+ 
+ insert @taxcorrections 
+  select max(id), taxrollid from taxrollCorrections where fieldNumber='102' group by taxrollid
+  
+  
+ declare @tempadtax table(id int, modified datetime, apiUpdatedLegal datetime, complegal varchar(max),stale int)
+ insert @tempadtax
+ select id,modified, isnull(apiUpdatedLegal,0),/*ltrim(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102') as varchar(max)))*/legaldescription as complegal,
+  case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end as stale 
+  from adtax 
+  where OWNERNAME>'  0' and id > 0 
+
+ update t set complegal = tc.fielddata from @tempadtax t, @taxcorrections c, taxrollcorrections tc where t.id = c.taxrollid and c.id = tc.id 
+
  set @tokenResource = 'Legal'
  insert @rt
  select @tokenResource,
   count(*),
-  sum(case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end),
+  sum(stale),
   null,
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'b', null, null, null, null
- from adtax
- where OWNERNAME>'  0' and id > 0 and ltrim(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102') as varchar(max))) > '  0'
- --where ltrim(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102')) > '  0'
+ from @tempadtax
+ where complegal > '  0'
 
 --invoices
  set @tokenResource = 'Invoices'

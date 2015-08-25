@@ -1817,7 +1817,7 @@ class ktsMenu():
             physicalstreet = row[834:883]
             physicaltown = row[883:934]
             physicalstreetdirection = row[934:983]
-            legaldescription = row[983:3072]
+            legaldescription = row[983:2983]
             return [
                 recordtype.strip(),
                 additionnumber.strip(),
@@ -1894,8 +1894,9 @@ class ktsMenu():
             print 'missing path to tax file... fail!'
             return
         rows = []
-        with open( importFileRaw, 'r') as content_file:
+        with open( importFileRaw, 'r', encoding='utf16') as content_file:
             rawData = content_file.read()
+        print rawData
         i = 0
         for row in rawData.split('\n'):
             rows.append(map(row))
@@ -1918,7 +1919,7 @@ class ktsMenu():
             tally = 0
             for id, row in enumerate(rows):
                 formatedRow = self.defFormatedRow(row)
-                print formatedRow
+                #print formatedRow
                 formatedRow = [str(x).replace("'", "''") for x in formatedRow]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 #print sqlInsert
@@ -2023,7 +2024,7 @@ class ktsMenu():
             return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
                     ,x[8].strip(),x[9].strip(),it
                     ,ty,x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip(),x[21].strip()
-                    ,x[22].strip(),x[23].strip(),x[23].strip(),x[25].strip(),x[25].strip(),x[27].strip()
+                    ,x[22].strip(),x[23].strip(),x[23].strip(),x[23].strip(),x[23].strip(),x[27].strip()
                     ,mc,on,ac
                     ,lt,mf,ga,fe,be
                     ,de,e1,e2,e3,nv
