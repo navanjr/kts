@@ -1814,10 +1814,10 @@ class ktsMenu():
             improvedassessed = row[766:775]
             miscassessed = row[775:784]
             physicalstreetnumber = row[784:834]
-            physicalstreet = row[834:883]
-            physicaltown = row[883:934]
-            physicalstreetdirection = row[934:983]
-            legaldescription = row[983:2983]
+            physicalstreet = row[834:884]
+            physicaltown = row[884:934]
+            physicalstreetdirection = row[934:984]
+            legaldescription = row[984:2983]
             return [
                 recordtype.strip(),
                 additionnumber.strip(),
@@ -1888,15 +1888,15 @@ class ktsMenu():
                 physicalstreet.strip(),
                 physicaltown.strip(),
                 physicalstreetdirection.strip(),
-                legaldescription.strip()            ]
+                legaldescription]
         importFileRaw = self.settingsF('taxroll.importFile')
         if not  importFileRaw:
             print 'missing path to tax file... fail!'
             return
         rows = []
-        with open( importFileRaw, 'r', encoding='utf16') as content_file:
+        with open( importFileRaw, 'r') as content_file:
             rawData = content_file.read()
-        print rawData
+            rawData = rawData.replace('""',' ')
         i = 0
         for row in rawData.split('\n'):
             rows.append(map(row))
@@ -1932,7 +1932,7 @@ class ktsMenu():
     def defFormatedRow(self,x):
         try:
             if x[10].strip().isdigit():
-                it = float(x[10].strip())*.1
+                it = float(x[10].strip())*1
             else:
                 it = 0
             if x[11].strip().isdigit():
@@ -1944,15 +1944,15 @@ class ktsMenu():
             else:
                 mc = 0
             if x[29].isdigit():
-                on = float(x[29].strip())*.01
+                on = float(x[29].strip())*1
             else:
                 on = 0
             if x[30].isdigit():
-                ac = float(x[30].strip())*.01
+                ac = float(x[30].strip())*1
             else:
                 ac = 0
             if x[31].isdigit():
-                lt = float(x[31].strip())*.01
+                lt = float(x[31].strip())*1
             else:
                 lt = 0
             if x[32].isdigit():
@@ -1992,19 +1992,19 @@ class ktsMenu():
             else:
                 nv = 0
             if x[41].isdigit():
-                tr = float(x[41].strip())*.0000001
+                tr = float(x[41].strip())*1
             else:
                 tr = 0
             if x[42].isdigit():
-                td = format(float(x[42].strip())*.1,'.2f')
+                td = format(float(x[42].strip()*1),'.2f')
             else:
                 td = 0
             if x[48].isdigit():
-                p1 = float(x[48].strip())*.01
+                p1 = float(x[48].strip())*1
             else:
                 p1 = 0
             if x[50].isdigit():
-                p2 = float(x[50].strip())*.01
+                p2 = float(x[50].strip())*1
             else:
                 p2 = 0
             if x[62].isdigit():
@@ -2019,7 +2019,12 @@ class ktsMenu():
                 ma = float(x[64].strip())*1
             else:
                 ma = 0
-            proploc = x[65].strip()+' '+x[66].strip()+' '+x[67].strip()+' '+x[68].strip()+' '+x[69].strip()+ '                                                        '
+                
+            #leg = x[69].replace("'", "''")
+            if x[65] > '0':
+                proploc = x[65].strip()+' '+x[68].strip()+' '+x[66].strip()+' '+x[67].strip()+'                                                         '
+            else:
+                proploc = ''
             proploc = proploc.strip()
             return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
                     ,x[8].strip(),x[9].strip(),it
@@ -2031,7 +2036,7 @@ class ktsMenu():
                     ,tr,td,td,td,x[45].strip()
                     ,x[47].strip(),p1,x[49].strip(),p2
                     ,x[53].strip(),x[54].strip(),x[55].strip(),x[56].strip(),proploc,la,ia,ma
-                    ,x[65].strip(),x[66].strip(),x[67].strip(),x[68].strip(),x[69].strip()]
+                    ,x[65].strip(),x[66].strip(),x[67].strip(),x[68].strip(),x[69].strip()  ]
         except ValueError, e:
             print e
             return []
