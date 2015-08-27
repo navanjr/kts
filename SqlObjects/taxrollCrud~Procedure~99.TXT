@@ -103,6 +103,20 @@ begin
       TaxRate varchar(50))
    end
 
+-- prep table for taxLevyCheckDefault
+ if @method = 'prepTaxLevyDefault'
+   begin
+    if exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxLevyCheckDefault]') and OBJECTPROPERTY(id, N'IsTable') = 1)    
+     delete from dbo.taxLevyCheckDefault
+
+    if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[taxLevyCheckDefault]') and OBJECTPROPERTY(id, N'IsTable') = 1)   
+     create table taxLevyCheckDefault(
+      School varchar(20),
+      MillageName varchar(20),
+      TaxRate varchar(50),
+      TotalTaxRate varchar(50))
+   end
+
 -- update adtaxcheck from taxlevyCheck school district and taxrate 
  if @method = 'setLevy'
   begin
@@ -119,7 +133,7 @@ begin
 -- import taxroll to adtaxCheck...
  if @method = 'importTax'
   begin
-   set @cmd = 'conv '+ case when @assessorSys = 'LandMark' then 'importGSITax'  else 'importTax' end
+   set @cmd = 'conv '+ case when @assessorSys = 'LandMark' then 'importGSITax'  when @assessorSys = 'Default' then 'importDEFTax'  else 'importTax' end
    exec dbo.ktsBat @cmd, @output = @cmdOutput OUTPUT
   return
  end

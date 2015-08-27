@@ -1929,6 +1929,44 @@ class ktsMenu():
                         tally = tally + 1
             print 'ok i inserted %s records' % tally
 
+            def map(row):
+                school = row[0:20]
+                millagename = row[20:40]
+                taxrate = row[40:70]
+                totaltaxrate = row[70:100]
+                return[
+                    school.strip(),
+                    millagename.strip(),
+                    taxrate.strip(),
+                    totaltaxrate.strip()
+                    ]
+            importFileRaw = self.settingsF('taxroll.importTaxLevyFile')
+            if not  importFileRaw:
+                print 'missing path to gsi levl file... fail!'
+                return
+            rows = []
+            with open( importFileRaw, 'r') as content_file:
+                rawData = content_file.read()
+            i = 0
+            for row in rawData.split('\n'):
+                rows.append(map(row))
+            if len(rows) > 0:
+                print 'how many? ', len(rows)
+                print 'Prep Tax Levy Table...dbo.taxrollCRUD', self.sqlQuery('exec dbo.taxrollCRUD @method=''prepTaxLevyDefault''', True)['code']
+                columnNames = ['School','MillageName','TaxRate','TotalTaxRate']
+                sqlInsert = "insert taxLevyCheckDefault ({columns})".format(columns=', '.join(columnNames))
+                tally = 0
+                for id, row in enumerate(rows):
+                    formatedRow = [str(x).replace("'", "''") for x in row]
+                    sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                    #print sqlInsert
+                    #print sqlSelect
+                    if len(formatedRow) > 1:
+                        if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                            tally = tally + 1
+                print 'ok i inserted %s records' % tally
+
+
     def defFormatedRow(self,x):
         try:
             if x[10].strip().isdigit():
