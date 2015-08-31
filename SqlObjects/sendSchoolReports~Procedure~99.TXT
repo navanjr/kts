@@ -1,7 +1,8 @@
 create proc dbo.sendSchoolReports(
  @startDate int,
  @endDate int,
- @verbose varchar(5) = 'TRUE'
+ @verbose varchar(5) = 'TRUE',
+ @includeunapportioned varchar(5) = 'FALSE'
 ) as 
 begin
 
@@ -35,7 +36,7 @@ begin
  if OBJECT_ID('tempdb..#schoolReports') is not null
   drop table #schoolReports
 
- select * into #schoolReports from dbo.apportionSchoolPagesSumByFund(@startDate,@endDate,'FALSE') where accounttype in ('COUNTY SCHOOL','JOINT SCHOOL') order by ord
+ select * into #schoolReports from dbo.apportionSchoolPagesSumByFund(@startDate,@endDate,@includeunapportioned) where accounttype in ('COUNTY SCHOOL','JOINT SCHOOL') order by ord
  exec dbo.logit @@procid, 'grabbed initial data... @@rowCount', @@rowCount
 
  declare @codes table(
