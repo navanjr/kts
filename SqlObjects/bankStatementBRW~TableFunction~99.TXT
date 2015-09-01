@@ -33,6 +33,9 @@ create function dbo.bankStatementBRW(
  dateCleared varchar(50) 
 )
 begin
+ declare @warrantsHitLedgerWhenRegistered varchar(5)
+
+ select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname = 'site.warrantsHitLedgerWhenRegistered'
 
  declare @warrantBlob varchar(max)
  select @warrantBlob = e1 from object where typ=4782 and link1 = @id and key1=@ini
@@ -46,7 +49,23 @@ begin
 -- add Warrants
  if @warrantFlag = 1
  begin
- 
+  if @warrantsHitLedgerWhenRegistered = 'TRUE'
+  begin
+-- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
+   insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
+   select dbo.brwidEncoder(1,id), fpid, fpCode, slink,
+    case when amount > 0 then amount else 0 end,
+    case when amount < 0 then amount*-1 else 0 end,
+    slink,
+    case when isnull(bsId,0) = 0 then '' else dbo.date2(dateCleared) end,
+    0,comment,comment2,1,dateCleared
+   from dbo.glDetailreports 
+   where accountId = @accountId and sourcea18='Warrant'
+  and isnull(bsId,0) in (select id from @showTable)
+
+  end
+  else 
+  begin
    declare @limitfundcode varchar(50),
            @defaultBank varchar(5),
            @bankCode varchar(60),
@@ -156,7 +175,10 @@ begin
  group by r.fundGrouping, t.accountDesc
   return
  end
+end
 
+if @warrantFlag != 1
+ begin
 -- get all the gldetail for this account that is not cleared and maybe include the items cleared on this statement
  insert @rt (id,fpid,fpCode,slink,dbAmount,crAmount,subDescription,selectedFlag,rowType,comment,comment2,origin,dateCleared)
  select dbo.brwidEncoder(1,id), fpid, fpCode, slink,
@@ -169,7 +191,7 @@ begin
  from dbo.glDetail 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
-
+end
 -- populate the items with more details
  update a set
   a.description = '      ' + b.key1,
