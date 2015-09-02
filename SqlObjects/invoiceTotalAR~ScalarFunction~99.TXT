@@ -6,11 +6,15 @@ begin
   @glAmt money,
   @amount money
 
+ declare @slinks table(slink varchar(16))
+
+insert @slinks select slink from dbo.invoiceSLinks(@invoiceId)
+
  select @glAmt = sum(a.amount) 
  from glDetail a, glAccounts b 
  where a.accountId = b.accountId
   and b.accountType = 'RECEIVABLE'
-  and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+  and slink in (select slink from @slinks)
 
  select @amount = isnull(@glAmt,0)
  

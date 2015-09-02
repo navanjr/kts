@@ -117,7 +117,7 @@ set @searchString=replace(@searchString,'''','%')
         and id in (select id from @searchid)
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
-        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(i.id as varchar(15)),null)>0 then 0 else 1 end end
+        /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(i.id as varchar(15)),null)>0 then 0 else 1 end end*/
         and i.id not in (select invoiceId from receiptlink where receiptid = @receiptId)
         and isnull(i.invoiceid,0)=0
       end
@@ -132,7 +132,7 @@ set @searchString=replace(@searchString,'''','%')
         left(name,@sSlen) = @searchString
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
-        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+        /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
         and isnull(invoiceid,0)=0
@@ -145,7 +145,7 @@ set @searchString=replace(@searchString,'''','%')
         name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar)+'0'+cast(item as varchar) like '%'+@searchString+'%'
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
-        and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+        /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
         and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
         and isnull(invoiceid,0)=0
@@ -161,12 +161,16 @@ set @searchString=replace(@searchString,'''','%')
       and invoiceId = 0
       and status<>'Firstnum'
       and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
-      and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end
+      /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
       and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
       and isnull(invoiceid,0)=0
 
-
 --Adtax 0 due records
+
+declare @adtaxids table(adtaxid int)
+insert @adtaxids
+ select id from adtax where id not in (select taxrollId from invoices)
+
 
   if @showPaidFlag = '1' and @searchString > '  0'
    begin
@@ -176,18 +180,17 @@ set @searchString=replace(@searchString,'''','%')
          select  
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
          from dbo.adtax a
-         inner join dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch) at on a.ID = adtaxId
-          where a.id not in (select taxrollId from invoices)
+         inner join dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch) at on a.ID = at.adtaxId
+         inner join @adtaxids t on a.id = t.adtaxid
        else
 ---Regular Search 
        insert @rt
          select 
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
-         from dbo.adtax
-          where 
+         from dbo.adtax a, @adtaxids t
+          where a.id = t.adtaxid and
               OWNERNAME+' '+FULLPIDNUMBER+' '+cast(REALTAXYEAR as varchar(4))+'0'+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%'
               and cast(REALTAXYEAR as varchar) = case when @taxyear = 'all' then cast(REALTAXYEAR as varchar) else cast(@taxyear as numeric) end 
-              and id not in (select taxrollId from invoices)
 
    end
 
