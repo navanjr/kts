@@ -105,12 +105,65 @@
  lcCount=obj7:key1,
  lcAddressSwitch=choose(obj:c2>0,obj:c2,'0'),
  kpmo('Printing Invoices...'&lcCount),
+ if(obj:c3='1',do1jobstart=),
  lcCnt=0,
+ gcCnt=0,
  do(452,getSiteInfo=),
  sqlloop('select invoiceId, taxRollDetailId from dbo.docPrintPrep(null, '&gcBatchId&', '&lcCount&', '&lcAddressSwitch&') order by printOrder',printIt1=),
  kpmc(),
  gcDocumentId='',
- refreshTheBrw=;
+ refreshTheBrw=,
+ m('Print batch complete...'),
+ if(obj:c3='1',do1jobstop=);
+
+@do1jobstart=elfile('C:\Client\Temp\print\'&lcReportName&'<ticks>.pdf'),gc1jobstat='START',do1job=;
+
+@@do1jobstop=gc1jobstat='STOP',do1job=;
+
+
+@do1job=runw('echo %appdata% > c:\client\temp\inipath.txt',0),
+readdos('c:\client\temp\inipath.txt'),
+gcinifile=left(workmemo,len(workmemo)-3)&'\PDF Writer\Bullzip PDF Printer\settings.ini',
+gcvar='output',
+gcdefault='C:\Client\Temp\'&gcBatchId+0&'\'&lcReportName&'<ticks>.pdf',
+writesetting=,
+gcvar='appendifexists',
+gcdefault='yes',
+writesetting=,
+gcvar='showsettings',
+gcdefault='never',
+writesetting=,
+gcvar='showsaveas',
+gcdefault='never',
+writesetting=,
+gcvar='showpdf',
+gcdefault='no',
+writesetting=,
+gcvar='openfolder',
+gcdefault='no',
+writesetting=,
+gcvar='rememberlastfilename',
+gcdefault='no',
+writesetting=,
+gcvar='rememberlastfoldername',
+gcdefault='no',
+writesetting=,
+gcvar='confirmoverwrite',
+gcdefault='no',
+writesetting=,
+gcvar='confirmnewfolder',
+gcdefault='no',
+writesetting=,
+;
+
+@writesetting=
+ lccheck=getini('PDF Printer',gcvar,gcdefault,gcinifile),
+ lcvar='PDFWriter.'&gcvar,
+ lccheck2=kp('select dbo.settingsf('''&lcvar&''','''&gcdefault&''')'),
+ if(lccheck<>lccheck2,sql('exec dbo.settingscrud '''&lcvar&''','''&lccheck&''' ')),
+ if(gc1jobstat='START',putini('PDF Printer',gcvar,gcdefault,gcinifile)),
+ if(gc1jobstat='STOP',putini('PDF Printer',gcvar,lccheck2,gcinifile)),
+;
 
 @printIt1=
  lcCnt=lcCnt+1,
@@ -137,9 +190,14 @@
 @loadwindow=
  gcPBStuffer=kp('select dbo.settingsf(''site.pbStuffer'',''FALSE'')'),
  gcOrdOwner=kp('select dbo.settingsf(''site.printBatchbyOwnerNum'',''FALSE'')'),
+ lcReportName=kp('select reportName from dbo.docBRWDecoder('&gcBatchId&')'),
+ lcReportBlob=kp('select dbo.reportControlBlob('''&lcReportName&''')'),
+ gcEnableBatchJob=readstring(lcReportBlob,'@enablebatchjob='),
  create(550,12,615,48,'&Show Printed',78),
  create(551,12,615,115,'Use All &Addresses',80),
+ if(gcEnableBatchJob='TRUE',create(552,12,615,60,'Print One Job',82)),
  set(78,1),
+ set(82,''),
  setVars=,
  brwStuff=;
 
