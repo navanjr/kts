@@ -1,9 +1,9 @@
 create procedure dbo.docFeeProcessingRemove(
  @dtype varchar(50),
  @documentId int,
- @date int,
- @days int,
- @documentDate int,
+ @date int = 0,
+ @days int = 0,
+ @documentDate int = 0,
  @method varchar(50) = 'Stage'
 ) as
 begin
@@ -13,41 +13,57 @@ begin
  declare
   @commentIds ids,
   @feeInvoiceIds ids,
-  @documentName varchar(50)
+  @documentName varchar(50),
+  @queue varchar(100)
 
- select @documentName = documentName from dbo.documents where documentId = @documentId
+ if @dtype <> 'RECEIVABLES'
+ begin
+  select @documentName = documentName from dbo.documents where documentId = @documentId
 
 -- remove comments
- insert @commentIds select id from taxrollDetail 
- where case when @dtype = 'RESALE' then parcelNumber else cast(itemNumber as varchar) end
-  in (select keyCode from dbo.collectionsAddFeesTF(@dtype, @documentId, @date, @days))
-  and dtype = 'ADDFEE'
-  and documentName = @documentName
+  insert @commentIds select id from taxrollDetail 
+  where case when @dtype = 'RESALE' then parcelNumber else cast(itemNumber as varchar) end
+   in (select keyCode from dbo.collectionsAddFeesTF(@dtype, @documentId, @date, @days))
+   and dtype = 'ADDFEE'
+   and documentName = @documentName
+   and dbo.clariondate(documentDateTime)=@documentDate
 
- exec dbo.logit @@procid, 'comments - @@rowCount', @@rowCount, '@documentName', @documentName
+  exec dbo.logit @@procid, 'comments - @@rowCount', @@rowCount, '@documentName', @documentName
 
 -- remove fee invoices
- insert @feeInvoiceIds
- select id from invoices
- where
-  queue = @documentName + '.' + dbo.date1(@documentDate)
+  insert @feeInvoiceIds
+  select id from invoices
+  where
+   queue = @documentName + '.' + dbo.date1(@documentDate)
 
-/*
- select 
-  inv.id
- from taxrollDetail t
- join invoices inv on t.invoiceLinkId = inv.invoiceId
- where t.id in (select id from @commentIds)
-  and inv.origin = rtrim(@documentName) + '.04/03/2013'
-*/
 
- exec dbo.logit @@procid, 'fee invoices - @@rowCount', @@rowCount, '@documentName', @documentName
+  exec dbo.logit @@procid, 'fee invoices - @@rowCount', @@rowCount, '@documentName', @documentName
+ end
+ else
+ begin
+  select @documentName = documentName, @queue = processCode from documentprocessing where id = @documentId
+
+
+-- remove fee invoices
+  insert @feeInvoiceIds
+  select id from invoices
+  where
+   printed = @documentName
+   and queue = @queue
+   and id not in (select isnull(invoiceid,0) from receiptlink)
+
+  exec dbo.logit @@procid, 'fee invoices - @@rowCount', @@rowCount, '@documentName', @documentName
+
+ end
 
 
  if @method = 'DELETE'
  begin
-  delete taxrollDetail where id in (select id from @commentIds)
-  exec dbo.logit @@procid, 'comments deleted - @@rowCount', @@rowCount, '@documentName', @documentName
+  if @dtype <> 'RECEIVABLES'
+   begin
+    delete taxrollDetail where id in (select id from @commentIds)
+    exec dbo.logit @@procid, 'comments deleted - @@rowCount', @@rowCount, '@documentName', @documentName
+   end
 
   exec dbo.invoiceCRUD @mode=3, @postCheckOverride = 0, @ids = @feeInvoiceIds
  end
