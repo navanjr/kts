@@ -1,4 +1,4 @@
-create procedure [dbo].[buildTaxInvoice](@InvId int, @documentId int = 0, @initialize varchar(10)='FALSE') 
+create procedure [dbo].[buildTaxInvoice](@InvId int, @documentId int = 0, @initialize varchar(10)='FALSE', @2ndHalfFlag varchar(10)='FALSE', @interestto2nd varchar(100)='') 
 as
 begin
 
@@ -24,6 +24,32 @@ begin
 
 if @initialize = 'TRUE'
  begin
+
+ --statementsettings
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementsettings]') AND type in (N'U'))
+DROP TABLE [dbo].[statementsettings]
+
+declare @wtset table(name varchar(250),setting varchar(500), processcode int)
+declare @nameToken varchar(250), @settingToken varchar(500)
+
+declare @cmd varchar(max)
+
+select @cmd = 'select isnull((select top 1 id from object where typ=40),0) as siteid, '
+
+insert @wtset 
+ select right(settingname,len(settingname)-5), settingvalue, 0 from settings where left(settingname,4)='site' and settingname like '%statement%'
+
+while exists(select * from @wtset where processcode=0)
+begin
+ select top 1 @nameToken = name, @settingToken = setting from @wtset where processcode=0
+  select @cmd = @cmd + '''' + @settingToken + ''' as [' + @nameToken + '],'
+ delete from @wtset where name = @nameToken
+end
+
+select @cmd = left(@cmd,len(@cmd)-1) + ' into statementsettings'
+
+exec (@cmd)
+
  
  --statementunpaidtfnew
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaidtfnew]') AND type in (N'U'))
@@ -119,7 +145,9 @@ create table statementmain (printId int,
   propLoc varchar(100),
   HideMrtgMsg varchar(100),
   revised varchar(10),
-  siteid int)
+  siteid int,
+  SecondHalfFlag varchar(10),
+  interestto2nd varchar(100))
 
  return
 end
@@ -312,6 +340,6 @@ insert statementstatementdetail
  select * from @statementdetail
 
 insert statementmain
- select * from @rt
+ select *,@2ndHalfFlag,@interestto2nd from @rt
  
 end
