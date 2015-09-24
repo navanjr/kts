@@ -1,0 +1,317 @@
+create procedure [dbo].[buildTaxInvoice](@InvId int, @documentId int = 0, @initialize varchar(10)='FALSE') 
+as
+begin
+
+ declare @retval varchar(max), 
+         @invoiceType varchar(1), 
+         @invoiceDue money, 
+         @taxrollId int,
+         @queue varchar(50),
+         @printOrder varchar(50),
+         @addressblobtoken varchar(max),
+         @revised varchar(10) = dbo.settingsf('site.printStatementRevised','FALSE'),
+         @taxyear varchar(10),
+         @item varchar(50), 
+         @currenttax money,
+         @halftax money,
+         @pastdue money,
+         @slink varchar(16) = 't'+cast(@InvId as varchar(15))
+
+  select
+   @queue = processCode,
+   @printOrder = printOrder
+  from documentProcessing where invoiceId = @invId
+
+if @initialize = 'TRUE'
+ begin
+ 
+ --statementunpaidtfnew
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaidtfnew]') AND type in (N'U'))
+DROP TABLE [dbo].[statementunpaidtfnew]
+
+create table statementunpaidtfnew (printId int,
+ invoiceid int,
+ origin varchar(50),
+ year varchar(4),
+ recordType varchar(10),
+ perTyp varchar(10),
+ invoiceDue Money,
+ halfRate Money,
+ interestAsOfDate varchar(50),
+ subjectToPenalty int,
+ penaltyPercent decimal(19,9),
+ penalty Money,
+ link2parentInvoice int,
+ trcode varchar(50),
+ trSection int,
+ ord int
+)
+ --statementunpaid
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaid]') AND type in (N'U'))
+DROP TABLE [dbo].[statementunpaid]
+
+create table statementunpaid (printId int, due money, [year] varchar(10))
+
+ --statementunpaidtf1
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaidtf1]') AND type in (N'U'))
+DROP TABLE [dbo].[statementunpaidtf1]
+
+create table statementunpaidtf1 (printid int, trcode varchar(100), due money)
+
+ --statementstatementdetail
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementstatementdetail]') AND type in (N'U'))
+DROP TABLE [dbo].[statementstatementdetail]
+
+create table statementstatementdetail (printId int, distribution varchar(200), mills varchar(200), amount money)
+
+
+ --statementmain
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementmain]') AND type in (N'U'))
+DROP TABLE [dbo].[statementmain]
+
+create table statementmain (printId int,
+  taxrollid int,
+  TYP varchar(50),
+  PARCEL varchar(50),
+  ITEM varchar(50),
+  TAXYEAR varchar(10),
+  POSTDATE varchar(50),
+  [STATUS] varchar(50),
+  INVOICEAMT money,
+  PENALTY money,
+  FEE money,
+  currenttax money,
+  halftax money,
+  pastdue money,
+  CURRENTDUE money,
+  [QUEUE] varchar(100),
+  printOrder varchar(100),
+  FULLTYP varchar(100),
+  invoiceType varchar(50),
+  NAME varchar(100),
+  BUSINESSNAME varchar(100),
+  Stamp varchar(100),
+  address1 varchar(100),
+  address2 varchar(100),
+  address3 varchar(100),
+  city varchar(100),
+  [state] varchar(50),
+  zip1 varchar(50),
+  zip2 varchar(50),
+  zip3 varchar(50),
+  GROSSASSESSED [numeric](9, 0),
+  EXEMPTION3 [numeric](9, 0),
+  IMPROVEDASSESSEDVALUE [numeric](9, 0),
+  LANDASSESSEDVALUE [numeric](9, 0),
+  NETASSESSEDVALUE [numeric](9, 0),
+  MISCASSESSEDVALUE [numeric](9, 0),
+  MFGHOMEASSESSED [numeric](9, 0),
+  SCHOOLDISTRICTMAIN varchar(100),
+  SCHOOLDISTRICTTAXRATE varchar(100),
+  ACRES [numeric](7, 2),
+  TWP varchar(50),
+  SEC varchar(50),
+  RNG varchar(50),
+  TOTALDUE money,
+  LEGALDESCRIPTION varchar(max),
+  MortgageCode varchar(50),
+  OwnerNumber varchar(50),
+  propLoc varchar(100),
+  HideMrtgMsg varchar(100),
+  revised varchar(10),
+  siteid int)
+
+ return
+end
+
+declare @unpaidtfnew table(printId int,
+ invoiceid int,
+ origin varchar(50),
+ year varchar(4),
+ recordType varchar(10),
+ perTyp varchar(10),
+ invoiceDue Money,
+ halfRate Money,
+ interestAsOfDate varchar(50),
+ subjectToPenalty int,
+ penaltyPercent decimal(19,9),
+ penalty Money,
+ link2parentInvoice int,
+ trcode varchar(50),
+ trSection int,
+ ord int
+)
+
+insert @unpaidtfnew
+ select @InvId,* from dbo.unpaidTFNew(@InvId)
+ 
+declare @unpaid table(printId int, due money, [year] varchar(10))
+
+insert @unpaid
+select @InvId, sum(isnull(invoiceDue,0) + isnull(penalty,0)), year from dbo.unpaidTF(@InvId,@documentId) where trcode = 'Past Due' and year is not null group by year
+
+declare @unpaidtf1 table(printid int, trcode varchar(100), due money)
+
+insert @unpaidtf1
+select @InvId, trcode,SUM(invoiceDue)from @unpaidtfnew where trSection = 1 group by trcode,ord order by ord
+
+select @currenttax = due from @unpaidtf1 where trcode = 'Current Yr Tax'
+select @halftax = SUM(invoiceDue) from @unpaidtfnew where trSection = 2 and trcode='half tax' group by trcode
+select @pastdue = SUM(isnull(invoiceDue,0)) from @unpaidtfnew where trSection = 1 and trcode = 'Past Due'
+
+declare @statementdetail table(printId int, distribution varchar(200), mills varchar(200), amount money)
+
+insert @statementdetail
+select @InvId, alternateDescription,subdescription,amount from dbo.statementBRW(@slink,1) where id<0 order by ord
+
+declare @rt table(printId int,
+  taxrollid int,
+  TYP varchar(50),
+  PARCEL varchar(50),
+  ITEM varchar(50),
+  TAXYEAR varchar(10),
+  POSTDATE varchar(50),
+  [STATUS] varchar(50),
+  INVOICEAMT money,
+  PENALTY money,
+  FEE money,
+  currenttax money,
+  halftax money,
+  pastdue money,
+  CURRENTDUE money,
+  [QUEUE] varchar(100),
+  printOrder varchar(100),
+  FULLTYP varchar(100),
+  invoiceType varchar(50),
+  NAME varchar(100),
+  BUSINESSNAME varchar(100),
+  Stamp varchar(100),
+  address1 varchar(100),
+  address2 varchar(100),
+  address3 varchar(100),
+  city varchar(100),
+  [state] varchar(50),
+  zip1 varchar(50),
+  zip2 varchar(50),
+  zip3 varchar(50),
+  GROSSASSESSED [numeric](9, 0),
+  EXEMPTION3 [numeric](9, 0),
+  IMPROVEDASSESSEDVALUE [numeric](9, 0),
+  LANDASSESSEDVALUE [numeric](9, 0),
+  NETASSESSEDVALUE [numeric](9, 0),
+  MISCASSESSEDVALUE [numeric](9, 0),
+  MFGHOMEASSESSED [numeric](9, 0),
+  SCHOOLDISTRICTMAIN varchar(100),
+  SCHOOLDISTRICTTAXRATE varchar(100),
+  ACRES [numeric](7, 2),
+  TWP varchar(50),
+  SEC varchar(50),
+  RNG varchar(50),
+  TOTALDUE money,
+  LEGALDESCRIPTION varchar(max),
+  MortgageCode varchar(50),
+  OwnerNumber varchar(50),
+  propLoc varchar(100),
+  HideMrtgMsg varchar(100),
+  revised varchar(10),
+  siteid int)
+
+
+insert @rt (printId,taxrollid,TYP,PARCEL,ITEM,TAXYEAR,POSTDATE,[STATUS],INVOICEAMT,PENALTY,FEE,CURRENTDUE,[QUEUE],printOrder,FULLTYP,invoiceType)
+  select @InvId, max(TAXROLLID),
+  rtrim(max(case when invoiceId>0 then '' else TYP end)),
+  rtrim(max(PARCEL)),
+  rtrim(max(case when invoiceId>0 then 0.0 else ITEM end)),
+  rtrim(max(TAXYEAR)),
+  rtrim(max(case when invoiceId>0 then '' else POSTDATE end)),
+  rtrim(max(case when invoiceId>0 then '' else [STATUS] end)),
+  sum(case when typ in ('P','F') then 0 else invoiceAmount end),
+  sum(case when typ='P' then invoiceAmount else 0 end),
+  sum(case when typ in ('F','A') then invoiceAmount else 0 end),
+  sum(invoiceDue),
+  rtrim(isnull(@queue,'')),
+  rtrim(isnull(@printOrder,'')),
+  case rtrim(max(case when invoiceId>0 then '' else TYP end)) when 'R' then '    REAL ESTATE' when 'S' then '    SPECIAL ASSESSEMENT' ELSE 'PERSONAL' END,
+  rtrim(max(case when invoiceId>0 then '' else TYP end))
+  from invoices 
+   where (ID=@InvId or invoiceId=@InvId) 
+  group by case when invoiceId>0 then invoiceId else ID end
+
+select @taxyear = TAXYEAR,
+         @item = ITEM
+         from @rt
+         where invoiceType > ' '
+
+update @rt set currenttax = @currenttax,
+ halftax = @halftax,
+ pastdue = @pastdue,
+ siteid = isnull((select top 1 id from object where typ=40),0)
+ where invoiceType > ' '
+
+
+
+update r set NAME=rtrim(replace(replace(t.NAME,'''','`'),';',':')),
+  BUSINESSNAME=rtrim(replace(replace(t.BUSINESSNAME,'''','`'),';',':')),
+  Stamp=rtrim(t.Stamp),
+  address1=rtrim(replace(replace(t.address1,'''','`'),';',':')),
+  address2=rtrim(replace(replace(t.address2,'''','`'),';',':')),
+  address3=rtrim(replace(t.address3,'''','`')),
+  city=rtrim(t.city),
+  [state]=rtrim(t.[state]),
+  zip1=rtrim(t.zip1),
+  zip2=rtrim(t.zip2),
+  zip3=rtrim(t.zip3)
+ from @rt r, (select top 1 * from taxRollDetail td where @taxyear = cast(td.TAXYEAR as varchar(10)) 
+   and @item = cast(td.itemNumber as varchar(50))
+   and td.dtype in ('a','s')) t
+  
+update r 
+ set GROSSASSESSED=dbo.taxCorrectionsSF(t.GROSSASSESSED,@taxrollId,'058'),
+ EXEMPTION3=dbo.taxCorrectionsSF(rtrim(t.EXEMPTION3),@taxrollId,'070'),
+ IMPROVEDASSESSEDVALUE=dbo.taxCorrectionsSF(t.IMPROVEDASSESSED,@taxrollId,'052'),
+ LANDASSESSEDVALUE=dbo.taxCorrectionsSF(t.LANDASSESSED,@taxrollId,'050'),
+ NETASSESSEDVALUE=dbo.taxCorrectionsSF(t.NETASSESSEDVALUE,@taxrollId,'072'),
+ MISCASSESSEDVALUE=dbo.taxCorrectionsSF(t.MISCASSESSED,@taxrollId,'054'),
+ MFGHOMEASSESSED=dbo.taxCorrectionsSF(t.MFGHOMEASSESSED,@taxrollId,'056'),
+ SCHOOLDISTRICTMAIN=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTMAIN,@taxrollId,'042'),
+ SCHOOLDISTRICTTAXRATE=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTTAXRATE,@taxrollId,'046'),
+ ACRES=dbo.taxCorrectionsSF(t.ACRES,@taxrollId,'036'),
+ TWP=rtrim(t.TOWNSHIPBLOCK),
+ SEC=rtrim(t.SECTIONNUMBER),
+ RNG=rtrim(t.RANGELOT),
+ TOTALDUE=dbo.taxCorrectionsSF(t.TOTALDUE,@taxrollId,'078'),
+ LEGALDESCRIPTION=isnull((select dbo.getLegalDescription(@InvId)),''),
+ MortgageCode=rtrim(case when cast(t.treamort as varchar) > '  0' then cast(t.treamort as varchar) else cast(t.mortgagecode as varchar)
+ end),
+ OwnerNumber=dbo.taxCorrectionsSF(cast(t.OwnerNumber as varchar(50)),@taxrollId,'034'),
+ propLoc=case when t.proploc>'   0' then 'Physical Address: '+ t.proploc  else '' end
+from @rt r, adtax t
+ where t.id = r.taxrollid
+  and r.taxrollid > 0
+
+update r set HideMrtgMsg=o.c2
+ from @rt r, object o 
+   where o.typ=4030 and key1=r.MortgageCode
+
+if @revised = 'TRUE'
+ update @rt set revised='TRUE' where invoiceType > ' '
+
+delete from @rt where invoiceType < '0'
+
+
+insert statementunpaidtfnew 
+ select * from @unpaidtfnew
+ 
+insert statementunpaid
+ select * from @unpaid
+ 
+insert statementunpaidtf1
+ select * from @unpaidtf1
+ 
+insert statementstatementdetail
+ select * from @statementdetail
+
+insert statementmain
+ select * from @rt
+ 
+end
