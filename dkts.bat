@@ -1,4 +1,4 @@
-if exist ukts.exe del ukts.exe
+if exist ..\ukts.exe del ..\ukts.exe
   
 pkzipc -add -sfx -dir ..\ukts c:\client\key\kts\reports\*.* c:\client\key\kts\templates\*.* c:\client\key\kts\sqlobjects\*.* c:\client\key\kts\kts.bat c:\client\key\kts\*.py c:\client\key\kts\*.ftp
  
