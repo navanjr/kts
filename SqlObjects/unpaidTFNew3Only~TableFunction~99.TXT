@@ -1,0 +1,35 @@
+create function [dbo].[unpaidTFNew3Only](
+  @invoiceId int
+) returns @rt table(
+  amountPastDue money,
+  label varchar(50)
+) as 
+begin
+
+  DECLARE @wt table(
+    id int identity(1,1),
+    amountPastDue money,
+    label varchar(50)
+  )
+
+  INSERT @wt SELECT
+    SUM(ROUND(invoiceDue + ISNULL(penalty,0),2)),
+    year
+  FROM unpaidTFNew(@invoiceId)
+  WHERE trcode = 'Past Due'
+    AND year IS NOT NULL
+  GROUP BY year
+  ORDER BY year DESC
+  
+  INSERT @rt SELECT 
+    SUM(amountPastDue), 
+    MIN(label) + ' - ' + MAX(label)
+  FROM @wt WHERE id > 2
+
+  INSERT @rt SELECT amountPastDue, label FROM @wt WHERE id = 2
+
+  INSERT @rt SELECT amountPastDue, label FROM @wt WHERE id = 1  
+  
+  return
+  
+end
