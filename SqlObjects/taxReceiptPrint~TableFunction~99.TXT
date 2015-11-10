@@ -120,14 +120,17 @@ end
                                 r.pertyp=a.pertyp,
                                 r.ownername=dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber))
 				
-			from @rt r, AdTax a where r.taxRollid = a.ID and r.typ<>'S'
+			from @rt r, AdTax a where r.taxRollid = a.ID --and r.typ<>'S'
 
 	update r set            r.schoolDistrict = left('ASSESSMENT For: '+o.a20,49),
 				r.legal = cast(o.e1 as varchar(max)),
-                                r.ownername=o.a1
+                                r.ownername=case when isnull(r.ownername,'NULL')='NULL' then o.a1 else r.ownername end
 				
 			from @rt r, object o where r.taxRollid = o.ID and r.typ='S'
 				
+
+	update r set            r.schoolDistrict = left('ASSESSMENT For: '+a.orgschooldistricttaxrate,49)
+			from @rt r, AdTax a where r.taxRollid = a.ID and r.typ='S'
 						
 
 	update @rt set
