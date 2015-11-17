@@ -13,6 +13,7 @@ import time
 import zipfile
 import urllib
 import urlparse
+import re
 # from kirc import *
 
 
@@ -1546,7 +1547,72 @@ class ktsMenu():
 
 
     def gsiTaxroll(self):
-        def map(row):
+        def gsiTrMap():
+            d = {
+                'source_Type':     {'start':    0, 'end':    1, 'ktsName': 'recordType'},
+                'tax_Year':        {'start':    1, 'end':    5, 'ktsName': 'realTaxYear'},
+                'account':         {'start':    7, 'end':   15, 'ktsName': 'itemNumber'},
+                'owner_ID':        {'start':   15, 'end':   22, 'ktsName': 'ownerNumber'},
+                'owner_Name1':     {'start':   22, 'end':   62, 'ktsName': 'ownerName', 'strip': True},
+                'owner_Name2':     {'start':   62, 'end':  102, 'ktsName': 'GSI_owner_Name2', 'strip': True},
+                'owner_MailInfo':  {'start':  102, 'end':  142, 'ktsName': 'address1', 'strip': True},
+                'owner_Address1':  {'start':  142, 'end':  182, 'ktsName': 'address2', 'strip': True},
+                'owner_Address2':  {'start':  182, 'end':  222, 'ktsName': 'address3', 'strip': True},
+                'owner_City':      {'start':  222, 'end':  252, 'ktsName': 'city', 'strip': True},
+                'owner_St':        {'start':  252, 'end':  254, 'ktsName': 'state', 'strip': True},
+                'owner_Zip':       {'start':  254, 'end':  259, 'ktsName': 'zip1'},
+                'owner_Zip2':      {'start':  259, 'end':  263, 'ktsName': 'zip2'},
+                'owner_Country':   {'start':  263, 'end':  303, 'ktsName': 'country', 'strip': True},
+                'owner_LCD':       {'start':  303, 'end':  311, 'ktsName': 'GSI_owner_LCD'},
+                'owner_LCI':       {'start':  311, 'end':  314, 'ktsName': 'GSI_owner_LCI'},
+                'owner_LCT':       {'start':  314, 'end':  320, 'ktsName': 'GSI_owner_LCT'},
+                'geo_Number':      {'start':  320, 'end':  350, 'ktsName': 'fullPidNumber', 'strip': True},
+                'other_ID':        {'start':  350, 'end':  380, 'ktsName': 'GSI_other_ID'},
+                'millCodeSet':     {'start':  380, 'end':  392, 'ktsName': 'PIDSORTNUMBER'},
+                'grossAssessed':   {'start':  392, 'end':  401, 'ktsName': 'grossAssessed', 'strip': True},
+                'landAssessed':    {'start':  401, 'end':  410, 'ktsName': 'landAssessed', 'strip': True},
+                'improvAssessed':  {'start':  410, 'end':  419, 'ktsName': 'improvedAssessed', 'strip': True},
+                'mhAssessed':      {'start':  419, 'end':  428, 'ktsName': 'mfgHomeAssessed', 'strip': True},
+                'penaltyAssessed': {'start':  428, 'end':  437, 'ktsName': 'miscAssessed', 'strip': True},
+                'exempt':          {'start':  437, 'end':  446, 'ktsName': 'baseExemption', 'strip': True},
+                'exempt3':         {'start':  437, 'end':  446, 'ktsName': 'Exemption3', 'strip': True},
+                'taxable':         {'start':  446, 'end':  455, 'ktsName': 'netAssessedValue', 'strip': True},
+                'millage':         {'start':  455, 'end':  461, 'ktsName': 'TOTALTAXRATE', 'float1': True},
+                'millCode':        {'start':  461, 'end':  545, 'ktsName': 'GSI_millCode'},
+                'total_Tax':       {'start':  545, 'end':  557, 'ktsName': 'ORIGINALTOTALDUE', 'float2': True},
+                'KTS_total_Tax2':  {'start':  545, 'end':  557, 'ktsName': 'TOTALDUE', 'float2': True},
+                'KTS_total_Tax3':  {'start':  545, 'end':  557, 'ktsName': 'BALANCEDUE', 'float2': True},
+                'streetNumber':    {'start':  557, 'end':  566, 'ktsName': 'GSI_streetNumber'},
+                'streetNoSufix':   {'start':  567, 'end':  571, 'ktsName': 'GSI_streetNoSufix'},
+                'streetDirection': {'start':  571, 'end':  581, 'ktsName': 'GSI_streetDirection'},
+                'streetName':      {'start':  581, 'end':  611, 'ktsName': 'GSI_streetName'},
+                'streetType':      {'start':  611, 'end':  621, 'ktsName': 'GSI_streetType'},
+                'streetTown':      {'start':  621, 'end':  651, 'ktsName': 'GSI_streetTown'},
+                'KTS_proploc':     {'start':  557, 'end':  651, 'ktsName': 'propLoc', 'strip': True, 'sub': True},
+                'hS_Status':       {'start':  651, 'end':  681, 'ktsName': 'GSI_hS_Status'},
+                'acres':           {'start':  681, 'end':  687, 'ktsName': 'acres', 'strip': True, 'float3': True},
+                'lots':            {'start':  687, 'end':  693, 'ktsName': 'GSI_lots'},
+                'addit':           {'start':  693, 'end':  698, 'ktsName': 'additionNumber', 'strip': True},
+                'block':           {'start':  698, 'end':  702, 'ktsName': 'GSI_block'},
+                'lot':             {'start':  702, 'end':  706, 'ktsName': 'GSI_lot'},
+                'sec':             {'start':  706, 'end':  708, 'ktsName': 'sectionNumber', 'strip': True},
+                'township':        {'start':  708, 'end':  711, 'ktsName': 'townshipBlock', 'strip': True},
+                'range':           {'start':  711, 'end':  714, 'ktsName': 'rangeLot', 'strip': True},
+                'qtrSection':      {'start':  714, 'end':  715, 'ktsName': 'qtrSectionNumber', 'strip': True},
+                'deedBook':        {'start':  715, 'end':  724, 'ktsName': 'GSI_deedBook', 'strip': True},
+                'deedPage':        {'start':  724, 'end':  733, 'ktsName': 'GSI_deedPage'},
+                'salesPrice':      {'start':  733, 'end':  742, 'ktsName': 'GSI_salesPrice'},
+                'mhPrePaidFlag':   {'start':  742, 'end':  743, 'ktsName': 'GSI_mhPrePaidFlag'},
+                'taxroll_LCD':     {'start':  743, 'end':  751, 'ktsName': 'GSI_taxroll_LCD'},
+                'taxroll_LCI':     {'start':  751, 'end':  754, 'ktsName': 'GSI_taxroll_LCI'},
+                'taxroll_LCT':     {'start':  754, 'end':  760, 'ktsName': 'GSI_taxroll_LCT'},
+                'legal':           {'start':  760, 'end': 2760, 'ktsName': 'legalDescription', 'strip': True},
+                'advanceValue':    {'start': 2760, 'end': 2770, 'ktsName': 'GSI_advanceValue'},
+                'advanceTax':      {'start': 2770, 'end': 2780, 'ktsName': 'GSI_advanceTax'},
+            }
+            return d
+            
+        def mapOld(row):
             source_Type = row[0:1]
             tax_Year = row[1:5]
             account = row[7:15]
@@ -1654,14 +1720,93 @@ class ktsMenu():
                 #taxroll_LCD,    #37
                 #taxroll_LCI,    #38
                 #taxroll_LCT,    #39
-                legal.strip(),          #40
+                legal.strip(),          #40  #A36
                 #advanceValue,   #41
                 #advanceTax      #42
-                millage,
-                millCode,
-                total_Tax,
-                millCodeSet
+                millage,                #A37
+                millCode,               #A38
+                total_Tax,              #A39
+                millCodeSet             #A40
             ]
+            
+        def adtaxMap():
+            return [
+                'recordType',
+                'realTaxYear',
+                'itemNumber',
+                'ownerNumber',
+                'ownerName',
+                'address1',
+                'address2',
+                'address3',
+                'city',
+                'state',
+                'zip1',
+                'zip2',
+                'country',
+                'fullPidNumber',
+                'grossAssessed',
+                'landAssessed',
+                'improvedAssessed',
+                'mfgHomeAssessed',
+                'miscAssessed',
+                'baseExemption',
+                'Exemption3',
+                'netAssessedValue',
+                'propLoc',
+                'acres',
+                'additionNumber',
+                'townshipBlock',
+                'sectionNumber',
+                'rangeLot',
+                'qtrSectionNumber',
+                'legalDescription',
+                'TOTALTAXRATE',
+                'ORIGINALTOTALDUE',
+                'TOTALDUE',
+                'BALANCEDUE',
+                'PIDSORTNUMBER',
+                'tally',
+                'GSI_owner_Name2',
+                'GSI_owner_LCD',
+                'GSI_owner_LCI',
+                'GSI_owner_LCT',
+                'GSI_other_ID',
+                'GSI_millCode',
+                'GSI_streetNumber',
+                'GSI_streetNoSufix',
+                'GSI_streetDirection',
+                'GSI_streetName',
+                'GSI_streetType',
+                'GSI_streetTown',
+                'GSI_hS_Status',
+                'GSI_lots',
+                'GSI_block',
+                'GSI_lot',
+                'GSI_deedBook',
+                'GSI_deedPage',
+                'GSI_salesPrice',
+                'GSI_mhPrePaidFlag',
+                'GSI_taxroll_LCD',
+                'GSI_taxroll_LCI',
+                'GSI_taxroll_LCT',
+                'GSI_advanceValue',
+                'GSI_advanceTax',
+            ]
+
+        def gsiFormatedRow(self,x):
+            try:
+                item = x[2]
+                m = float(x[36])*.000001
+                t = format(float(x[38])*.01,'.2f')
+                proploc = x[21]+' '+x[22]+' '+x[23]+' '+x[24]+' '+x[25]+' '+x[26] + '                                                        '
+                proploc = proploc.strip()
+                acres = format(float(x[27])*.001,'.2f')
+                return [x[0],x[1],item,x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[19],x[20],proploc,acres,x[28],x[32],x[31],x[33],x[34],x[35],m,t,t,t,x[39]]#,x[37]]
+            except ValueError, e:
+                print 'error while formatting row: %s' % e
+                return []
+
         importFileRaw = self.settingsF('taxroll.importFile')
         if not  importFileRaw:
             print 'missing path to gsi file... fail!'
@@ -1670,31 +1815,75 @@ class ktsMenu():
         with open( importFileRaw, 'r') as content_file:
             rawData = content_file.read()
         i = 0
-        for row in rawData.split('\n'):
-            rows.append(map(row))
-        #for x in rows[0:100]:
-        #    m = float(x[36])*.000001
-        #    t = format(float(x[38])*.01,'.2f')
-        #    p = x[21]+' '+x[22]+' '+x[23]+' '+x[24]+' '+x[25]+' '+x[26] + '                                                        '
-        #    print x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[20],p[1:50],x[27],x[28],x[29]+''+x[32],x[31],x[30]+''+x[33],x[34],x[35],m,t,t,t,x[37]
+        for row in rawData.split('\n'): # found that some legals contain a hex00 and we end up missing that whole row of data
+            rows.append(row)
 
         if len(rows) > 0:
             print 'how many? ', len(rows)
             print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
-            columnNames = ['recordType','realTaxYear','itemNumber','ownerNumber','ownerName','address1','address2','address3','city','state','zip1','zip2']
-            columnNames = columnNames + ['country','fullPidNumber','grossAssessed','landAssessed','improvedAssessed','mfgHomeAssessed','miscAssessed','baseExemption','Exemption3','netAssessedValue','propLoc']
-            columnNames = columnNames + ['acres','additionNumber','townshipBlock','sectionNumber','rangeLot','qtrSectionNumber','legalDescription','TOTALTAXRATE','ORIGINALTOTALDUE','TOTALDUE','BALANCEDUE','PIDSORTNUMBER']
+            # get the adtaxCheck column names from the adtaxMap()
+            columnNames = adtaxMap() 
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
+            odometer = 0
             for id, row in enumerate(rows):
-                formatedRow = self.gsiFormatedRow(row)
+                odometer = odometer + 1
+                # formatedRow = self.gsiFormatedRow(row)
+                
+                # use the map to divide the row up to fields
+                m = gsiTrMap()
+                rowObj = {}
+                for fld, val in m.items():
+                    rowObj[val['ktsName']] = row[val['start']:val['end']]
+                    #  dont forget float and stripping as perscribed in the map
+                    if val.get('sub'):
+                        rowObj[val['ktsName']] = re.sub(' +',' ',rowObj[val['ktsName']])
+                    if val.get('strip'):
+                        rowObj[val['ktsName']] = rowObj[val['ktsName']].strip()
+                    # Float stuff
+                    try:
+                        if val.get('float1'):
+                            if rowObj[val['ktsName']] == '':
+                                rowObj[val['ktsName']] = '0'
+                            rowObj[val['ktsName']] = float(rowObj[val['ktsName']])*.000001
+                        if val.get('float2'):
+                            if rowObj[val['ktsName']] == '':
+                                rowObj[val['ktsName']] = '0'
+                            rowObj[val['ktsName']] = format(float(rowObj[val['ktsName']])*.01,'.2f')
+                        if val.get('float3'):
+                            if rowObj[val['ktsName']] == '':
+                                rowObj[val['ktsName']] = '0'
+                            rowObj[val['ktsName']] = format(float(rowObj[val['ktsName']])*.001,'.2f')
+                    except ValueError, e:
+                        print 'tally#: %s, error while attempting to float fld: %s, val: %s,  error: %s' % (tally, fld, rowObj[val['ktsName']], e)
+                        print rowObj
+                        
+                # get the data arranged into the right order for insert
+                #  columnNames is the right order
+                formatedRow = []
+                for c in columnNames:
+                    if c == 'tally':
+                        formatedRow.append(tally + 1)
+                    else:
+                        formatedRow.append(rowObj[c])
                 formatedRow = [str(x).replace("'", "''") for x in formatedRow]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
-                #print sqlInsert
-                #print sqlSelect
+                # print sqlInsert
+                # print sqlSelect
                 if len(formatedRow) > 1:
-                    if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    rslt = self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)
+                    if rslt['code'][0] == 0:
                         tally = tally + 1
+                    else:
+                        print '====>'
+                        print rslt
+                        print '<===='
+                else: 
+                    print '====>'
+                    print 'tally: %s, Failed to insert row...' % tally
+                    print row
+                    print '<===='
+                # print 'current tally: %s    odometer: %s     fmrowLen: %s' % (tally, odometer, len(formatedRow))
             print 'ok i inserted %s records' % tally
 
             def map(row):
@@ -1733,7 +1922,7 @@ class ktsMenu():
                 print 'ok i inserted %s records' % tally
                 print 'update school district and tax rates...dbo.taxrollCRUD', self.sqlQuery('exec dbo.taxrollCRUD @method=''setLevy''', True)['code']
 
-    def gsiFormatedRow(self,x):
+    def gsiFormatedRowOld(self,x):
         try:
             item = x[2]
             m = float(x[36])*.000001
@@ -1743,7 +1932,7 @@ class ktsMenu():
             acres = format(float(x[27])*.001,'.2f')
             return [x[0],x[1],item,x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[19],x[20],proploc,acres,x[28],x[32],x[31],x[33],x[34],x[35],m,t,t,t,x[39]]#,x[37]]
         except ValueError, e:
-            print e
+            print 'error while formatting row: %s' % e
             return []
 
     def defTaxroll(self):
