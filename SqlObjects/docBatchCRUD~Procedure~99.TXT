@@ -76,7 +76,9 @@ begin
    select top (@batchSize) id, @documentName, @documentDate, @processCode, case when dbo.settingsf('site.printBatchbyOwnerNum','FALSE') = 'TRUE' then cast(dbo.padLeft(isnull(ownerNumber,0),'0',9) as varchar) else name end +'_'+ cast(item as varchar), isnull(ownerNumber,0.0), name
    from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
-    order by name, item
+     -- TODO: this is too slow we need to instead left join this data to taxRollDetail for performance
+     -- AND id not in (select invoiceLinkId from taxRollDetail where documentDateTime > 0)
+   order by name, item
 
   exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
   exec dbo.docBatchPBStuff
