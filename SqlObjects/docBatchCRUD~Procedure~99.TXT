@@ -14,7 +14,8 @@ create proc dbo.docBatchCRUD(
  @dTypesBlob varchar(max) = null,
  @InvoiceId int = null,
  @district varchar(50) = null,
- @rateName varchar(50) = null
+ @rateName varchar(50) = null,
+ @days int = 0
 ) as 
 begin
 
@@ -24,6 +25,7 @@ begin
   @includePriorYears int = dbo.splitF(@switches,null,3),
   @log varchar(max),
   @tally int
+
 
  if @method = 'REMOVE'
  begin
@@ -46,6 +48,19 @@ begin
 
  if @method = 'CREATE'
  begin
+
+  declare @allIdsAlreadyPrintedForThisDocument table (id int)
+  declare 
+   @beginDateDT datetime = dbo.date1(@documentDate) + ' 12:00:01 am',
+   @endDateDT datetime = dbo.date1(@documentDate + @days ) + ' 11:59:59 pm'
+ 
+  insert @allIdsAlreadyPrintedForThisDocument
+   select invoiceLinkId 
+   FROM taxrollDetail
+   where documentName = @documentName
+     AND invoiceLinkId > 0
+     AND documentDateTime between @beginDateDT AND @endDateDT
+ 
 
   select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
   exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
@@ -72,12 +87,11 @@ begin
   else
    set @processCode = @initials + '.001'
 
-  insert dbo.documentProcessing 
+ insert dbo.documentProcessing 
    select top (@batchSize) id, @documentName, @documentDate, @processCode, case when dbo.settingsf('site.printBatchbyOwnerNum','FALSE') = 'TRUE' then cast(dbo.padLeft(isnull(ownerNumber,0),'0',9) as varchar) else name end +'_'+ cast(item as varchar), isnull(ownerNumber,0.0), name
-   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
+   from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob) a
    where id not in (select invoiceId from documentProcessing where documentName = @documentName)
-     -- TODO: this is too slow we need to instead left join this data to taxRollDetail for performance
-     -- AND id not in (select invoiceLinkId from taxRollDetail where documentDateTime > 0)
+     AND id not in (select id from @allIdsAlreadyPrintedForThisDocument)
    order by name, item
 
   exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
