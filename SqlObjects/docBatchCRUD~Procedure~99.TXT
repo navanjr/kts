@@ -15,7 +15,8 @@ create proc dbo.docBatchCRUD(
  @InvoiceId int = null,
  @district varchar(50) = null,
  @rateName varchar(50) = null,
- @days int = 0
+ @days int = 0,
+ @batchDate int = 0
 ) as 
 begin
 
@@ -51,8 +52,10 @@ begin
 
   declare @allIdsAlreadyPrintedForThisDocument table (id int)
   declare 
-   @beginDateDT datetime = dbo.date1(@documentDate) + ' 12:00:01 am',
-   @endDateDT datetime = dbo.date1(@documentDate + @days ) + ' 11:59:59 pm'
+   @beginDateDT datetime = dbo.date1(@batchDate) + ' 12:00:01 am',
+   @endDateDT datetime = dbo.date1(@batchDate + @days ) + ' 11:59:59 pm'
+
+  exec dbo.logit @@procId, '@batchDate', @batchDate, '@days', @days, '@beginDateDT', @beginDateDT, '@endDateDT', @endDateDT
  
   insert @allIdsAlreadyPrintedForThisDocument
    select invoiceLinkId 
@@ -61,6 +64,8 @@ begin
      AND invoiceLinkId > 0
      AND documentDateTime between @beginDateDT AND @endDateDT
  
+  exec dbo.logit @@procId, 'Inserted @@rowcount', @@rowCount
+
 
   select @tally = count(*) from dbo.docReceivablesBRW('DETAIL', @invTypeString, @taxyear, @paidRatio, @switches, @dTypesBlob)
   exec dbo.logit @@procId, '@documentName', @documentName, '@method', @method, '@batchSize', @batchSize, '@availableCount', @tally
