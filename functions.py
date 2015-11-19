@@ -1895,7 +1895,7 @@ class ktsMenu():
                     schoolDistrict.strip(),
                     taxRate.strip()
                     ]
-            importFileRaw = self.settingsF('taxroll.taxLevyFile')
+            importFileRaw = self.settingsF('taxroll.importTaxLevyFile')
             if not  importFileRaw:
                 print 'missing path to gsi levl file... fail!'
                 return
