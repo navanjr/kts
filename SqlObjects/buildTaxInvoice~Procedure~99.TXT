@@ -1,4 +1,4 @@
-create procedure [dbo].[buildTaxInvoice](@InvId int, @documentId int = 0, @initialize varchar(10)='FALSE', @2ndHalfFlag varchar(10)='FALSE', @interestto2nd varchar(100)='') 
+create procedure [dbo].[buildTaxInvoice](@InvId int, @documentId int = 0, @initialize varchar(10)='FALSE', @2ndHalfFlag varchar(10)='FALSE', @interestto2nd varchar(100)='', @ini varchar(10)='') 
 as
 begin
 
@@ -26,128 +26,44 @@ if @initialize = 'TRUE'
  begin
 
  --statementsettings
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementsettings]') AND type in (N'U'))
-DROP TABLE [dbo].[statementsettings]
+  IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementsettings]') AND type in (N'U'))
+  DROP TABLE [dbo].[statementsettings]
 
-declare @wtset table(name varchar(250),setting varchar(500), processcode int)
-declare @nameToken varchar(250), @settingToken varchar(500)
+  declare @wtset table(name varchar(250),setting varchar(500), processcode int)
+  declare @nameToken varchar(250), @settingToken varchar(500)
 
-declare @cmd varchar(max)
+  declare @cmd varchar(max)
 
-select @cmd = 'select isnull((select top 1 id from object where typ=40),0) as siteid, '
+  select @cmd = 'select isnull((select top 1 id from object where typ=40),0) as siteid, '
 
-insert @wtset 
- select right(settingname,len(settingname)-5), settingvalue, 0 from settings where left(settingname,4)='site' and settingname like '%statement%'
+  insert @wtset 
+   select right(settingname,len(settingname)-5), settingvalue, 0 from settings where left(settingname,4)='site' and settingname like '%statement%'
 
-while exists(select * from @wtset where processcode=0)
-begin
- select top 1 @nameToken = name, @settingToken = setting from @wtset where processcode=0
-  select @cmd = @cmd + '''' + @settingToken + ''' as [' + @nameToken + '],'
- delete from @wtset where name = @nameToken
-end
+  while exists(select * from @wtset where processcode=0)
+  begin
+   select top 1 @nameToken = name, @settingToken = setting from @wtset where processcode=0
+    select @cmd = @cmd + '''' + @settingToken + ''' as [' + @nameToken + '],'
+   delete from @wtset where name = @nameToken
+  end
 
-select @cmd = left(@cmd,len(@cmd)-1) + ' into statementsettings'
+  select @cmd = left(@cmd,len(@cmd)-1) + ' into statementsettings'
 
-exec (@cmd)
+  exec (@cmd)
 
  
  --statementunpaidtfnew
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaidtfnew]') AND type in (N'U'))
-DROP TABLE [dbo].[statementunpaidtfnew]
+  delete from statementunpaidtfnew where ini = @ini
 
-create table statementunpaidtfnew (printId int,
- invoiceid int,
- origin varchar(50),
- year varchar(4),
- recordType varchar(10),
- perTyp varchar(10),
- invoiceDue Money,
- halfRate Money,
- interestAsOfDate varchar(50),
- subjectToPenalty int,
- penaltyPercent decimal(19,9),
- penalty Money,
- link2parentInvoice int,
- trcode varchar(50),
- trSection int,
- ord int
-)
- --statementunpaid
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaid]') AND type in (N'U'))
-DROP TABLE [dbo].[statementunpaid]
-
-create table statementunpaid (printId int, due money, [year] varchar(10))
+  delete from statementunpaid where ini = @ini
 
  --statementunpaidtf1
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementunpaidtf1]') AND type in (N'U'))
-DROP TABLE [dbo].[statementunpaidtf1]
-
-create table statementunpaidtf1 (printid int, trcode varchar(100), due money)
+  delete from statementunpaidtf1 where ini = @ini
 
  --statementstatementdetail
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementstatementdetail]') AND type in (N'U'))
-DROP TABLE [dbo].[statementstatementdetail]
-
-create table statementstatementdetail (printId int, distribution varchar(200), mills varchar(200), amount money)
-
+  delete from statementstatementdetail where ini = @ini
 
  --statementmain
-IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[statementmain]') AND type in (N'U'))
-DROP TABLE [dbo].[statementmain]
-
-create table statementmain (printId int,
-  taxrollid int,
-  TYP varchar(50),
-  PARCEL varchar(50),
-  ITEM varchar(50),
-  TAXYEAR varchar(10),
-  POSTDATE varchar(50),
-  [STATUS] varchar(50),
-  INVOICEAMT money,
-  PENALTY money,
-  FEE money,
-  currenttax money,
-  halftax money,
-  pastdue money,
-  CURRENTDUE money,
-  [QUEUE] varchar(100),
-  printOrder varchar(100),
-  FULLTYP varchar(100),
-  invoiceType varchar(50),
-  NAME varchar(100),
-  BUSINESSNAME varchar(100),
-  Stamp varchar(100),
-  address1 varchar(100),
-  address2 varchar(100),
-  address3 varchar(100),
-  city varchar(100),
-  [state] varchar(50),
-  zip1 varchar(50),
-  zip2 varchar(50),
-  zip3 varchar(50),
-  GROSSASSESSED [numeric](9, 0),
-  EXEMPTION3 [numeric](9, 0),
-  IMPROVEDASSESSEDVALUE [numeric](9, 0),
-  LANDASSESSEDVALUE [numeric](9, 0),
-  NETASSESSEDVALUE [numeric](9, 0),
-  MISCASSESSEDVALUE [numeric](9, 0),
-  MFGHOMEASSESSED [numeric](9, 0),
-  SCHOOLDISTRICTMAIN varchar(100),
-  SCHOOLDISTRICTTAXRATE varchar(100),
-  ACRES [numeric](7, 2),
-  TWP varchar(50),
-  SEC varchar(50),
-  RNG varchar(50),
-  TOTALDUE money,
-  LEGALDESCRIPTION varchar(max),
-  MortgageCode varchar(50),
-  OwnerNumber varchar(50),
-  propLoc varchar(100),
-  HideMrtgMsg varchar(100),
-  revised varchar(10),
-  siteid int,
-  SecondHalfFlag varchar(10),
-  interestto2nd varchar(100))
+  delete from statementmain where ini = @ini
 
  return
 end
@@ -294,24 +210,24 @@ update r set NAME=rtrim(replace(replace(t.NAME,'''','`'),';',':')),
    and td.dtype in ('a','s') and enabled=0 order by creationdatetime desc) t
   
 update r 
- set GROSSASSESSED=dbo.taxCorrectionsSF(t.GROSSASSESSED,@taxrollId,'058'),
- EXEMPTION3=dbo.taxCorrectionsSF(rtrim(t.EXEMPTION3),@taxrollId,'070'),
- IMPROVEDASSESSEDVALUE=dbo.taxCorrectionsSF(t.IMPROVEDASSESSED,@taxrollId,'052'),
- LANDASSESSEDVALUE=dbo.taxCorrectionsSF(t.LANDASSESSED,@taxrollId,'050'),
- NETASSESSEDVALUE=dbo.taxCorrectionsSF(t.NETASSESSEDVALUE,@taxrollId,'072'),
- MISCASSESSEDVALUE=dbo.taxCorrectionsSF(t.MISCASSESSED,@taxrollId,'054'),
- MFGHOMEASSESSED=dbo.taxCorrectionsSF(t.MFGHOMEASSESSED,@taxrollId,'056'),
- SCHOOLDISTRICTMAIN=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTMAIN,@taxrollId,'042'),
- SCHOOLDISTRICTTAXRATE=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTTAXRATE,@taxrollId,'046'),
- ACRES=dbo.taxCorrectionsSF(t.ACRES,@taxrollId,'036'),
+ set GROSSASSESSED=dbo.taxCorrectionsSF(t.GROSSASSESSED,r.taxrollid,'058'),
+ EXEMPTION3=dbo.taxCorrectionsSF(rtrim(t.EXEMPTION3),r.taxrollid,'070'),
+ IMPROVEDASSESSEDVALUE=dbo.taxCorrectionsSF(t.IMPROVEDASSESSED,r.taxrollid,'052'),
+ LANDASSESSEDVALUE=dbo.taxCorrectionsSF(t.LANDASSESSED,r.taxrollid,'050'),
+ NETASSESSEDVALUE=dbo.taxCorrectionsSF(t.NETASSESSEDVALUE,r.taxrollid,'072'),
+ MISCASSESSEDVALUE=dbo.taxCorrectionsSF(t.MISCASSESSED,r.taxrollid,'054'),
+ MFGHOMEASSESSED=dbo.taxCorrectionsSF(t.MFGHOMEASSESSED,r.taxrollid,'056'),
+ SCHOOLDISTRICTMAIN=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTMAIN,r.taxrollid,'042'),
+ SCHOOLDISTRICTTAXRATE=dbo.taxCorrectionsSF(t.SCHOOLDISTRICTTAXRATE,r.taxrollid,'046'),
+ ACRES=dbo.taxCorrectionsSF(t.ACRES,r.taxrollid,'036'),
  TWP=rtrim(t.TOWNSHIPBLOCK),
  SEC=rtrim(t.SECTIONNUMBER),
  RNG=rtrim(t.RANGELOT),
- TOTALDUE=dbo.taxCorrectionsSF(t.TOTALDUE,@taxrollId,'078'),
+ TOTALDUE=dbo.taxCorrectionsSF(t.TOTALDUE,r.taxrollid,'078'),
  LEGALDESCRIPTION=isnull((select dbo.getLegalDescription(@InvId)),''),
  MortgageCode=rtrim(case when cast(t.treamort as varchar) > '  0' then cast(t.treamort as varchar) else cast(t.mortgagecode as varchar)
  end),
- OwnerNumber=dbo.taxCorrectionsSF(cast(t.OwnerNumber as varchar(50)),@taxrollId,'034'),
+ OwnerNumber=dbo.taxCorrectionsSF(cast(t.OwnerNumber as varchar(50)),r.taxrollid,'034'),
  propLoc=case when t.proploc>'   0' then 'Physical Address: '+ t.proploc  else '' end
 from @rt r, adtax t
  where t.id = r.taxrollid
@@ -328,18 +244,18 @@ delete from @rt where invoiceType < '0'
 
 
 insert statementunpaidtfnew 
- select * from @unpaidtfnew
+ select *,@ini from @unpaidtfnew
  
 insert statementunpaid
- select * from @unpaid
+ select *,@ini from @unpaid
  
 insert statementunpaidtf1
- select * from @unpaidtf1
+ select *,@ini from @unpaidtf1
  
 insert statementstatementdetail
- select * from @statementdetail
+ select *,@ini from @statementdetail
 
 insert statementmain
- select *,@2ndHalfFlag,@interestto2nd from @rt
+ select *,@2ndHalfFlag,@interestto2nd,@ini from @rt
  
 end

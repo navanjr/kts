@@ -172,14 +172,14 @@
   lcDocVarBlob=obj7:d1,
 if(gc1jobstat<>'BATCH',do1jobstart=),
 
-sql('exec dbo.buildTaxInvoice '&gcInvoiceId&','&gcDocumentId+0&', ''FALSE'', '''&readstring(lcDocVarBlob,'@2ndHalfFlag=')&''', '''&readstring(lcDocVarBlob,'@interestTo=')&''' '),
+sql('exec dbo.buildTaxInvoice '&gcInvoiceId&','&gcDocumentId+0&', ''FALSE'', '''&readstring(lcDocVarBlob,'@2ndHalfFlag=')&''', '''&readstring(lcDocVarBlob,'@interestTo=')&''', @ini='''&cur:ini&''' '),
 if(gc1jobstat<>'BATCH',docrystal=)
 ;
 
 
-@do1jobstart=sql('exec dbo.buildTaxInvoice 0, @initialize=''TRUE''');
+@do1jobstart=sql('exec dbo.buildTaxInvoice 0, @initialize=''TRUE'', @ini='''&cur:ini&'''');
 
 @docrystal=gc1jobstat='',
 lcform=kp('select dbo.settingsf(''site.taxStatementReportForm'','''')'),
 break(lcform<' 0'),
-report(lcform);
+report(lcform, '{statementmain.ini}='''&cur:ini&'''');
