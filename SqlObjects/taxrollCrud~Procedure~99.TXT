@@ -171,6 +171,16 @@ begin
 -- move records from adtaxCheck into adtax...
  if @method = 'adTaxAdd'
  begin
+    
+    if dbo.settingsf('site.taxRollUseAdvance936Amounts','FALSE') = 'TRUE'
+     begin
+       UPDATE adtaxCheck 
+        SET totaldue = cast(gsi_advancetax as money), 
+            balancedue = cast(gsi_advancetax as money) 
+        WHERE recordtype in ('P', 'M', 'R')  AND cast(gsi_advancetax as money) > 0
+     end
+
+
     exec dbo.logit @@procid, 'taxrollCRUD... @method', @method
     delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
      in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtax)
