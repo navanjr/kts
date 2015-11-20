@@ -16,7 +16,10 @@ create function dbo.apiControlBRW() returns @rt table(
 begin
  
  declare @receipts table(total int, stale int)
- declare @tokenResource varchar(50)
+ declare @tokenResource varchar(50),
+         @taxyear int,
+         @ini varchar(10)         
+
 
 --taxrolls
  set @tokenResource = 'taxroll'
@@ -120,6 +123,26 @@ begin
    dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
    'f', null, null, null, null 
    from mortgageLinksImported 
+
+--TaxRollInvoicing
+ set @tokenResource = 'taxrollinvoicing'
+ select @taxyear = max(realtaxyear) from adtax
+ select @ini = dbo.readstring('@ini=',dbo.whoAmI())
+
+ insert @rt
+ select @tokenResource,
+  count(*),
+  count(*),
+  null,
+  '@resource=' + @tokenResource + ';',
+  null,
+  dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
+  'a', null, null, null, null
+from adtax where [RealTaxYear] = @taxYear
+ and [BALANCEDUE] > 0
+ and id not in (select taxrollId from invoices where taxyear = @taxYear and typ<>'s')
+ and id not in (select id from taxrollInvoiceProcessing where taxyear = @taxYear)
+
 
  update @rt set rate = ( (total - cast(stale as money))  / total ) * 100.0
  update @rt set blob = blob + '@batchSize=' + cast(batchSize as varchar) + ';'

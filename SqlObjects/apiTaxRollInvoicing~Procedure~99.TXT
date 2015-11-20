@@ -1,0 +1,53 @@
+create proc dbo.apiTaxRollInvoicing(
+ @taxyear varchar(4) = null,
+ @method varchar(50) = 'GET',
+ @batchSize int = null,
+ @postFile varchar(50) = 'apiPosttaxrollinvoicing.json',
+ @scratchFile varchar(1000) = null,
+ @debugMode varchar(5) = 'FALSE',
+ @result varchar(max) = null output,
+ @dropRawFile varchar(5) = 'FALSE'
+) as
+begin
+ set nocount on
+
+ declare @ini varchar(10)         
+
+ declare
+  @resource varchar(50) = 'taxrollinvoicing',
+  @apiService varchar(50),
+  @tempPath varchar(50), 
+  @postFileFull varchar(100), 
+  @apiCode varchar(50),
+  @apiwt JSONHierarchy,
+  @filter varchar(500),
+  @apiResource varchar(50) = '/v2/treasurer/tax_rolls',
+  @dump varchar(max),
+  @dumpraw varchar(max),
+  @log varchar(max),
+  @tokenId int,
+  @apiResultWt JSONHierarchy,
+  @theDate datetime,
+  @updated int,
+  @inserted int,
+  @tally int,
+  @goofyChars varchar(100) = '13,10,35,248'
+
+ select @ini = dbo.readstring('@ini=',dbo.whoAmI())
+ if isnull(@taxyear,'')<'2000'
+   select @taxyear = cast(max(realtaxyear) as varchar(4)) from adtax
+
+
+ exec dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
+
+-- if not @apiService = 'ON' 
+--  return
+ 
+ if @method = 'JOB'
+ begin
+  select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
+  exec dbo.taxrollInvoiceBatch @taxyear, @batchSize, @ini
+ end
+
+
+end

@@ -41,13 +41,19 @@ begin
   return
  end
 
+ select @tally = count(*) from taxrollInvoiceProcessing where processCode = @processCode
+
+ if @tally = 0
+  begin
+   exec dbo.logit @@procid, 'bailing cause we dont have any records to process... :)'
+   return
+  end
+
  exec dbo.createAdtaxMillageSources
  exec dbo.createAdtaxMillageReceivables
  exec dbo.createAdtaxCollectionReceivables
 
  declare @rt table(id int, resultInt int) 
-
- select @tally = count(*) from taxrollInvoiceProcessing where processCode = @processCode
 
  while exists(select * from taxrollInvoiceProcessing where processCode = @processCode)
  begin
