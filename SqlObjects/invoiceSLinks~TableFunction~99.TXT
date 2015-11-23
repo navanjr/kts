@@ -3,12 +3,31 @@ create function dbo.invoiceSLinks(@invoiceId int) returns @rt table(
 )
 begin
 
+
  insert @rt select 't' + cast(@invoiceId as varchar)
  insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId = @invoiceId 
  insert @rt select 'j' + cast(id as varchar) from journalLink where invoiceId = @invoiceId 
  insert @rt select 'o' + cast(receiptId as varchar) from receiptLink where invoiceId = @invoiceId 
  insert @rt select 't' + cast(id as varchar) from invoices where invoiceId = @invoiceId and typ = 'A'
  insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @invoiceId and typ = 'A')
+
+
+ declare @oids table(invoiceId int)
+
+ declare @tokenId int
+
+ insert @oids 
+   select oi.id from invoices oi, invoices i where oi.taxrollid = i.taxrollid and i.id = @invoiceId and oi.id < @invoiceId
+
+ while exists(select invoiceId from @oids)
+ begin
+  select top 1 @tokenId = invoiceId from @oids
+   insert @rt select 't' + cast(@tokenId as varchar)
+   insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId = @tokenId 
+   insert @rt select 't' + cast(id as varchar) from invoices where invoiceId = @tokenId and typ = 'A'
+   insert @rt select 'l' + cast(id as varchar) from receiptLink where invoiceId in (select id from invoices where invoiceId = @tokenId and typ = 'A')
+  delete from @oids where invoiceId = @tokenId
+ end
 
  return
 end
