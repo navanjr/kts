@@ -18,13 +18,13 @@ create function dbo.taxrollCorrectionsRp(
 begin
 
  insert @rt (taxrollId,taxyear,item,name,parcel,ord,origin)
- select
+ select distinct
   i.taxrollId,
   i.TAXYEAR,
   i.ITEM,
   i.NAME,
   i.PARCEL,
-  cast(i.taxyear as varchar) + ltrim(rtrim(i.NAME)),
+  cast(i.taxyear as varchar) + left(ltrim(rtrim(i.NAME)),30) + cast(i.item as varchar),
   1
  from invoices i
  where i.taxrollId in (select TAXROLLID from taxrollCorrectionsView where date between @startDate and @endDate)
