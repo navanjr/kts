@@ -531,7 +531,8 @@ close('ok');
 
 @applyPayment=
  update,
- d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''','&lcField+0&', @mailLogId='&gcmaillogid+0),
+ if(readstring(obj:e2,'@maillogid=')>0,gcmaillogpic=readstring(obj:e2,'@maillogid='),gcmaillogpic=gcmaillogid),
+ d1select('exec dbo.receiptPaymentAdd '&obj:id&','''&obj:a7&''','&obj:a8+0&','''&obj:a9&''',0,'&obj:link4+0&',0,'''&obj:a10&''','''&obj:a11&''','&lcField+0&', @mailLogId='&gcmaillogpic+0),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Adding Receipt Payment...')),
  if(readstring(obj7:d1,'@code=')=2,applyPaymentA=),
  break(readstring(obj7:d1,'@code=')<>0),
@@ -990,14 +991,16 @@ gcPrintOneTaxReceiptId=0,
 @acc162=break(obj:a17='Posted'),
  select(1,4514,'typ=4514 and a20<'' 0''','Select Envelope to Work...'),
  break(pic:id<1),
- gcmaillogid=pic:id,
- get(pic:id),
+ gcmaillogpic=pic:id,
+ lcblob='@maillogid='&gcmaillogpic&';'&obj:e2,
+ set(104,lcblob),
+ get(gcmaillogpic),
  sql('update paid set slink=''o'&obj:id+0&''' where mailLogId='&obj7:id&' and isnull(slink,'''')<'' 0'''),
  lcNameString=left(clip(obj7:a1),28)&'PM:'&format(obj7:a2,@d2)&'-'&left(obj7:key3,len(obj7:key3)-4),
  set(008,lcNameString),
  d1select('exec dbo.receiptStageGL '&obj:id),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
- d1select('update paid set maillogid='&gcmaillogid&' where slink=''o'&obj:id&''' and maillogid=0'),
+ d1select('update paid set maillogid='&gcmaillogpic&' where slink=''o'&obj:id&''' and maillogid=0'),
  refreshDetail=
 ;
 
