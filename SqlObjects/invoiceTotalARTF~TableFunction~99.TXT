@@ -1,9 +1,10 @@
-create function dbo.invoiceTotalARTF(@invoiceId int) returns @rt table(
+create function dbo.invoiceTotalARTF(@invoiceId int, @amount money) returns @rt table(
  slink varchar(15),
  accountId int,
  accountDesc varchar(50),
  amount money,
  ACR varchar(60),
+ partialamount money,
  status varchar(10)
 )
 begin
@@ -12,14 +13,17 @@ begin
 
  insert @slinks select slink from dbo.invoiceSLinks(@invoiceId)
 
+ declare @totalamount money,
+         @partialsum money
+
 
  insert @rt
- select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 'Posted'
+ select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 'Posted'
  from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
 group by a.slink, a.accountId, a.accountDesc, b.targetACR
 
  insert @rt
- select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 'Staged'
+ select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 'Staged'
  from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
 group by a.slink, a.accountId, a.accountDesc, b.targetACR
 
@@ -29,6 +33,23 @@ group by a.slink, a.accountId, a.accountDesc, b.targetACR
 
 
  update @rt set acr = @acrToken where acr < ' 0'
+
+ if isnull(@amount,0) > 0.00 
+ begin
+  select @totalamount = sum(amount) from @rt
+  if @totalamount = 0
+   begin
+    return
+   end
+  
+  update @rt set partialamount = round(amount/@totalamount * @amount,2)
+
+  select @partialsum = sum(partialamount) from @rt
+
+  
+  
+ 
+ end
 
  return
 
