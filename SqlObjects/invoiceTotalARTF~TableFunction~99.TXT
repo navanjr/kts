@@ -3,17 +3,32 @@ create function dbo.invoiceTotalARTF(@invoiceId int) returns @rt table(
  accountId int,
  accountDesc varchar(50),
  amount money,
+ ACR varchar(60),
  status varchar(10)
 )
 begin
 
- insert @rt
- select a.slink, a.accountId, a.accountDesc, a.amount, 'Posted'
- from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from dbo.invoiceSLinks(@invoiceId))
+ declare @slinks table(slink varchar(16))
+
+ insert @slinks select slink from dbo.invoiceSLinks(@invoiceId)
+
 
  insert @rt
- select a.slink, a.accountId, a.accountDesc, a.amount, 'Staged'
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from invoiceSlinks(@invoiceId))
+ select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 'Posted'
+ from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
+group by a.slink, a.accountId, a.accountDesc, b.targetACR
+
+ insert @rt
+ select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 'Staged'
+ from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
+group by a.slink, a.accountId, a.accountDesc, b.targetACR
+
+
+ declare @acrToken varchar(60)
+  select top 1 @acrToken = accountcode from dbo.targetFundInvoice(@invoiceId) order by apportionPercent desc
+
+
+ update @rt set acr = @acrToken where acr < ' 0'
 
  return
 
