@@ -196,7 +196,7 @@ class ktsMenu():
             file2Zip = '%s\%s' % (self.ftpSettings['path'], fileName)
             zipFile = '%s\%s.%s' % (self.ftpSettings['path'], fileName.split('.')[0], 'zip')
         try:
-            with zipfile.ZipFile(zipFile, 'w', zipfile.ZIP_DEFLATED) as theZipFile:
+            with zipfile.ZipFile(zipFile, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as theZipFile:
                 theZipFile.write(file2Zip, os.path.basename(file2Zip))
         except:
             return False, 0
