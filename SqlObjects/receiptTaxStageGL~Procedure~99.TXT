@@ -35,7 +35,8 @@ begin
   protestAmount money,
   protestId int,
   slink2 varchar(15),
-  sourceCode varchar(60)
+  sourceCode varchar(60),
+  arAccountId int
  )
  declare @glSalesCredits table(
   slink varchar(15),
@@ -83,7 +84,10 @@ begin
   @prorate decimal(19,18),
   @processCount int,
   @suspenseMethod varchar(50),
-  @message varchar(250)
+  @message varchar(250),
+  @invoiceIdToken int,
+  @payamountToken money,
+  @protestAmountToken money
 
  select @suspenseMethod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
 
@@ -222,7 +226,7 @@ begin
 
  update @wt set
   due = case when invoiceTyp not in ('S','A') then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
-  arAccountId = (select arAccountId from dbo.invoiceCheck(invoiceId)),
+  arAccountId = (select top 1 arAccountId from dbo.invoiceCheck(invoiceId)),
   contraAccountId = case when isnull(contraAccountId,0) = 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
      else contraAccountId end,
   protestId = case when protestAmount > 0 and isnull(protestId,0) < 1 
@@ -387,6 +391,21 @@ begin
 
 -- populate fundDebits
 -- add the debit to funds accounts from the invoice detail
+ update @wt set processFlag = 0 where processflag <> 0
+ while exists (select * from @wt where processflag = 0)
+ begin
+ 
+  select top 1 @idToken = id, @invoiceIdToken = invoiceid, @payamountToken = applyAmount, @protestAmountToken = protestamount from @wt where processflag = 0
+   insert @glFundDebits
+   select 
+    c.slink, a.ACR, 0, a.amount,c.applyAmount/c.due,a.partialamount, c.contraAccountId, a.amount as due, a.protestAmount, c.protestId, 
+     case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode, a.accountId
+   from dbo.invoicetotalartf(@invoiceIdToken,@payamountToken,@protestAmountToken) a, @wt c 
+   where a.partialamount <> 0 and c.id = @idToken and c.due<>0.00
+  
+  update @wt set processflag=1 where id = @idToken
+ end 
+/*
  insert @glFundDebits
  select
   c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
@@ -406,14 +425,14 @@ begin
   c.slink, c.fundCode, c.contraAccountId,
   c.due, 
   c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
-
+*/
  update @glFundDebits set amount=due where abs(amount)>abs(due)
  update @glFundDebits set payamount=due where abs(payamount)>abs(due)
  update @glFundDebits set protestAmount=due where abs(protestAmount)>abs(due)
 
 -- change contra account for protested tax money
- insert @glFundDebits (slink, fundCode, accountId, amount, prorate, payAmount, contraId, due, protestAmount, protestId, slink2, sourceCode)
-    select slink, fundCode, accountId, protestAmount, prorate, protestAmount, protestId, protestAmount, 0,0, slink2, sourceCode from @glFundDebits where protestAmount>0
+ insert @glFundDebits (slink, fundCode, accountId, amount, prorate, payAmount, contraId, due, protestAmount, protestId, slink2, sourceCode, arAccountId)
+    select slink, fundCode, accountId, protestAmount, prorate, protestAmount, protestId, protestAmount, 0,0, slink2, sourceCode, arAccountId from @glFundDebits where protestAmount>0
  update @glFundDebits set amount=amount-protestAmount, payamount=payamount-protestAmount, slink2='' where protestAmount>0
 -- remove lines with no amounts
  delete from @glFundDebits where amount=0.00 and payamount=0.00
@@ -540,20 +559,11 @@ end
 
 -- add the credit to AR Accounts
  insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null, ''
+ select b.slink, b.arAccountId, round(sum(b.payAmount)*-1,2), null, ''
  from @wt a, @glFundDebits b
  where a.slink = b.slink
-  and a.invoiceTyp<>'S'
- group by b.slink, a.arAccountId, a.id
-
- insert @glSalesCredits 
- select b.slink, a.arAccountId, round(sum(b.payAmount)*-1,2), null, '' 
- from @wt a, @glFundDebits b
- where a.slink = b.slink
-  and a.invoiceTyp='S' 
-  and a.sourceCode=b.sourceCode
-  and a.fundCode=b.fundCode
- group by b.slink, a.arAccountId, a.id
+  --and a.invoiceTyp<>'S'
+ group by b.slink, b.arAccountId, a.id
 
 -- echo the guts of this proc and bail if you are in test mode
  if @mode = 1

@@ -1,56 +1,145 @@
-create function dbo.invoiceTotalARTF(@invoiceId int, @amount money) returns @rt table(
- slink varchar(15),
+create function dbo.invoiceTotalARTF(@invoiceId int, @amount money, @protestAmount money) returns @rt table(
+ id int identity(1,1),
  accountId int,
  accountDesc varchar(50),
  amount money,
  ACR varchar(60),
  partialamount money,
- status varchar(10)
+ protestAmount money,
+ payorder varchar(50),
+ status varchar(10),
+ processcode int
 )
 begin
-
+ 
  declare @slinks table(slink varchar(16))
 
  insert @slinks select slink from dbo.invoiceSLinks(@invoiceId)
 
  declare @totalamount money,
-         @partialsum money
+         @partialsum money,
+         @slink varchar(16) = 't'+ cast(@invoiceId as varchar)
 
 
  insert @rt
- select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 'Posted'
+ select a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 0.00, b.reportorder, 'Posted', 0
  from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
-group by a.slink, a.accountId, a.accountDesc, b.targetACR
-
- insert @rt
- select a.slink, a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 'Staged'
- from glDetailStage a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
-group by a.slink, a.accountId, a.accountDesc, b.targetACR
+group by a.accountId, a.accountDesc, b.targetACR, b.reportorder
 
 
- declare @acrToken varchar(60)
-  select top 1 @acrToken = accountcode from dbo.targetFundInvoice(@invoiceId) order by apportionPercent desc
+ declare @acrToken varchar(60), 
+         @tokenAmount money, 
+         @tokenOrder varchar(50), 
+         @remainingAmount money,
+         @pennies money,
+         @tokenPennies money,
+         @tokenId int
+
+ select top 1 @acrToken=fundcode from receiptdetail where slink=@slink order by amount desc
 
 
  update @rt set acr = @acrToken where acr < ' 0'
 
+  
+
  if isnull(@amount,0) > 0.00 
  begin
-  select @totalamount = sum(amount) from @rt
-  if @totalamount = 0
-   begin
-    return
-   end
-  
-  update @rt set partialamount = round(amount/@totalamount * @amount,2)
+  select @remainingAmount = @amount
 
-  select @partialsum = sum(partialamount) from @rt
+  while exists (select * from @rt where processcode = 0)
+  begin
+   select top 1 @tokenOrder = payorder from @rt where processcode = 0 order by payorder
+   select @tokenAmount = sum(amount) from @rt where payorder = @tokenOrder
+   if @remainingAmount > @tokenAmount
+    begin
+     update @rt set partialAmount = amount where payorder = @tokenOrder
+    end
+   else
+    begin
+     select @totalamount = sum(amount) from @rt where payorder = @tokenOrder
+     if @totalamount <> 0
+      begin
+       if (select count(*) from @rt where payorder = @tokenOrder)=1
+        begin
+         update @rt set partialamount = @remainingAmount where payorder = @tokenOrder
+        end
+       else
+        begin
+         update @rt set partialamount = round(amount/@totalamount * @remainingAmount,2) where payorder = @tokenOrder
+         update @rt set partialamount = amount where payorder = @tokenOrder and partialamount > amount
+        end
+      end
+     select @partialsum = sum(partialamount) from @rt where payorder = @tokenOrder
+     select @pennies = @remainingAmount - @partialsum
+     while @partialsum <> @remainingAmount and exists(select * from @rt 
+          where amount <> partialamount and payorder = @tokenOrder and processcode = 0)
+     begin
+      select top 1 @tokenId = id from @rt where amount <> partialamount and payorder = @tokenOrder and processcode = 0
+      update @rt set partialamount = partialamount + ((@pennies/abs(@pennies)/100)), processcode=2 where id = @tokenId
 
-  
-  
+      select @partialsum = sum(partialamount) from @rt where payorder = @tokenOrder
+     end
+    end
+   select @partialsum = sum(partialamount) from @rt where payorder = @tokenOrder
+
+   select @remainingAmount = @remainingAmount - @partialsum
+
+   update @rt set processcode=1 where payorder = @tokenOrder
+  end
  
  end
+
+ update @rt set processcode = 0 where processcode <> 0
+
+ if isnull(@protestAmount,0) > 0.00 
+ begin
+  select @remainingAmount = @protestAmount
+
+  while exists (select * from @rt where processcode = 0)
+  begin
+   select top 1 @tokenOrder = payorder from @rt where processcode = 0 order by payorder
+   select @tokenAmount = sum(partialamount) from @rt where payorder = @tokenOrder
+   if @remainingAmount > @tokenAmount
+    begin
+     update @rt set protestAmount = partialamount where payorder = @tokenOrder
+    end
+   else
+    begin
+     select @totalamount = sum(partialamount) from @rt where payorder = @tokenOrder
+     if @totalamount <> 0
+      begin
+       if (select count(*) from @rt where payorder = @tokenOrder)=1
+        begin
+         update @rt set protestamount = @remainingAmount where payorder = @tokenOrder
+        end
+       else
+        begin
+         update @rt set protestamount = round(partialamount/@totalamount * @remainingAmount,2) where payorder = @tokenOrder
+         update @rt set protestamount = partialamount where payorder = @tokenOrder and protestamount > partialamount
+        end
+      end
+     select @partialsum = sum(protestamount) from @rt where payorder = @tokenOrder
+     select @pennies = @remainingAmount - @partialsum
+     while @partialsum <> @remainingAmount and exists(select * from @rt 
+          where partialamount <> protestamount and payorder = @tokenOrder and processcode = 0)
+     begin
+      select top 1 @tokenId = id from @rt where partialamount <> protestamount and payorder = @tokenOrder and processcode = 0
+      update @rt set protestamount = protestamount + ((@pennies/abs(@pennies)/100)), processcode=2 where id = @tokenId
+
+      select @partialsum = sum(protestamount) from @rt where payorder = @tokenOrder
+     end
+    end
+   select @partialsum = sum(protestamount) from @rt where payorder = @tokenOrder
+
+   select @remainingAmount = @remainingAmount - @partialsum
+
+   update @rt set processcode=1 where payorder = @tokenOrder
+  end
+ 
+ end
+
 
  return
 
 end
+

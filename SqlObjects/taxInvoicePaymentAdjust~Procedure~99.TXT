@@ -13,12 +13,13 @@ declare @postDate varchar(20) = dbo.clariondate(getdate()),
         @district varchar(50),
         @rate varchar(50)
 
-select top 1 @arAccountCode = accountCode,
-       @expAccountCode = LEFT(accountCode,LEN(accountcode)-3)+'_EXP',
-       @contraId = ISNULL((select a.accountId from glaccounts a where a.accountcode=LEFT(gldetail.accountCode,LEN(gldetail.accountcode)-3)),0)
-  from gldetail 
-  where slink='t'+CAST(@invoiceId as varchar)
-   and accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
+select top 1 @arAccountCode = ac.accountCode,
+       @expAccountCode = ac.targetaccountCode+'_EXP',
+       @contraId = ISNULL((select a.accountId from glaccounts a where a.accountcode=ac.targetaccountCode),0)
+  from gldetail g, glaccounts ac
+  where slink='t'+CAST(@invoiceId as varchar) 
+   and g.accountcode=ac.accountcode
+   and ac.accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
 
 select top 1 @SourceAccountCode = accountcode, 
              @ACRAccountCode = accountCode+'_ACR'
@@ -64,10 +65,9 @@ select @newjlinkId = ID from journalLink where invoiceId=@invoiceId and jeId = @
 
 --Insert gldetailstage linked to journallink
 insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
- select accountId, accountcode, accountdesc, @amount*-1,'j'+CAST(@newjlinkId as varchar)
-  from gldetail g
-  where slink='t'+CAST(@invoiceId as varchar)
-   and accountcode in (select accountCode from glAccounts where accountType='RECEIVABLE')
+ select a.accountId, a.accountcode, a.accountdesc, ar.partialamount*-1,'j'+CAST(@newjlinkId as varchar)
+  from glaccounts a, dbo.invoiceTotalARTF(@invoiceId,@amount,0) ar
+  where a.accountId = ar.accountId and partialamount > 0
 
 insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
  select top 1 a.accountId, a.accountcode, a.accountdesc, @amount,'j'+CAST(@newjlinkId as varchar)
