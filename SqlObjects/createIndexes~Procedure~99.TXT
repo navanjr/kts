@@ -410,6 +410,27 @@ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gl
   ON [dbo].[gldetail] ([fpCode])
   INCLUDE ([accountId],[slink])
 
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'contraId_accountcode_slink')
+CREATE NONCLUSTERED INDEX [contraId_accountcode_slink] ON [dbo].[gldetail]
+(
+	[contraId] ASC,
+	[accountCode] ASC,
+	[slink] ASC
+)WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF) ON [PRIMARY]
+
+IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetail]') AND name = N'accountId include accountcode_accountdesc_amount_slink_contraId_sourcecode')
+CREATE NONCLUSTERED INDEX [accountId include accountcode_accountdesc_amount_slink_contraId_sourcecode] ON [dbo].[gldetail]
+(
+	[accountId] ASC
+)
+INCLUDE ( 	[accountCode],
+	[accountDesc],
+	[amount],
+	[slink],
+	[contraId],
+	[sourcecode]) WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF) ON [PRIMARY]
+
+
 -------Adtax
 if not exists(SELECT * FROM sys.indexes WHERE name='id' AND object_id = OBJECT_ID('AdTax'))
    CREATE NONCLUSTERED INDEX [id] ON [dbo].[AdTax] 
@@ -432,8 +453,25 @@ if not exists(SELECT * FROM sys.indexes WHERE name='realTaxYear,itemNumber' AND 
  IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptLink]') AND name = N'receiptId')
   CREATE NONCLUSTERED INDEX [receiptId] ON [dbo].[receiptlink] ([receiptId])
 
+ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[receiptLink]') AND name = N'invoiceId_id')
+CREATE NONCLUSTERED INDEX [invoiceId_id] ON [dbo].[receiptlink]
+(
+	[invoiceId] ASC,
+	[id] ASC
+)WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF) ON [PRIMARY]
+
+
+
 -- gldetailStage
  IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[gldetailStage]') AND name = N'accountId') 
   CREATE NONCLUSTERED INDEX [accountId] ON [dbo].[gldetailStage] ([accountId])
+
+
+--keyLog
+ IF not EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[keyLog]') AND name = N'time') 
+CREATE CLUSTERED INDEX [time] ON [dbo].[keyLog]
+(
+	[time] DESC
+)WITH (SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF) ON [PRIMARY]
 
 end
