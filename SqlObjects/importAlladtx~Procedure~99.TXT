@@ -22,14 +22,31 @@ begin
    if cast(isnull(@year,'0') as int) in (select distinct realtaxyear from adtax)
     return
 
-   exec dbo.taxrollCRUD @method = 'adTaxAdd'
-
    exec dbo.taxrollCRUD @method = 'importTax'
 
-   delete from adtax where balancedue = 0.00
+   exec dbo.taxrollCRUD @method = 'adTaxAdd'
+
+   delete from adtax where balancedue = 0.00 -- remove this line for importing paid items
  
  update @infoTable set processcode = 1 where name = @nameToken
 end
+/*  -- Alternate code for importing paid items
+ insert into invoices (TAXROLLID,TYP,PARCEL,ITEM,TAXYEAR,NAME,BUSINESSNAME,POSTDATE,STATUS)
+	select	
+        id,
+	RECORDTYPE,
+	FULLPIDNUMBER,
+	ITEMNUMBER,
+	REALTAXYEAR,
+	OWNERNAME,
+	BUSINESSNAME,
+	'',
+	'Exempt'
 
+      from AdTax where 
+	id not in (select taxrollId from invoices) 
+	and OWNERNAME>'  0'
+        and balanceDUE<=0
+*/
 
 end
