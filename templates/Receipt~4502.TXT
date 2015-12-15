@@ -1,7 +1,7 @@
-@recalc=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
+@recalcimg=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
-@gfwindow=gcscanid=obj:id,do(450,notify=),recalc=,update,tsc;
+@gfwindow=gcscanid=obj:id,do(450,notify=),recalcimg=,update,tsc;
 @countImage=sql('update object set imagecount=isnull((select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))),0) where id='&obj:id);
 
 \00020500;
@@ -172,7 +172,7 @@ close('ok');
  d1select('select dbo.settingsf(''site.stateTaxSystemImport'',''FALSE'')'),
  gcstateimport=obj7:d1;
 
-@closewindow=gcscanid=0;
+@closewindow=gcscanid=0,recalcimg=;
 
 @intReceipt=
  set(020,'ETR');
@@ -849,12 +849,12 @@ acc551=
  if(acImaging='TRUE',m('Would you like to:',,,'Scan|View|Change Info|Cancel'),changecheckinfo=),
  break(acImaging='FALSE'),
  case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,changecheckinfo=),
- recalc=,tsc;
+ recalcimg=,tsc;
 
 @scanpaid=gcscanid='p'&lcid,
  do(1,scan=),
  gcscanid=obj:id,
- recalc=,tsc;
+ recalcimg=,tsc;
 
 @viewpaid=gcscanid='p'&lcid,d1select('exec dbo.imageViewCRUD '''&gcscanid&''''),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='))),
@@ -862,7 +862,7 @@ acc551=
  gcobjid=obj7:d1,
  neww(3208),
  gcscanid=obj:id,
- recalc=,tsc;
+ recalcimg=,tsc;
 
 @changecheckinfo=lcCheckDeposited=kp('select case when '&lcid&' in (select id from dbo.depositPaidUnPosted() where isnull(depositId,0)=0) then ''FALSE'' else ''TRUE'' end'),
  if(lcCheckDeposited='TRUE',m('This payment item is already on a deposit and may not be changed.'),),

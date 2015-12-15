@@ -168,7 +168,7 @@ begin
   
   -- post to the gl
   declare @test int = substring(@slink,2,14)
-  exec dbo.glPost @test, @styp, @smode, @verbose = @verbose, @skipSQLTransaction = @skipSQLTransactionOnGLPost
+  exec dbo.glPost @test, @styp, @smode, @verbose = @verbose, @updateInvoice = 'FALSE', @skipSQLTransaction = @skipSQLTransactionOnGLPost
   
   -- Check glDetail for good data
   if (select dbo.glPostCheck(@slink)) = 1 
@@ -186,8 +186,6 @@ begin
   commit transaction
   set @newInvoiceId = @invoiceId
   exec dbo.invoiceUpdate @invoiceId
-  exec dbo.invoiceUpdate @mainInvoiceId
-  -- Nate: removed cause of the bug inside the diagFix
-  --if left(@description,4) = 'VOID'
-  --  exec dbo.diagFix_missingapideletedinvoices @method='FIX'
+-- This update is automatically run from the preceeding update statement
+  --exec dbo.invoiceUpdate @mainInvoiceId
 end
