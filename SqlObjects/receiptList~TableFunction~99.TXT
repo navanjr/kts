@@ -35,32 +35,34 @@ returns @wt table(id int identity(1,1),
                   recStatus varchar(50),
                   parentInvoiceSlink varchar(15),
                   assessmentCityCode varchar(60),
-                  assessmentCityDesc varchar(50))
+                  assessmentCityDesc varchar(50),
+                  paycode varchar(50),
+                  paymentType varchar(50))
                   
 as 
 begin                  
 
 -- here we get all rows from object where typ = 4502 and the receiptType is NOT Tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station,recStatus,recId)
- select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station, recStatus, recId
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,paid,slink,deputy, postdate, postdate1,station,recStatus,recId,paycode)
+ select recType,recNum,recDate,recdate1,recFrom,paid,'o'+cast(recId as varchar),Deputy, postdate, postdate1, station, recStatus, recId, paycode
  from receipt 
  where 
   postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
   and recType<>'TAX'
 
 -- dont know for sure but i think this gets all object records that are typ 4502 and receipt Type is tax
- insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station,taxyear,recStatus,parentInvoiceSlink)
+ insert @wt (recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy, postdate, postdate1,station,taxyear,recStatus,parentInvoiceSlink,paycode)
  select recType,recNum,recDate,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station, taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end
+   'l'+cast(linkId as varchar(15)),recId,Deputy, postdate, postdate1, station, taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end, paycode
   from taxReceipt where 
    postDate>=@beginDate and postDate<=@endDate and recStatus in ('Posted','VOID','EXEMPT')
    and parentInvoiceId<1
    order by recNum
 
 -- another dip into object for tax receipts i think
- insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy,taxyear,recStatus,parentInvoiceSlink)
+ insert @wt (recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,slink,recId,deputy,taxyear,recStatus,parentInvoiceSlink,paycode)
  select recType,recNum,recdate1,recFrom,invoiceType,invoiceId,parentInvoiceId,
-  'l'+cast(linkId as varchar(15)),recId, Deputy,taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end
+  'l'+cast(linkId as varchar(15)),recId, Deputy,taxyear, recStatus,case when parentInvoiceId>0 then 't'+cast(parentInvoiceId as varchar) else null end, paycode
   from taxReceipt where recId in (select recId from @wt)
    and parentInvoiceId>0
    order by recNum
@@ -260,6 +262,10 @@ where recType='TAX'
 update @wt set 
  paid=isnull(paid,0)-isnull(fee,0) 
  where left(recType,3)<>'TAX'
+
+update w set paymentType = case when p.a2 in ('B','C','E') then 'ETR' else w.paycode end 
+ from @wt w, object p 
+ where p.typ = 4505 and p.key1=w.paycode and w.paycode > ' 0'
 
 return 
 end

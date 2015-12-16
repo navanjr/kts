@@ -34,7 +34,7 @@ printBookReceiptList=;
 @printReceiptSummary=
  gcReceiptType='TAX',
  gcSummary='TRUE',
- lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,count(recnum),postdate1,school+'' - ''+rate,sum(isnull(paid,0))+sum(isnull(penalty,0))+sum(isnull(fee,0)),'''',sum(isnull(paid,0)),sum(isnull(penalty,0)),sum(isnull(fee,0)),'''','''',taxType,SAtyp,'''',assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''tax'' group by recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,postdate1,taxType,SAtyp,assessmentCityDesc,rate,school,postdate,recType order by recType,school,rate,postdate',
+ lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,count(recnum),postdate1,school+'' - ''+rate,sum(isnull(paid,0))+sum(isnull(penalty,0))+sum(isnull(fee,0)),'''',sum(isnull(paid,0)),sum(isnull(penalty,0)),sum(isnull(fee,0)),'''','''',taxType,SAtyp,'''',assessmentCityDesc,rate,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where left(recType,3)=''tax'' group by recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,postdate1,taxType,SAtyp,assessmentCityDesc,rate,school,postdate,recType order by recType,school,rate,postdate',
  printReceiptList=,
  gcSummary='FALSE',
  gcWhere='';
@@ -52,7 +52,7 @@ printBookReceiptList=;
  if(gcBankAccount>'  0',lcWhere=lcWhere&choose(lcWhere>'  0',' and ',' where ')&' case when left(recType,3)=''tax'' then left(recType,3) else recType end in (select code from receiptType where depositAccount='''&gcBankAccount&''') and recId not in (select dbo.slinkid(slink) from paid where 
  depositid in (select d.id from object d, glaccounts a where d.typ = 4513 and d.link1=a.accountid and accountcode <> '''&gcBankAccount&''') 
  and dbo.slinktype(slink)=''o'')',lcWhere=lcWhere),
- if(gcSummary<>'TRUE',lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum'),
+ if(gcSummary<>'TRUE',lcsql='select recType+case when '''&gcTIFF&'''=''TRUE'' then '' - TIFF DISTRICT - ''+rate else '''' end,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,assessmentCityDesc,rate,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum'),
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -203,7 +203,7 @@ printReceiptList=
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
- lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
+ lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by rectype,recnum',
  tr(
   prn(printed),
   prn(page),
@@ -235,7 +235,7 @@ printReceiptList=
  lcgrpToken='',
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&'''',lcWhere=''),
- lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by taxType,rectype,recnum',
+ lcsql='select recType,recnum,recdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),deputy,isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by taxType,rectype,recnum',
  lcDetFont='Arial',
  lcFont='Arial',
  lcFontSize=11,
@@ -250,7 +250,7 @@ printReceiptList=
   lcReportType=choose(gcDeputy='','Station','Deputy'),
   lcUser=choose(lcReportType='Station','Station: '&gcStation,'Deputy: '&gcDeputy),
   lcFilter=choose(lcReportType='Station','station='&''gcStation'','deputy='&''gcDeputy''),
-  lcsql='select recType,recnum,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0)+isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where '&lcFilter&' order by recType,recnum',
+  lcsql='select recType,recnum,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0)+isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') where '&lcFilter&' order by recType,recnum',
   lcTotPaid=0,
   lcPaid=0,
   lcPenFees=0,
@@ -316,7 +316,7 @@ printReceiptList=
  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
-  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by Deputy, Station, recType, recNum  ',
+  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by Deputy, Station, recType, recNum  ',
  if(lcReceiptType='TAX',BookTax=,BookOther=);
 
 /**Honors date range and receipt type. Deputy, Station and Print Detail are ignored**/
@@ -332,7 +332,7 @@ printReceiptList=
  if(left(gcReceiptType,3)='TAX',lcReceiptType='TAX'),
  if(left(gcReceiptType,3)='TAX',gcReceiptType='TAX'),
  if(gcReceiptType>'  0',lcWhere='where left(recType,len('''&gcReceiptType&'''))='''&gcReceiptType&''' ',lcWhere=''),
-  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by '''&lcReportType&''', recType, recNum  ',
+  lcsql='select recType,recNum,recdate1,postdate1,case when recStatus = ''VOID'' then ''VOID'' else recfrom end,isnull(paid,0)+isnull(penalty,0)+isnull(fee,0),isnull(paid,0),isnull(penalty,0),isnull(fee,0),itemNumber,parcelNumber,taxType,SAtyp,station,deputy,paymentType from dbo.receiptList(''00000'',''99999'','''&gcBeginDate&''','''&gcEndDate&''') '&lcWhere&' order by '''&lcReportType&''', recType, recNum  ',
  if(lcReceiptType='TAX',BookTax=,BookOther=);
   
 @BookOther=
@@ -363,21 +363,21 @@ printReceiptList=
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
  if(lcReportSort+0=1),do(
-    bnd('H','Rec No',600,'Post Date',700,'Received From',2400,'Amt Paid',900R,'Fees',800R,'Total Amt Pd',900R,'Type',400C),
+    bnd('H','Rec No',600,'Post Date',700,'Received From',2100,'Amt Paid',800R,'Fees',700R,'Total Amt Pd',800R,'Type',400C,'Paid',600R),
     if(curpag=1),
      grp(1,obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2400R,format(lcgAmtPaid,@n-14.2),900R,format(lcgFees,@n-14.2),800R,format(lcgTotAmt,@n-14.2),900R),
+      do(bnd('H',,600,'',700,'Station Total',2100R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
       lcgTotAmt=0))),
   if(lcReportSort+0=0 or lcReportSort+0=2),do(
-     bnd('H','Rec No',600,'Post Date',700,'Received From',2400,'Amt Paid',900R,'Fees',800R,'Total Amt Pd',900R,'Type',400C),
+     bnd('H','Rec No',600,'Post Date',700,'Received From',2100,'Amt Paid',800R,'Fees',700R,'Total Amt Pd',800R,'Type',400C,'Paid',600R),
      if(curpag=1),
      grp(1,obj5:a15,
       do(bnd('H','Deputy: '&obj5:a15,1000)),
-      do(bnd('H',,600,'',700,'Deputy Total',2400R,format(lcgAmtPaid,@n-14.2),900R,format(lcgFees,@n-14.2),800R,format(lcgTotAmt,@n-14.2),900R),
+      do(bnd('H',,600,'',700,'Deputy Total',2100R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -386,7 +386,7 @@ printReceiptList=
      if(curpag=1),
      grp(2,obj5:a15&obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2400R,format(lcusAmtPaid,@n-14.2),900R,format(lcusFees,@n-14.2),800R,format(lcusTotAmt,@n-14.2),900R),
+      do(bnd('H',,600,'',700,'Station Total',2100R,format(lcusAmtPaid,@n-14.2),800R,format(lcusFees,@n-14.2),700R,format(lcusTotAmt,@n-14.2),800R),
       nl,
       lcusAmtPaid=0,
       lcusFees=0,
@@ -394,9 +394,9 @@ printReceiptList=
   nl,
   det(lcsql),
      if(lcReportSort=1),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s25),2100,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400,obj5:a16,600R)),
      if(lcReportSort=0 or lcReportSort+0=2),do(
-     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s30),2400,format(obj5:a7,@n-14.2),900R,format(obj5:a9,@n-14.2),800R,format(obj5:a6,@n-14.2),900R,obj5:a1,400)),
+     bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s25),2100,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400,obj5:a16,600R)),
      lcAmtPaid=lcAmtPaid+obj5:a7,
      lcFees=lcFees+obj5:a9,
      lcTotAmt=lcTotAmt+obj5:a6,
@@ -408,7 +408,7 @@ printReceiptList=
      lcusTotAmt=lcusTotAmt+obj5:a6,
   edt,
   nl,
-  bnd('H','',600,'',700,'Report Totals',2400R,format(lcAmtPaid,@n-14.2),900R,format(lcFees,@n-14.2),800R,format(lcTotAmt,@n-14.2),900R)
+  bnd('H','',600,'',700,'Report Totals',2100R,format(lcAmtPaid,@n-14.2),800R,format(lcFees,@n-14.2),700R,format(lcTotAmt,@n-14.2),800R)
 
 );
 
@@ -441,22 +441,22 @@ printReceiptList=
   prn(,,pagey),
   box(lcx,pagey-25,pagex+7500,pagey+175,0,lcBoxColor),
   if(lcReportSort+0=1),do(
-    bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C),
+    bnd('H','Rec No',500,'Post Date',600,'Received From',1700,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C,'Paid',450R),
     if(curpag=1),
      grp(1,obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2000R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
+      do(bnd('H',,500,'',600,'Station Total',1700R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
       lcgPenalty=0,
       lcgTotAmt=0))),
   if(lcReportSort+0=0 or lcReportSort+0=2),do(
-     bnd('H','Rec No',600,'Post Date',700,'Received From',2000,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C),
+     bnd('H','Rec No',500,'Post Date',600,'Received From',1700,'Tax Amt',800R,'Fees',700R,'Penalties',700R,'Total Amt Pd',800R,'Type',400C,'Paid',450R),
      if(curpag=1),
      grp(1,obj5:a15,
       do(bnd('H','Deputy: '&obj5:a15,1000)),
-      do(bnd('H',,600,'',700,'Deputy Total',2000R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
+      do(bnd('H',,500,'',600,'Deputy Total',1700R,format(lcgAmtPaid,@n-14.2),800R,format(lcgFees,@n-14.2),700R,format(lcgPenalty,@n-14.2),700R,format(lcgTotAmt,@n-14.2),800R),
       nl,
       lcgAmtPaid=0,
       lcgFees=0,
@@ -466,7 +466,7 @@ printReceiptList=
      if(curpag=1),
      grp(2,obj5:a15&obj5:a14,
       do(bnd('H','Station: '&obj5:a14,1000)),
-      do(bnd('H',,600,'',700,'Station Total',2000R,format(lcusAmtPaid,@n-14.2),800R,format(lcusFees,@n-14.2),700R,format(lcusPenalty,@n-14.2),700R,format(lcusTotAmt,@n-14.2),800R),
+      do(bnd('H',,500,'',600,'Station Total',1700R,format(lcusAmtPaid,@n-14.2),800R,format(lcusFees,@n-14.2),700R,format(lcusPenalty,@n-14.2),700R,format(lcusTotAmt,@n-14.2),800R),
       nl,
       lcusAmtPaid=0,
       lcusFees=0,
@@ -475,11 +475,11 @@ printReceiptList=
   nl,
   det(lcsql),
      if(lcReportSort+0=1),do(
-        bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400),
+        bnd('D',obj5:a2,450,obj5:a4,650,format(obj5:a5,@s22),1700,format(obj5:a7,@n-14.2),700R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400,obj5:a16,600R),
         if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                           ),
          if(lcReportSort+0=0 or lcReportSort+0=2),do(
-       bnd('D',obj5:a2,600,obj5:a4,700,format(obj5:a5,@s28),2000,format(obj5:a7,@n-14.2),800R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400)
+       bnd('D',obj5:a2,450,obj5:a4,650,format(obj5:a5,@s22),1700,format(obj5:a7,@n-14.2),700R,format(obj5:a9,@n-14.2),700R,format(obj5:a8,@n-14.2),700R,format(obj5:a6,@n-14.2),800R,obj5:a1,400,obj5:a16,600R)
        if(gcPrintDetail='Y'),do(if(obj5:a10>0),bnd('D7',,1000,obj5:a13,400,'Item: '&format(obj5:a10,@n_6),500,'Parcel: '&obj5:a11,2000),)
                               ),
      lcAmtPaid=lcAmtPaid+obj5:a7,
@@ -496,5 +496,5 @@ printReceiptList=
      lcusPenalty=lcusPenalty+obj5:a8,
   edt,
   nl,
-  bnd('H','',600,'',700,'Report Totals',2000R,format(lcAmtPaid,@n-14.2),800R,format(lcFees,@n-14.2),700R,format(lcPenalty,@n-14.2),700R,format(lcTotAmt,@n-14.2),800R)
+  bnd('H','',500,'',600,'Report Totals',1700R,format(lcAmtPaid,@n-14.2),800R,format(lcFees,@n-14.2),700R,format(lcPenalty,@n-14.2),700R,format(lcTotAmt,@n-14.2),800R)
 );
