@@ -213,8 +213,14 @@ close('ok');
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='))),
  refreshDetail=;
 
+@doremoveallitems=break(obj:a17='Posted'),
+ m('You have exceeded the maximum tax items allowed in a single batch.  Remove them? (Y/n)','Remove all items?',,6),
+ if(gcretval=2,sql('delete from receiptlink where receiptId<>0 and receiptId='&obj:id+0));
 
 @afterloadwindow=
+ lccheck=kp('select count(*) from receiptlink where receiptid='&obj:id+0),
+ if(lccheck+0>2000,doremoveallitems=),
+ break(lccheck+0>2000),
  lcAfter=1,
  lccheck=kp('select case when key2<'' 0'' then id else 0 end from object where typ=4503 and key1='''&obj:key3&''''),
  if(lccheck+0>1,change(lccheck,,1)),
@@ -715,7 +721,8 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  break(obj:key3='OFFICIAL'),
  set(-07,0),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1),update;
 
-@refreshDetail=
+@refreshDetail=lccheck=kp('select count(*) from receiptlink where receiptid='&obj:id+0),
+ break(lccheck+0>2000),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  calcfld(092),calcfld(094),
  gcbrw1sql='select id,description,subdescription,amount,colorFlag from dbo.receiptDetailBRW('&obj:id&','&choose(lcShowGL=1,'1','0')&','&choose(obj:olink2=1,'1','0')&') order by ord',

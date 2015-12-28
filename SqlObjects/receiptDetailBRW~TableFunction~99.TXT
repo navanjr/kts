@@ -22,10 +22,25 @@ begin
  declare @slink varchar(15) = @styp + cast(@receiptId as varchar),
          @receiptTyp int,
          @receiptAccount varchar(60),
-         @trustAccount varchar(60)
+         @trustAccount varchar(60),
+         @receiptKEY3 varchar(50)
 
- select @receiptTyp=typ, @receiptAccount = a2 from object where id = @receiptId
+ select @receiptTyp=typ, @receiptAccount = a2, @receiptKEY3 = key3 from object where id = @receiptId
  select top 1 @trustAccount = key3 from object where typ=4503 and key1='TRUST'
+
+-- Bail if TAX receipt with too many items
+ if @receiptKEY3 = 'TAX'
+ begin
+  declare @itemCount int
+  select @itemCount = count(*) from receiptlink where receiptId = @receiptId
+  if @itemCount > 2000
+  begin
+   insert @rettable (ord,id,description,subdescription,amount,colorflag)
+    select 'aaa', 0, 'Maximum tax items exceeded', 'Please abandon and start over',0.00,0
+   return
+  end
+ end
+
 
 -- Insert MISC receiptdetail
  insert @rettable (ord,id,description,subdescription,amount,sCode,fCode)

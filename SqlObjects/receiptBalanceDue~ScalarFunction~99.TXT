@@ -20,12 +20,19 @@ begin
   @glAmtStage money,
   @amount money,
   @credit money,
-  @due money
+  @due money,
+  @itemCount int
 
 select @receiptType = key3, @posted = case when a17 = 'Posted' then 'TRUE' else 'FALSE' end from object where id = @receiptId
 
+
+
 if @receiptType = 'TAX'
  begin
+  select @itemCount = count(*) from receiptlink where receiptId = @receiptId 
+  if @itemCount > 2000
+   return 0.00
+
 -- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, methodRate,mainInvoiceId,invoiceType)
   select a.id, a.invoiceId, case when a.methodRate > 1.0 then 1.0 when @posted = 'TRUE' then 1.00 else a.methodRate end,b.invoiceId,b.typ
