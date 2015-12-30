@@ -20,7 +20,8 @@ if @selectedId > 0
   @parcel varchar(50),
   @taxYear numeric (5,0),
   @pubFlag varchar(10),
-  @typ varchar(10)
+  @typ varchar(10),
+  @adTaxId int
 
  select @pubFlag = case when charindex('@group=publicuser;',options)>0 then 'TRUE' else 'FALSE' end from users where ini = dbo.readstring('@ini=',dbo.whoami())
 
@@ -29,7 +30,8 @@ if @selectedId > 0
   @item = item,
   @parcel = parcel,
   @taxYear = taxyear,
-  @typ = typ
+  @typ = typ,
+  @adTaxId = taxrollid
  from invoices where id = @selectedId
 
  if @selectedId > 9000000
@@ -39,7 +41,8 @@ if @selectedId > 0
    @item = ITEMNUMBER,
    @parcel = FULLPIDNUMBER,
    @taxYear = realtaxyear,
-   @typ = RECORDTYPE
+   @typ = RECORDTYPE,
+   @adTaxId = id
   from adtax where id = @selectedId-9000000
  end
 
@@ -96,13 +99,13 @@ if @pubFlag = 'FALSE'
   insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3,case when dtype='addfee' then 1 else 0 end from taxrollDetail where invoiceLinkId = @selectedId
 
 -- dtype records
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, dtype,4,1
-   from taxrollDetail where (itemNumber > 0 and itemNumber = @item  or parcelNumber > '  0' and parcelNumber = @parcel) and dtype in ('RESALE','PROBATE','TAXWARRANT')
+  insert @rt select cast('-1'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, t.dtype,4,1
+   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('RESALE','PROBATE','TAXWARRANT')
 
 ---dtype bankrupt records
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, ' '+dtype,5,1
-   from taxrollDetail where (itemNumber > 0 and itemNumber = @item  or parcelNumber > '  0' and parcelNumber = @parcel) and dtype in ('BANKRUPT','EXEMPT')
-    and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
+  insert @rt select cast('-7'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, ' '+t.dtype,5,1
+   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('BANKRUPT','EXEMPT')
+    and cast('-7'+cast(t.id as varchar) as int) not in (select id from @rt)
 
 ---dtype CERT records
   insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), 'Certificate: '+stamp, ' '+dtype,5,3
@@ -111,9 +114,10 @@ if @pubFlag = 'FALSE'
 
 
 ---collection notes
-  insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), comments, dtype,5,0
-   from taxrollDetail where (itemNumber > 0 and itemNumber = @item  or parcelNumber > '  0' and parcelNumber = @parcel) and dtype in ('print')
-    and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
+  insert @rt select cast('-7'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, t.dtype,5,0
+   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel))
+    and t.dtype in ('print')
+    and cast('-7'+cast(t.id as varchar) as int) not in (select id from @rt)
 
 
 ---corrections
