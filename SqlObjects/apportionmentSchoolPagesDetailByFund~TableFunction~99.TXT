@@ -119,7 +119,8 @@ update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '
 
 update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' and sourceCode+'_ACR' in (select accountCode from glaccounts where aptableType='M')
 
-update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' and right(apportionContraCode,10)='_ADVALOREM'
+update @det set comment2='4 MILL' where accountType='SCHOOL' and comment2 like '%By ADA%' 
+ and (right(apportionContraCode,10)='_ADVALOREM' or right(apportionContraCode,8)='_PROTEST')
 
 update @det set comment2='4 MILL' where accountType='FUND' and left(comment2,6) = '4 MILL'
 --
@@ -144,13 +145,14 @@ update @det set accountType='JOINT SCHOOL' where accountType='SCHOOL'
 
 if @feesGetOwnColumn = 'TRUE'
  begin
-  update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' where journalDesc like '%ADVALOREM%' and sourceCode+'_ACR' 
-   in (select accountcode from glaccounts where aptabletype='M')
+  update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' 
+   where (journalDesc like '%ADVALOREM%' or journalDesc like '%PROTEST%')
+    and sourceCode+'_ACR' in (select accountcode from glaccounts where aptabletype='M')
  end
 else
  begin
   update @det set sourceCode = 'ADVALOREM', sourceDesc = 'ADVALOREM', sourceSECA = 'ADVALOREM' 
-   where journalDesc like '%ADVALOREM%' 
+   where (journalDesc like '%ADVALOREM%' or journalDesc like '%PROTEST%') 
     and (comment2<>'4 MILL' or accountType<>'FUND') 
      and accountType<>'CITY'
  end
