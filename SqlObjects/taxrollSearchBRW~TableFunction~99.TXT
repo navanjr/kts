@@ -40,7 +40,7 @@ begin
   1,
   r.origin + 'b'+cast(taxYear as varchar)+parcel,
   r.origin
- from dbo.invoices
+ from dbo.invoices with (NOLOCK)
  join dbo.invoiceRelated(@selectedId) r on id = r.invoiceId
  where isnull(invoices.invoiceid,0)=0
 
@@ -64,6 +64,8 @@ begin
  from @rt
  where colorFlag = 1
  group by origin
+ 
+ update r set display = '*'+display from @rt r, receiptlink l with (NOLOCK) where r.invoiceid=l.invoiceid*-1 and l.receiptid = @receiptId
   
  return
 end

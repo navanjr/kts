@@ -32,7 +32,7 @@ if @selectedId > 0
   @taxYear = taxyear,
   @typ = typ,
   @adTaxId = taxrollid
- from invoices where id = @selectedId
+ from invoices with (NOLOCK) where id = @selectedId
 
  if @selectedId > 9000000
  begin
@@ -43,7 +43,7 @@ if @selectedId > 0
    @taxYear = realtaxyear,
    @typ = RECORDTYPE,
    @adTaxId = id
-  from adtax where id = @selectedId-9000000
+  from adtax with (NOLOCK) where id = @selectedId-9000000
  end
 
 if @pubFlag = 'FALSE'
@@ -86,7 +86,7 @@ if @pubFlag = 'FALSE'
         'ADDRESS',
          2,
          0
-	from dbo.taxRollDetail
+	from taxRollDetail with (NOLOCK)
 	where	(name=@name or len(name)<1 or name<>@name) 
 		and (parcelNumber=@parcel or len(parcelNumber)<1) 
 		and (case when isnumeric(itemNumber)=1 then cast(itemNumber as numeric (7,1)) else 0 end = @item or len(itemNumber)<2) 
@@ -96,26 +96,26 @@ if @pubFlag = 'FALSE'
 
 -- print comments
  if @selectedId > 0 
-  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3,case when dtype='addfee' then 1 else 0 end from taxrollDetail where invoiceLinkId = @selectedId
+  insert @rt select cast('-1'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(documentDateTime), comments, dtype,3,case when dtype='addfee' then 1 else 0 end from taxrollDetail with (NOLOCK) where invoiceLinkId = @selectedId
 
 -- dtype records
   insert @rt select cast('-1'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, t.dtype,4,1
-   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('RESALE','PROBATE','TAXWARRANT')
+   from taxrollDetail t with (NOLOCK), adtax a with (NOLOCK) where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('RESALE','PROBATE','TAXWARRANT')
 
 ---dtype bankrupt records
   insert @rt select cast('-7'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, ' '+t.dtype,5,1
-   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('BANKRUPT','EXEMPT')
+   from taxrollDetail t with (NOLOCK), adtax a with (NOLOCK) where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel)) and t.dtype in ('BANKRUPT','EXEMPT')
     and cast('-7'+cast(t.id as varchar) as int) not in (select id from @rt)
 
 ---dtype CERT records
   insert @rt select cast('-7'+cast(id as varchar) as int), dbo.clarionDate(documentDateTime), dbo.clarionDate(actionDate), 'Certificate: '+stamp, ' '+dtype,5,3
-   from taxrollDetail where parcelNumber = @parcel and taxyear=@taxyear and dtype = ('CERT')
+   from taxrollDetail with (NOLOCK) where parcelNumber = @parcel and taxyear=@taxyear and dtype = ('CERT')
     and cast('-7'+cast(id as varchar) as int) not in (select id from @rt)
 
 
 ---collection notes
   insert @rt select cast('-7'+cast(t.id as varchar) as int), dbo.clarionDate(t.documentDateTime), dbo.clarionDate(t.actionDate), t.comments, t.dtype,5,0
-   from taxrollDetail t, adtax a where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel))
+   from taxrollDetail t with (NOLOCK), adtax a with (NOLOCK) where t.adtaxid=a.id and ((t.itemNumber > 0 and t.itemNumber = @item and (@adTaxId = t.adTaxId or a.realtaxyear > 2007))  or (t.parcelNumber > '  0' and t.parcelNumber = @parcel))
     and t.dtype in ('print')
     and cast('-7'+cast(t.id as varchar) as int) not in (select id from @rt)
 
@@ -131,7 +131,7 @@ if @pubFlag = 'FALSE'
 	date,
 	case when isnull(ini,'')>'  0' then ini + ' - ' + case when len(comment)>1 then comment + ' - ' else '' end else comment + ' - ' end,
         0
-    from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) 
+    from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices with (NOLOCK) where id=@selectedId) 
 	group by date,ini,comment
 
  while exists (select * from @wtc where processcode=0)
@@ -139,7 +139,7 @@ if @pubFlag = 'FALSE'
    declare @tokenDate varchar(10)
     select @tokenDate = crtdate from @wtc where processcode=0 order by crtdate
      begin
-      select @x = STUFF((select '|' + 'Field Name: '+rtrim(field)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices where id=@selectedId) and date=@tokenDate for XML path('')),1,1,'') 
+      select @x = STUFF((select '|' + 'Field Name: '+rtrim(field)+'; '+original+' / '+corrected from taxrollCorrectionsView where taxrollId in (select taxrollId from invoices with (NOLOCK) where id=@selectedId) and date=@tokenDate for XML path('')),1,1,'') 
       update @wtc set processcode=1,comments = comments +'Correction: '+ replace(@x,'&amp;','&') where crtdate = @tokenDate
      end
      
@@ -163,7 +163,7 @@ if @pubFlag = 'FALSE'
                 i.postdate,
                 rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
                 'ADJUSTMENT',8,1
-            from dbo.invoices i, receiptDetail rd
+            from dbo.invoices i with (NOLOCK), receiptDetail rd
                where i.typ='A' 
                   and i.invoiceId=@selectedId
                 and rd.slink='t'+cast(i.id as varchar(15))
@@ -174,7 +174,7 @@ if @pubFlag = 'FALSE'
                 i.postdate,
                 'Fee Adjustment: '+rtrim(rd.description)+'         SOURCECODE:'+rtrim(rd.sourcecode)+'    AMOUNT:'+cast(rd.amount as varchar(50)),
                 'ADJUSTMENT',8,1
-            from dbo.invoices i, receiptDetail rd
+            from dbo.invoices i with (NOLOCK), receiptDetail rd
                where i.invoiceId = @selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
                   and invoiceAmount<0.00 and blob=''
@@ -186,7 +186,7 @@ if @pubFlag = 'FALSE'
                 i.postdate,
                 dbo.splitf(blob,char(13)+char(10),1),
                 'Fee',9,0
-            from dbo.invoices i where i.invoiceId =  @selectedId and i.typ='F' and blob>'  0'
+            from dbo.invoices i with (NOLOCK) where i.invoiceId =  @selectedId and i.typ='F' and blob>'  0'
 
 
 end
@@ -198,7 +198,7 @@ insert @rt
 		'',
 		'Physical Address: '+a.proploc,
                 ' Address' ,7,0
-		from adtax a ,invoices i 
+		from adtax a ,invoices i with (NOLOCK) 
 		  where  a.id = i.taxrollId and i.id=@selectedId and a.proploc>'  0'
 
 --Legal Description
@@ -210,7 +210,7 @@ insert @rt
 		'',
 		'Legal: '+cast(isnull(dbo.getLegalDescription(@selectedId),'') as varchar(max)),
                 ' Legal' ,7,0
-		from invoices i 
+		from invoices i with (NOLOCK) 
 		  where  i.id=@selectedId and cast(isnull(dbo.getLegalDescription(@selectedId),'') as varchar(max))>'  0'
 end
 if @typ = 'S'
@@ -221,7 +221,7 @@ insert @rt
 		'',
 		'Legal: '+cast(isnull(dbo.getLegalDescription(@selectedId),'') as varchar(max)),
                 ' Legal' ,7,0
-		from invoices i 
+		from invoices i with (NOLOCK) 
 		  where  i.id=@selectedId and cast(isnull(dbo.getLegalDescription(@selectedId),'') as varchar(max))>'  0'
 end
 
@@ -241,7 +241,7 @@ end
        ' Receipt',
        a.id
    
-      from receiptLink a, receiptDetail b, invoices c
+      from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK)
      where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.invoiceId = c.ID
          and c.id = @selectedId and a.receiptNumber>'  0'
@@ -278,7 +278,7 @@ if @pubFlag = 'FALSE'
        o.key2, 
        ' Journal',
        a.Id
-      from journalLink a, glDetail b, invoices c, glaccounts ac, object o
+      from journalLink a, glDetail b, invoices c with (NOLOCK), glaccounts ac, object o
      where 'j'+CAST(a.id as varchar) = b.slink
          and o.typ = 4512
          and o.id = a.jeId

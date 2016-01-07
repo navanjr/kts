@@ -30,30 +30,30 @@ begin
   @name = invoices.NAME,
   @parcel = invoices.PARCEL,
   @ownernumber = adtax.ownernumber
- from invoices 
-  left join adtax on invoices.taxrollid = adtax.id
+ from invoices with (NOLOCK) 
+  left join adtax with (NOLOCK) on invoices.taxrollid = adtax.id
   where invoices.ID = @inquireInvoiceId
 
 
  if @name > '  0'
-  insert @rt select id, 'Name' from dbo.invoices where name = @name and id != @inquireInvoiceId
+  insert @rt select id, 'Name' from invoices with (NOLOCK) where name = @name and id != @inquireInvoiceId
  if @parcel > '  0'
   begin
-   insert @rt select id, 'Parcel' from dbo.invoices where parcel = @parcel and id != @inquireInvoiceId 
+   insert @rt select id, 'Parcel' from invoices with (NOLOCK) where parcel = @parcel and id != @inquireInvoiceId 
     and id not in (select invoiceId from @rt)
-   insert @rt select invoiceLinkId, 'Resale' from dbo.taxrolldetail where parcelNumber = @parcel 
+   insert @rt select invoiceLinkId, 'Resale' from taxrolldetail with (NOLOCK) where parcelNumber = @parcel 
     and invoiceLinkId != @inquireInvoiceId 
     and invoiceLinkId not in (select invoiceId from @rt)
   end
 
- insert @rt select invoiceLinkId, 'TaxWarrant' from dbo.taxrolldetail where itemNumber = @item 
+ insert @rt select invoiceLinkId, 'TaxWarrant' from taxrolldetail with (NOLOCK) where itemNumber = @item 
   and invoiceLinkId != @inquireInvoiceId 
   and invoiceLinkId not in (select invoiceId from @rt)
 
 
  if isnull(@ownernumber,0.0)>1.0
   insert @rt 
-   select i.id, 'Owner Number' from dbo.invoices i, adtax a 
+   select i.id, 'Owner Number' from dbo.invoices i with (NOLOCK), adtax a with (NOLOCK) 
     where i.taxrollid=a.id
      and a.ownernumber = @ownernumber
      and i.id != @inquireInvoiceId
@@ -64,19 +64,19 @@ begin
 
 -- get ALL the receipts where this item has been paid
   insert @receiptIds
-  select distinct receiptId from receiptlink where invoiceId in (select ID from invoices where ITEM = @item) 
-    and receiptId not in (select id from object where abs(typ)=4003)
+  select distinct receiptId from receiptlink with (NOLOCK) where invoiceId in (select ID from invoices with (NOLOCK) where ITEM = @item) 
+    and receiptId not in (select id from object with (NOLOCK) where abs(typ)=4003)
 
 -- get all the invoices from these receipts
   insert @invoiceIds
-  select distinct invoiceId from receiptlink where receiptId in (select id from @receiptIds) and isnull(ignoreLink,0) = 0
+  select distinct invoiceId from receiptlink with (NOLOCK) where receiptId in (select id from @receiptIds) and isnull(ignoreLink,0) = 0
 
 -- get all the item numbers from these invoices
-  insert @items select item from invoices where id in (select id from @invoiceIds)
+  insert @items select item from invoices with (NOLOCK) where id in (select id from @invoiceIds)
 
   insert @rt
   select distinct id, 'Receipts'
-  from invoices
+  from invoices with (NOLOCK)
   where id != @inquireInvoiceId
    and item in (select item from @items)
 --   and ID in (select ID from @invoiceIds)

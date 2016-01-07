@@ -41,8 +41,8 @@ begin
 
   insert @rt 
   select i.id
-  from dbo.invoices i
-  inner join adtax a on i.taxrollId=a.id 
+  from dbo.invoices i with (NOLOCK)
+  inner join adtax a with (NOLOCK) on i.taxrollId=a.id 
   where i.invoiceId = 0 and i.typ<>'s'
    and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
    --and i.taxrollId=a.id and 
@@ -51,7 +51,7 @@ begin
 
   insert @rt 
   select i.id
-  from dbo.invoices i
+  from dbo.invoices i with (NOLOCK)
   where i.invoiceId = 0 
    and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
     and name+' '+parcel+' '+cast(item as varchar)+cast(taxyear as varchar(4))+cast(i.item as varchar) like '%'+@searchString+'%'
@@ -61,7 +61,7 @@ begin
   insert @rt
   select 
    i.id
-  from dbo.taxRollDetail td, invoices i
+  from taxRollDetail td with (NOLOCK), invoices i with (NOLOCK)
   where i.invoiceId = 0 
    and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
    and i.item=td.itemNumber
@@ -72,7 +72,7 @@ begin
   insert @rt
   select 
    i.id
-  from object o, invoices i
+  from object o with (NOLOCK), invoices i with (NOLOCK)
   where o.typ=4005 
    and o.link1 = i.taxrollId
    and i.invoiceId = 0 
@@ -84,7 +84,7 @@ begin
    insert @rt
    select 
     i.id
-   from invoices i
+   from invoices i with (NOLOCK)
    where i.invoiceId = 0 
     and i.taxyear = case when @taxyear = 'all' then i.taxyear else cast(@taxyear as numeric) end
     and (i.invoiceAmount=cast(@searchString as money) or i.invoiceDue=cast(@searchString as money))

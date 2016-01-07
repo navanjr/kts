@@ -92,9 +92,9 @@ set @searchString=replace(@searchString,'''','%')
      a.id*-1,a.name,a.parcel,a.taxYear,a.item,a.typ,dbo.formatcurr(invoiceAmount),round(dbo.formatcurr(invoiceDue) * b.methodRate,2),
    't'+cast(a.id as varchar), case when b.methodRate = .5 then char(189) else 'x' end,b.methodRate,'a_'+cast(item as varchar)+cast(taxyear as varchar),case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',a.taxrollId,a.queue,a.printed,
      case when isnull(dbo.taxCorrectionsSF([MFGHOMEASSESSED],x.id,'056'),0) > 0 then 3 when a.parcel in (select key1 from object where typ=4100 and key2='A') then 4 else 1 end
-    from dbo.invoices a 
-    join receiptLink b on a.id = b.invoiceId
-    left join adtax x on a.taxrollId = x.id
+    from dbo.invoices a with (NOLOCK) 
+    join receiptLink b with (NOLOCK) on a.id = b.invoiceId
+    left join adtax x with (NOLOCK) on a.taxrollId = x.id
     where b.receiptId = @receiptId
     and isnull(a.invoiceid,0)=0
  
@@ -109,87 +109,89 @@ set @searchString=replace(@searchString,'''','%')
         select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch)
 
       insert @rt
-       select  top 1000 
+       select  top 200 
         i.id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(i.id as varchar),'',0,
         'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,
         case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',
         taxrollId,queue,printed,0
-       from dbo.invoices i
+       from dbo.invoices i with (NOLOCK)
         where i.invoiceId = 0 
         and id in (select id from @searchid)
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
         /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(i.id as varchar(15)),null)>0 then 0 else 1 end end*/
-        and i.id not in (select invoiceId from receiptlink where receiptid = @receiptId)
+        and i.id not in (select invoiceId from receiptlink with (NOLOCK) where receiptid = @receiptId)
         and isnull(i.invoiceid,0)=0
       end
      else
 ---Regular Search 
      if @sSlen=1 and isnumeric(@searchString)=0
       insert @rt
-       select  top 1000 
+       select  top 200 
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
-       from dbo.invoices
+       from dbo.invoices with (NOLOCK)
        where 
         left(name,@sSlen) = @searchString
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
         /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
-        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
+        and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptid = @receiptId)   
         and isnull(invoiceid,0)=0
      else
       insert @rt
-       select  top 1000 
+       select  top 200 
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
-       from dbo.invoices
+       from dbo.invoices with (NOLOCK)
        where 
         ([name] like '%'+@searchString+'%' or parcel like '%'+@searchString+'%' or cast(taxyear as varchar(4))  like '%'+@searchString+'%' or cast(item as varchar) like '%'+@searchString+'%' or '0'+cast(item as varchar) like '%'+@searchString+'%' or cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%')
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
         and status<>'Firstnum'
         /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
         and taxyear = case when @taxyear = 'all' then taxyear else cast(@taxyear as numeric) end
-        and id not in (select invoiceId from receiptlink where receiptid = @receiptId)   
+        and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptid = @receiptId)   
         and isnull(invoiceid,0)=0
     end
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
    else
      insert @rt
-     select top 1000 
+     select top 200 
       id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
-     from dbo.invoices
+     from dbo.invoices with (NOLOCK)
      where
       taxyear = case when @taxyear = 'all' then taxyear when isnumeric(@taxyear)=1 then cast(@taxyear as numeric) else 0 end
       and invoiceId = 0
       and status<>'Firstnum'
       and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
       /*and 0 = case when @protest<>'PROTEST' then 0 else case when dbo.invoiceProtestBalance('t'+cast(id as varchar(15)),null)>0 then 0 else 1 end end*/
-      and id not in (select invoiceId from receiptlink where receiptid = @receiptId)
+      and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptid = @receiptId)
       and isnull(invoiceid,0)=0
 
 --Adtax 0 due records
 
 declare @adtaxids table(adtaxid int)
-insert @adtaxids
- select id from adtax where id not in (select taxrollId from invoices)
 
 
   if @showPaidFlag = '1' and @searchString > '  0'
    begin
+    insert @adtaxids
+     select id from adtax with (NOLOCK) where id not in (select taxrollId from invoices  with (NOLOCK))
+
+
 ---Advanced Search 
      if @AdvSrch = 1  
        insert @rt
-         select  top 1000 
+         select  top 200 
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
-         from dbo.adtax a
+         from dbo.adtax a with (NOLOCK)
          inner join dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch) at on a.ID = at.adtaxId
          inner join @adtaxids t on a.id = t.adtaxid
        else
 ---Regular Search 
        insert @rt
-         select top 1000
+         select top 200
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
-         from dbo.adtax a, @adtaxids t
+         from dbo.adtax a with (NOLOCK), @adtaxids t
           where a.id = t.adtaxid and
               (OWNERNAME  like '%'+@searchString+'%' or FULLPIDNUMBER like '%'+@searchString+'%' or cast(REALTAXYEAR as varchar(4)) like '%'+@searchString+'%' or '0'+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%' or cast(ITEMNUMBER as varchar) like '%'+@searchString+'%')
               and cast(REALTAXYEAR as varchar) = case when @taxyear = 'all' then cast(REALTAXYEAR as varchar) else cast(@taxyear as numeric) end 
@@ -199,7 +201,7 @@ insert @adtaxids
 
   if @protest='PROTEST'
     begin
-      update a set amount=p.amount from @rt a, dbo.protestDetail p where a.invoiceId=p.invoiceId*-1
+      update a set amount=p.amount from @rt a, protestDetail p with (NOLOCK) where a.invoiceId=p.invoiceId*-1
     end
 
 -- Set Mortgage Codes
@@ -207,7 +209,7 @@ insert @adtaxids
     treamort = 
      case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else 
      case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end 
-   from adtax a where taxrollid=a.id and taxType not in ('A')
+   from adtax a with (NOLOCK) where taxrollid=a.id and taxType not in ('A')
 
   declare @interestToDate int
 
@@ -228,8 +230,8 @@ insert @adtaxids
 -- Remove voided invoices that have been reissued
   declare @taxrollids table(taxrollid int)
   
-  insert @taxrollids
-  select taxrollid from @rt where cast(amount as money)<>0.00
+--  insert @taxrollids
+--  select taxrollid from @rt where cast(amount as money)<>0.00
 
   declare @voids table(id int, taxrollid int)
   
@@ -241,10 +243,10 @@ insert @adtaxids
 
 
 end
-  if exists(select * from receiptLink where receiptId = @receiptId) or @importBRW = 'TRUE'
+  if exists(select * from receiptLink with (NOLOCK) where receiptId = @receiptId) or @importBRW = 'TRUE'
   begin
    update a set 
-    fees = isnull((select sum(i.invoiceDue) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
+    fees = isnull((select sum(i.invoiceDue) from invoices i with (NOLOCK) where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
     penalty = case when @importBRW = 'FALSE' then round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2) else penalty end
    from @rt a where selectedFlag in (char(189),'x')
  
