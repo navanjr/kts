@@ -63,11 +63,27 @@ insert journalLink (invoiceId,jeId)
 
 select @newjlinkId = ID from journalLink where invoiceId=@invoiceId and jeId = @newJeId
 
+
 --Insert gldetailstage linked to journallink
+--Check to be sure we can find a receivable account
+if isnull((select count(*)
+  from glaccounts a, dbo.invoiceTotalARTF(@invoiceId,@amount,0) ar
+  where a.accountId = ar.accountId and partialamount <> 0
+),0) > 1 
+begin
 insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
  select a.accountId, a.accountcode, a.accountdesc, ar.partialamount*-1,'j'+CAST(@newjlinkId as varchar)
   from glaccounts a, dbo.invoiceTotalARTF(@invoiceId,@amount,0) ar
-  where a.accountId = ar.accountId and partialamount > 0
+  where a.accountId = ar.accountId and partialamount <> 0
+end
+else
+begin
+insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
+ select top 1 a.accountId, a.accountcode, a.accountdesc, @amount*-1,'j'+CAST(@newjlinkId as varchar)
+  from glaccounts a, dbo.invoiceTotalARTF(@invoiceId,@amount,0) ar
+  where a.accountId = ar.accountId
+end
+
 
 insert gldetailStage (accountId, accountCode, accountDesc,amount,slink)
  select top 1 a.accountId, a.accountcode, a.accountdesc, @amount,'j'+CAST(@newjlinkId as varchar)
