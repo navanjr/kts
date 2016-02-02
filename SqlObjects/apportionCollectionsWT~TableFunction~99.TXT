@@ -183,7 +183,7 @@ declare @twt table(
         apdistrict=a.apdistrict,
         aprate=a.aprate,
         appoptype=a.appoptype,
-        processflag = 0
+        processflag = case when a.apTableType='M' then 99 else 0 end
 from @wt w, glaccounts a where w.creditcode=a.accountcode and a.apTableType in ('L','M','A','P') and processFlag=9
 
  
@@ -213,7 +213,7 @@ from @wt w, glaccounts a where w.creditcode=a.accountcode and a.apTableType in (
 -- process the M types
  update @wt set processFlag = 1 where apTableType = 'M' and processFlag = 0 
 
- while exists(select * from @wt where processFlag = 1)
+ while exists(select * from @wt where processFlag in (1,99))
  begin
   select top 1 @tokenId = id, 
     @tokenAccountId = accountId, 
@@ -226,14 +226,14 @@ from @wt w, glaccounts a where w.creditcode=a.accountcode and a.apTableType in (
     @tokenacrAccountCode = acrAccountCode, 
     @tokenacrAccountDesc = acrAccountDesc,
     @tokenBsId = bsId
-  from @wt where processFlag = 1
+  from @wt where processFlag in (1,99)
 
   insert @wt (accountId, apTableType, apYear, creditCode, amount, stepDesc, comment, sourceCode, contraAccountCode, contraAccountDesc, acrAccountId, acrAccountCode, acrAccountDesc, ord, tableAmount, tableRatio,bsId)
 
   select 0, apTableType, taxYear, apportionCode, amount, taxname, @tokenComment, case when @tokenSourceCode in ('AD VALOREM','') then sourceCode else @tokenSourceCode end, @tokencontraAccountCode, @tokencontraAccountDesc, @tokenacrAccountId, @tokenacrAccountCode, @tokenacrAccountDesc, '040', mill, millRatio,@tokenBsId  
    from dbo.getRates('apportionment',@tokenAccountId,@tokenAmount,null,'')
 
-  update @wt set processFlag = 2 where id = @tokenId
+  update @wt set creditcode = case when processFlag = 99 then null else creditcode end, processFlag = 2 where id = @tokenId
  end
 
 -- process A types

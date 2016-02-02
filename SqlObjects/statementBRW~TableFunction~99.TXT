@@ -9,6 +9,11 @@ create function dbo.statementBRW(@slink varchar(15), @showGL int) returns
 )
 begin
 
+ declare @invoiceId int = dbo.slinkid(@slink),
+         @invoiceAmount money
+
+
+
  insert @rt
   select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,dbo.glDetailReplaceDistrictWRateSF(sourceCode,description) 
    from receiptDetail where slink = @slink 
@@ -29,9 +34,11 @@ begin
   select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode,checkno,amount*-1,'' from dbo.paid where slink = @slink
  end
 
-if exists(select id from dbo.invoiceGlDetailBRW(@slink,1) where left(slink,1)='t' and CHARINDEX('void',description)>0)
+ if left(@slink,1) = 't'
  begin
-  update @rt set amount = 0
+  select @invoiceAmount = invoiceAmount from invoices where id = @invoiceId
+  if @invoiceAmount = 0.00
+   update @rt set amount = 0
  end
 
  return
