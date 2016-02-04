@@ -61,6 +61,15 @@ begin
   
 -- Link all fees and penalties
  exec dbo.taxrollPenaltyBatch @newReceiptId, @invoiceIdToken, @penaltyAmountToken  
+
+--Catch any fees missed by previous statement
+  insert receiptLink (receiptId,invoiceId,methodRate)
+   select @newReceiptId, id, 1.00 from invoices 
+    where invoiceId in (select invoiceId from receiptLink where receiptId=@newReceiptId)
+     and id not in (select invoiceid from receiptLink where receiptId=@newReceiptId)
+     and typ = 'F'
+     and @newReceiptId > 0
+
 -- Create Paid Records
  insert paid (paycode, [date], amount, checkno, slink)
   select @paycodeToken, @curDate, @amountToken, @appCodeToken, @slink
