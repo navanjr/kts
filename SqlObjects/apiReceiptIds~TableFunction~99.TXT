@@ -5,6 +5,10 @@ create function dbo.apiReceiptIds() returns @rt table(
  typ varchar(50)
 ) as 
 begin
+
+ declare @dmzTime int
+
+ select @dmzTime = dbo.settingsF('site.apiDMZTime', 0)
   
  insert @rt
  select
@@ -13,7 +17,11 @@ begin
   (select max(r.invoiceId) from receiptLink r where r.receiptId = o.id),
   case when o.a17 = 'posted' then 'receipt' else 'voidReceipt' end
  from Object o 
- where o.typ = 4502 and o.Key3 = 'TAX' and  cast(o.k7 as datetime) < dbo.date112(o.LastEditDate) and o.a17  in ('void','posted')
+ where o.typ = 4502 
+  and o.Key3 = 'TAX' 
+  and cast(o.k7 as datetime) < dbo.date112(o.LastEditDate) 
+  and DATEDIFF(mi, isnull(cast(o.k7 as datetime), 0), dbo.date112(o.LastEditDate)) > @dmzTime
+  and o.a17  in ('void','posted')
  order by o.ID 
 
  insert @rt
@@ -25,6 +33,7 @@ begin
  from apiDeleted
  where apiResource = 'receipts'
   and isnull(apiUpdated,'') < isnull(modified,'')
+  and DATEDIFF(mi, isnull(apiupdated, 0), modified) > @dmzTime
 
  return
 end

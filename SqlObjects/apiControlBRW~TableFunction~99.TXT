@@ -18,15 +18,17 @@ begin
  declare @receipts table(total int, stale int)
  declare @tokenResource varchar(50),
          @taxyear int,
+         @dmzTime int,
          @ini varchar(10)         
-
+ 
+ select @dmzTime = dbo.settingsF('site.apiDMZTime', 0)
 
 --taxrolls
  set @tokenResource = 'taxroll'
  insert @rt
  select @tokenResource,
   count(*),
-  sum(case when modified > isnull(apiUpdated,0) then 1 else 0 end),
+  sum(case when modified > isnull(apiUpdated,0) and DATEDIFF(mi, isnull(apiupdated, 0), modified) > @dmzTime then 1 else 0 end),
   null,
   '@resource=' + @tokenResource + ';',
   null,
@@ -44,7 +46,7 @@ begin
  declare @tempadtax table(id int, modified datetime, apiUpdatedLegal datetime, complegal varchar(max),stale int)
  insert @tempadtax
  select id,modified, isnull(apiUpdatedLegal,0),/*ltrim(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102') as varchar(max)))*/legaldescription as complegal,
-  case when modified > isnull(apiUpdatedLegal,0) then 1 else 0 end as stale 
+  case when modified > isnull(apiUpdatedLegal,0) and DATEDIFF(mi, isnull(apiupdatedLegal, 0), modified) > @dmzTime then 1 else 0 end as stale 
   from adtax 
   where OWNERNAME>'  0' and id > 0 
 
@@ -102,21 +104,20 @@ begin
  insert @rt
  select @tokenResource,
   count(id),
-  sum(case when dbo.date112(lasteditDate) > isnull(k7,0) then 1 else 0 end),
+  sum(case when dbo.date112(lasteditDate) > isnull(k7,0) and DATEDIFF(mi, isnull(k7,0), dbo.date112(lasteditDate)) > @dmzTime then 1 else 0 end),
   null,
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'e', null, null, null, null 
- from object where typ=4030
-
+ from object where typ = 4030
 
 --mortgageLink
  set @tokenResource = 'MortgageLinks'
  insert @rt
  select @tokenResource,
    count(id),
-   sum(case when modified>isnull(apiUpdated,0) then 1 else 0 end),
+   sum(case when modified>isnull(apiUpdated,0) and DATEDIFF(mi, isnull(apiUpdated,0), modified) > @dmzTime then 1 else 0 end),
    null,
   '@resource=' + @tokenResource + ';',
    null,

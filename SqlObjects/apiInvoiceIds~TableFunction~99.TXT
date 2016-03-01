@@ -5,15 +5,20 @@ create function dbo.apiInvoiceIds() returns @rt table(
  typ varchar(50)
 ) as 
 begin
-  
+
+ declare @dmzTime int
+ 
+ select @dmzTime = dbo.settingsF('site.apiDMZTime', 0)
+
  insert @rt
  select 
-   id, 
-   'i' + cast(id as varchar),
-   id as invoice_link, 
-   'invoice'
+    id, 
+    'i' + cast(id as varchar),
+    id as invoice_link, 
+    'invoice'
   from invoices
   where isnull(apiUpdated,0) < modified
+    and DATEDIFF(mi, isnull(apiupdated, 0), modified) > @dmzTime
   order by id  
 
  insert @rt
@@ -25,6 +30,7 @@ begin
  from apiDeleted
  where apiResource = 'invoices'
   and isnull(apiUpdated,getdate()-1) < isnull(modified,getdate())
+  and DATEDIFF(mi, isnull(apiUpdated,getdate()-1), isnull(modified,getdate())) > @dmzTime
 
  return
 end
