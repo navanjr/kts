@@ -1,0 +1,62 @@
+create proc dbo.diagFix_missingSourceAccounts(
+ @mode varchar(5) = 'heavy',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ declare @needsource table(accountcode varchar(50))
+ declare @accountcodeToken varchar(50),
+         @expensecodeToken varchar(50)
+
+ insert @needsource
+  select distinct sourceCode 
+  from gldetail where sourcecode > ' 0' and sourcecode not in (select accountcode from glaccounts)
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'Accounts',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(*),  
+   @message = 'missing source accounts.'
+  from @needsource
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select 
+   n.accountcode
+  from @needsource n
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin  
+  insert object (typ,link1,key1,key2,a1,a2,a3,b3,k2)
+   select 4701,gat.id,n.accountcode,n.accountcode,gat.key1,gat.key2,gat.key3,'1',n.accountcode 
+     from @needsource n, object gat
+     where gat.typ=4702 and gat.key1='SOURCE'
+
+  return  
+ end
+
+
+end
+
+
