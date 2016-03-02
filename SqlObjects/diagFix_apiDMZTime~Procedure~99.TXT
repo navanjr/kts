@@ -1,4 +1,4 @@
-create proc dbo.diagFix_apiDMZTime(
+alter proc dbo.diagFix_apiDMZTime(
  @mode varchar(5) = 'heavy',
  @method varchar(5) = 'GET',
  @blockAutoFix varchar(5) = 'FALSE',
@@ -88,12 +88,22 @@ begin
  if @method = 'FIX'
  begin  
   
-  SELECT * FROM @wt
+  declare @tokenId int
+  declare @wt2 table(
+    id int identity,
+    invoiceId int,
+    apiResource varchar(50)
+  )
+  INSERT @wt2 (invoiceId, apiResource)
+  SELECT id, apiResource FROM @wt WHERE apiResource = 'invoices' GROUP BY id, apiResource
+  WHILE (SELECT COUNT(id) FROM @wt2) > 0
+  BEGIN
+	SELECT TOP 1 @tokenId = invoiceId FROM @wt2 ORDER BY id DESC
+	exec dbo.apiReset @tokenId
+	DELETE @wt2 WHERE invoiceId = @tokenId
+  END
   
   return  
  end
 
-
 end
-
-
