@@ -35,7 +35,11 @@ group by a.accountId, a.accountDesc, b.targetACR, b.reportorder
          @tokenPennies money,
          @tokenId int
 
- select top 1 @acrToken=fundcode from receiptdetail where slink=@slink order by amount desc
+ select top 1 @acrToken=isnull(ta.accountcode,a.accountcode) 
+  from receiptdetail rd
+  join glaccounts a on a.accountcode = rd.fundcode
+  left join glaccounts ta on ta.targetAccountCode = a.accountcode and ta.accounttype = 'ACCRUED RECEIVABLE'
+ where slink=@slink order by amount desc
 
 
  update @rt set acr = @acrToken where acr < ' 0'

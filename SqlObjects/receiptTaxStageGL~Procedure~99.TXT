@@ -134,7 +134,7 @@ begin
    a.protestAmount,
    0,
    r.sourceCode,
-   r.fundCode,
+   isnull((select top 1 ACR from dbo.invoicetotalartf(b.id,null,null)),r.fundCode) as fundcode,
    b.typ,
    case when b.invoiceId > 0 then 1 else 2 end,
    b.invoiceId
@@ -225,7 +225,7 @@ begin
 
 
  update @wt set
-  due = case when invoiceTyp not in ('S','A') then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
+  due = case when invoiceTyp not in ('A') then round((select sum(due) from dbo.invoiceCheck(invoiceId)),2) else due end,
   arAccountId = (select top 1 arAccountId from dbo.invoiceCheck(invoiceId)),
   contraAccountId = case when isnull(contraAccountId,0) = 0 then isnull((select accountId from glAccounts where accountCode = rtrim(taxyear)+@contraCodeSuffix),0)
      else contraAccountId end,
