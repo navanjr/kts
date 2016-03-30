@@ -36,6 +36,10 @@ begin
   @fiscalYear varchar(20),
   @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')
 
+  declare @clearDate varchar(50)
+  select @clearDate = a5 from object where id = @bankStatementId
+  select @fiscalYear = fiscalYear from dbo.fpinfo(@clearDate) 
+
  select
   @accountId = link1,
   @showAllWarrants = b13
@@ -58,15 +62,19 @@ begin
 
  update @buyWt set objectid=dbo.brwidDecoderId(brwId)
 
- update b set fiscalYear=o.c10 from @buyWt b, object o where b.objectid=o.id
+ update b set fiscalYear=case when @paymentNumberHonorsWarrantFY='TRUE' then o.c10 else @fiscalYear end from @buyWt b, object o where b.objectid=o.id
 
  if @method = 'BUYMANY'
  begin
 
-  declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50), brwId int)
+  select @clearDate = a5 from object where id = @bankStatementId
+  select @fiscalYear = fiscalYear from dbo.fpinfo(@clearDate) 
+
+  declare @warrants table(id int, fundCode varchar(50), paymentNumber varchar(50), brwId int, fiscalyear varchar(20), objectid int)
   declare
    @tokenId int,
    @tokenBrwId int,
+   @tokenFY varchar(20),
    @importStamp varchar(50),
    @theDate datetime = getdate()
 
@@ -77,8 +85,14 @@ begin
    dbo.brwidDecoderId(dbo.splitF(data,':',1)),
    dbo.splitF(data,':',2),
    dbo.splitF(data,':',3),
-   dbo.splitF(data,':',1)
+   dbo.splitF(data,':',1),'',0
   from dbo.split(@warrantsBlob,'|') where data > '  0'
+
+  update @warrants set objectid=dbo.brwidDecoderId(brwId)
+
+  update w set fiscalYear=case when @paymentNumberHonorsWarrantFY='TRUE' then o.c10 else @fiscalYear end from @warrants w, object o where w.objectid=o.id
+
+  --select * from @warrants  
 
   exec dbo.logit @@procid, '@method', @method, 'warrants to process - @@rowCount', @@rowCount
 
@@ -87,7 +101,8 @@ begin
    select top 1
     @tokenId = id,
     @tokenPaymentNumber = paymentNumber,
-    @tokenBrwId = brwId
+    @tokenBrwId = brwId,
+    @tokenFY = fiscalyear
    from @warrants order by id
  
    if (select COUNT(*) from @warrants) = 1
@@ -104,7 +119,8 @@ begin
     @verbose = 'FALSE',
     @importStamp = @importStamp,
     @clearingDate = @clearingDate,
-    @quietMode = 'TRUE' 
+    @quietMode = 'TRUE',
+    @fiscalYear = @tokenFY 
 
 
    delete @warrants where id = @tokenId
@@ -154,8 +170,6 @@ begin
 
  if @method = 'TOGGLE'
  begin
-  declare @clearDate varchar(50)
-  select @clearDate = a5 from object where id = @bankStatementId
   if exists (select * from @buyWt where brwid = @brwid)
   begin
    delete @buyWt where brwid = @brwid
