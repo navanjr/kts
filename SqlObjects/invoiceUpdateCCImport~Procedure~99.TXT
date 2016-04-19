@@ -1,0 +1,17 @@
+create procedure dbo.invoiceUpdateCCImport(@importId int)
+as
+begin
+ declare @ids table(id int)
+ declare @idToken int
+
+ insert @ids
+  select invoiceid*-1 as id from dbo.ccPaymentImportBRW(@importId, null)
+
+
+ while exists(select id from @ids)
+ begin
+  select top 1 @idToken = id from @ids
+  exec dbo.invoiceupdate @idToken
+  delete from @ids where id = @idToken
+ end
+end
