@@ -14,6 +14,12 @@
  lcBidder=readstring(lcDeedBlobHead,'@bidder='),
  lcName=readstring(lcDeedBlobHead,'@name='),
  lcGroup=readstring(lcDeedBlobHead,'@group='),
+ lcBidAddBlobHead=upper(readstring(lcdeedblobHead,'@bidder='))&'; '&upper(readstring(lcdeedblobHead,'@add1=')),
+ if(len(readstring(lcdeedblobHead,'@add2='))>0,lcBidAddBlobHead=lcBidAddBlobHead&'; '&upper(readstring(lcdeedblobHead,'@add2='))),
+ if(len(readstring(lcdeedblobHead,'@add3='))>0,lcBidAddBlobHead=lcBidAddBlobHead&'; '&upper(readstring(lcdeedblobHead,'@add3='))),
+ if(len(readstring(lcdeedblobHead,'@city='))>0,lcBidAddBlobHead=lcBidAddBlobHead&'; '&upper(readstring(lcdeedblobHead,'@city='))&', '),
+ if(len(readstring(lcdeedblobHead,'@state='))>0,lcBidAddBlobHead=lcBidAddBlobHead&upper(readstring(lcdeedblobHead,'@state='))&'  '),
+ if(len(readstring(lcdeedblobHead,'@zip='))>0,lcBidAddBlobHead=lcBidAddBlobHead&'  '&upper(readstring(lcdeedblobHead,'@zip='))),
  lcCnt=kp('select count(invoiceLinkId) from taxRollDetail where dtype=''indivDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&lcName&''' and dbo.readstring(''@bidder='',CAST(comments as varchar(max))) = '''&lcBidder&''' and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&lcGroup&''''),
  if(lcCnt+0>1,printBatchIndiv?=,printDeedIndiv=);
 @printBatchIndiv?=
@@ -98,7 +104,14 @@ tr(nl,nl,
  txt(lcSig,4000,,4000,500,1,1000), 
  prn(,,lcy),
  bnd(,'ATTEST:',500),
- bnd(,' (SEAL)',500));
+ bnd(,' (SEAL)',500),
+ pagebreak,
+ img(kp('path')&'\reports\TaxDeedAcknowledgement.gif',500,1000,7500,9000),
+ prn(gcCounty,1250,1680),
+ prn(gcOfficial,4950,2150),
+ prn(gcCounty,4550,2390),
+ prn(gcCounty,2550,3080),
+ prn(gcCounty,4850,3300),);
 
 
 
@@ -107,6 +120,12 @@ tr(nl,nl,
  lcLm=1000,
  lcTm=1200,
  lcDeedBlob=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),
+ lcBidAddBlob=upper(readstring(lcdeedblob,'@bidder='))&'; '&upper(readstring(lcdeedblob,'@add1=')),
+ if(len(readstring(lcdeedblob,'@add2='))>0,lcBidAddBlob=lcBidAddBlob&'; '&upper(readstring(lcdeedblob,'@add2='))),
+ if(len(readstring(lcdeedblob,'@add3='))>0,lcBidAddBlob=lcBidAddBlob&'; '&upper(readstring(lcdeedblob,'@add3='))),
+ if(len(readstring(lcdeedblob,'@city='))>0,lcBidAddBlob=lcBidAddBlob&'; '&upper(readstring(lcdeedblob,'@city='))&', '),
+ if(len(readstring(lcdeedblob,'@state='))>0,lcBidAddBlob=lcBidAddBlob&upper(readstring(lcdeedblob,'@state='))&'  '),
+ if(len(readstring(lcdeedblob,'@zip='))>0,lcBidAddBlob=lcBidAddBlob&'  '&upper(readstring(lcdeedblob,'@zip='))),
  lcLegal=str_replace(kp('select top 1 dbo.readstring(''@legal='',comments) from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),
 tr(nl,nl,
  bnd(,'',1000,'SA&I Form 303',1000),
@@ -116,7 +135,7 @@ tr(nl,nl,
  prn(,lcLm,pagey,11,'regular'),
  nl,nl,
  det('select 1'),
- bnd(,'          Whereas, '&gcOfficial&', County Treasurer of '&gcCounty&' County, State of '&gcfState&', on the '&readstring(lcdeedblob,'@saleDate=')&' sold separately and singly, in the manner provided by law, at tax resale and :'&upper(readstring(lcdeedblob,'@bidder='))&', bid in for '&upper(readstring(lcdeedblob,'@name='))&' the real estate hereinafter described, and',7300W),
+ bnd(,'          Whereas, '&gcOfficial&', County Treasurer of '&gcCounty&' County, State of '&gcfState&', on the '&readstring(lcdeedblob,'@saleDate=')&' sold separately and singly, in the manner provided by law, at tax resale and :'&lcBidAddBlob&', bid in for '&upper(readstring(lcdeedblob,'@name='))&' the real estate hereinafter described, and',7300W),
  nl,
  bnd('','         Whereas, all proceedings, notices and duties provided, required and imposed by law prerequisite to the vesting of authority in said county treasurer to execute this resale deed have been followed, given, complied with and preformed, and',7300W),
  nl,
@@ -161,7 +180,15 @@ tr(nl,nl,
  txt(lcSig,4000,,4000,500,1,1000), 
  prn(,,lcy),
  bnd(,'ATTEST:',500),
- bnd(,' (SEAL)',500));
+ bnd(,' (SEAL)',500),
+ pagebreak,
+ img(kp('path')&'\reports\TaxDeedAcknowledgement.gif',500,1000,7500,9000),
+ prn(gcCounty,1250,1680),
+ prn(gcOfficial,4950,2150),
+ prn(gcCounty,4550,2390),
+ prn(gcCounty,2550,3080),
+ prn(gcCounty,4850,3300),
+);
 
 
 
@@ -181,7 +208,7 @@ tr(
  bnd(,'(INDIVIDUAL)',8200C),
  prn(,lcLm,pagey,11,'regular'),
  nl,nl,
- bnd(,'          Whereas, '&gcOfficial&', County Treasurer of '&gcCounty&' County, State of '&gcfState&', on the '&readstring(lcdeedblob,'@saleDate=')&' sold separately and singly, in the manner provided by law, at tax resale and :'&upper(readstring(lcdeedblob,'@bidder='))&', bid in for '&upper(readstring(lcdeedblob,'@name='))&' the real estate hereinafter described, and',7300W),
+ bnd(,'          Whereas, '&gcOfficial&', County Treasurer of '&gcCounty&' County, State of '&gcfState&', on the '&readstring(lcdeedblob,'@saleDate=')&' sold separately and singly, in the manner provided by law, at tax resale and :'&lcBidAddBlobHead&', bid in for '&upper(readstring(lcdeedblob,'@name='))&' the real estate hereinafter described, and',7300W),
  nl,
  bnd('','         Whereas, all proceedings, notices and duties provided, required and imposed by law prerequisite to the vesting of authority in said county treasurer to execute this resale deed have been followed, given, complied with and preformed, and',7300W),
  nl,
@@ -229,7 +256,14 @@ lcy=pagey,
  txt(lcSig,4000,,4000,500,1,1000), 
  prn(,,lcy),
  bnd(,'ATTEST:',500),
- bnd(,' (SEAL)',500));
+ bnd(,' (SEAL)',500),
+ pagebreak,
+ img(kp('path')&'\reports\TaxDeedAcknowledgement.gif',500,1000,7500,9000),
+ prn(gcCounty,1250,1680),
+ prn(gcOfficial,4950,2150),
+ prn(gcCounty,4550,2390),
+ prn(gcCounty,2550,3080),
+ prn(gcCounty,4850,3300),);
 
 
 
@@ -300,4 +334,11 @@ do(bnd(,'Total',2750C,,1150C,,400C,,400C,,500C,format(lcTot,@n$-14.2b),800C),
  txt(lcSig,4000,,4000,500,1,1000), 
  prn(,,lcy),
  bnd(,'ATTEST:',500),
- bnd(,' (SEAL)',500));
+ bnd(,' (SEAL)',500),
+ pagebreak,
+ img(kp('path')&'\reports\TaxDeedAcknowledgement.gif',500,1000,7500,9000),
+ prn(gcCounty,1250,1680),
+ prn(gcOfficial,4950,2150),
+ prn(gcCounty,4550,2390),
+ prn(gcCounty,2550,3080),
+ prn(gcCounty,4850,3300),);
