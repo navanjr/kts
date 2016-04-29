@@ -70,9 +70,18 @@
  break(readstring(lcEVBlob,'@IncompleteRefunds=')=1),
  if(readstring(lcEVBlob,'@Decisions=')=1,decision=),
  break(readstring(lcEVBlob,'@Decisions=')=1),
+ if(readstring(lcEVBlob,'@Resale=')=1,taxreimburse=),
+ break(readstring(lcEVBlob,'@Resale=')=1),
  m('There are ['&readstring(lcEVBlob,'@tally=')&'] Expired Outstanding Vouchers?','Expired Vouchers...','question.ico','&Cancel Expired Vouchers|&Show Expired Vouchers|E&xit'),
  if(gcretval=1,cancelExpVouchers=),
  if(gcretval=2,showExpiredVouchers=);
+
+@taxreimburse=d1select('exec dbo.journalEntryCRUDWrapper @mode = 0, @postDate = '&obj:c1&', @description = ''Reimburse Tax Account for Hot Check or Refund'', @jeType = ''TAX REIMBURSEMENT'''),
+ if(readstring(obj7:d1,'@code=')+0>0,m(readstring(obj7:d1,'@resultMessage'))),
+ break(readstring(obj7:d1,'@code=')+0>0),
+ lcnum=readstring(obj7:d1,'@newId='),
+ if(lcnum+0>0,change(lcnum))
+;
 
 @decision=
  gcDecisionId=lcid, 

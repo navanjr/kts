@@ -1,0 +1,32 @@
+create function dbo.apportionOverageTF(@date varchar(20), @id int) 
+returns @wt table(name varchar(60),
+ accountid int,
+ accountcode varchar(60),
+ accountdesc varchar(250),
+ comment2 varchar(250),
+ contraaccountcode varchar(60),
+ amount money,
+ sourcecode varchar(60))
+as
+begin
+
+ declare @idm int = @id * -1, 
+         @slink varchar(16) = 'o'+cast(@id as varchar), 
+         @tableName varchar(60), 
+         @jeNum varchar(60),
+         @jeType varchar(50)
+
+ select @jeNum = key1,@jeType = a18 from object where id = @id
+
+ insert @wt
+  select 'Resale Payment for JE# '+rtrim(@jeNum)+' '+a.contraaccountcode, a.accountid, a.accountcode, a.accountdesc, a.comment2, a.contraaccountcode, sum(a.amount), max(a.sourceCode) 
+    from dbo.apportionCollectionsBRW(@idm,@date,null) a, glaccounts ac
+   where a.accountcode=ac.accountcode 
+    and (a.contraAccountCode in (select accountcode from gldetail where slink = @slink union select accountcode from gldetailstage where slink = @slink) or @jeType = 'TAX REIMBURSEMENT' or @id = 0)
+    and a.contraaccountcode <> a.accountcode
+    and ac.accounttype in (select accounttype from dbo.glBankFundTypes('FUND'))
+   group by a.accountid,a.accountcode,a.accountdesc,a.comment2,a.contraaccountcode
+    having sum(a.amount) > 0
+
+ return
+end

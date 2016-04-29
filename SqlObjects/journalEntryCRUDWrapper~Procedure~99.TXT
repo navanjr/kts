@@ -1,0 +1,23 @@
+create procedure dbo.journalEntryCRUDWrapper(
+ @mode int,
+ @id int = null,
+ @postDate int = null,
+ @description varchar(50) = '',
+ @jeType varchar(50) = '',
+ @comment varchar(max) = '',
+ @conversionNote varchar(16) = '',
+ @verbose varchar(5) = 'TRUE',
+ @resultCode int = 0,
+ @resultMessage varchar(50) = '',
+ @newId int = null
+) as 
+begin
+
+exec dbo.journalEntryCRUD @mode, @id, @postDate, @description, @jeType, @comment, @conversionNote, @verbose, 
+ @resultCode = @resultCode output,
+ @resultMessage = @resultMessage output,
+ @newId = @newId output
+
+select '@resultCode='+cast(@resultCode as varchar) + ';@resultMessage=' + @resultMessage+';@newId=' + cast(@newId as varchar) + ';'
+
+end

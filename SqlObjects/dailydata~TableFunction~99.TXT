@@ -32,6 +32,13 @@ begin
   select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,brwBGColor,blob
   from dbo.dailyDataCollections(@theDate, @days, 'F', @filterString)
 
+-- Overdrawn Apportionment
+ if substring(@filterString,2,1) = '1'
+  insert @rt 
+  select id*-1,ord,rowString,glBalanceString,rowString1,sourceNo,recordCnt,sourceAmt,3,blob
+  from dbo.dailyDataResale(@theDate, @days, 'F', @filterString)
+
+
 -- Deposits & Disbursments
  if substring(@filterString,2,1) = '1'
   insert @rt 
@@ -96,7 +103,7 @@ begin
    insert @rt 
    select
     '-3' + cast(minPaymentId as varchar),
-    'EexpiredVouchers',
+    'ExpiredVouchers',
     dbo.padRight(' --> ' + message,' ',65)
     + dbo.padLeft(dbo.formatCurr(amount),' ',15),'glBalanceString','rowstring1','sourceNo',tally,amount,3,
     '@tally=' + cast(tally as varchar) + ';@amount=' + cast(amount as varchar) + ';@ids=' + ids + ';'

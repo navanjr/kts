@@ -52,7 +52,8 @@ browseinsert=
  prop(175,7C65H,1),
  create(176,2,3,70,'Remember: Accrued Receivable Type Accounts do not affect the general ledger until appotionment.'),
  prop(176,fontcolor,255),
- prop(176,7C65H,1);
+ prop(176,7C65H,1),
+ checkapportionment=;
 
 
 @getType=
@@ -125,6 +126,8 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
 \t101Comments; \q102obj:a18='CORRECTION'; \h101102obj:c1=1;r @acc102=tsc;
 \t103Import Data; \h103104obj:c1<>1;r @acc104=update,refreshbrw=;
 
+
+
 \t118Adjust To; \h118obj:c1<>1; \y118322;
  @acc118=gcAdjustTo=', ''TRUE''',
          acc120=,
@@ -191,6 +194,26 @@ if(obj:a6<' 0',set(018,kp('select b6 from object where typ=40'))),if(obj:olink2>
  close('ok');
 
 \t113&Delete; @acc113=removeRow=; \h113obj:a17='Posted';
+
+\t115Check Apportionment;
+@acc115=checkapportionment=,
+ if(gccheck+0=0,m('This Journal will not overdraw your apportionment.'));
+
+@checkapportionment=
+gccheck=kp('select sum(amount) from dbo.apportionOverageTF('''&obj:key2&''', '&obj:id&')'),
+ if(gccheck+0>0,overdrawn=),
+;
+
+@overdrawn=if(obj:a18='TAX REIMBURSEMENT',dodeposit=),
+break(obj:a18='TAX REIMBURSEMENT'),
+m('This Journal will overdraw your apportionment by '&gccheck+0&'.'&chr(13)&chr(10)&'You may fix this in one of these ways '&chr(13)&chr(10)&'1.Deposit Resale Voucher into tax account '&chr(13)&chr(10)&'2. Write part of the refund from Resale to your payee '&chr(13)&chr(10)&'3. Put off taking care of this until later','Fix Apportionment',,'DEPOSIT|PAYEE|WAIT'),
+if(gcretval=1,dodeposit=),
+if(gcretval=2,dopayee=),
+if(gcretval=3,m('Be sure to correct this before the apportionment.')); 
+
+@dodeposit=d1select('exec dbo.apportionOverageSP '''&obj:key2&''', '&obj:id&', @method=''DEPOSIT'''),refreshbrw=,tsc;
+@dopayee=d1select('exec dbo.apportionOverageSP '''&obj:key2&''', '&obj:id&', @method=''PAYEE'''),refreshbrw=,tsc;
+
 
 \t119Special Apportion;
 @acc119=gccontinue='',

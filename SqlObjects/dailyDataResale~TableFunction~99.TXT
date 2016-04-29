@@ -1,0 +1,48 @@
+CREATE function dbo.dailyDataResale(@theDate int, @days int, @ordSeed varchar(50), @filterFlag varchar(10)) returns 
+@rt table (
+ id int,
+ ord varchar(250),
+ rowstring varchar(250),
+ glBalanceString varchar(50),
+ rowstring1 varchar(250),
+ sourceNo varchar(50),
+ recordCnt varchar(50),
+ sourceAmt varchar(50),
+ rowType char(10),
+ brwBGColor int,
+ blob varchar(max)
+)
+begin
+ declare @wt table(accountcode varchar(300))
+
+ declare @sectionTitle varchar(50) = 'Refund from Resale', @date int = @theDate + @days
+
+ insert @wt  
+select g.accountcode
+from gldetail g, glaccounts a, glaccounts c 
+where g.accountcode = a.accountcode 
+ and a.accounttype = 'ACCRUED RECEIVABLE'
+ and isnull(g.bsId,0) = 0
+ and g.contraid = c.accountid
+ and c.accountcode like '%ADVALOREM'
+group by g.accountcode 
+ having sum(g.amount) < 0
+ 
+if exists(select * from @wt)
+begin
+ --insert main data
+  insert @rt
+  select top 1 cast('3' + cast(a.accountid as varchar) as int), 
+   @ordSeed + 'zz', 
+   left('  Refunds are Needed from your Resale account...',249),
+   '', 
+   left('  Refunds are Needed from your Resale account...',249),
+   '', '', '', 'detail',    0, '@Resale=1;'
+  from dbo.apportionOverageTF(@date, 0) c, glaccounts a where c.contraaccountcode = a.accountcode group by a.accountid
+
+
+ -- headers
+  insert @rt select 0,@ordSeed+'zya','','','','','','','lineFeed',0,''
+ end
+ return
+end

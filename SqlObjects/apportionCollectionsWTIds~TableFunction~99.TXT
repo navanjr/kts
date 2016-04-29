@@ -37,6 +37,8 @@ begin
   @accountType int,
   @accountTypeDesc varchar(50)
 
+ declare @jeType varchar(50)
+
  if isnull(@glDetailId,0) > 0
  begin
 
@@ -59,7 +61,49 @@ begin
      ISNULL(bsId,0) = 0 
  end 
  else 
- begin   
+ begin
+  if @accountid < 0
+  begin
+   select @accountid = @accountid * -1
+   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId
+   select @jeType = a18 from object where id=@accountId
+   if @accountType = 4512   
+    begin
+     insert into @twt
+     select
+      a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],
+      @apportionToDate,a.[slink],null,a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+      '' as contraAccountCode,
+      '' as contraAccountDesc,
+      a.accountId as acrAccountId, 
+      '' as acrAccountCode,
+      '' as acrAccountDesc,
+      '',8   
+      from gldetailstage a, glaccounts c 
+       where slink in (select slink from dbo.journalSLinks(@accountId))
+        and c.accountId = a.contraId 
+        and isnull(a.contraid,0)>0
+
+     insert into @twt
+     select
+      a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],
+      a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
+      '' as contraAccountCode,
+      '' as contraAccountDesc,
+      a.accountId as acrAccountId, 
+      '' as acrAccountCode,
+      '' as acrAccountDesc,
+      '',8   
+      from gldetail a 
+       where slink in (select slink from dbo.journalSLinks(@accountId))
+        and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
+        and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+        and isnull(contraid,0)>0
+
+    end
+   select @accountid = 0
+  end
+   
   if @accountId = 0
   begin
 
@@ -160,31 +204,8 @@ begin
 
    if @accountType = 4512
     begin
-     declare @jeType varchar(50)
      select @jeType = a18 from object where id=@accountId
-/*    if @jeType like '%Protest%'
-    begin
-   -- Add glDetail when apportioning protest by journal entry
-       insert into @twt
-       select top 1
-        a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],cast(b.key3 as money),a.[creationdate],
-        a.[creationtime],a.[date],a.[slink],a.[bsId],a.[slink2],a.[comment],a.[contraId],a.[comment2],a.[sourceCode],
-        '' as contraAccountCode,
-        '' as contraAccountDesc,
-        a.accountId as acrAccountId, 
-        '' as acrAccountCode,
-        '' as acrAccountDesc,
-        '',7   
-    from gldetail a, object b 
-    where b.typ=4775 
-      and a.slink2=b.olink2 
-      and b.link1=@accountId 
-      and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
-      and amount > 0
-    end
-   else
-*/
---    begin
+
      insert into @twt
      select
       a.[id],a.[fpid],a.[fpCode],a.[fpDesc],a.[accountId],a.[accountCode],a.[accountDesc],a.[amount],a.[creationdate],a.[creationtime],
@@ -200,7 +221,6 @@ begin
         and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
         and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
         and isnull(contraid,0)>0
---     end
     end
 
    if @accountType = 4502
@@ -248,21 +268,9 @@ begin
   end
  end
 
-/* --No longer needed because of gldetailsyncdate being an auto fixing diagnostic
---  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end from @twt a, object b where a.slink='o'+cast(b.id as varchar)
+--  delete from @twt where date > @apportionToDate
 
-  update a set [date]=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
-from @twt a, object b where left(a.slink,1)='o' and cast(substring(a.slink,2,15) as int)=b.id
-
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
-from @twt a, object b, receiptLink c where left(a.slink,1)='l' and dbo.slinkid(a.slink)=c.id and c.receiptId = b.id
-
-  update a set date=case when isnumeric(b.key2)=1 then cast(b.key2 as int) else 0 end 
-from @twt a, object b, journalLink c where left(a.slink,1)='j' and dbo.slinkid(a.slink)=c.id and c.jeId = b.id
-*/
-  delete from @twt where date > @apportionToDate
-
-  delete from @twt where amount=0.00
+--  delete from @twt where amount=0.00
 
  return
 end
