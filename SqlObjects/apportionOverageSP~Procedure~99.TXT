@@ -22,7 +22,7 @@ begin
   select name, accountid, accountcode, accountdesc, comment2, contraaccountcode, amount, sourcecode from dbo.apportionOverageTF(@date, @id) 
 
  insert object (typ, key1, key2, key3, a1, a2, b1, k2)
-  select 4022, name, accountcode, cast(amount as varchar), comment2, 'APPORTIONOVERAGE', 'APPORTIONOVERAGE', left(rtrim(name)+rtrim(accountcode),30) from @wt where name+accountcode not in (select key1+key2 from object where typ=4022) 
+  select 4022, name, accountcode, cast(isnull(amount,0) as varchar), isnull(comment2,''), 'APPORTIONOVERAGE', 'APPORTIONOVERAGE', left(rtrim(name)+rtrim(accountcode),30) from @wt where name+accountcode not in (select key1+key2 from object where typ=4022) 
 
  insert @contras select distinct contraaccountcode from @wt
 
@@ -47,7 +47,7 @@ begin
     select accountid, accountcode, accountdesc, @reslaeAmount *-1, @slink  from glAccounts where accountcode = @contracodeToken
   end
 
-  select @message = case when @method = 'PAYEE' then 'Pay '+cast(@reslaeAmount as varchar)+' from Resale and teh remainder from another account.' else 'Deposit a Resale voucher for '+cast(@reslaeAmount as varchar)+' into the ' + @contracodeToken + ' fund.' end
+  select @message = case when @method = 'PAYEE' then 'Pay '+cast(@reslaeAmount as varchar)+' from Resale and the remainder from another account.' else 'Deposit a Resale voucher for '+cast(@reslaeAmount as varchar)+' into the ' + @contracodeToken + ' fund.' end
 
   insert @stage (accountid, accountCode, accountdesc, amount, slink, comment2)
    select accountid, accountcode, accountdesc, @reslaeAmount *-1, @slink, case when @method = 'PAYEE' then 'Pay this amount from Resale' else 'Deposit this amount into '+@contracodeToken end  from glAccounts where accountcode = 'APPORTIONOVERAGE'
