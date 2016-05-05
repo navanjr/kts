@@ -234,14 +234,18 @@ declare @adtaxids table(adtaxid int)
    select min(invoiceId), taxrollid from @rt group by taxrollid
   
   declare @voids table(id int, taxrollid int)
+  declare @voidassess table(taxyear numeric(5,0), item numeric(7,1), cnt int)
   
   insert @voids
    select r.invoiceId, r.taxrollid from @rt r, @taxrollids t where r.taxrollid=t.taxrollid and r.invoiceid <> t.id and cast(amount as money)=0.00 and cast(due as money) = 0.00 
 
+  insert @voidassess
+   select taxyear, item, count(*) from invoices where TYP='S' group by taxyear, item having count(*) >1
+
+  insert @voids
+   select i.id*-1, 0 from invoices i, @voidassess v where i.taxyear=v.taxyear and i.item=v.item and invoiceamount = 0.00 and invoicedue = 0.00   
+
   delete from @rt where invoiceid in (select id from @voids)
-
-  
-
   
 
 
