@@ -28,13 +28,13 @@ begin
  insert @rt
  select @tokenResource,
   count(*),
-  sum(case when modified > isnull(apiUpdated,0) and DATEDIFF(mi, isnull(apiupdated, 0), modified) > @dmzTime then 1 else 0 end),
+  sum(case when t.modified > isnull(t.apiUpdated,0) and DATEDIFF(mi, isnull(t.apiupdated, 0), t.modified) > @dmzTime then 1 else 0 end),
   null,
   '@resource=' + @tokenResource + ';',
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'a', null, null, null, null
- from adtax
+ FROM adtax t JOIN invoices i ON i.taxrollid = t.id 
 
 --legal
  declare @taxcorrections table(id int, taxrollid int)
