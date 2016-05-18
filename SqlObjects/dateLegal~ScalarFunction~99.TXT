@@ -1,19 +1,29 @@
-create  function dbo.dateLegal (@x int) returns varchar(50) as 
+create function dbo.dateLegal (@x int) returns varchar(50) as 
 begin
+
  declare	@y varchar(50) = '',
 		@date varchar(12) = rtrim(convert(char,cast(cast(@x-36163 as int) as datetime),112)),
-		@daySuf varchar(12) = '' 
+		@daySuf varchar(12) = '', 
+		@dayday int,
+		@dayR1 int
 		
+ select 
+	@dayday = cast(datepart(D,@date) as varchar),
+	@dayR1 = right(cast(datepart(D,@date) as varchar),1)
 
- select @daySuf = case right(cast(datepart(D,@date) as varchar),1)
-						when '1' then 'ST'
-						when '2' then 'ND'
-						when '3' then 'RD'
+ if @dayday >= 10 and @dayday <= 19
+   select @daySuf = 'TH'
+ else  
+   select @daySuf = case @dayR1
+						when 1 then 'ST'
+						when 2 then 'ND'
+						when 3 then 'RD'
 						else 'TH' end
-						
+ 						
  if isnull(@x,'')<>'' and isnumeric(@x)=1 and @x>10
  begin
   set @y = cast(datepart(D,@date) as varchar)+@daySuf+' DAY OF '+upper(datename(M,@date))+', '+cast(datepart(YEAR,@date) as varchar)
  end
+ 
  return @y
 end
