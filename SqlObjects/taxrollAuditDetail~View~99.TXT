@@ -2,24 +2,28 @@ create view dbo.taxrollAuditDetail
  as 
 
 
-select *,
- case when isnull(sourced1,'') like '%@excludeauditdetail;%' then '6. Apportioned'
-      when accountType = 'SOURCE' and origin like '%Origin%' then '1. Original Tax'
-      when accountType = 'SOURCE' and origin = 'mike_taxroll' then '1. Original Tax'
-      when accountType = 'SOURCE' and origin <> 'mike_taxroll' and origin not like '%Origin%' and slink not in (select 't'+cast(i.id as varchar) from journalLink j, invoices i where i.typ='A' and i.postdate=gldetailreports.date and i.invoiceid=j.invoiceid and jeid in (
-select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=gldetailreports.date)) then '2. Taxroll Correction' 
-      when sourceType = '4502' then '3. Receipt'
-      when sourceType = '4512' and isnull(contraId,0) <> 0 then '5. Receipt Adjustment'
-      when sourceType = '4512' and isnull(contraId,0) = 0 and sourcea18<>'Tax Payment Adjust' then '6. Apportioned'
-      when sourceType = '4512' and isnull(contraId,0) = 0 and sourcea18='Tax Payment Adjust' and left(slink,1)='j' then '3. Receipt'
-      else 'Unidentified - '+origin end as auditOrigin,
-      case when isnull(slink2,'NULL')<>'NULL' then 
-      isnull((select penaltyAmount from dbo.taxrollAuditDetailPenaltyAdjust where invoiceId=gldetailreports.invoiceId),0)
+select g.*,
+ case when isnull(g.sourced1,'') like '%@excludeauditdetail;%' then '6. Apportioned'
+      when g.accountType = 'SOURCE' and g.origin like '%Origin%' then '1. Original Tax'
+      when g.accountType = 'SOURCE' and g.origin = 'mike_taxroll' then '1. Original Tax'
+      when g.accountType = 'SOURCE' and g.origin <> 'mike_taxroll' and g.origin not like '%Origin%' and g.slink not in (select 't'+cast(i.id as varchar) from journalLink j, invoices i where i.typ='A' and i.postdate=g.date and i.invoiceid=j.invoiceid and jeid in (
+select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=g.date)) then '2. Taxroll Correction' 
+      when g.sourceType = '4502' then '3. Receipt'
+      when g.sourceType = '4512' and isnull(g.contraId,0) <> 0 then '5. Receipt Adjustment'
+      when g.sourceType = '4512' and isnull(g.contraId,0) = 0 and g.sourcea18<>'Tax Payment Adjust' then '6. Apportioned'
+      when g.sourceType = '4512' and isnull(g.contraId,0) = 0 and g.sourcea18='Tax Payment Adjust' and left(g.slink,1)='j' then '3. Receipt'
+      else 'Unidentified - '+g.origin end as auditOrigin,
+      case when isnull(g.slink2,'NULL')<>'NULL' then 
+      isnull((select penaltyAmount from dbo.taxrollAuditDetailPenaltyAdjust where invoiceId=g.invoiceId),0)
       else 0 end  as penaltyAmount
-from dbo.gldetailreports 
-where apdistrict > ' 0' and sourcekey3 not in ('misc','apportion excess TIF proceeds','TAX INCREMENT DISTRICT 1')
- and isnumeric(left(isnull(apportioncontracode,'0000'),4))=1
+from dbo.gldetailreports AS G
+ LEFT JOIN glaccounts AS s ON g.sourcecode = s.accountcode
+where g.apdistrict > ' 0' and g.sourcekey3 not in ('misc','apportion excess TIF proceeds','TAX INCREMENT DISTRICT 1')
+ and isnumeric(left(isnull(g.apportioncontracode,'0000'),4))=1
+ and isnull(s.accountdesc,'') not like '%interest%'
+
 union all 
+
 select a.*,
  case when right(b.accountDesc,7) = 'PROTEST' then '7. Unapportioned Protest'
       else '8. Pending Apportionment' 
