@@ -19,6 +19,9 @@ create function dbo.rpWarrantImportReport(
 as
 begin
 
+declare @accounts table(accountcode varchar(60), psAccountCode varchar(60))
+insert @accounts select accountcode,  psAccountCode from glaccounts
+
 declare @bankcode varchar(60)
 
 select @bankcode=key3 from object where id=@ImportId
@@ -104,7 +107,7 @@ select @bankcode=key3 from object where id=@ImportId
  group by fundCode,fundDesc,debitAcct
 
  update r set
-  glbalance = isnull((select sum(amount*-1) from gldetailreports where psAccountCode=r.fundcode),0),
+  glbalance = isnull((select sum(amount*-1) from gldetailreports where accountcode in (select accountcode from @accounts where psAccountCode=r.fundcode)),0),
   OSWarrants = isnull((select sum(amount) from gldetailreports where accountCode=r.debitAcct),0)
  from @rt r
  where origin = 2
