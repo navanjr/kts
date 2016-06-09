@@ -28,7 +28,7 @@ begin
   @item = item,
   @keyCode = keyCode
  from dbo.collectionsItem(@taxrollDetailId)
- 
+
  if @dtype = 'TAXWARRANT'
  begin
   insert @rt
@@ -140,9 +140,26 @@ begin
     from dbo.split(dbo.docCollectionDesc(@invoiceId,@interestTo,2),char(13)+char(10)) where len(data)>0
   
    update r set r.display = r.display + '*' from @rt r, dbo.collectionsBRW(@dtype,null,@date,@days,@taxrollDetailId) c where '9'+cast(c.addFeeToInvoiceId as varchar) = r.id
+
+
   end
 
  end
+ declare @related table (compid int, inquiryId int, relatedcnt int, processcode int)
+ insert @related
+ select id, cast(right(cast(id as varchar),len(cast(id as varchar))-1) as int), 0, 0 from @rt where left(cast(id as varchar),1)='9'
+
+ declare @idtoken int, @relatedIdtoken int
+ while exists (select * from @related where processcode = 0)
+ begin
+  select top 1 @idtoken = inquiryId from @related where processcode = 0
+  select @relatedIdtoken = count(invoiceId) from taxrollSearchBRW(0,@idtoken) where invoiceid <> 0 and invoiceId * -1 not in (select inquiryId from @related)
+  update @related set processcode = 2, relatedcnt = @relatedIdtoken where inquiryId = @idtoken
+ end
+
+ update r set r.display = r.display + ' Check for related items' from @rt r, @related c where c.compid = r.id and c.relatedcnt > 0
+
+ 
 
  return
 end
