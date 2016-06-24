@@ -90,7 +90,7 @@ printTrustPurposeDetail=;
 @printTrustReceiptDetail=
   do(452,getSiteInfo=),
   lcgrpToken='',
-  if(gcCheckBox='1',lcdetail='',lcdetail=' and balance <> 0.00 '),
+  if(gcCheckBox='1',lcdetail=' and balance <> 0.00 ',lcdetail=''),
   if(gcsourcecode>' 1',lcsource=' and purpose = '''&gcsourcecode&''' ',lcsource=''),
   
   lcsql='select accountid, purpose, AccountDesc, receiptId, receiptno, receiptdate, Payor, receipt, adjust, voucher, balance from dbo.trustReceiptDetail where receiptid > 0 '&lcsource&lcdetail&' order by purpose, payor, receiptdate',
@@ -106,8 +106,8 @@ printTrustPurposeDetail=;
   lcPayJournal=0,
   lcPayDeposits=0,
   lcPayVouchers=0,
-  lcC1w=650,
-  lcC2w=600,
+  lcC1w=1500,
+  lcC2w=-1500,
   lcC3w=-750,
   lcC4w=lcC3w,
   lcC5w=lcC3w,
@@ -124,12 +124,10 @@ printTrustPurposeDetail=;
   gcAccountDesc=obj5:a3,
   bnd('H','Purpose: '&obj5:a3,4500),
   nl,
-  box(lcx-75,pagey-25,lcx+7700,pagey+150,0,lcBoxColor),
-  bnd('D','Receipt Date',lcC1w,'Number',lcC2w,'Received',lcC3w,'Journal',lcC4w,'Voucher',lcC5w,'Balance',lcC6w),
   prn(,,pagey+50),
 ),
    do(
-   bnd('HO','',lcC1w,'Totals',lcC2w,format(lcTotDeposits,@n-19.2b),lcC3w,format(lcTotJournal,@n-19.2b),lcC4w,format(lcTotVouchers,@n-19.2b),lcC5w,format(lcTotBalance,@n-19.2),lcC6w),
+   bnd('HO',left(gcAccountDesc,30),lcC1w,' Totals',lcC2w,format(lcTotDeposits,@n-19.2b),lcC3w,format(lcTotJournal,@n-19.2b),lcC4w,format(lcTotVouchers,@n-19.2b),lcC5w,format(lcTotBalance,@n-19.2),lcC6w),
    nl,
    nl,
    nl,
@@ -144,7 +142,7 @@ printTrustPurposeDetail=;
   bnd('H','Payor: '&obj5:a7,4500),
 ),
    do(
-   bnd('HO','',lcC1w,'Totals',lcC2w,format(lcPayDeposits,@n-19.2b),lcC3w,format(lcPayJournal,@n-19.2b),lcC4w,format(lcPayVouchers,@n-19.2b),lcC5w,format(lcPayBalance,@n-19.2),lcC6w),
+   bnd('HO',left(gcPayor,30),lcC1w,'Totals',lcC2w,format(lcPayDeposits,@n-19.2b),lcC3w,format(lcPayJournal,@n-19.2b),lcC4w,format(lcPayVouchers,@n-19.2b),lcC5w,format(lcPayBalance,@n-19.2),lcC6w),
    nl,
    lcPayBalance=0,
    lcPayJournal=0,
@@ -167,7 +165,8 @@ printTrustPurposeDetail=;
   prn(,lcx), 
   if(curpag=1),
   prn(,,,lcFontSize,,lcFont),
-
+  box(lcx-75,pagey-25,lcx+7700,pagey+150,0,lcBoxColor),
+  bnd('D','Receipt Date',lcC1w,'Number',lcC2w,'Received',lcC3w,'Journal',lcC4w,'Voucher',lcC5w,'Balance',lcC6w),
   det(lcsql),
    lcTotBalance=lcTotBalance+obj5:a11,
    lcTotDeposits=lcTotDeposits+obj5:a8,
