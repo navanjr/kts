@@ -1,0 +1,16 @@
+create view dbo.trustReceiptDetail as 
+select contraId as receiptId,
+  r.key1 as receiptno,
+  r.key2 as receiptdate,
+  r.a1 as Payor,
+  a.accountId,
+  a.accountcode as purpose,
+  a.accountDesc,
+  sum(case when sourcetype = '4502' then amount else 0 end) as receipt,
+  sum(case when sourcetype = '4512' then amount else 0 end) as adjust,
+  sum(case when sourcetype = '4771' then amount else 0 end) as voucher,
+  sum(amount) as balance
+  from glDetailReports a, object r 
+ where r.typ=4502 and a.contraId = r.id
+  and a.accountType in ('PURPOSE') 
+  group by contraId, r.key1, r.key2, r.a1, a.accountId, a.accountcode, a.accountDesc
