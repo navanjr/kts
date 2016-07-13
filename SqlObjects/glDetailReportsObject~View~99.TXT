@@ -1,0 +1,46 @@
+create view dbo.glDetailReportsObject as
+
+select
+ a.fpCode,a.fpDesc,
+ a.accountCode,
+ c.accountDesc,
+ amount,
+ debit = case when amount > 0.00 then cast(amount as varchar) else '' end,
+ credit = case when amount < 0.00 then cast(abs(amount) as varchar) else '' end,
+ date,
+ slink,
+ sourceKey1 = b.key1,
+ sourceDate = b.key2, 
+ sourceKey3 = b.key3,
+ sourceType = cast(b.typ as varchar(15)),
+ sourcea1 = b.a1,
+ sourcea2 = b.a2,
+ sourcea18 = b.a18,
+ c.accountType,
+ a.contraId,
+ a.slink2,
+ a.id,
+ a.accountId,
+ a.sourceCode,
+ a.bsId,
+ c.auditReportGroup,
+ c.reportOrder,
+ c.ledgerGroup,
+ c.apdistrict,
+ c.aprate,
+ c.apyear,
+ a.[fpid],a.[creationdate],a.[creationtime],a.[comment],a.[comment2],a.dateCleared,
+ left(cast(b.e1 as varchar(100)),100) as sourcee1,
+ null as invoiceId,
+ null as origin,
+ sourceD1 = b.d1,
+ a.apportionContraCode,
+ c.psAccountCode
+from gldetail a, object b, glaccounts c
+where
+  a.slink='o'+cast(b.id as varchar)
+-- left(a.slink,1)='o'
+-- and dbo.slinkid(a.slink) = b.id
+-- and b.typ in (4512,4513,4502,4522,4771)
+ and a.accountcode = c.accountcode
+ and b.typ > 0
