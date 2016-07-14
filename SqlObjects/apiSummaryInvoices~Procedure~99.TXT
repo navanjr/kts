@@ -1,0 +1,156 @@
+create proc dbo.apiSummaryInvoices(
+	@tax_year varchar(4),
+	@school_district varchar(50),
+	@invoiceFlags int = null OUTPUT
+) AS
+BEGIN
+	SET NOCOUNT ON
+
+	declare 
+		@site_id varchar(2) = dbo.settingsf('site.apisitecode',''),
+		@dump nvarchar(max),
+		@apiwt JSONHierarchy,
+		@log varchar(max),
+		@token int,
+		@tally int,
+		@filter varchar(1000),
+		@resource varchar(1000)
+		
+	select 
+		@filter = 'site_id=' + @site_id + '^&tax_year=' + @tax_year + '^&school_district=' + dbo.urlEncode(@school_district) + '^&has_invoice_due=true',
+		@resource = '/v2/treasurer_administration/summarydetail'
+		
+	-- create temp table to hold our results
+	--		drop table temp_okctInvoices
+	if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_okctInvoices]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+		create table temp_okctInvoices(
+			id int identity(1,1),
+			yr varchar(4),
+			sd varchar(50),
+			a_id int,
+			a_rc int,
+			a_amt money,
+			a_due money,
+			b_id int,
+			b_rc int,
+			b_amt money,
+			b_due money,
+			flag int
+		)
+	DELETE FROM temp_okctInvoices WHERE yr = @tax_year AND sd = @school_district
+	SELECT @tally = @@rowcount
+	exec dbo.logit @@procid, 'rows removed from temp_okctInvoices... ', @tally
+	PRINT 'rows removed from temp_okctInvoices... ' + cast(@tally AS varchar(10))
+	
+	exec dbo.api 
+		@dump = @dump output,
+		@method = 'get',
+		@resource = @resource,
+		@filter = @filter
+
+	if len(@dump) > 0
+	begin
+		begin try
+			insert into @apiwt select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
+		end try
+		begin catch
+			set @log = error_message()
+			exec dbo.logit @@procid, 'Failed Insert in to @apiwt', @log
+			select '@code=1;@message=Failed Insert in to @apiwt:' + @log + ';'
+			return
+		end catch
+
+		while exists(select * from @apiwt)
+		begin
+			SELECT @token = min(parent_id) from @apiwt insert into temp_okctInvoices (yr, sd, b_id, b_rc, b_amt, b_due, flag) 
+			SELECT
+			 	@tax_year, @school_district,
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_link'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'receipt_count'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_amount'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_due'),''),
+				null
+			delete @apiwt where parent_id = @token
+		end
+
+		select @tally = count(*) from temp_okctInvoices WHERE yr = @tax_year AND sd = @school_district 
+		exec dbo.logit @@procid, 'total rows received from the API', @tally
+   	PRINT 'total rows received from the API... ' + cast(@tally AS varchar(10))
+		
+		;WITH okct AS (
+		SELECT 
+			i.id AS id,
+			SUM(CASE WHEN CAST(o.C9 AS money) != 0 AND o.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc,
+--			i.invoiceAmount AS amt,
+--			CASE WHEN i.invoiceAmount = i.invoiceDue THEN i.invoiceAmount ELSE a.totaldue END AS amt,
+			dbo.taxCorrectionsSF(a.totaldue, a.id, '078') AS amt,
+			i.invoiceDue AS due
+		FROM invoices AS i
+			JOIN temp_okctInvoices AS t ON t.b_id = i.ID AND yr = @tax_year AND sd = @school_district
+			JOIN adtax AS a ON i.TAXROLLID = a.ID  
+			LEFT JOIN receiptlink AS r ON r.invoiceId = i.ID
+			LEFT JOIN object AS o ON r.receiptId = o.id and o.Typ = 4502
+		GROUP BY 
+			i.id,
+			--i.invoiceAmount,
+			a.totaldue,
+			i.invoiceDue,
+			a.id
+		)
+		UPDATE t SET 
+			t.a_id = o.id,
+			t.a_rc = o.rc,
+			t.a_amt = o.amt,
+			t.a_due = o.due
+		FROM temp_okctInvoices AS t
+		JOIN okct AS o ON o.id = t.b_id
+		
+		SELECT @tally = @@rowcount
+		exec dbo.logit @@procid, 'Rows updated from the KTS data...', @tally   
+		PRINT 'Rows updated from the KTS data... ' + cast(@tally AS varchar(10))    
+
+		INSERT INTO temp_okctInvoices (yr, sd, a_id, a_rc, a_amt, a_due)
+		SELECT
+			@tax_year, 
+			@school_district,
+			i.id,
+			SUM(CASE WHEN CAST(o.C9 AS money) != 0 AND o.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc,
+--			i.invoiceAmount,
+			a.totaldue,
+			i.invoiceDue
+		FROM invoices AS i
+			LEFT JOIN temp_okctInvoices AS t ON t.b_id = i.ID
+			JOIN adtax AS a ON i.TAXROLLID = a.ID  
+			LEFT JOIN receiptlink AS r ON r.invoiceId = i.ID
+			LEFT JOIN object AS o ON r.receiptId = o.id AND o.Typ = 4502
+		WHERE i.invoiceDue != 0
+			AND a.ORGSCHOOLDISTRICTMAIN = @school_district
+			AND i.TAXYEAR = @tax_year
+			AND t.id is null
+		GROUP BY 
+			i.id,
+--			i.invoiceAmount,
+			a.totaldue,
+			i.invoiceDue
+		
+		SELECT @tally = @@rowcount
+		exec dbo.logit @@procid, 'Rows inserted from the KTS data...', @tally   
+		PRINT 'Rows inserted from the KTS data... ' + cast(@tally AS varchar(10))
+		
+		UPDATE temp_okctInvoices SET flag = 1 WHERE yr = @tax_year AND sd = @school_district AND isnull(flag,0) = 0 AND isnull(a_amt,0) != isnull(b_amt,0)
+		SELECT @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched invoice_amount...', @tally
+		PRINT 'locating mismatched invoice_amount... ' + cast(@tally AS varchar(10))
+		UPDATE temp_okctInvoices SET flag = 2 WHERE yr = @tax_year AND sd = @school_district AND isnull(flag,0) = 0 AND isnull(a_due,0) != isnull(b_due,0)
+		SELECT @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched invoice_due...', @tally   
+		PRINT 'locating mismatched invoice_due... ' + cast(@tally AS varchar(10))
+		UPDATE temp_okctInvoices SET flag = 3 WHERE yr = @tax_year AND sd = @school_district AND isnull(flag,0) = 0 AND isnull(a_rc,0) != isnull(b_rc,0)
+		SELECT @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched receipt_count...', @tally   
+		PRINT 'locating mismatched receipt_count... ' + cast(@tally AS varchar(10))
+		
+		SELECT @invoiceFlags = count(*) FROM temp_okctInvoices WHERE yr = @tax_year AND sd = @school_district AND isnull(flag,0) > 0
+		
+	end
+END

@@ -1,0 +1,80 @@
+@dup;@lmode=2;@nolock;
+@loadbrowse=menuprocess=;
+
+@menuprocess=
+ lcid=kp('select min(id) from object where typ=45 and id > 0'),
+ if(lcid+0>0,change(lcid),new(45));
+
+@wbgcolor=kp('select dbo.keyColor(185,122,87)');
+
+@loadwindow=
+ gcvars=,
+ brwstuff=;
+
+@gcvars=
+ lcVariable=obj:c1&':'&obj:c2,
+ gcbrwsq45='select brwId*-1,display,aaid,selectedFlag from dbo.apiSummaryBRW('''&lcVariable&''')  order by ord';
+
+@brwstuff=
+ kpmo('Loading Initial Data...','Please Wait...'),
+ brw(150,1,gcbrwsq45,2,2,520,262,'500L(5)~~#2#M'),
+ kpmc(),
+ prop(150,'Color',16777215),
+ prop(150,7c10h,'Courier New'),
+ prop(150,'SelectedFillColor',65535),
+ prop(150,'SelectedColor',0);
+
+\t108Check &API;
+\t110Reset Invoice;
+\t111Reset All Invoices;
+
+@acc108=
+ m('Do you wish to gather data from the OKCT API now?||(This process may take several minutes.)', 'Check API...','question.ico',6,4),
+ if(gcretval=2,runAPISummary=);
+
+@acc110=
+ resetApi=;
+
+@acc111=
+ d1select('SELECT COUNT(*) FROM temp_okctInvoices WHERE isnull(flag,0) != 0'),
+ m('Do you wish to run an apiReset on '&obj7:d1&' invoice(s)?','Coming Soon...','question.ico',6,4),
+ break(gcretval<>2),
+ kpmo('Please wait while all invoices are being reset...', 'Running apiReset()...'),
+ d1select('exec dbo.apiSummaryReset'),
+ kpmc(),
+ m('apiReseet is complete.||Please allow some time for the apiControl to sync changes to the OKCT website.', 'apiReset()...','face02.ico');
+
+@resetApi=
+ decodeBRWId=,
+ break(lcidraw<1),
+ m('Reset API on this invoice?', 'apiReset()...','question.ico',6,4),
+ break(gcretval<>2),
+ d1select('exec dbo.apiReset '&lcid),
+ if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'reset API...')),
+ afterloadwindow=;
+
+@runAPISummary=
+ kpmo('Please wait while we access the OKCT API...', 'Accessing API...'),
+ d1select('exec dbo.apiSummary'),
+ brwreload(1),
+ kpmc();
+
+@brw1=;  this is intentionally disabled
+ decodeBRWId=,
+ if(lcMode=9,invoiceClicked=),
+ afterloadwindow=;
+
+@decodeBRWId=
+ lcMode=0,
+ lcid=0,
+ lcidraw=kpbrwid(1)*-1,
+ break(lcidraw<1),
+ lcMode=left(lcidraw,1),
+ lcid=sub(lcidraw,2,10);
+
+@afterloadwindow=
+ gcvars=,
+ brwreload(1,gcbrwsq45);
+
+@invoiceClicked=
+ m('you clicked '& lcid);

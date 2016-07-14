@@ -1,0 +1,169 @@
+create proc dbo.apiSummary(
+	@siteId int = null
+) AS
+BEGIN
+	SET NOCOUNT ON
+	IF @siteId is null
+		SELECT @siteId = dbo.settingsf('site.apisitecode','')
+
+	declare 
+		@dump nvarchar(max),
+		@apiwt JSONHierarchy,
+		@log varchar(max),
+		@token int,
+		@tally int,
+		@invoiceFlags int,
+		@tax_year varchar(4),
+		@school_district varchar(50),
+		@when varchar(50)
+		
+	declare @okct table(
+		id int identity(1,1),
+		sd varchar(100), 
+		yr int,
+		ic varchar(20),
+		rc varchar(20),
+		amt varchar(50),
+		due varchar(50)
+	)
+
+	exec dbo.api 
+		@dump = @dump output,
+		@method = 'get',
+		@resource = '/v2/treasurer_administration/summary',
+		@filter = 'site_id=33'
+
+	if len(@dump) > 0
+	begin
+		begin try
+			insert into @apiwt select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
+		end try
+		begin catch
+			set @log = error_message()
+			exec dbo.logit @@procid, 'Failed Insert in to @apiwt', @log
+			select '@code=1;@message=Failed Insert in to @apiwt:' + @log + ';'
+			return
+		end catch
+
+		while exists(select * from @apiwt)
+		begin
+			select @token = min(parent_id) from @apiwt insert @okct select 
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'school_district'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'tax_year'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_count'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'receipt_count'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_amount_total'),''),
+				isnull((select stringValue from @apiwt where parent_id = @token and name = 'invoice_due_total'),'')
+			delete @apiwt where parent_id = @token
+		end
+
+		select @tally = count(*) from @okct
+		exec dbo.logit @@procid, 'total rows received from the API', @tally   
+		PRINT 'total rows received from the API... ' + CAST(@tally AS VARCHAR(10))   
+		
+		-- Clean up
+		DELETE @okct WHERE nullif(sd,'') IS null AND nullif(yr, 0) IS null
+		select @tally = @@rowcount
+		EXEC dbo.logit @@procid, 'cleanup, rows removed from temp_okctsummary', @tally   
+		PRINT 'cleanup, rows removed from temp_okctsummary... ' + CAST(@tally AS VARCHAR(10))   
+
+		-- create temp table to hold our results
+	--		drop table temp_okctsummary
+		if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_okctsummary]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+			create table temp_okctsummary(
+				id int identity(1,1),
+				yr int,
+				sd varchar(100), 
+				a_ic int,
+				a_rc int,
+				a_amt money,
+				a_due money,
+				b_ic int,
+				b_rc int,
+				b_amt money,
+				b_due money,
+				flag int,
+				invoiceFlags int
+			)
+		DELETE FROM temp_okctsummary
+		DELETE FROM temp_okctInvoices
+
+		-- gather local data
+		;WITH inv AS (
+			SELECT 
+				i.TAXYEAR AS yr,
+				a.ORGSCHOOLDISTRICTMAIN AS sd,
+				COUNT(i.ID) as ic,
+--				SUM(invoiceAmount) as amt,
+				SUM(CAST(dbo.taxCorrectionsSF(a.totaldue, a.id, '078') AS MONEY)) AS amt,
+--				SUM(a.totaldue) as amt,
+				SUM(i.invoiceDue) as due
+			FROM invoices AS i
+			JOIN adtax AS a ON i.TAXROLLID = a.ID
+			GROUP BY i.TAXYEAR, a.ORGSCHOOLDISTRICTMAIN
+		),
+		rec AS (
+			SELECT 
+				i.TAXYEAR AS yr,
+				a.ORGSCHOOLDISTRICTMAIN AS sd,
+				SUM(CASE WHEN CAST(r.C9 AS money) != 0 AND r.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc
+			FROM object AS r
+			JOIN receiptlink AS l ON l.receiptId = r.ID 
+			JOIN invoices AS i ON i.ID = l.invoiceId
+			JOIN adtax AS a ON i.TAXROLLID = a.ID
+			WHERE r.typ = 4502
+			GROUP BY i.TAXYEAR, a.ORGSCHOOLDISTRICTMAIN
+		),
+		okct AS (
+			select * from @okct
+		)
+		INSERT INTO temp_okctsummary --(yr,sd,a_ic,a_rc,a_amt,a_due,b_ic,b_rc,b_amt,b_due) 
+		SELECT 
+			i.yr AS yr, i.sd AS sd,
+			i.ic AS a_ic, r.rc AS a_rc, i.amt AS a_amt, i.due AS a_due, 
+			o.ic AS b_ic, o.rc AS b_rc, o.amt AS b_amt, o.due AS b_due,
+			null, null
+		FROM inv AS i
+			JOIN rec AS r ON r.sd = i.sd AND r.yr = i.yr
+			JOIN okct AS o ON o.sd = i.sd AND o.yr = i.yr
+		
+		-- process the data
+		UPDATE temp_okctsummary SET flag = 1 WHERE isnull(flag,0) = 0 AND a_amt != b_amt
+		select @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched invoice_amount...', @tally
+		PRINT 'locating mismatched invoice_amount... ' + CAST(@tally AS VARCHAR(10))
+		UPDATE temp_okctsummary SET flag = 2 WHERE isnull(flag,0) = 0 AND a_due != b_due
+		select @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched invoice_due...', @tally
+		PRINT 'locating mismatched invoice_due... ' + CAST(@tally AS VARCHAR(10))
+		UPDATE temp_okctsummary SET flag = 3 WHERE isnull(flag,0) = 0 AND a_ic != b_ic
+		select @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched invoice_count...', @tally
+		PRINT 'locating mismatched invoice_count... ' + CAST(@tally AS VARCHAR(10))
+		UPDATE temp_okctsummary SET flag = 4 WHERE isnull(flag,0) = 0 AND a_rc != b_rc
+		select @tally = @@rowcount
+		exec dbo.logit @@procid, 'locating mismatched receipt_count...', @tally
+		PRINT 'locating mismatched receipt_count... ' + CAST(@tally AS VARCHAR(10))
+		
+		-- process each school district
+		WHILE exists(SELECT * FROM temp_okctsummary WHERE isnull(flag,0) != 0 AND invoiceflags is null)
+		BEGIN
+			SELECT @token = min(id) FROM temp_okctsummary WHERE isnull(flag,0) != 0 AND invoiceflags is null
+			SELECT
+				@tax_year = yr,
+				@school_district = sd
+			FROM temp_okctsummary
+			WHERE id = @token
+			EXEC dbo.apiSummaryInvoices @tax_year, @school_district, @invoiceFlags OUTPUT
+			UPDATE temp_okctsummary SET invoiceFlags = isnull(@invoiceFlags,0) WHERE id = @token
+			exec dbo.logit @@procid, 'processed apiSummaryInvoices... ', @tax_year, @school_district, @invoiceFlags
+			PRINT 'processed ' + @tax_year + ' - ' + @school_district + '... ' + CAST(isnull(@invoiceFlags,0) AS VARCHAR(10))
+		END
+
+		select @when = CAST(GETDATE() AS VARCHAR)
+		exec dbo.settingsCRUD 'api.apiSummary.lastDateTime', @when
+		exec dbo.logit @@procid, 'Finished processing apiSummary!', @when 
+		PRINT 'Finished processing apiSummary! - ' + @when
+		
+	end
+END

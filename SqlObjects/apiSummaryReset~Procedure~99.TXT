@@ -1,0 +1,48 @@
+CREATE PROC dbo.apiSummaryReset(
+ @mode VARCHAR(50) = 'ALL',
+ @debugMode VARCHAR(5) = 'FALSE'
+) AS
+BEGIN
+  SET NOCOUNT ON
+  IF @mode = 'ALL'
+  BEGIN
+    DECLARE @invIds table(
+      id INT IDENTITY (1,1),
+      invId INT
+    )
+    DECLARE 
+      @tokenId INT,
+      @tokenInvId INT
+    
+    INSERT @invIds 
+    SELECT 
+      a_id
+    FROM temp_okctInvoices
+    WHERE a_id IS NOT NULL
+      AND ISNULL(flag,0) != 0  
+
+    EXEC dbo.logit @@procid, 'Selected invoices for reset... @@ROWCOUNT', @@ROWCOUNT
+    
+    IF @debugMode = 'TRUE'
+    BEGIN
+      SELECT * FROM @invIds
+      RETURN
+    END
+
+    WHILE EXISTS(SELECT * FROM @invIds)
+    BEGIN
+      SELECT TOP 1
+        @tokenId = id,
+        @tokenInvId = invId
+      FROM @invIds
+      ORDER BY invId
+      EXEC dbo.logit @@procid, 'processing apiReset... @tokenId', @tokenId, '@tokenInvId', @tokenInvId
+      EXEC dbo.apiReset @tokenInvId
+      DELETE @invIds WHERE id = @tokenId
+    END
+
+    EXEC dbo.logit @@procid, 'Finished apiReset...'
+
+  END
+
+END
