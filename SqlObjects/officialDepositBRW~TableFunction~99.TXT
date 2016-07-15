@@ -21,6 +21,9 @@ begin
          @receiptAccount varchar(60),
          @trustAccount varchar(60)
 
+ declare @paycodes table(paycode varchar(60), amount money)
+
+
  select
   @receiptTyp = typ,
   @receiptAccount = a2
@@ -104,6 +107,8 @@ begin
 -- here are all the payments applied
  if exists(select * from dbo.paid where slink = @slink)
  begin
+  insert @paycodes select paycode, amount from dbo.paid where slink = @slink
+
   insert @rt (ord,id,description,subdescription,amount,origin)
   select 'ba',0,'','',0,4
   insert @rt (ord,id,description,subdescription,amount,origin)
@@ -116,6 +121,10 @@ begin
 
  if exists(select * from dbo.paid where officialDepositId = @id)
  begin
+  insert @paycodes 
+    select p.paycode, p.amount from dbo.paid p
+      where officialDepositId = @id
+
   insert @rt (ord,id,description,subdescription,amount,origin)
   select 'bda',0,'','',0,7
   insert @rt (ord,id,description,subdescription,amount,origin)
@@ -129,6 +138,16 @@ begin
   where officialDepositId = @id
 
  end
+
+-- Paycode totals
+ if exists(select * from @paycodes)
+ begin
+  insert @rt (ord,id,description,subdescription,amount,origin)
+    select 'bpa',0,'','',0.00,98
+  insert @rt (ord,id,description,subdescription,amount,origin)
+    select 'bpc',0,'         Total '+paycode,'',sum(amount),99 from @paycodes group by paycode
+ end
+
 
  if @showGl = 1
  begin

@@ -211,10 +211,23 @@ h110instring('@group=publicuser',cur:options,1,1)>0;
   case(gctype='address',correctAddress=,gctype='varchar',correctVarchar=,left(gctype,1)='@',correctFormat=,gctype='memo',correctMemo=,len(gctype)<2,m('Please Select a field to correct.'),gctype='locked',m('This field cannot be corrected here.')),
   if(gcNewValueSaved='Saved',updateScreen=),
   if(gcsetMillage='Y',setMillage=),
+  if(gcfieldnum>='050' and gcfieldnum<='072',checkassessed=),
   refreshBRW=,
   refreshBRW3=,
   tsc,
   resetfocus();
+
+@checkassessed=gcga=obj:b2+obj:b3+obj:b4+obj:b5+0,
+ if(gcga+0<>obj:b6+0,correctgrossassessed=),
+ gcna=gcga-(obj:b7+obj:b8+obj:b9+obj:b10+obj:b11+obj:b12+0),
+ if(gcna+0<0,gcna=0),
+ if(gcna+0<>obj:b13+0,correctnetassessed=);
+
+@correctgrossassessed=gcfieldnum='058',gclabel='Gross Assessed',gcoriginal=obj:b6,gctype='@n19;',
+sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId=0,@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&gcoriginal&''',@fieldData='''&clip(gcga)&''',@comment='''&kpfq(obj:d2)&''''),set(58,clip(gcga)),update,focus(058);
+
+@correctnetassessed=gcfieldnum='072',gclabel='Net Assessed',gcoriginal=obj:b13,
+sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId=0,@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&gcoriginal&''',@fieldData='''&clip(gcna)&''',@comment='''&kpfq(obj:d2)&''''),set(72,clip(gcna)),update,focus(072);
 
 @docomment=iw('\t099Reason; \x099=001; \x100=002; \y099100=001;r \w100150;','Please Enter the reason for this correction.'),
 set(100,obj7:d2),
@@ -277,7 +290,7 @@ tsc;
 @changeName=
  gcInvoiceId=obj:link2,
  set(002,gcvalue),
- d1select('exec dbo.taxrollAddressUpdate @mode = ''nameCorrect'', @addBlob = ''@name='&kpfq(gcvalue)&';'', @invoiceId = '&gcInvoiceId);
+ d1select('exec dbo.taxrollAddressUpdate @mode = ''nameCorrect'', @addBlob = ''@name='&clip(kpfq(gcvalue))&';'', @invoiceId = '&gcInvoiceId);
 
 @correctAddress=
  gcInvoiceId=obj:link2,
@@ -289,7 +302,7 @@ tsc;
  gcvalue=obj7:key2,
  gccorrectiodate=obj7:key1,
  gcNewValueSaved='Saved',
- sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&kpfq(gcoriginal)&''',@fieldData='''&kpfq(gcvalue)&''',@comment='''&kpfq(obj:d2)&''' ');
+ sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&kpfq(gcoriginal)&''',@fieldData='''&clip(kpfq(gcvalue))&''',@comment='''&kpfq(obj:d2)&''' ');
 
 @correctFormat=
  iw('\t001Date; \t002@d2; \w00250; @afterloadwindow=set(002,today()),update,tsc; \t003'&gclabel&'; \t004'&gctype&' '),
@@ -298,9 +311,10 @@ tsc;
  gccorrectiodate=obj7:key1,
  gcNewValueSaved='Saved',
  gcformat=left(gctype,len(gctype)-1),
- gcvalue=clip(format(gcvalue,gcformat)),
- if(left(gcformat,2)='@n',gcvalue=str_replace(str_replace(gcvalue,' ',''),',',''),),
- sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&gcoriginal&''',@fieldData='''&gcvalue&''',@comment='''&kpfq(obj:d2)&''''),
+ gcvalue=format(gcvalue,gcformat),
+ gcvalue=str_replace(gcvalue,' ',''),
+ if(left(gcformat,2)='@n',gcvalue=clip(str_replace(str_replace(gcvalue,' ',''),',','')),),
+ sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&gcoriginal&''',@fieldData='''&clip(gcvalue)&''',@comment='''&kpfq(obj:d2)&''''),
  gcformat='';
 
 @correctMemo=
@@ -311,6 +325,6 @@ tsc;
  gccorrectiodate=obj7:key1,
  gcNewValueSaved='Saved',
  lcOriginalData=str_replace(str_replace(gcoriginal,'''''','~{~~{~'),'''','~{~'),
- lcNewValue=str_replace(str_replace(obj7:e2,'''''','~{~~{~'),'''','~{~'),
- sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&kpfq(lcOriginalData)&''',@fieldData='''&kpfq(lcNewValue)&''',@comment='''&kpfq(obj:d2)&'''');
+ lcNewValue=clip(str_replace(str_replace(obj7:e2,'''''','~{~~{~'),'''','~{~')),
+ sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&kpfq(lcOriginalData)&''',@fieldData='''&clip(kpfq(lcNewValue))&''',@comment='''&kpfq(obj:d2)&'''');
 

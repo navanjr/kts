@@ -25,6 +25,8 @@ begin
          @trustAccount varchar(60),
          @receiptKEY3 varchar(50)
 
+ declare @paycodes table(paycode varchar(60), amount money)
+
  select @receiptTyp=typ, @receiptAccount = a2, @receiptKEY3 = key3 from object where id = @receiptId
  select top 1 @trustAccount = key3 from object where typ=4503 and key1='TRUST'
 
@@ -274,6 +276,8 @@ begin
 -- here are all the payments applied
  if exists(select * from dbo.paid where slink = @slink)
  begin
+  insert @paycodes select paycode, amount from dbo.paid where slink = @slink
+
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'ba',0,'','',0,4
   insert @rettable (ord,id,description,subdescription,amount,origin)
@@ -283,6 +287,8 @@ begin
  end
  if exists(select * from dbo.paid where officialDepositId = @receiptId)
  begin
+  insert @paycodes select paycode, amount from dbo.paid where officialDepositId = @receiptId
+
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bda',0,'','',0,7
   insert @rettable (ord,id,description,subdescription,amount,origin)
@@ -304,6 +310,16 @@ begin
 
  update r set trustAccountDesc = a.accountdesc from @rettable r, glaccounts a where r.trustaccount=a.accountcode
  end
+
+-- Paycode totals
+ if @receipttyp = 4522 and exists(select * from @paycodes)
+ begin
+  insert @rettable (ord,id,description,subdescription,amount,origin)
+    select 'bpa',0,'','',0.00,98
+  insert @rettable (ord,id,subdescription,amount,origin)
+    select 'bpc',0,'         Total '+paycode,sum(amount),99 from @paycodes group by paycode
+ end
+
 
 
  if @showGl = 1
