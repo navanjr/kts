@@ -22,18 +22,20 @@ declare @wt table(taxrollId int, invoiceId int,apdistrict varchar(50), aprate va
 declare @idToken int,
         @taxrollIdToken int
 
-while exists (select * from @invoiceIds where processed=0)
-begin
- select top 1 @idToken = id, @taxrollIdToken=taxrollId from @invoiceIds where processed=0
+declare @slinks table(slink varchar(16), taxrollid int, invoiceid int)
+insert @slinks
+ select slink, taxrollid, invoiceid from dbo.taxYearSLinks(@year) 
+
  insert @wt
-  select @taxrollIdToken,@idToken,a.apdistrict,a.aprate,g.accountcode,a.accounttype,sum(amount) from gldetail g, glaccounts a
+  select s.taxrollId,s.invoiceid,a.apdistrict,a.aprate,g.accountcode,a.accounttype,sum(amount) 
+   from gldetail g, glaccounts a, @slinks s
    where g.accountcode=a.accountcode 
-     and g.slink in (select slink from dbo.invoiceSLinks(@idToken)) 
+     and g.slink = s.slink
      and a.accounttype in ('SOURCE','RECEIVABLE','ACCRUED RECEIVABLE')
      and g.date <= @asof
-   group by a.apdistrict,a.aprate,g.accountcode, a.accounttype
- update @invoiceIds set processed = 1 where id=@idToken 
-end
+   group by s.taxrollId,s.invoiceid,a.apdistrict,a.aprate,g.accountcode, a.accounttype
+
+
 
 insert @rt (apdistrict,aprate,taxrollId,taxes,unpaid)
  select apdistrict,aprate,taxrollId,

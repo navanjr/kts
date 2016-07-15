@@ -61,13 +61,33 @@ declare @wt1 table(
  comment varchar(250)
 )
 
-insert @wt1 (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,comment)
-select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
- case when sourcetype='4513' then comment else '' end
- from gldetailreports 
-where 
-accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
-and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
+if isnull(@bankAccountCode,'')<' 0'
+ begin
+  insert @wt1 (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate,  sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup,  reportOrder,comment)
+  select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3,  sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+   case when sourcetype='4513' then comment else '' end
+   from gldetailreports 
+  where 
+  accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+ end
+else
+ begin
+  insert @wt1 (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate,  sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup,  reportOrder,comment)
+  select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3,  sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+   case when sourcetype='4513' then comment else '' end
+   from gldetailreports 
+  where @bankAccountCode = accountCode
+ end
+
+/*
+  insert @wt1 (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate,  sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup,  reportOrder,comment)
+  select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3,  sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
+   case when sourcetype='4513' then comment else '' end
+   from gldetailreports 
+  where 
+  accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+   and (@bankAccountCode = accountCode or isnull(@bankAccountCode,'')<' 0')
+*/
 
 
 insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,comment)

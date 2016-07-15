@@ -1,0 +1,35 @@
+create function dbo.taxYearSLinks(@year int) 
+ returns @rt table(
+ slink varchar(15),
+ taxrollid int,
+ invoiceid int
+)
+as
+begin
+
+declare @invoiceIds table(id int, invoiceid int, taxrollId int)
+insert @invoiceIds
+select id,id,taxrollId from invoices where taxyear=@year and invoiceid=0
+
+
+ insert @rt select 't' + cast(i.id as varchar),i.taxrollid,i.invoiceid from @invoiceIds i
+
+ insert @rt 
+select 'l' + cast(r.id as varchar),i.taxrollid,i.invoiceid from receiptLink r, @invoiceIds i where r.invoiceId = i.id
+
+ insert @rt 
+select 'j' + cast(j.id as varchar),i.taxrollid,i.invoiceid from journalLink j, @invoiceIds i where j.invoiceId = i.id
+
+ insert @rt
+select 'o' + cast(r.receiptId as varchar),i.taxrollid,i.invoiceid from receiptLink r, @invoiceIds i where r.invoiceId = i.id
+
+ insert @rt 
+select 't' + cast(inv.id as varchar),i.taxrollid,i.invoiceid from invoices inv, @invoiceIds i where inv.invoiceId = i.id and typ = 'A'
+
+ insert @rt 
+select 'l' + cast(r.id as varchar),i.taxrollid,i.invoiceid from receiptLink r, invoices inv, @invoiceIds i where r.invoiceId = inv.id and inv.invoiceId = i.id and inv.typ = 'A'
+
+
+
+ return
+end
