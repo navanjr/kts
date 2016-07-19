@@ -124,6 +124,7 @@ class ktsMenu():
         self.createCommand('importTax', ['importTax', ], 'copies XXXXadtax data into kts for invoicing', self.tpsXXXXadtax, 'conversion')
         self.createCommand('importTaxLv', ['importTaxLv', ], 'copies XXXXtxlv data into kts for invoicing', self.tpsXXXXtxlv, 'conversion')
         self.createCommand('importTaxFee', ['importTaxFee', ], 'copies XXXXinfo data into kts for invoicing', self.tpsXXXXfee, 'conversion')
+        self.createCommand('importTaxPay', ['importTaxPay', ], 'copies XXXXpay data into kts for archiving', self.tpsXXXXpay, 'conversion')
         self.createCommand('importTaxNote', ['importTaxNote', ], 'copies XXXXnote data into kts for invoicing', self.tpsXXXXnote, 'conversion')
         self.createCommand('importSpeTax', ['importSpeTax', ], 'copies spetax data into kts for invoicing', self.tpsspetax, 'conversion')
         self.createCommand('importMort', ['importMort', ], 'copies mortg data into kts', self.tpsmort, 'conversion')
@@ -1439,6 +1440,40 @@ class ktsMenu():
             columnNames = columnNames + ['SPECIALASSESSMENTFEE1','SPECIALASSESSMENTFEE2','SPECIALASSESSMENTFEE3','SPECIALASSESSMENTFEE4','SPECIALASSESSMENTFEE5']
             columnNames = columnNames + ['OTHERFEES','ENTRYDATE','POSTDATE','POSTRECEIPTNUMBER','COMMENT1','COMMENT2']
             sqlInsert = "insert TaxFeeImport ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            for id, row in enumerate(package['rows']):
+                formatedRow = [str(x).replace("'", "''") for x in row]
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                    tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+    def tpsXXXXpay(self):
+        importFileRaw = self.settingsF('taxroll.importTaxPayFile')
+        importFileName = importFileRaw.split('\\')[-1]
+        if list(importFileName)[0] in ('0','1','2','3','4','5','6','7','8','9'):
+            importFileNameOld = importFileName
+            importFileName = 'renamed_%s' % importFileName
+            importPathAndFileName = '%s\\%s' % ('\\'.join(importFileRaw.split('\\')[0:-1]), importFileName)
+            if os.path.isfile(importFileRaw):
+                shutil.copy2(importFileRaw, importPathAndFileName)
+        else:
+            importPathAndFileName = importFileRaw
+        tableName = importFileName.split('.')[0]
+
+        print 'ok we will attempt to import the data from %s.tps' % tableName
+        sql = 'select AUTONUMKEYFIELD,FULLPIDNUMBER,OWNERNAME,ITEMNUMBER,RECEIPTNUMBER,TAXYEAR,PAYMENTTYPE,SCHOOLDISTMAIN,SCHOOLDISTTAXRATE,TAXAMOUNTPAID,AMOUNTCASH,AMOUNTCHECK,PENALTY,FEESCODE,FEESAMOUNT,BALANCEDUEAFTERPAYMENT,TOTALDUE,PAIDBY,CERTIFICATENUMBER,TRANSACTIONPAIDDATE,POSTEDBY,SYSTEMDATE,SYSTEMTIME from %s' % tableName
+        package = self.tpsSelect(sql, tableName, True, importPathAndFileName)
+        if 'error' in package:
+            print '   oops pyodbc error... %s' % package['error']
+        if len(package['rows']) > 0:
+            print 'how many? ', len(package['rows'])
+            print 'create TaxPayImport...', self.sqlQuery('exec dbo.createTaxPayImport', True)['code']
+            columnNames = ['AUTONUMKEYFIELD','FULLPIDNUMBER','OWNERNAME','ITEMNUMBER','RECEIPTNUMBER','TAXYEAR']
+            columnNames = columnNames + ['PAYMENTTYPE','SCHOOLDISTMAIN','SCHOOLDISTTAXRATE','TAXAMOUNTPAID','AMOUNTCASH','AMOUNTCHECK']
+            columnNames = columnNames + ['PENALTY','FEESCODE','FEESAMOUNT','BALANCEDUEAFTERPAYMENT','TOTALDUE','PAIDBY']
+            columnNames = columnNames + ['CERTIFICATENUMBER','TRANSACTIONPAIDDATE','POSTEDBY','SYSTEMDATE','SYSTEMTIME']
+            sqlInsert = "insert TaxPayImport ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(package['rows']):
                 formatedRow = [str(x).replace("'", "''") for x in row]

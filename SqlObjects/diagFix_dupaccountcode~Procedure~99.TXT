@@ -1,0 +1,56 @@
+create proc [dbo].[diagFix_dupaccountcode](
+ @mode varchar(5) = 'light',
+ @method varchar(5) = 'GET',
+ @blockAutoFix varchar(5) = 'FALSE',
+ @class varchar(50) = null output,
+ @code int = 0 output,
+ @message varchar(100) = null output,
+ @tally int = 0 output,
+ @fixProc varchar(100) = null output,
+ @guide varchar(100) = null output
+) as
+begin
+ set nocount on
+
+ if @method = 'GET'
+ begin  
+
+  select
+   @class = 'General',
+   @guide = 'GET|SHOW|FIX',
+   @code = case when count(*) > 0 then 1 else 0 end,
+   @tally = count(accountcode),  
+   @message = 'Accounts with a duplicate account code'
+  from glaccounts 
+  group by accountcode, accountdesc, accounttype having count(*) > 1
+
+  exec dbo.diagnosticsAutoHelper @@procid, @blockAutoFix
+
+  return
+ end
+
+ if @method = 'SHOW'
+ begin  
+
+  select accountcode, accountdesc, accounttype, min(accountid) as accountid, count(*) as cnt  
+  from glaccounts 
+  group by accountcode, accountdesc, accounttype having count(*) > 1
+
+  return
+ end
+
+ if @method = 'FIX'
+ begin 
+
+  declare @accounts table(accountcode varchar(60), accountdesc varchar(50), accounttype varchar(50), minId int, cnt int)
+
+  insert @accounts
+   select accountcode, accountdesc, accounttype, min(accountid) as accountid, count(*) as cnt  from glaccounts group by     accountcode, accountdesc, accounttype having count(*) > 1
+
+  update a set typ=-4701 from object a, @accounts ac where a.typ=4701 and a.key1 = ac.accountcode and a.id not in (select acc.minId from @accounts acc)
+
+  return  
+ end
+
+
+end

@@ -22,6 +22,8 @@ elif len(sysArgs) > 2 and sysArgs[1] in autoArgs:
         menu.tpsXXXXtxlv()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importTaxFee':
         menu.tpsXXXXfee()
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'importTaxPay':
+        menu.tpsXXXXpay()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importTaxNote':
         menu.tpsXXXXnote()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importSpeTax':

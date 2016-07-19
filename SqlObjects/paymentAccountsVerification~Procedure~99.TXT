@@ -1,11 +1,12 @@
-create procedure dbo.paymentAccountsVerification( @fundCode varchar(50) ) as
+create procedure dbo.paymentAccountsVerification(@fundCode varchar(50)) as
 begin
 
  declare
   @accountBlob varchar(1000),
   @accruedPayableCode varchar(50),
   @warrantRegisterCode varchar(50),
-  @expenseCode varchar(50)
+  @expenseCode varchar(50),
+  @status varchar(50)
 
  select @accountBlob  = dbo.glAccountGetFundAccrualBlob(@fundCode, 'ACCRUED PAYABLE')
 
@@ -16,7 +17,11 @@ begin
  select
   @accruedPayableCode = dbo.readString('@accrualCode=',@accountBlob),
   @warrantRegisterCode = dbo.readString('@warrantRegisterCode=',@accountBlob),
-  @expenseCode = dbo.readString('@expenseCode=',@accountBlob)
+  @expenseCode = dbo.readString('@expenseCode=',@accountBlob),
+  @status = dbo.readString('@status=',@accountBlob)
+
+ if @status = 'fund not found'
+  return
 
  exec dbo.glAccountVerification @accruedPayableCode, 'ACCRUED PAYABLE', 'CREATE',  @targetAccountCode = @fundCode
  exec dbo.glAccountVerification @warrantRegisterCode, 'WARRANT', 'CREATE',  @targetAccountCode = @fundCode
