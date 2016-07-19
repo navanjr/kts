@@ -1,5 +1,6 @@
 create proc dbo.apiSummary(
-	@siteId int = null
+	@siteId INT = null,
+	@resetAll VARCHAR(5) = 'FALSE'
 ) AS
 BEGIN
 	SET NOCOUNT ON
@@ -15,7 +16,9 @@ BEGIN
 		@invoiceFlags int,
 		@tax_year varchar(4),
 		@school_district varchar(50),
-		@when varchar(50)
+		@when varchar(50),
+		@filter varchar(50),
+		@resetCount int
 		
 	declare @okct table(
 		id int identity(1,1),
@@ -27,14 +30,16 @@ BEGIN
 		due varchar(50)
 	)
 
+  SELECT @filter = 'site_id=' + CAST(@siteId AS varchar(50))
+
 	exec dbo.api 
 		@dump = @dump output,
 		@method = 'get',
 		@resource = '/v2/treasurer_administration/summary',
-		@filter = 'site_id=33'
+		@filter = @filter
 
 	if len(@dump) > 0
-	begin
+	BEGIN
 		begin try
 			insert into @apiwt select * from dbo.parseJSON(@dump) where name is not null and parent_id is not null
 		end try
@@ -64,8 +69,8 @@ BEGIN
 		-- Clean up
 		DELETE @okct WHERE nullif(sd,'') IS null AND nullif(yr, 0) IS null
 		select @tally = @@rowcount
-		EXEC dbo.logit @@procid, 'cleanup, rows removed from temp_okctsummary', @tally   
-		PRINT 'cleanup, rows removed from temp_okctsummary... ' + CAST(@tally AS VARCHAR(10))   
+		EXEC dbo.logit @@procid, 'cleanup, rows removed from @okct', @tally   
+		PRINT 'cleanup, rows removed from @okct... ' + CAST(@tally AS VARCHAR(10))   
 
 		-- create temp table to hold our results
 	--		drop table temp_okctsummary
@@ -86,6 +91,22 @@ BEGIN
 				invoiceFlags int
 			)
 		DELETE FROM temp_okctsummary
+
+		if not exists(select * from dbo.sysobjects where id = object_id(N'[dbo].[temp_okctInvoices]') and OBJECTPROPERTY(id, N'IsTable') = 1)
+			create table temp_okctInvoices(
+				id int identity(1,1),
+				yr varchar(4),
+				sd varchar(50),
+				a_id int,
+				a_rc int,
+				a_amt money,
+				a_due money,
+				b_id int,
+				b_rc int,
+				b_amt money,
+				b_due money,
+				flag int
+			)
 		DELETE FROM temp_okctInvoices
 
 		-- gather local data
@@ -127,6 +148,10 @@ BEGIN
 			JOIN rec AS r ON r.sd = i.sd AND r.yr = i.yr
 			JOIN okct AS o ON o.sd = i.sd AND o.yr = i.yr
 		
+		select @tally = @@rowcount
+		EXEC dbo.logit @@procid, 'rows inserted into temp_okctsummary... ', @tally   
+		PRINT 'rows inserted into temp_okctsummary... ' + CAST(@tally AS VARCHAR(10))   
+
 		-- process the data
 		UPDATE temp_okctsummary SET flag = 1 WHERE isnull(flag,0) = 0 AND a_amt != b_amt
 		select @tally = @@rowcount
@@ -165,5 +190,15 @@ BEGIN
 		exec dbo.logit @@procid, 'Finished processing apiSummary!', @when 
 		PRINT 'Finished processing apiSummary! - ' + @when
 		
-	end
+		SELECT @resetCount = COUNT(*) FROM temp_okctinvoices WHERE isnull(flag,0) != 0 
+		exec dbo.logit @@procid, 'Checking for items to reset... @resetCount', @resetCount, '@resetAll', @resetAll 
+		
+		IF @resetAll = 'TRUE' AND isnull(@resetCount, 0) > 0
+		BEGIN
+			exec dbo.logit @@procid, 'Found issues, calling dbo.apiSummaryReset!, @resetCount', @resetCount, '@resetAll', @resetAll 
+			PRINT 'Found issues, calling dbo.apiSummaryReset!'
+			EXEC dbo.apiSummaryReset
+		END
+		
+	END
 END
