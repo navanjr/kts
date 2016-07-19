@@ -169,7 +169,7 @@ begin
  
 
 -- move records from adtaxCheck into adtax...
- if @method = 'adTaxAdd'
+ if @method = 'adTaxAddArchive'
  begin
     
     if dbo.settingsf('site.taxRollUseAdvance936Amounts','FALSE') = 'TRUE'
@@ -184,6 +184,9 @@ begin
     exec dbo.logit @@procid, 'taxrollCRUD... @method', @method
     delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
      in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtax)
+
+    delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
+     in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtaxarchive)
 
    if exists(select * from adtaxCheck)
     insert into adtax
@@ -202,11 +205,80 @@ begin
       ,'',[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
       ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
       ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice',proploc,landAssessed,miscAssessed,improvedAssessed,[PHYSICALSTREETNUMBER],[PHYSICALSTREET],[PHYSICALTOWN],[PHYSICALSTREETDIRECTION]
-      from adtaxcheck where 1=1 and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
+      from adtaxcheck 
+       where 1=1 
+        and balancedue > 0.00
+        and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
+
+    insert into adtaxarchive
+     ([ADTAXID],[RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[origin],proploc,landAssessed,miscAssessed,improvedAssessed,[PHYSICALSTREETNUMBER],[PHYSICALSTREET],[PHYSICALTOWN],PHYSICALSTREETDIRECTION)
+     select 0,
+      [RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,case when dbo.settingsf('taxroll.ignoreAsessorMtgCodes','TRUE')='TRUE' THEN 0 ELSE [MORTGAGECODE] END,[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,'',[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice',proploc,landAssessed,miscAssessed,improvedAssessed,[PHYSICALSTREETNUMBER],[PHYSICALSTREET],[PHYSICALTOWN],[PHYSICALSTREETDIRECTION]
+      from adtaxcheck 
+       where 1=1 
+        and balancedue <= 0.00
+        and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
+
     drop table adTaxCheck
   return
  end
 
+-- move records from adtaxCheck into adtax...
+ if @method = 'adTaxAdd'
+ begin
+    
+    if dbo.settingsf('site.taxRollUseAdvance936Amounts','FALSE') = 'TRUE'
+     begin
+       UPDATE adtaxCheck 
+        SET totaldue = cast(gsi_advancetax as money), 
+            balancedue = cast(gsi_advancetax as money) 
+        WHERE recordtype in ('P', 'M', 'R')  AND cast(gsi_advancetax as money) > 0
+     end
+
+
+    exec dbo.logit @@procid, 'taxrollCRUD... @method', @method
+    delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
+     in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtax)
+
+    delete from adtaxcheck where cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) 
+     in (select cast(realtaxyear as varchar)+''+cast(itemnumber as varchar) from adtaxarchive)
+
+   if exists(select * from adtaxCheck)
+    insert into adtax
+     ([RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,[MORTGAGECODE],[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,[PIDSORTNUMBER],[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],[origin],proploc,landAssessed,miscAssessed,improvedAssessed,[PHYSICALSTREETNUMBER],[PHYSICALSTREET],[PHYSICALTOWN],PHYSICALSTREETDIRECTION)
+     select 
+      [RECORDTYPE],[FULLPIDNUMBER],[ITEMNUMBER],[REALTAXYEAR],[OWNERNAME],[ADDRESS1],[ADDRESS2],[ADDRESS3],[CITY],[STATE],[ZIP1],[ZIP2]
+      ,[ORGSCHOOLDISTRICTMAIN],[SCHOOLDISTRICTMAIN],[ORGSCHOOLDISTRICTTAXRATE],[SCHOOLDISTRICTTAXRATE]
+      ,case when dbo.settingsf('taxroll.ignoreAsessorMtgCodes','TRUE')='TRUE' THEN 0 ELSE [MORTGAGECODE] END,[ACRES],[MFGHOMEASSESSED],[GROSSASSESSED],[EXEMPTION1],[NETASSESSEDVALUE],[TOTALTAXRATE],[ORIGINALTOTALDUE],[TOTALDUE],[BALANCEDUE]
+      ,[CERTIFICATENUMBER],[LEGALDESCRIPTION],	[ADDITIONNUMBER],[TOWNSHIPBLOCK],[RANGELOT],[SECTIONNUMBER],[QTRSECTIONNUMBER],[PARCELNUMBER],[PROPERTYSPLIT]
+      ,'',[BUSINESSNAME],[ZIP3],[COUNTRY],[FIREDISTRICT],[OWNERNUMBER],[LOTS]
+      ,[FREEPORTEXEMPTION],[BASEEXEMPTION],[DBLEXEMPTION],[EXEMPTION2],[EXEMPTION3],[PAIDOFFDATE],[PROPERTYLIENCODE1],[PROPERTYLIENAMOUNT1]
+      ,[PROPERTYLIENCODE2],[PROPERTYLIENAMOUNT2],[LASTTRANDATE],[TAXCORRECTIONDATE],[TAXCORRECTIONINITIALS],[FLAG1],[FLAG2],[FLAG3],'Original Invoice',proploc,landAssessed,miscAssessed,improvedAssessed,[PHYSICALSTREETNUMBER],[PHYSICALSTREET],[PHYSICALTOWN],[PHYSICALSTREETDIRECTION]
+      from adtaxcheck 
+       where 1=1 
+        and case when @taxYear>0 then @taxYear else realTaxYear end = realTaxYear
+
+    drop table adTaxCheck
+  return
+ end
 
 
 
