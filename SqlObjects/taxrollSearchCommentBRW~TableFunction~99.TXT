@@ -34,7 +34,8 @@ if @selectedId > 0
   @adTaxId = taxrollid
  from invoices with (NOLOCK) where id = @selectedId
 
- if @selectedId > 9000000
+
+ if @selectedId > 9000000 and @selectedId < 10000000
  begin
   select 
    @name = ownername,
@@ -45,6 +46,20 @@ if @selectedId > 0
    @adTaxId = id
   from adtax with (NOLOCK) where id = @selectedId-9000000
  end
+
+
+ if @selectedId > 10000000
+ begin
+  select 
+   @name = ownername,
+   @item = ITEMNUMBER,
+   @parcel = FULLPIDNUMBER,
+   @taxYear = realtaxyear,
+   @typ = RECORDTYPE,
+   @adTaxId = id
+  from adtaxarchive with (NOLOCK) where id = @selectedId-10000000
+ end
+
 
 if @pubFlag = 'FALSE'
  begin 
@@ -262,6 +277,15 @@ end
     'Tax Receipt: '+receipt+'   '+NAME+'   Control: '+controlNum+'   Amount: '+cast(dbo.formatcurr(amount) as varchar),
     typ,9,2
     from @wt
+
+ insert @rt
+  select 
+    cast('-9'+cast(Id as varchar) as int),
+    transactionpaiddate,
+    '',
+    'Converted Receipt: '+cast(receiptnumber as varchar)+'   '+paidby+'   Amount: '+cast(dbo.formatcurr(taxamountpaid) as varchar),
+    ' Converted Receipt',99,2
+    from dbo.TaxPayAll where itemnumber = @item and taxyear = @taxyear
 
 if @pubFlag = 'FALSE'
  begin

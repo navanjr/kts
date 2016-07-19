@@ -199,6 +199,18 @@ declare @adtaxids table(adtaxid int)
    end
 
 
+  if @showPaidFlag = '1' and @searchString > '  0'
+   begin
+---Regular Search 
+       insert @rt
+         select top 200
+          (id+10000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,totaldue,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
+         from dbo.adtaxarchive a with (NOLOCK)
+          where (OWNERNAME  like '%'+@searchString+'%' or FULLPIDNUMBER like '%'+@searchString+'%' or cast(REALTAXYEAR as varchar(4)) like '%'+@searchString+'%' or '0'+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%' or cast(ITEMNUMBER as varchar) like '%'+@searchString+'%')
+              and cast(REALTAXYEAR as varchar) = case when @taxyear = 'all' then cast(REALTAXYEAR as varchar) else @taxyear end 
+
+   end
+
   if @protest='PROTEST'
     begin
       update a set amount=p.amount from @rt a, protestDetail p with (NOLOCK) where a.invoiceId=p.invoiceId*-1

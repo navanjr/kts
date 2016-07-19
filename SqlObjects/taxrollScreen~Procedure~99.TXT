@@ -1,4 +1,4 @@
-create procedure dbo.taxrollScreen ( @invoiceId int, @initials varchar(5), @source varchar(10), @editTaxrollid int = 0)
+create procedure dbo.taxrollScreen (@invoiceId int, @initials varchar(5), @source varchar(20), @editTaxrollid int = 0)
 as
 begin
 
@@ -72,71 +72,134 @@ if @source = 'Update'
    select @taxrollId = taxrollId, @invoiceType = typ from invoices where id=@invoiceId
   end
 
- if @invoiceType ='S' 
+ if @source = 'ADTAXARCHIVE' 
+  begin
+   select @taxrollId = @invoiceId-10000000, @invoiceType = ''
+
+  update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
+
+  insert into object (typ,link1,link2,key1,key2,key3,a1,a2,a3,a11,a12,a13,a14,a15,A17,a18,a19,a20,b1,b2,b3,b4,b5,b6,b7,b8,b9
+   ,b10,b11,b12,b13,b14,b15,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,d1,e1,attributes,e2)
+  SELECT 
+       4001,
+       @taxrollId,
+       @invoiceid,
+       [ownername],
+       [REALTAXYEAR],
+       [FULLPIDNUMBER],
+       [ITEMNUMBER],
+       [RECORDTYPE],
+       [BUSINESSNAME],
+       [country],
+       case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end,
+       [FIREDISTRICT],
+       [OWNERNUMBER],
+       [acres],
+       [ORGSCHOOLDISTRICTMAIN],
+       [SCHOOLDISTRICTMAIN],
+       [ORGSCHOOLDISTRICTTAXRATE],
+       [SCHOOLDISTRICTTAXRATE],
+       [lots],
+       [LANDASSESSED],
+       [IMPROVEDASSESSED],
+       [MISCASSESSED],
+       [MFGHOMEASSESSED],
+       [GROSSASSESSED],
+       [FREEPORTEXEMPTION],
+       [BASEEXEMPTION],
+       [DBLEXEMPTION],
+       [exemption1],
+       [exemption2],
+       [exemption3],
+       [NETASSESSEDVALUE],
+       [TOTALTAXRATE],
+       [ORIGINALTOTALDUE],
+       [TOTALDUE],
+       [BALANCEDUE],
+       isnull([CERTIFICATENUMBER],''),
+       [PAIDOFFDATE],
+       [PROPERTYLIENCODE1],
+       [PROPERTYLIENAMOUNT1],
+       [PROPERTYLIENCODE2],
+       [PROPERTYLIENAMOUNT2],
+       [flag1],
+       [flag2],
+       [flag3],
+       [LEGALDESCRIPTION],
+       @initials,
+       ''
+   FROM [adtaxarchive]
+   WHERE id=@taxrollId
+   select @@identity
+  end
+ else
  begin
-  select @adtaxId = id from adtax where id = @taxrollId and [recordtype] = 'S'
- end
+  if @invoiceType ='S' 
+  begin
+   select @adtaxId = id from adtax where id = @taxrollId and [recordtype] = 'S'
+  end
 
- if @invoiceType <> 'S' or (isnull(@adtaxId,0) = @taxrollId and @taxrollId <> 0)
- begin
- update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
+  if @invoiceType <> 'S' or (isnull(@adtaxId,0) = @taxrollId and @taxrollId <> 0)
+  begin
+  update object set typ=-4001 where typ=4001 and left(attributes,len(@initials))=@initials 
 
- insert into object (typ,link1,link2,key1,key2,key3,a1,a2,a3,a11,a12,a13,a14,a15,A17,a18,a19,a20,b1,b2,b3,b4,b5,b6,b7,b8,b9
-  ,b10,b11,b12,b13,b14,b15,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,d1,e1,attributes,e2)
- SELECT 
-      4001,
-      @taxrollId,
-      @invoiceId,
-      case when @source='ADTAX' then [ownername] else dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber)) end,
-      dbo.taxCorrectionsSF([REALTAXYEAR],id,'004'),
-      dbo.taxCorrectionsSF([FULLPIDNUMBER],id,'006'),
-      dbo.taxCorrectionsSF([ITEMNUMBER],id,'008'),
-      dbo.taxCorrectionsSF([RECORDTYPE],id,'010'),
-      [BUSINESSNAME],
-      dbo.taxCorrectionsSF([country],id,'028'),
-      case when treamort>'  0' then cast(treamort as varchar(5)) else 
-        case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end,
-      dbo.taxCorrectionsSF([FIREDISTRICT],id,'032'),
-      dbo.taxCorrectionsSF([OWNERNUMBER],id,'034'),
-      dbo.taxCorrectionsSF([acres],id,'036'),
-      [ORGSCHOOLDISTRICTMAIN],
-      dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],id,'042'),
-      [ORGSCHOOLDISTRICTTAXRATE],
-      dbo.taxCorrectionsSF([SCHOOLDISTRICTTAXRATE],id,'046'),
-      dbo.taxCorrectionsSF([lots],id,'048'),
-      dbo.taxCorrectionsSF([LANDASSESSED],id,'050'),
-      dbo.taxCorrectionsSF([IMPROVEDASSESSED],id,'052'),
-      dbo.taxCorrectionsSF([MISCASSESSED],id,'054'),
-      dbo.taxCorrectionsSF([MFGHOMEASSESSED],id,'056'),
-      dbo.taxCorrectionsSF([GROSSASSESSED],id,'058'),
-      dbo.taxCorrectionsSF([FREEPORTEXEMPTION],id,'060'),
-      dbo.taxCorrectionsSF([BASEEXEMPTION],id,'062'),
-      dbo.taxCorrectionsSF([DBLEXEMPTION],id,'064'),
-      dbo.taxCorrectionsSF([exemption1],id,'066'),
-      dbo.taxCorrectionsSF([exemption2],id,'068'),
-      dbo.taxCorrectionsSF([exemption3],id,'070'),
-      dbo.taxCorrectionsSF([NETASSESSEDVALUE],id,'072'),
-      dbo.taxCorrectionsSF([TOTALTAXRATE],id,'074'),
-      [ORIGINALTOTALDUE],
-      dbo.taxCorrectionsSF([TOTALDUE],id,'078'),
-      case when @source = 'ADTAX' then dbo.taxCorrectionsSF([BALANCEDUE],id,'080') else (select invoiceDue from invoices where id = @invoiceId) end,
-      dbo.taxCorrectionsSF(isnull([CERTIFICATENUMBER],''),id,'082'),
-      dbo.taxCorrectionsSF([PAIDOFFDATE],id,'084'),
-      dbo.taxCorrectionsSF([PROPERTYLIENCODE1],id,'086'),
-      dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT1],id,'088'),
-      dbo.taxCorrectionsSF([PROPERTYLIENCODE2],id,'090'),
-      dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT2],id,'092'),
-      dbo.taxCorrectionsSF([flag1],id,'094'),
-      dbo.taxCorrectionsSF([flag2],id,'096'),
-      dbo.taxCorrectionsSF([flag3],id,'098'),
-      isnull(dbo.getLegalDescription(@invoiceId),''),--dbo.taxCorrectionsSF([LEGALDESCRIPTION],id,'102'),
-      @initials,
-      dbo.parseAddress(dbo.taxRollAddressBlob(Realtaxyear,itemnumber))
-     
+  insert into object (typ,link1,link2,key1,key2,key3,a1,a2,a3,a11,a12,a13,a14,a15,A17,a18,a19,a20,b1,b2,b3,b4,b5,b6,b7,b8,b9
+   ,b10,b11,b12,b13,b14,b15,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,d1,e1,attributes,e2)
+  SELECT 
+       4001,
+       @taxrollId,
+       @invoiceId,
+       case when @source='ADTAX' then [ownername] else dbo.readstring('@NAME=',dbo.taxRollAddressBlob(Realtaxyear,itemnumber)) end,
+       dbo.taxCorrectionsSF([REALTAXYEAR],id,'004'),
+       dbo.taxCorrectionsSF([FULLPIDNUMBER],id,'006'),
+       dbo.taxCorrectionsSF([ITEMNUMBER],id,'008'),
+       dbo.taxCorrectionsSF([RECORDTYPE],id,'010'),
+       [BUSINESSNAME],
+       dbo.taxCorrectionsSF([country],id,'028'),
+       case when treamort>'  0' then cast(treamort as varchar(5)) else 
+         case when mortgagecode=0 then '' else cast(mortgagecode as varchar(50)) end end,
+       dbo.taxCorrectionsSF([FIREDISTRICT],id,'032'),
+       dbo.taxCorrectionsSF([OWNERNUMBER],id,'034'),
+       dbo.taxCorrectionsSF([acres],id,'036'),
+       [ORGSCHOOLDISTRICTMAIN],
+       dbo.taxCorrectionsSF([SCHOOLDISTRICTMAIN],id,'042'),
+       [ORGSCHOOLDISTRICTTAXRATE],
+       dbo.taxCorrectionsSF([SCHOOLDISTRICTTAXRATE],id,'046'),
+       dbo.taxCorrectionsSF([lots],id,'048'),
+       dbo.taxCorrectionsSF([LANDASSESSED],id,'050'),
+       dbo.taxCorrectionsSF([IMPROVEDASSESSED],id,'052'),
+       dbo.taxCorrectionsSF([MISCASSESSED],id,'054'),
+       dbo.taxCorrectionsSF([MFGHOMEASSESSED],id,'056'),
+       dbo.taxCorrectionsSF([GROSSASSESSED],id,'058'),
+       dbo.taxCorrectionsSF([FREEPORTEXEMPTION],id,'060'),
+       dbo.taxCorrectionsSF([BASEEXEMPTION],id,'062'),
+       dbo.taxCorrectionsSF([DBLEXEMPTION],id,'064'),
+       dbo.taxCorrectionsSF([exemption1],id,'066'),
+       dbo.taxCorrectionsSF([exemption2],id,'068'),
+       dbo.taxCorrectionsSF([exemption3],id,'070'),
+       dbo.taxCorrectionsSF([NETASSESSEDVALUE],id,'072'),
+       dbo.taxCorrectionsSF([TOTALTAXRATE],id,'074'),
+       [ORIGINALTOTALDUE],
+       dbo.taxCorrectionsSF([TOTALDUE],id,'078'),
+       case when @source = 'ADTAX' then dbo.taxCorrectionsSF([BALANCEDUE],id,'080') else (select invoiceDue from invoices  where id = @invoiceId) end,
+       dbo.taxCorrectionsSF(isnull([CERTIFICATENUMBER],''),id,'082'),
+       dbo.taxCorrectionsSF([PAIDOFFDATE],id,'084'),
+       dbo.taxCorrectionsSF([PROPERTYLIENCODE1],id,'086'),
+       dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT1],id,'088'),
+       dbo.taxCorrectionsSF([PROPERTYLIENCODE2],id,'090'),
+       dbo.taxCorrectionsSF([PROPERTYLIENAMOUNT2],id,'092'),
+       dbo.taxCorrectionsSF([flag1],id,'094'),
+       dbo.taxCorrectionsSF([flag2],id,'096'),
+       dbo.taxCorrectionsSF([flag3],id,'098'),
+       isnull(dbo.getLegalDescription(@invoiceId),''),--dbo.taxCorrectionsSF([LEGALDESCRIPTION],id,'102'),
+       @initials,
+       dbo.parseAddress(dbo.taxRollAddressBlob(Realtaxyear,itemnumber))
+      
 
-  FROM [adtax]
-  WHERE id=@taxrollId
-  select @@identity
+   FROM [adtax]
+   WHERE id=@taxrollId
+   select @@identity
+  end
  end
  end
 -- TODO: remove this next line when you are all happy

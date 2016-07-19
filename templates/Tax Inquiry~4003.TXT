@@ -245,7 +245,7 @@
   prop(172,'FontStyle',700),
   prop(172,'Font','Arial'),
   brw(161,2,gcsql2,3,155,400,120,'200L(2)~~#2#|20L(2)~Year~#3#|M40R(2)~Item~#5#|M12L(2)~Type~#6#|M45R(2)~Tax~@n-14.2b@#7#|M45R(2)~Unpaid~@n-14.2b@#8#|M35C(2)~Sel~#9#|M',7,1),
-  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),color from dbo.taxrollSearchCommentBRW(0) order by case when color=1 then ''A'' else ''B'' end,commentType,notedate desc',
+  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),commentType,color from dbo.taxrollSearchCommentBRW(0) order by case when color=1 then ''A'' else ''B'' end,commentType,notedate desc',
   brw(162,3,gcsql3,3,296,400,75,'15L(2)~Img~#4#|M45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),
   prop(160,'SelectedFillColor',65535),
   prop(161,'SelectedFillColor',16777215),
@@ -518,7 +518,9 @@
  case(gcretval=1,scanpaid=,gcretval=2,viewpaid=,gcretval=3,donoimaging=);
 
 @donoimaging=
- if(lcbrw3Typ+0=9,printReceipt=),
+ lcrectyp=kp(gcsql3typ&' where id = '&kpbrwid(3)),
+ if(lcrectyp=' Converted Receipt',printconvertedreceipt=),
+ if(lcbrw3Typ+0=9 and lcrectyp<>' Converted Receipt',printReceipt=),
  if(lcbrw3Typ+0=7,actionDate=);
 
 @scanpaid=gcscanid='cb'&kpbrwid(3),
@@ -537,6 +539,14 @@
  d1select('exec dbo.dtypeCommentCRUD @mode=''actiondate'',@taxrolldetailId='&lcbrw3Id),
  refreshBRW3=
  ;
+
+@printconvertedreceipt=
+ m('Print This Receipt?','Print?',,6),
+ break(gcretval<>2),
+ gcRecId=lcbrw3Id,
+ trreport('TAXReceiptConverted'),
+ gcRecId=0
+;
 
 @printReceipt=
  m('Print This Receipt?','Print?',,6),
@@ -579,7 +589,8 @@
 
 @refreshBRW3=
   break(instring('@group=publicuser',cur:options,1,1)>0),
-  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),color from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by case when color=1 then ''A'' else ''B'' end,commentType, notedate desc',
+  gcsql3='select Id,notedate,comment,dbo.imageViewCount(''cb''+cast(id as varchar)),commentType,color from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') order by case when color=1 then ''A'' else ''B'' end,commentType, notedate desc',
+  gcsql3typ='select commentType from dbo.taxrollSearchCommentBRW('&lcSearchId+0&') ',
   brwreload(3,gcsql3);
 
 \t001&Year; \w00230; \x002-40; \f002All; @acc002=if(obj:key1<' 0',set(2,'All')),refreshBRW=;
@@ -727,6 +738,7 @@
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   if(lcSearchId>9000000,lcSource='ADTAX',lcSource='INVOICES'),
+  if(lcSearchId>10000000,lcSource='ADTAXARCHIVE'),
   sql('dbo.taxRolladdressCheck '&lcSearchId),
   d1select('exec dbo.taxrollScreen '&lcSearchId&','''&cur:ini&''','''&lcSource&''''),
   change(obj7:d1);
