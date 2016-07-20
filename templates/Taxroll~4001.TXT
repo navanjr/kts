@@ -70,6 +70,7 @@ h110instring('@group=publicuser',cur:options,1,1)>0;
  gcsql='select id*-1,date,field,original, corrected from taxrollCorrectionsView where taxrollId='&obj:link1&' order by date desc, id desc',
  brw(160,1,gcsql,305,188,195,57,'45L(2)~Date~@d2@#2#|M70L(2)~Field~#3#|M40L(2)~Original~#4#|M40L(2)~New~#5#|M'),
  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
+ gcsql3typ='select commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') ',
  brw(162,3,gcsql3,63,318,450,60,'45L(2)~Date~@d2b@#2#|M400L(2)~Comment~#3#|M',,,),;
 
 @lbrw3forecolor=obj7:c10='COMMENT',255;
@@ -77,6 +78,7 @@ h110instring('@group=publicuser',cur:options,1,1)>0;
 
 @refreshBRW3=
  gcsql3='select Id,notedate,comment,commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') order by commentType',
+ gcsql3typ='select commentType from dbo.taxrollSearchCommentBRW('&obj:link2&') ',
  brwreload(3,gcsql3);
 
 \m160Right Click for more options...;
@@ -328,3 +330,36 @@ tsc;
  lcNewValue=clip(str_replace(str_replace(obj7:e2,'''''','~{~~{~'),'''','~{~')),
  sql('exec dbo.taxrollCorrectionCRUD @mode=0,@taxrollId='&obj:link1+0&',@taxInvoiceId='&gcinvoice+0&',@fieldNumber='&gcfieldnum+0&',@fieldName='''&gclabel&''',@originalData='''&kpfq(lcOriginalData)&''',@fieldData='''&clip(kpfq(lcNewValue))&''',@comment='''&kpfq(obj:d2)&'''');
 
+
+
+@lbrwclick162=
+ lcw3Id=kpbrwid(3)*-1,
+ lcbrw3Typ=left(lcw3Id,1),
+ lcbrw3Id=sub(lcw3Id,2,25),
+ lcDtype=kp('select dtype from taxrolldetail where id='&lcbrw3Id),
+ break(instring('@group=publicuser',cur:options,1,1)>0),
+ gcotheroption='',
+ if(lcbrw3Typ+0=9,gcotheroption='|Print Receipt'),
+ lcrectyp=kp(gcsql3typ&' where id = '&kpbrwid(3)),
+ if(lcrectyp=' Converted Receipt',printconvertedreceipt=),
+ if(lcbrw3Typ+0=9 and lcrectyp<>' Converted Receipt',printReceipt=);
+
+@printconvertedreceipt=
+ m('Print This Receipt?','Print?',,6),
+ break(gcretval<>2),
+ gcRecId=lcbrw3Id,
+ trreport('TAXReceiptConverted'),
+ gcRecId=0
+;
+
+@printReceipt=
+ m('Print This Receipt?','Print?',,6),
+ break(gcretval<>2),
+ d1select('select receiptId from receiptlink where id='&lcbrw3Id),
+ gcRecId=obj7:d1,
+ d1select('select invoiceId from receiptlink where id='&lcbrw3Id),
+ gcPrintOneTaxReceiptId=obj7:d1,
+ trreport('TAXReceipt'),
+ gcRecId=0,
+ gcPrintOneTaxReceiptId=0
+;
