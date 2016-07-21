@@ -41,6 +41,7 @@ class ktsMenu():
         self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
         self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
         self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
+        self.settings['apiVerifyFrequencyTime'] = self.settingsF('site.apiVerifyFrequencyTime', 60)
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -465,6 +466,7 @@ class ktsMenu():
             return
 
         checkinTimer = stopWatch()
+        apiVerifyTimer = stopWatch()
 
         # turn on the lights
         s['running'] = True
@@ -481,10 +483,10 @@ class ktsMenu():
                 self.log(e)
                 s['eventRunning'] = False
 
-            # so every hour, check in with IRC let everyone know whats going on.
-            #   but only if notice is enabled
-            if checkinTimer.elaps() > 3600:
-                if self.settings['noticeEnabled'] == 'TRUE':
+            if self.settings['noticeEnabled'] == 'TRUE':
+                # so every hour, check in with IRC let everyone know whats going on.
+                #   but only if notice is enabled
+                if checkinTimer.elaps() > 3600:
                     apiStatus = [self.apiService]
                     for key, value in self.apiStatus().items():
                         if value['jobEnabled'] == 1:
@@ -499,8 +501,22 @@ class ktsMenu():
                     self.irc.psend("Hi there, I'm just checking in...")
                     for row in apiStatus:
                         self.irc.psend(row)
-                checkinTimer.reset()
+                    checkinTimer.reset()
 
+                # so every X minutes we will run apiVerify if the settings and the function exists
+                if apiVerifyTimer.elaps() > (self.settings['apiVerifyFrequencyTime'] * (60)):   
+                    apiVerifyTimer.reset()
+                    self.irc.psend("Hi there, I am thinking now would be a good time to run an apiVerify(). I'll let you know how it goes...")
+                    apiVerifyQuery = """declare @message varchar(max), @tally int;
+                    EXEC dbo.apiVerify @resetAll='FALSE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
+                    SELECT @tally, @message;"""
+                    try:
+                        vResult = self.sqlQuery(apiVerifyQuery)['rows']
+                    except KeyError:
+                        self.irc.psend("Oops, something when wrong with the apiVerify()!!!")
+                    if len(vResult) > 0:
+                        self.irc.psend(vResult[0][0])
+            
         # turn the lights off when going out the door
         s['running'] = False
 
