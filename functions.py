@@ -1375,10 +1375,13 @@ class ktsMenu():
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             for id, row in enumerate(package['rows']):
+		row[41] = float(row[41])
                 formatedRow = [str(x).replace("'", "''") for x in row]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                     tally = tally + 1
+		else:
+		    print "%s %s" % (sqlInsert, sqlSelect)
             print 'ok i inserted %s records' % tally
 
     def tpsXXXXtxlv(self):
