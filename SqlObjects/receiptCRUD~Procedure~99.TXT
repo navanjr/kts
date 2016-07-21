@@ -271,6 +271,23 @@ begin
    return
   end
   
+  declare @deleteInvoices table(id int)
+  declare @tokenInvoiceDeleteId int
+
+  if @blob like '%Destroy New Fees%'
+  begin
+   insert @deleteInvoices
+    select id from invoices where id in (select invoiceid from receiptlink where receiptid=@receiptId) and blob like '%@addedfromreceipt=' +cast(@receiptId as varchar)+ ';%'
+   while exists(select id from @deleteInvoices)
+   begin
+    select top 1 @tokenInvoiceDeleteId = id from @deleteInvoices
+     
+     exec dbo.invoicecrud 3, @tokenInvoiceDeleteId, @postCheckOverride = 0
+   
+    delete from @deleteInvoices where id = @tokenInvoiceDeleteId
+   end
+  end
+
   declare @receiptlinks table (slink varchar(15))
   insert @receiptlinks
    select 'l'+cast(id as varchar) from receiptlink where receiptid = @receiptId

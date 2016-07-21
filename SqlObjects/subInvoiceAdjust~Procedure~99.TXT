@@ -30,7 +30,7 @@ begin
   set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(i.Id),2)) from invoices i, receiptdetail r where i.invoiceId=@mainInvoiceId and left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id and i.typ=@subInvoiceType and r.description=@description),0)
 
 
- set @blob = @blob + ': ' +dbo.formatcurr(@amount)
+ set @blob = @blob + ': ' + dbo.formatcurr(@amount) + case when @receiptId > 0 then ': @addedfromreceipt=' + cast(@receiptId as varchar) + ';' else '' end
 
 
  exec dbo.subInvoiceCRUD @mainInvoiceId,@invoiceDate,@description,@sourceCode,@fundCode,@subInvoiceType,@amount,@blob=@blob

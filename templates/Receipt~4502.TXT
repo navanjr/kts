@@ -64,10 +64,16 @@ case(gcretval+0=1,abandonreceipt=,gcretval+0=2,saveReceipt=);
 @saveReceipt=
 set(040,'Saved'),close('ok');
 
-@abandonreceipt=sql('exec dbo.receiptCRUD 6, '&obj:id+0),
+@abandonreceipt=lccheck=kp('select count(id) from invoices where id in (select invoiceid from receiptlink where receiptid='&obj:id&') and blob like ''%@addedfromreceipt='&obj:id&';%'''),
+if(lccheck+0>0,checkdestroyfees=,gcdestroyfees=''),
+sql('exec dbo.receiptCRUD 6, '&obj:id+0&gcdestroyfees),
 set(040,kp('select a17 from object where id='&obj:id)),
 update,
 close('ok');
+
+@checkdestroyfees=m('You have created fee adjustments from this receipt.  Would you like to leave them or Destroy them?','Destroy Fees...',,'Leave|Destroy'),
+if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
+;
 
 @insertSelections=
  lcMethod=readstring(kp('select dbo.whoami()'),'@suspenseMethod='),
