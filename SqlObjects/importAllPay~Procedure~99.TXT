@@ -47,16 +47,15 @@ begin
    select @year = left(dbo.pathFile(dbo.settingsF('taxroll.importTaxPayFile',''),'file'),4)
 
 
-   if isnumeric(@year)=1
-
+   if isnumeric(@year)=1 and cast(@year as int) not in (select distinct importyear from dbo.TaxPayAll)
 
    begin
 
     insert dbo.TaxPayAll
 
      select cast(@year as int), * from dbo.TaxPayImport
-      where @year+TAXYEAR+cast(RECEIPTNUMBER as varchar) not in 
-       (select cast(importyear as varchar)+TAXYEAR+cast(RECEIPTNUMBER as varchar) from dbo.TaxPayAll)
+--      where @year+TAXYEAR+cast(RECEIPTNUMBER as varchar) not in 
+--       (select cast(importyear as varchar)+TAXYEAR+cast(RECEIPTNUMBER as varchar) from dbo.TaxPayAll)
 
    end
  
