@@ -451,13 +451,13 @@ class ktsMenu():
                 self.apiServiceControl(enableService=True)
 
     def log(self, message):
-        pass
-        # try:
-            # file = open(self.logFile, "a")
-            # file.write("%s\n" % message)
-            # file.close()
-        # except IOError:
-            # pass
+        # pass
+        try:
+            file = open(self.logFile, "a")
+            file.write("%s\n" % message)
+            file.close()
+        except IOError:
+            pass
 
     def bulletProofApiServiceEventLoop(self):
         s = self.apiService
