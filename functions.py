@@ -452,6 +452,8 @@ class ktsMenu():
 
     def log(self, message):
         # pass
+        if isinstance(message, list):
+            message = ', '.join(message)
         try:
             file = open(self.logFile, "a")
             file.write("%s\n" % message)
@@ -480,7 +482,7 @@ class ktsMenu():
             try:
                 self.apiServiceEvent()
             except Exception as e:
-                self.log(e)
+                self.log(['failed apiServiceEvent()...', e])
                 s['eventRunning'] = False
 
             if self.settings['noticeEnabled'] == 'TRUE':
