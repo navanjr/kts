@@ -41,6 +41,8 @@ class ktsMenu():
         self.settings['noticeName'] = self.settingsF('site.noticeName', 'Unknown')
         self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
         self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
+        self.settings['apiVerifyFrequencyTime'] = self.settingsF('site.apiVerifyFrequencyTime', 60)
+        self.settings['apiSleepSeconds'] = self.settingsF('site.apiSleepSeconds', 300)
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -450,13 +452,15 @@ class ktsMenu():
                 self.apiServiceControl(enableService=True)
 
     def log(self, message):
-        pass
-        # try:
-            # file = open(self.logFile, "a")
-            # file.write("%s\n" % message)
-            # file.close()
-        # except IOError:
-            # pass
+        # pass
+        if isinstance(message, list):
+            message = ', '.join(message)
+        try:
+            file = open(self.logFile, "a")
+            file.write("%s\n" % message)
+            file.close()
+        except IOError:
+            pass
 
     def bulletProofApiServiceEventLoop(self):
         s = self.apiService
@@ -465,6 +469,7 @@ class ktsMenu():
             return
 
         checkinTimer = stopWatch()
+        apiVerifyTimer = stopWatch()
 
         # turn on the lights
         s['running'] = True
@@ -478,13 +483,13 @@ class ktsMenu():
             try:
                 self.apiServiceEvent()
             except Exception as e:
-                self.log(e)
+                self.log(['failed apiServiceEvent()...', e])
                 s['eventRunning'] = False
 
-            # so every hour, check in with IRC let everyone know whats going on.
-            #   but only if notice is enabled
-            if checkinTimer.elaps() > 3600:
-                if self.settings['noticeEnabled'] == 'TRUE':
+            if self.settings['noticeEnabled'] == 'TRUE':
+                # so every hour, check in with IRC let everyone know whats going on.
+                #   but only if notice is enabled
+                if checkinTimer.elaps() > 3600:
                     apiStatus = [self.apiService]
                     for key, value in self.apiStatus().items():
                         if value['jobEnabled'] == 1:
@@ -499,8 +504,25 @@ class ktsMenu():
                     self.irc.psend("Hi there, I'm just checking in...")
                     for row in apiStatus:
                         self.irc.psend(row)
-                checkinTimer.reset()
+                    checkinTimer.reset()
 
+                # so every X minutes we will run apiVerify if the settings and the function exists
+                if apiVerifyTimer.elaps() > (float(self.settings['apiVerifyFrequencyTime']) * (60)):   
+                    self.log('Fixing to call apiVerify()...')
+                    apiVerifyTimer.reset()
+                    self.irc.psend("Hi there, I am thinking now would be a good time to run an apiVerify(). I'll let you know how it goes...")
+                    apiVerifyQuery = """declare @message varchar(max), @tally int;
+                    EXEC dbo.apiVerify @method='POST', @resetAll='TRUE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
+                    SELECT @tally, @message;"""
+                    try:
+                        vResult = self.sqlQuery(apiVerifyQuery)['rows']
+                    except KeyError:
+                        self.log(['apiVerify... Oops, something when wrong'])
+                        self.irc.psend("Oops, something when wrong with the apiVerify()!!!")
+                    if len(vResult) > 0:
+                        self.log('Here is what we got: %s' % str(vResult))
+                        self.irc.psend('Here is what we got: %s' % str(vResult))
+            
         # turn the lights off when going out the door
         s['running'] = False
 
@@ -525,7 +547,9 @@ class ktsMenu():
             self.sqlQuery("dbo.api%s @method='JOB'" % resource)
             s['odometer'] += 1
         else:
-            time.sleep(int(dbo.settingF('api.sleepSeconds', '300')))
+            sleepyTime = self.settings['apiSleepSeconds']
+            self.log(['apiServiceEvent()...','nothing found, going to sleep for %s seconds.' % sleepyTime])
+            time.sleep(int(sleepyTime))
         # turn the lights off when going out the door
         s['eventRunning'] = False
 
