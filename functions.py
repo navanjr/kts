@@ -42,6 +42,7 @@ class ktsMenu():
         self.settings['noticeEnabled'] = self.settingsF('backup.noticeEnable', 'TRUE')
         self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
         self.settings['apiVerifyFrequencyTime'] = self.settingsF('site.apiVerifyFrequencyTime', 60)
+        self.settings['apiSleepSeconds'] = self.settingsF('site.apiSleepSeconds', 300)
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -506,18 +507,21 @@ class ktsMenu():
                     checkinTimer.reset()
 
                 # so every X minutes we will run apiVerify if the settings and the function exists
-                if apiVerifyTimer.elaps() > (self.settings['apiVerifyFrequencyTime'] * (60)):   
+                if apiVerifyTimer.elaps() > (float(self.settings['apiVerifyFrequencyTime']) * (60)):   
+                    self.log('Fixing to call apiVerify()...')
                     apiVerifyTimer.reset()
                     self.irc.psend("Hi there, I am thinking now would be a good time to run an apiVerify(). I'll let you know how it goes...")
                     apiVerifyQuery = """declare @message varchar(max), @tally int;
-                    EXEC dbo.apiVerify @resetAll='FALSE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
+                    EXEC dbo.apiVerify @method='POST', @resetAll='TRUE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
                     SELECT @tally, @message;"""
                     try:
                         vResult = self.sqlQuery(apiVerifyQuery)['rows']
                     except KeyError:
+                        self.log(['apiVerify... Oops, something when wrong'])
                         self.irc.psend("Oops, something when wrong with the apiVerify()!!!")
                     if len(vResult) > 0:
-                        self.irc.psend(vResult[0][0])
+                        self.log('Here is what we got: %s' % str(vResult))
+                        self.irc.psend('Here is what we got: %s' % str(vResult))
             
         # turn the lights off when going out the door
         s['running'] = False
@@ -543,7 +547,9 @@ class ktsMenu():
             self.sqlQuery("dbo.api%s @method='JOB'" % resource)
             s['odometer'] += 1
         else:
-            time.sleep(int(dbo.settingF('api.sleepSeconds', '300')))
+            sleepyTime = self.settings['apiSleepSeconds']
+            self.log(['apiServiceEvent()...','nothing found, going to sleep for %s seconds.' % sleepyTime])
+            time.sleep(int(sleepyTime))
         # turn the lights off when going out the door
         s['eventRunning'] = False
 
