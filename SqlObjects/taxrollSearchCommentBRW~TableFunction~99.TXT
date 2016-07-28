@@ -192,7 +192,7 @@ if @pubFlag = 'FALSE'
             from dbo.invoices i with (NOLOCK), receiptDetail rd
                where i.invoiceId = @selectedId
                   and rd.slink='t'+cast(i.id as varchar(15))
-                  and invoiceAmount<0.00 and blob=''
+                  and invoiceAmount<0.00 and (blob='' or blob like '%addedfromreceipt%')
 
 --Fee Invoices
   insert @rt
@@ -202,6 +202,7 @@ if @pubFlag = 'FALSE'
                 dbo.splitf(blob,char(13)+char(10),1),
                 'Fee',9,0
             from dbo.invoices i with (NOLOCK) where i.invoiceId =  @selectedId and i.typ='F' and blob>'  0'
+             and blob not like '%addedfromreceipt%'
 
 
 end
