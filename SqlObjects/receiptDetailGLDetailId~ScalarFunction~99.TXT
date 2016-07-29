@@ -5,11 +5,22 @@ declare @slink varchar(16),
         @description varchar(100),
         @fundcode varchar(60),
         @sourcecode varchar(60),
-        @gldetailid int
+        @gldetailid int,
+        @originalACRCode varchar(60)
         
 select @slink=slink, @description=[description], @fundcode=fundCode, @sourcecode=sourcecode from receiptdetail where id=@receiptDetailId
 
+if @fundcode in (select accountcode from glAccounts where accountType='ACCRUED RECEIVABLE')
+begin
+ select @originalACRCode = @fundcode 
+end
+else
+begin
+ select @originalACRCode = dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(@fundcode,'ACCRUED RECEIVABLE'))
+end
+
+
 select @gldetailid = id from gldetail where slink=@slink and sourcecode=@sourcecode and comment=@description 
-  and accountCode in (select @fundcode union all select accountCode from glAccounts where accountType='Accrued Receivable' and targetAccountCode=@fundcode)
+  and accountCode = @originalACRCode
 return @gldetailId
 end
