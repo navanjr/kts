@@ -1,6 +1,6 @@
 create procedure dbo.apportionOverageSP(@date varchar(20), @id int, @method varchar(20) = 'DEPOSIT') as 
 begin
- declare @wt table(name varchar(60), accountid int, accountcode varchar(60), accountdesc varchar(250), comment2 varchar(250), contraaccountcode varchar(60), amount money, sourcecode varchar(60))
+ declare @wt table(name varchar(60), accountid int, accountcode varchar(60), accountdesc varchar(250), comment2 varchar(250), contraaccountcode varchar(60), amount money, sourcecode varchar(60), overagesourcecode varchar(60))
 
  declare @stage table(
    accountId int,
@@ -14,15 +14,38 @@ begin
 
  declare @contras table(accountcode varchar(60))
 
- declare @tableName varchar(60), @slink varchar(16) = 'o'+cast(@id as varchar), @reslaeAmount money, @message varchar(200) 
+ declare @tableName varchar(60),
+         @slink varchar(16) = 'o'+cast(@id as varchar),
+         @resaleAmount money, 
+         @overagesourcecode varchar(60),
+         @message varchar(200) 
 
  exec dbo.glAccountVerification 'APPORTIONOVERAGE', 'SOURCE', 'CREATE'
 
+ exec dbo.glAccountVerification 'APPORTIONOVERAGECURRENT', 'SOURCE', 'CREATE'
+ update object set a19='9001A' where typ=4701 and key1='APPORTIONOVERAGECURRENT'
+
+ exec dbo.glAccountVerification 'APPORTIONOVERAGEPRIOR', 'SOURCE', 'CREATE'
+ update object set a19='9003A' where typ=4701 and key1='APPORTIONOVERAGEPRIOR'
+
+ exec dbo.glAccountVerification 'APPORTIONOVERAGEBACK', 'SOURCE', 'CREATE'
+ update object set a19='9005A' where typ=4701 and key1='APPORTIONOVERAGEBACK'
+
+
  insert @wt
-  select name, accountid, accountcode, accountdesc, comment2, contraaccountcode, amount, sourcecode from dbo.apportionOverageTF(@date, @id) 
+  select name, accountid, accountcode, accountdesc, comment2, contraaccountcode, amount, sourcecode,'APPORTIONOVERAGE' from dbo.apportionOverageTF(@date, @id) 
+
+ update w set overagesourcecode = 'APPORTIONOVERAGE'+y.yearcode 
+  from @wt w, (select * from dbo.taxYears(@date)) y
+  where left(w.contraaccountcode,4)=y.year
+
+ select top 1 @overagesourcecode = overagesourcecode from @wt
+
 
  insert object (typ, key1, key2, key3, a1, a2, b1, k2)
-  select 4022, name, accountcode, cast(isnull(amount,0) as varchar), isnull(comment2,''), 'APPORTIONOVERAGE', 'APPORTIONOVERAGE', left(rtrim(name)+rtrim(accountcode),30) from @wt where name+accountcode not in (select key1+key2 from object where typ=4022) 
+  select 4022, name, accountcode, cast(isnull(amount,0) as varchar), isnull(comment2,''), sourcecode, sourcecode, left(rtrim(name)+rtrim(accountcode),30) 
+  from @wt
+  where name+accountcode not in (select key1+key2 from object where typ=4022) 
 
  insert @contras select distinct contraaccountcode from @wt
 
@@ -32,25 +55,29 @@ begin
  begin
   select top 1 @contracodeToken = c.accountcode, @contraIdToken = a.accountid from @contras c, glaccounts a where a.accountcode = c.accountcode
 
-  select @reslaeAmount = sum(amount) from @wt where contraaccountcode = @contracodeToken
+  select @resaleAmount = sum(amount) from @wt where contraaccountcode = @contracodeToken
 
   select top 1 @tableName = name from @wt where contraaccountcode = @contracodeToken
 
   exec dbo.apportionTableFundReceivableVerification @tableName
 
   insert @stage (accountid, accountCode, accountdesc, contraid, amount, slink, sourcecode, comment2)
-   select accountid, accountcode, accountdesc, @contraIdToken, @reslaeAmount, @slink, 'APPORTIONOVERAGE', left(@contracodeToken + '/' + 'APPORTIONOVERAGE',50) from glAccounts where accountcode = @tableName+'_ACR'
+   select accountid, accountcode, accountdesc, @contraIdToken, @resaleAmount, @slink, @overagesourcecode, left(@contracodeToken + '/' + @overagesourcecode,50) from glAccounts where accountcode = @tableName+'_ACR'
 
   if @method = 'PAYEE' 
   begin
    insert @stage (accountid, accountCode, accountdesc, amount, slink)
-    select accountid, accountcode, accountdesc, @reslaeAmount *-1, @slink  from glAccounts where accountcode = @contracodeToken
+    select accountid, accountcode, accountdesc, @resaleAmount *-1, @slink  from glAccounts where accountcode = @contracodeToken
   end
 
-  select @message = case when @method = 'PAYEE' then 'Pay '+cast(@reslaeAmount as varchar)+' from Resale and the remainder from another account.' else 'Deposit a Resale voucher for '+cast(@reslaeAmount as varchar)+' into the ' + @contracodeToken + ' fund.' end
+  select @message = case when @method = 'PAYEE' then 'Pay '+cast(@resaleAmount as varchar)+' from Resale and the remainder from another account.' else 'Deposit a Resale voucher for '+cast(@resaleAmount as varchar)+' into the ' + @contracodeToken + ' fund.' end
 
   insert @stage (accountid, accountCode, accountdesc, amount, slink, comment2)
-   select accountid, accountcode, accountdesc, @reslaeAmount *-1, @slink, case when @method = 'PAYEE' then 'Pay this amount from Resale' else 'Deposit this amount into '+@contracodeToken end  from glAccounts where accountcode = 'APPORTIONOVERAGE'
+   select a.accountid, a.accountcode, a.accountdesc, sum(w.amount) *-1, @slink, case when @method = 'PAYEE' then 'Pay this amount from Resale' else 'Deposit this amount into '+@contracodeToken end 
+  from glAccounts a, @wt w 
+  where a.accountcode = w.overagesourcecode
+   and w.contraaccountcode = @contracodeToken
+  group by a.accountid, a.accountcode, a.accountdesc
 
   update object set e1 = cast(e1 as varchar(max)) + case when len(cast(e1 as varchar(max)))>1 then char(13) + char(10) else '' end + @message where typ=4512 and id = @id
 
