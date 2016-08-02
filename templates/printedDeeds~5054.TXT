@@ -32,11 +32,14 @@
 
 @preCountyCheck=
  lcDeedBlobHead=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''countyDeed'' order by id desc'),'~{~',''''),
- lcBidder=kpfq(readstring(lcDeedBlobHead,'@bidder=')),
- lcName=kpfq(readstring(lcDeedBlobHead,'@name=')),
- lcGroup=kpfq(readstring(lcDeedBlobHead,'@group=')),
- lcSaleDate=readstring(lcDeedBlobHead,'@saleDate='),
- lcCnt=kp('select count(invoiceLinkId) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&lcName&''' and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&lcGroup&''''),
+ gcBidder=readstring(lcDeedBlobHead,'@bidder='),
+ gcBidder=kpfq(gcBidder),
+ gcName=readstring(lcDeedBlobHead,'@name='),
+ gcName=kpfq(gcName),
+ gcGroup=readstring(lcDeedBlobHead,'@group='),
+ gcGroup=kpfq(gcGroup),
+ gcSaleDate=readstring(lcDeedBlobHead,'@saleDate='),
+ lcCnt=kp('select count(invoiceLinkId) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&gcName&''' and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&gcGroup&''''),
  if(lcCnt+0>1,printBatchCounty?=,printDeedCounty=);
  and dbo.readstring(''@bidder='',CAST(comments as varchar(max))) = '''&lcBidder&'''
 @printBatchCounty?=
@@ -274,8 +277,8 @@ lcy=pagey,
  do(452,getSiteInfo=),
  lcLm=1000,
  lcTm=1200,
- lcTot=kp('select sum(cast(dbo.readstring(''@bidAmount='',CAST(comments as varchar(max))) as money)) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&lcName&''' and dbo.readstring(''@bidder='',CAST(comments as varchar(max))) = '''&lcBidder&''' and dbo.readstring(''@saleDate='',CAST(comments as varchar(max))) = '''&lcSaleDate&''' and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&lcGroup&''''),
- lcSql='select invoiceLinkId, dbo.readstring(''@group='',CAST(comments as varchar(max))) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&lcName&''' and dbo.readstring(''@saleDate='',CAST(comments as varchar(max))) = '''&lcSaleDate&'''  and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&lcGroup&''' order by dbo.readstring(''@sub='',CAST(comments as varchar(max)))',
+ lcTot=kp('select sum(cast(dbo.readstring(''@bidAmount='',CAST(comments as varchar(max))) as money)) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&gcName&''' and dbo.readstring(''@bidder='',CAST(comments as varchar(max))) = '''&gcBidder&''' and dbo.readstring(''@saleDate='',CAST(comments as varchar(max))) = '''&gcSaleDate&''' and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&gcGroup&''''),
+ lcSql='select invoiceLinkId, dbo.readstring(''@group='',CAST(comments as varchar(max))) from taxRollDetail where dtype=''countyDeed'' and dbo.readstring(''@name='',CAST(comments as varchar(max))) = '''&gcName&''' and dbo.readstring(''@saleDate='',CAST(comments as varchar(max))) = '''&gcSaleDate&'''  and dbo.readstring(''@group='',CAST(comments as varchar(max))) = '''&gcGroup&''' order by dbo.readstring(''@sub='',CAST(comments as varchar(max)))',
 tr(grp(1,lower(obj5:a2&'a'),do(
   lcDeedBlob=str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&obj5:a1&' and dtype in (''indivDeed'',''countyDeed'') order by id desc'),'~{~',''''),
   cDeedBlob=str_replace(str_replace(kp('select top 1 comments from taxRollDetail where invoiceLinkId='&gcInvoiceId&' and dtype=''indivDeed'' order by id desc'),'~{~',''''),'~:~',';'),
