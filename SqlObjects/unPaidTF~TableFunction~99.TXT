@@ -35,7 +35,8 @@ begin
   @item numeric(9,1),
   @totalTax money,
   @unPaid money,
-  @LimitType varchar(10) = dbo.settingsf('site.LimitPastDueOnSType','FALSE')
+  @LimitType varchar(10) = dbo.settingsf('site.LimitPastDueOnSType','FALSE'),
+  @linkBackTaxByParcel varchar(10) = dbo.settingsf('site.statementBackTaxLinkParcel','TRUE')
 
 -- get variables from our invoice
  select
@@ -52,7 +53,7 @@ begin
   insert into @rt (invoiceId,origin,year,recordType,pertyp,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)
   select  
    i.ID,
-   'Parcel Search',
+   case when @linkBackTaxByParcel='TRUE' then 'Parcel Search' else 'Item# Search' end,
    i.taxyear,
    i.typ,
    a.pertyp,
@@ -63,12 +64,12 @@ begin
   from invoices i left outer join adtax a
   on i.taxrollId = a.id
    where
-    (i.PARCEL = @parcel or i.item = @item)
+    ((i.PARCEL = @parcel and i.parcel >' 0' and @linkBackTaxByParcel='TRUE') or i.item = @item)
    and i.TYP in ('R','O','S')
    and case when i.id<>@invoiceId then taxyear+1 else taxyear end <= @year
    and i.invoiceDue != 0
    and i.id not in (select invoiceId from @rt)
-   and @parcel > ' 0'
+   
 
 if @LimitType='TRUE'
   delete from @rt where recordType<>@typ
@@ -87,10 +88,10 @@ if @LimitType='TRUE'
    name,parcel
   from invoices
   where name = @name
-   and TYP != 'R'
+   and typ <> 'R'
    and invoiceDue != 0
    and id not in (select invoiceId from @rt)
-   and (taxyear <> @year or item = @item or (parcel=@parcel and parcel > ' 0'))
+   and (taxyear <> @year or item = @item or (parcel=@parcel and parcel > ' 0' and @linkBackTaxByParcel='TRUE'))
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty,name,parcel)

@@ -28,7 +28,8 @@ begin
   @name varchar(50),
   @asOf varchar(10),
   @item numeric(9,1),
-  @totalTax money
+  @totalTax money,
+  @linkBackTaxByParcel varchar(10) = dbo.settingsf('site.statementBackTaxLinkParcel','TRUE')
 
 -- get variables from our invoice
  select
@@ -54,7 +55,7 @@ begin
    1,1
   from invoices i, adtax a
   where i.taxrollId = a.id
-   and (i.PARCEL = @parcel or i.item = @item)
+   and ((i.PARCEL = @parcel and @linkBackTaxByParcel = 'TRUE') or i.item = @item)
    and i.TYP in ('R','O')
    and i.invoiceDue != 0
    and i.id not in (select invoiceId from @rt)
@@ -76,7 +77,7 @@ begin
    and TYP != 'R'
    and invoiceDue != 0
    and id not in (select invoiceId from @rt)
-   and (taxyear <> @year or item = @item or (parcel=@parcel and parcel > ' 0'))
+   and (taxyear <> @year or item = @item or (parcel=@parcel and parcel > ' 0' and @linkBackTaxByParcel = 'TRUE'))
 
 -- get the sub or fee invoices, but do NOT insert fees into the table if there are no fees
  insert into @rt (invoiceId,origin,year,invoiceDue,link2ParentInvoice,trSection,subjectToPenalty)
