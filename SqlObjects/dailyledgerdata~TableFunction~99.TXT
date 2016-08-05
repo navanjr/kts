@@ -98,10 +98,11 @@ group by accountCode, accountDesc, accountType, ledgerGroup, reportOrder
 
 insert @wtwork (accountCode, accountDesc, amount, debit, credit, accountType, ledgerGroup, reportOrder,sourceType, sourcea18, comment,
 apportionContraCode, sourcekey3)
-select accountCode, accountDesc,amount,case when amount > 0 then amount else 0 end,case when amount < 0 then amount else 0 end, 
+select accountCode, accountDesc,amount,case when amount > 0 then amount else 0 end,case when amount < 0 then abs(amount) else 0 end, 
   accountType, ledgerGroup, reportOrder,sourceType, sourcea18, comment, apportionContraCode, sourcekey3
  from dbo.glDetailReports 
-where sourceDate>=@beginDate and sourceDate<=@endDate
+where sourceDate>=@beginDate and sourceDate<=@endDate 
+ and accountType in (select accountType from dbo.glBankFundTypes('BOTH'))
 
 insert @wt (accountCode, accountDesc, paid, accountType, ledgerGroup, reportOrder, origin)
 select accountCode, accountDesc,sum(amount) as amount, accountType, ledgerGroup, reportOrder, 3 from @wtwork 
