@@ -1,0 +1,28 @@
+create function dbo.taxStatementAsOf(@year varchar(4)) returns varchar(20)
+AS
+BEGIN
+ declare @asof varchar(20),
+  @gracesetting varchar(50),
+  @grace int
+
+
+ select top 1
+  @gracesetting = a20
+ from object
+ where typ=40
+
+ if isnumeric(@gracesetting)=1
+   set @grace = cast(@gracesetting as int)-1
+ else
+  begin
+     set @grace = case when isnumeric(left(@gracesetting,2))=1 then cast(left(@gracesetting,2) as int)-1 else 0 end
+  end
+
+ if @grace < 0 
+  set @grace = 0
+
+ set @asof = dbo.date1(dbo.clariondate('12/31/' + @year)+@grace)     
+
+ return @asof
+
+END
