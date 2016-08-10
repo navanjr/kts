@@ -12,18 +12,8 @@ begin
  set nocount on
  exec dbo.logit @@procid, '@documentId', @documentId, '@invoiceId', @invoiceId, '@taxRollDetailId', @taxRollDetailId,'@method',@method
 
-/*
- @documentId int,
- @invoiceId int = 0,
- @taxRollDetailId int = 0,
- @batchId int = 0,
- @method varchar(10) = 'REPLACE',
- @interestTo varchar(50) = '',
- @rawText varchar(Max) = '' output
-*/
 
  declare
-  --@rawText varchar(max),
   @sql nvarchar(max),
   @fieldToken varchar(50),
   @tag varchar(50),
@@ -69,9 +59,9 @@ if @invoiceId>0
  begin
  insert @fields select null,null,'<legal>',dbo.getLegalDescription(@invoiceId)
  if isnull(@taxRollDetailId,0) < 1
-  insert @fields select null,null,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId))
+  insert @fields select null,null,'<addressee>',dbo.docDoIndent(@rawText,'<addressee>',dbo.parseAddressAndName(dbo.getTaxInvoiceBlob(@invoiceId)))
  else
-  insert @fields select null,null,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId)
+  insert @fields select null,null,'<addressee>',dbo.docDoIndent(@rawText,'<addressee>',dbo.docGetAddresseeFromTaxRollDetail(@taxrollDetailId))
  select @interestTo = value from @fields where tag = '<interestTo>'
  if charindex('<docUnpaid>',@rawText) > 0 or @method = 'VERIFY'
   insert @fields select null,null,'<docUnpaid>',case when @method = 'VERIFY' then '' else dbo.docUnpaidSF(@invoiceId,@interestTo,0) end
