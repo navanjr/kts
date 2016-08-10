@@ -1,0 +1,56 @@
+@menuprocess=gcvdId=kp('select top 1 id from object where typ=449 and olink1='''&cur:ini&''''),
+ if(gcvdId+0>0,change(gcvdId),new(449,,-68=cur:ini));
+
+@loadwindow=brwstuff=;
+
+@brwstuff=gcsql449='select decisionId, level, location, rqdate, rqini, '''', apini, approvednotes, cont from dbo.securityDecisionView where rqdateno >= '''&today()-30&''' order by rqdateno, rqdate',
+ brw(160,1,gcsql449,3,29,280,200,'20L(2)~Lev~#2#|M120L(2)~Location~#3#|M70L(2)~Request Date~#4#|M20L(2)~Req~#5#|M20L(2)~App~#7#|M');
+
+@newselbrw160=gcNotes=kp('select [message] + char(13) + char(10) +''Request Notes: '' + requestnotes + char(13) + char(10) 
+  +    ''Approval Notes:'' + approvednotes  
+  from dbo.securityDecisionView where decisionId = '&kpbrwid()+0),
+set(102,gcNotes)
+;
+
+@brw1=gcDecisionId=kpbrwid(),do(450,viewproc=);
+
+@refreshbrw=
+ if(obj:key1+0<2,gcbdate=today()-30,gcbdate=obj:key1),
+ if(obj:key2+0<2,gcedate=today(),gcedate=obj:key2),
+ if(obj:a17>' 0',gcrqini=' rqini = '''&obj:a17&''' AND ',gcrqini=''),
+ if(obj:a18>' 0',gcapini=' apini = '''&obj:a18&''' AND ',gcapini=''),
+ if(obj:c1+0>0,gcminlevel=' level >= '''&obj:c1+0&''' AND ',gcminlevel=''),
+ if(obj:c2>' 0',gcLocation=' location like '''&obj:c2&'%'' AND ',gcLocation=''),
+gcsql449='select decisionId, level, location, rqdate, rqini, '''', apini, approvednotes, cont from dbo.securityDecisionView
+ where '&gcrqini&gcapini&gcminlevel&gcLocation&' ((rqdateno >= '''&gcbdate&''' and rqdateno <= '''&gcedate&''') OR (apdateno >= '''&gcbdate&''' and apdateno <= '''&gcedate&''')) order by rqdateno, rqdate',
+ brwreload(1,gcsql449);
+
+@accr002098r2=refreshbrw=;
+
+\t000View Decisions;
+\t001Begin Date;
+ \t002@d2;
+ \w00250;
+
+
+\t003End Date;
+ \t004@d2;
+ \w00450;
+
+\t039Request Initials;
+ \w04040;
+
+\t041Approved Initials;
+ \w04240;
+
+\t077Minimum Level; \t078@n3; \w07812; \f0782;
+\t079Location; \f080Receipt;
+
+\x077080-80;r
+
+\t101Results; \h101;
+\x102290;
+\y10229;
+\z102200;
+\w102150;
+\d102;

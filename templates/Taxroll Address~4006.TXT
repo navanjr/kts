@@ -37,13 +37,29 @@
   if(lcMode<>9,advanced=,basic=);
   
 @advanced=
- m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Make Default by Owner#|Ma&ke Alternate by Owner#|&Enable|Disa&ble|&Cancel'),
+ m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Make Default by Owner#|Ma&ke Alternate by Owner#|&Enable|Disa&ble|Dele&te|&Cancel'),
  if(gcretval=1,Default=),
  if(gcretval=2,Alternate=),
  if(gcretval=3,ownerDefault=),
  if(gcretval=4,ownerAlternate=),  
  if(gcretval=5,EnableIt=),
- if(gcretval=6,DisableIt=);
+ if(gcretval=6,DisableIt=),
+ if(gcretval=7,DeleteIt=);
+
+@DeleteIt=lcCheck=kp('select count(*) from taxrolldetail where enabled = 1 and id = abs('&lcId&')'),
+ if(lcCheck+0=0,m('You cannot delete and address until it has been disabled','Aborting Delete')),
+ break(lcCheck+0=0),
+ m('Are you sure you want to delete the highlighted address?','Delete Address?',,6),
+ break(gcretval<>2),
+ gclocation='Address_Delete',
+ gcslink='d'&lcId,
+ gcdecisionId=0,
+ gcmethod='CHECK',
+ do(450,'check='),
+ break(gccontinue<>'TRUE'), 
+ sql('delete from taxrollDetail where id = abs('&lcId&')'),
+ brwreload(1);
+;
 
 @basic=
  m('Choose from the following options...','Right Click Options...','question.ico','Make &Default|Make &Alternate|&Cancel'),
