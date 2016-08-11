@@ -10,7 +10,8 @@ create proc dbo.docFeeProcessingCRUD(
  @verbose varchar(5) = 'FALSE',
  @date int = null,
  @days int = null,
- @taxRollDetailId int = 0
+ @taxRollDetailId int = 0,
+ @includealladdresses int = 0
  
 ) as
 begin
@@ -32,6 +33,7 @@ begin
   @tally int,
   @documentDate int,
   @documentName varchar(100),
+  @addressCount int,
   @processCode varchar(50),
   @tokenId int,
   @tokenInvoiceId int,
@@ -111,7 +113,9 @@ begin
    f.key2,
    f.key3,
    f.a1,
-   cast(f.a2 as money)
+   cast(f.a2 as money) 
+     * case when @batchid > 0 and @includealladdresses = 1 then isnull((select count(*) from  dbo.docAddresses(i.id) ),1)
+        when @includealladdresses = 1 then isnull((select count(*)-1 from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) ),1) else 1 end
   from @invoicesToProcess i
   join object f on f.link1 = @documentId and typ = 4902
 
