@@ -161,6 +161,20 @@ if not exists(select * from @selectedMortgageCodes)
  declare @dtypeIds table(id int, switch int)
  declare @deleteAllOthers int = 0
  insert @dtypeIds select invoiceLinkId, d.switch from taxRollDetail join dbo.docDTypes(@dTypesBlob) d on d.code = dtype and d.id < 4
+ insert @dtypeIds 
+  select i.id, d.switch
+   from dbo.object o
+   join invoices i on (key3=left(i.name,len(key3)) or len(key3)<1) 
+     and (key2=left(i.PARCEL,len(key2)) or len(key2)<1) 
+     and (case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end=i.ITEM 
+       or 
+     case when isnumeric(key1)=1 then cast(key1 as numeric (7,1)) else 0 end<1) 
+     and (case when isnumeric(a1)=1 then cast(a1 as numeric (5,0)) else 0 end =i.taxyear or len(a1)<2)
+   join dbo.docDTypes(@dTypesBlob) d on d.code = o.a7 and d.id < 4
+  where o.typ=4002 
+   and o.a7 in ('Bankrupt','Probate')
+
+
  delete @wt where id in (select id from @dTypeIds where switch = 0)
  if (select switch from dbo.docDTypes(@dTypesBlob) where code = 'All Others') = 0
   delete @wt where id not in (select id from @dTypeIds where switch != 0)
