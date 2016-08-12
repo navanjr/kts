@@ -1,6 +1,6 @@
-create function dbo.auditorReportOSDetail(@beginDate varchar(20), @endDate varchar(20), @bankAccountCode varchar(50))
+create function dbo.auditorReportOSDetail(@beginDate varchar(20), @endDate varchar(20), @bankAccountCode varchar(50), @method varchar(10))
 returns
- @rt table(
+ @rt table(bankAccountCode varchar(60),
  auditReportGroup varchar(60),
  amount money,
  comment varchar(250))
@@ -79,16 +79,6 @@ else
   where @bankAccountCode = accountCode
  end
 
-/*
-  insert @wt1 (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate,  sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup,  reportOrder,comment)
-  select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3,  sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
-   case when sourcetype='4513' then comment else '' end
-   from gldetailreports 
-  where 
-  accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
-   and (@bankAccountCode = accountCode or isnull(@bankAccountCode,'')<' 0')
-*/
-
 
 insert @wt (fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,comment)
 select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
@@ -103,7 +93,8 @@ and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 union all
 
 select fpCode, fpDesc, accountCode, accountDesc, amount, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
- case when sourcetype='4513' then comment else '' end from @wt1 
+ case when sourcetype='4513' then comment else '' end 
+from @wt1 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 > @endDate)
@@ -115,7 +106,8 @@ and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=accountCode)
 union all
 
 select fpCode, fpDesc, accountCode, accountDesc, amount*-1, debit, credit, [date], slink, sourceKey1, sourceDate, sourceKey3, sourceType, sourcea18, accountType, contraId, slink2, id, accountId, sourceCode, bsId, auditReportGroup, reportOrder,
- case when sourcetype='4513' then comment else '' end from @wt1 
+ case when sourcetype='4513' then comment else '' end
+ from @wt1 
 where 
 accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
 and isnull(bsId,0) in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate)
@@ -147,9 +139,22 @@ insert @wt (auditReportGroup, amount, comment)
           and link1 in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=key1))
 
 
-
-insert @rt
-select auditReportGroup,sum(amount),comment from @wt group by auditReportGroup,comment
+if @method = 'DETAIL'
+begin
+ insert @rt
+  select a.accountCode,w.auditReportGroup,sum(w.amount),w.comment 
+   from @wt w, glaccounts a 
+   where w.accountid=a.accountid 
+    and a.accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType<>'SUSPENSE')
+  group by a.accountCode,w.auditReportGroup,w.comment
+end
+else
+begin
+ insert @rt
+  select '',w.auditReportGroup,sum(w.amount),w.comment from @wt w, glaccounts a 
+    where w.accountid=a.accountid 
+   group by w.auditReportGroup,w.comment
+end
 
 return
 end

@@ -26,7 +26,7 @@ begin
  else
  begin
   insert @wt
-  select key1 from object where typ=4780 and a1 >= @beginDate and a2 <= @enddate
+  select key1 from object where typ=4780 and a1 >= @beginDate and a2 <= @enddate and key1 > ' 0'
  end
 
  insert @rt
@@ -35,19 +35,11 @@ begin
    and sourceDate <= @enddate 
   group by accountCode,accountDesc
 
- while exists(select accountCode from @wt)
- begin
-  select top 1 @accountCodeToken = accountCode from @wt
-
   insert @rt
-  select o.rowstring, o.sourceAmt, o.rowType, o.ord, isnull(o.comment,''), a.accountCode, a.accountDesc 
-  from (select * from dbo.auditorReportBankReconciliation(@begindate,@enddate,'',@accountCodeToken)) o, glaccounts a 
-  where a.accountCode = @accountCodeToken 
-   and o.rowType in ('detail','gFooter')
+  select o.rowstring, o.sourceAmt, o.rowType, o.ord, isnull(o.comment,''), o.bankaccountcode, o.accountDesc 
+  from (select * from dbo.auditorReportBankReconciliationDetail(@begindate,@enddate,'',@bankAccountCode)) o
+  where o.rowType in ('detail','gFooter')
    and case when o.rowType = 'detail' then cast(sourceAmt as money) else 9 end <> 0
-
-  delete from @wt where accountCode = @accountCodeToken
- end
 
  return
 end
