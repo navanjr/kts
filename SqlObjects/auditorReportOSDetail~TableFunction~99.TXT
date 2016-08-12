@@ -131,12 +131,14 @@ update @wt set auditReportGroup='OS Payments' where auditReportGroup<' 0' and so
 
 update @wt set auditReportGroup='OS Deposits' where auditReportGroup<' 0' and sourceType = '4513'
 
-insert @wt (auditReportGroup, amount, comment)
-        select key1, 
-               case when isnumeric(key2)=1 then cast(key2 as money) else 0 end,
-               d1 
-          from object where typ=4781 
-          and link1 in (select id from object where typ=4780 and a2 >= @beginDate and a2 <= @endDate and (isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=key1))
+insert @wt (accountId, auditReportGroup, amount, comment)
+        select bks.link1,o.key1, 
+               case when isnumeric(o.key2)=1 then cast(o.key2 as money) else 0 end,
+               o.d1 
+          from object o
+           JOIN object bks ON bks.typ=4780 and bks.a2 >= @beginDate and bks.a2 <= @endDate and bks.id = o.link1
+          where o.typ=4781 
+            and isnull(@bankAccountCode,'')<' 0' or @bankAccountCode=bks.key1
 
 
 if @method = 'DETAIL'
