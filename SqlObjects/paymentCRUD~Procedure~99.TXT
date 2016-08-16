@@ -53,7 +53,8 @@ begin
   @vfiscalYear varchar(20),
   @pType varchar(50) = '',
   @warrantsHitLedgerWhenRegistered varchar(5) = dbo.settingsf('site.warrantsHitLedgerWhenRegistered','FALSE'),
-  @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')
+  @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE'),
+  @linkedIdToken int
 
 
   declare @trackAppropriationLedger varchar(20)
@@ -81,6 +82,9 @@ begin
    begin
     select @pType = a18 from object where id = @id
 --    if @pType='Treasurers Check'
+    select top 1 @linkedIdToken = id from object where typ=4771 and link1 = @id
+    if isnull(@linkedIdToken,0) > 0
+      update gldetail set bsId = null, dateCleared = '' where slink='o'+cast(@linkedIdToken as varchar)
     update object set link1 = 0 where typ=4771 and link1 = @id
     update object set a17 = 'Abandoned', typ = -4771 where typ = 4771 and id = @id
    end
