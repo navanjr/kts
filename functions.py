@@ -2456,9 +2456,15 @@ class ktsMenu():
                 if not str(data[field]) == '0':
                     a.append(str(data[field]))
             return ' '.join(a).strip().replace("'", "")
-
-        taxYear = areYouSure('enter the tax year please', boolean=False)
-        if areYouSure('are you sure you want to run with taxYear = %s?' % taxYear):
+        goContinue = True
+        if not self.command[2]:
+            taxYear = areYouSure('enter the tax year please', boolean=False)
+            if not areYouSure('are you sure you want to run with taxYear = %s?' % taxYear):
+                goContinue = False
+        else:
+            taxYear = self.command[2]
+            
+        if goContinue:
             print 'Here we go... AAmaster Update...'
             package, fields = self.tpsAamasterGetPackage()
             # testlist = [
@@ -2481,7 +2487,8 @@ class ktsMenu():
 
                     setString = ', '.join(token)
                     sqlString = "update adtax set %s where realTaxYear = '%s' and fullPidNumber = '%s'" % (setString, taxYear, row['fullpidnumber'])
-                    print '.... %s' % tallyTotal
+                    #print '.... %s' % tallyTotal
+                    print sqlString
                     q = self.sqlQuery(sqlString, True)
                     if q['code'][0] == 0:
                         tally += 1

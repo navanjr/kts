@@ -57,13 +57,14 @@
  lcId=0;
 
 @5Options=
- m(obj:key1&' Invoice options...','Invoice','question.ico','&View Tax Rate Summary|&Pull Mtg Codes|&Invoice|Print &Statements|&Update from adtaxCheck|&Cancel'),
- break(gcretval>5),
+ m(obj:key1&' Invoice options...','Invoice','question.ico','&View Tax Rate Summary|&Pull Mtg Codes|&Invoice|Print &Statements|&Update from adtaxCheck|Update from AAMASTER|&Cancel'),
+ break(gcretval>6),
  if(gcretval=1,adTaxSum=),
  if(gcretval=2,dwnLdMtgCdes=),
  if(gcretval=3,openTaxYear=),
  if(gcretval=4,statementPrint=),
  if(gcretval=5,updateFromAdtaxCheck=),
+ if(gcretval=6,dopullaamaster=),
  refreshbrw=;
 
 @updateFromAdtaxCheck=
@@ -110,6 +111,12 @@
  lcReceiableId=kp('select min(id) from object where typ = 51'),
  if(lcReceiableId+0>0,change(lcReceiableId,-2),new(51,-2));
 
+@dopullaamaster=
+ m('Do you want to load the property and assessment information from the AAMASTER file for year '&lcId&'?','Load AAMASTER',,6),
+ break(gcretval<>2),
+ sql('exec dbo.ktsBat ''conv aamasterCheck'''),
+ sql('exec dbo.ktsBat ''conv aamasterUpdate '&lcId&''''),
+;
 @6Options=
  m('Choose one of the following options...','Taxroll Import...','question.ico','&Import All|&Clear Import|E&xit'),
  if(gcretval=1,sql('exec dbo.taxrollCRUD @method = ''adTaxAdd''')),

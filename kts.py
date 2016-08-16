@@ -38,6 +38,8 @@ elif len(sysArgs) > 2 and sysArgs[1] in autoArgs:
         menu.sendCommand(' '.join(sysArgs[1:]))
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'aamasterCheck':
         menu.sendCommand(' '.join(sysArgs[1:]))
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'aamasterUpdate':
+        menu.sendCommand(' '.join(sysArgs[1:]))
     elif sysArgs[1] in ('api', 'compress'):
         menu.sendCommand(' '.join(sysArgs[1:]))
 
