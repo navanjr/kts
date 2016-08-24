@@ -1,123 +1,232 @@
 create function dbo.rpMemorandumOfCredit2016(@begindate int, @enddate int, @officialName varchar(100), @purpose varchar(250))
+
 returns @rt table(
+
   dateRegistered varchar(50),
+
   warrant varchar(50),
+
   voucher varchar(50),
+
   register varchar(50),
+
   payWhom varchar(100),
+
   officialAccountCode varchar(50),
+
   whomDrawn varchar(100),
+
   officerName varchar(100),
+
   officerTitle varchar(100),
+
   amount money,
+
   dateCancelled varchar(50),
+
   typeCancel varchar(100),
+
   comment varchar(max),
+
   purpose varchar(50),
+
   bankAccountCode varchar(50),
+
   bankName varchar(100),
   bankLocation varchar(100),
+
   officialAccountTotal money
   )
+
 as
+
 begin
 
 
+
 declare @vouchers table(voucher varchar(50),
+
   registerno varchar(100),
   dateRegistered varchar(50),
+
   payWhom varchar(100),
+
   officialAccountCode varchar(50),
+
   whomDrawn varchar(100),
+
   officerName varchar(100),
+
   officerTitle varchar(100),
+
   amount money,
+
   dateCancelled varchar(50),
+
   typeCancel varchar(100),
+
   comment varchar(max),
+
   purpose varchar(50),
+
   bankAccountCode varchar(50),
+
   bankName varchar(100),
+
   bankLocation varchar(100),
+
   officialAccountTotal money
   )
+
+
+
+
 
 
 
 insert @vouchers
+
 select 
     a.foreignNumber,
+
     a.controlnumber,
-    a.postDate,    
+
+    a.postDate,
+    
     a.payee,
+
     a.accountCode,
+
     a.fundAccount,
+
     '',
+
     '',
+
     a.contraAmount*-1,
+
     a.contraPostDate,
-    left(a.contraPaymentType,charindex(' ',a.contraPaymentType)),
+  
+  left(a.contraPaymentType,charindex(' ',a.contraPaymentType)),
+
     cv.e1,
+
     cv.a14,
+
     '',
+
     '',
+
     '',
+
     0.00
-     from 
-      (select * from dbo.paymentreports('OFFICIAL',@enddate,'TRUE') where contraPostDate >= @begindate and contraPostDate <= @enddate and paymenttype like '%VOUCHER%') a,
-      object cv 
+
+     from
+ 
+      (select * from dbo.paymentreports('OFFICIAL',@enddate,'TRUE') 
+where contraPostDate >= @begindate and contraPostDate <= @enddate and paymenttype like '%VOUCHER%') a,
+
+      object cv
+ 
      where cv.typ=4771
-      and cv.id=dbo.slinkId(a.contraSLink) 
+
+      and cv.id=dbo.slinkId(a.contraSLink)
+ 
       and (isnull(@officialName,'')< ' 0' or fundAccount in (select b2 from object where typ=4601 and key2=@officialName) )
       and (isnull(@purpose,'')< ' 0' or cv.a14 = @purpose)
-     order by a.fundAccount,a.postDate,a.foreignNumber 
+
+     order by a.fundAccount,
+a.postDate,
+a.foreignNumber
+
+ 
 
  update r set bankAccountCode = b.accountcode,
               bankName = b.BankName,
+
               bankLocation = b.BankLocation,
+
               officerName = o.key2,
+
               officerTitle = o.key3
+
   from @vouchers r, object o, glaccounts b
-  where o.typ=4601
+ 
+ where o.typ=4601
+
    and r.officialAccountCode=o.a3
+
    and o.a4 = b.accountcode
+
+
 
  insert @rt (dateRegistered, voucher, [register], payWhom, officialAccountCode, whomDrawn, officerName, officerTitle, 
   amount, dateCancelled, typeCancel, comment, purpose, bankAccountCode, bankName, bankLocation, officialAccountTotal)
-  select dateRegistered, voucher, registerno, payWhom, officialAccountCode, whomDrawn, officerName, officerTitle, 
+
+  select dateRegistered, voucher, registerno, payWhom, officialAccountCode, whomDrawn, officerName, officerTitle,
+ 
    amount, dateCancelled, typeCancel, comment, purpose, bankAccountCode, bankName, bankLocation, officialAccountTotal
+
   from @vouchers
 
 
- insert @rt (dateRegistered, warrant, payWhom, officialAccountCode, whomDrawn, officerName, officerTitle, amount, dateCancelled, typeCancel)
-   select 
+ 
+
+insert @rt (dateRegistered, warrant, payWhom, officialAccountCode, whomDrawn, officerName, officerTitle, amount, dateCancelled, typeCancel)
+
+   select
+ 
      postDate,
+
      dbo.popro6(foreignNumber,6,1),
+
      left(payee,40),
+
      fundcode,
+
      rtrim(FundDesc) + ' - ' + fiscalYear,
+
      'COUNTY CLERK',
+
      '',
      naturalamount,
-     contraPostDate,
+    contraPostDate,
+
      warrantstatus
-   from dbo.paymentReports('Warrant',@enddate,'TRUE') 
-   where contraPostDate >= @begindate 
-     and contraPostDate <= @enddate 
-     and warrantstatus > ' 0' 
-     and warrantstatus = @purpose 
+
+   from dbo.paymentReports('Warrant',@enddate,'TRUE')
+ 
+   where contraPostDate >= @begindate
+ 
+     and contraPostDate <= @enddate
+ 
+     and warrantstatus > ' 0'
+ 
+     and warrantstatus = @purpose
+
+ 
 
  declare @totals table(officialAccountCode varchar(50),total money)
 
- insert @totals
-  select officialAccountCode,sum(amount)
-  from @rt
-  group by officialAccountCode
 
- update r set officialAccountTotal = t.total
+ insert @totals
+ 
+ select officialAccountCode,sum(amount)
+
+  from @rt
+  
+group by officialAccountCode
+
+ 
+
+update r set officialAccountTotal = t.total
+
   from @rt r, @totals t
+
   where r.officialAccountCode = t.officialAccountCode
 
 
+
  return
+
 end
