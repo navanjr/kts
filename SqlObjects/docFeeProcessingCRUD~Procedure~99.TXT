@@ -18,7 +18,7 @@ begin
 
  set nocount on
 
- declare @invoicesToProcess table(id int)
+ declare @invoicesToProcess table(id int, idMain int)
 
  declare @wt table(
   id int identity(1,1),
@@ -60,7 +60,7 @@ begin
     @processCode = processCode
    from dbo.docBRWDecoder(@batchId)
 
-   insert @invoicesToProcess select invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
+   insert @invoicesToProcess select invoiceId,invoiceId from dbo.docBatchBRW(@batchId, null, null,'')
     where  invoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName) and due<>0 --printed > '  0' and 
    end
  if @dtype > '  0' 
@@ -78,10 +78,10 @@ begin
    from object where id = @documentId
 
   if @taxrollDetailId>0
-   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,@taxrollDetailId)
+   insert @invoicesToProcess select addFeeToInvoiceId,invoiceIdMain from dbo.collectionsBRW(@dType, null, @date, @days,@taxrollDetailId)
     where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
    else
-   insert @invoicesToProcess select addFeeToInvoiceId from dbo.collectionsBRW(@dType, null, @date, @days,0)
+   insert @invoicesToProcess select addFeeToInvoiceId,invoiceIdMain from dbo.collectionsBRW(@dType, null, @date, @days,0)
     where id is not null and addFeeToInvoiceId not in (select invoiceId from invoices where queue = @processCode and printed = @documentName)
 
   end
@@ -115,7 +115,7 @@ begin
    f.a1,
    cast(f.a2 as money) 
      * case when @batchid > 0 and @includealladdresses = 1 then isnull((select count(*) from  dbo.docAddresses(i.id) ),1)
-        when @includealladdresses = 1 then isnull((select count(*)-1 from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) ),1) else 1 end
+        when @includealladdresses = 1 then isnull((select count(*) from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) where invoiceid = cast(i.idMain as varchar) ),1) else 1 end
   from @invoicesToProcess i
   join object f on f.link1 = @documentId and typ = 4902
 
