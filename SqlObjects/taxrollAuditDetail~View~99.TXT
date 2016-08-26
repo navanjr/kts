@@ -17,7 +17,7 @@ select id from object where typ = 4512 and a18='Tax Payment Adjust' and key2=g.d
       isnull((select penaltyAmount from dbo.taxrollAuditDetailPenaltyAdjust where invoiceId=g.invoiceId),0)
       else 0 end  as penaltyAmount
 from dbo.gldetailreports AS G
- LEFT JOIN glaccounts AS s ON g.sourcecode = s.accountcode
+ LEFT JOIN glaccounts AS s with (NOLOCK) ON g.sourcecode = s.accountcode
 where g.apdistrict > ' 0' and g.sourcekey3 not in ('misc','apportion excess TIF proceeds','TAX INCREMENT DISTRICT 1')
  and isnumeric(left(isnull(g.apportioncontracode,'0000'),4))=1
  and isnull(s.accountdesc,'') not like '%interest%'
@@ -29,7 +29,7 @@ select a.*,
       else '8. Pending Apportionment' 
       end as auditOrigin,
       0 as penaltyAmount
-from dbo.gldetailreports a, glaccounts b
+from dbo.gldetailreports a, glaccounts b with (NOLOCK)
 where a.contraId = b.accountId
   and a.apdistrict > ' 0' 
   and a.accounttype='ACCRUED RECEIVABLE'
