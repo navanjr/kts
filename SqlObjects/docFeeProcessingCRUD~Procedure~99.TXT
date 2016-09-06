@@ -115,7 +115,9 @@ begin
    f.a1,
    cast(f.a2 as money) 
      * case when @batchid > 0 and @includealladdresses = 1 then isnull((select count(*) from  dbo.docAddresses(i.id) ),1)
-        when @includealladdresses = 1 then isnull((select count(*) from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) where invoiceid = cast(i.idMain as varchar) ),1) else 1 end
+        when @includealladdresses = 1
+          and isnull((select count(*) from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) where invoiceid = cast(i.idMain as varchar) ),1) > 1
+ then isnull((select count(*) from dbo.collectionLabels(@dtype,@documentId,@date,@days,@taxrollDetailId) where invoiceid = cast(i.idMain as varchar) ),1) else 1 end
   from @invoicesToProcess i
   join object f on f.link1 = @documentId and typ = 4902
 
