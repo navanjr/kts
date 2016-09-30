@@ -6,7 +6,8 @@ create proc dbo.apiTaxroll(
  @scratchFile varchar(1000) = null,
  @debugMode varchar(5) = 'FALSE',
  @result varchar(max) = null output,
- @dropRawFile varchar(5) = 'FALSE'
+ @dropRawFile varchar(5) = 'FALSE',
+ @skipAPICall varchar(5) = 'FALSE'
 ) as
 begin
  set nocount on
@@ -71,6 +72,7 @@ begin
   millage_rate decimal(19,10),
   owner_address1 varchar(50),
   owner_address2 varchar(50),
+  owner_address3 varchar(50),
   owner_city varchar(50),
   owner_postal varchar(50),
   owner_state varchar(50),
@@ -121,7 +123,7 @@ begin
  if @method = 'JOB'
  begin
   select @batchSize = coalesce(@batchSize, batchSize) from dbo.apiControlBRW() where resource = @resource
-  exec dbo.apiTaxroll @method = 'POST', @batchSize = @batchSize
+  exec dbo.apiTaxroll @method = 'POST', @batchSize = @batchSize, @dropRawFile = @dropRawFile, @debugMode = @debugMode, @skipAPICall = @skipAPICall
  end
 
  if @method = 'STATUS'
@@ -174,6 +176,7 @@ declare @rt table (
  totalTaxRate varchar(20),
  address1 varchar(50),
  address2 varchar(50),
+ address3 varchar(50),
  city varchar(50),
  zip1 varchar(20),
  state varchar(4),
@@ -209,6 +212,7 @@ insert into @rt
    totalTaxRate,
    rtrim(address1),
    rtrim(address2),
+   rtrim(address3),
    city,
    zip1,
    state,
@@ -249,6 +253,7 @@ select
    totalTaxRate,
    dbo.readstring('@address1=',blob),
    dbo.readstring('@address2=',blob),
+   dbo.readstring('@address3=',blob),
    dbo.readstring('@city=',blob),
    dbo.readstring('@zip1=',blob),
    dbo.readstring('@state=',blob),
@@ -303,6 +308,7 @@ select
 
   insert @jsonPrep select parentId,null,'owner_address1', dbo.stripChars(owner_address1,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'owner_address2', dbo.stripChars(owner_address2,@goofyChars),'string' from @wt
+  insert @jsonPrep select parentId,null,'owner_address3', dbo.stripChars(owner_address3,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'owner_city', dbo.stripChars(owner_city,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'owner_postal',dbo.stripChars( owner_postal,@goofyChars),'string' from @wt
   insert @jsonPrep select parentId,null,'owner_state', dbo.stripChars(owner_state,@goofyChars),'string' from @wt
@@ -338,6 +344,16 @@ select
 
   exec spOverwriteTextFile @postFileFull, @dump
   
+  IF @dropRawFile = 'TRUE'
+  BEGIN
+    select @dump = 'site_id='+@apiCode+'&rows='+dbo.toJSON(@apiwt)
+    set @postFileFull = @postFileFull + '.raw'
+    exec spOverwriteTextFile @postFileFull, @dump
+  END
+  
+  IF @skipAPICall = 'TRUE'
+    return
+    
   exec dbo.api
    @method = @method,
    @resource = @apiResource,
