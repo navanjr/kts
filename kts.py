@@ -34,6 +34,8 @@ elif len(sysArgs) > 2 and sysArgs[1] in autoArgs:
         menu.gsiTaxroll()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importDEFTax':
         menu.defTaxroll()
+    elif sysArgs[1] == 'conv' and sysArgs[2] == 'importBILTax':
+        menu.bilTaxroll()
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'importDBF':
         menu.sendCommand(' '.join(sysArgs[1:]))
     elif sysArgs[1] == 'conv' and sysArgs[2] == 'aamasterCheck':

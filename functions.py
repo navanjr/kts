@@ -132,6 +132,7 @@ class ktsMenu():
         self.createCommand('importMort', ['importMort', ], 'copies mortg data into kts', self.tpsmort, 'conversion')
         self.createCommand('importGSI', ['importGSI', ], 'copies GSI data into aamasterCheck', self.gsiAamasterCheck, 'conversion')
         self.createCommand('importGSITax', ['importGSITax', ], 'copies TaxRoll data into kts for invoicing', self.gsiTaxroll, 'conversion')
+        self.createCommand('importBILTax', ['importBILTax', ], 'copies TaxRoll data into kts for invoicing', self.bilTaxroll, 'conversion')
         self.createCommand('importDEFTax', ['importDEFTax', ], 'copies TaxRoll data into kts for invoicing', self.defTaxroll, 'conversion')
         self.createCommand('importDBF', ['importDBF', ], 'copies any dbf into a sql table temp_?', self.importDBF, 'conversion')
 
@@ -1996,6 +1997,166 @@ class ktsMenu():
         except ValueError, e:
             print 'error while formatting row: %s' % e
             return []
+
+    def bilTaxroll(self):
+        def map(row):
+            recordtype = row[0:1]
+            additionnumber = row[2:6]
+            townshipblock = row[6:9]
+            rangelot = row[9:12]
+            sectionnumber = row[12:14]
+            qtrsectionnumber = row[14:15]
+            parcelnumber = row[15:18]
+            propertysplit = row[18:20]
+            fullpidnumber = row[2:20]
+            itemnumber = row[200:206]
+            ownername = row[20:50]
+            address1 = row[50:80]
+            address2 = row[80:110]
+            city = row[110:125]
+            state = row[125:127]
+            zip1 = row[127:132]
+            zip2 = row[132:136]
+            orgschooldistrictmain = row[195:200]
+            schooldistrictmain = row[195:200]
+            orgschooldistricttaxrate = row[192:195]
+            schooldistricttaxrate = row[192:195]
+            acres = row[206:212]
+            exemption1 = row[239:250]
+            netassessedvalue = row[250:258]
+            totaltaxrate = row[258:265]
+            originaltotaldue = row[265:276]
+            totaldue = row[265:276]
+            balancedue = row[265:276]
+            pertyp = row[1:2]
+            proploc = row[141:192]
+            landassessed = row[212:230]
+            improvedassessed = row[230:239]
+            legaldescription = row[276:1426]
+            return [
+                recordtype.strip(),
+                additionnumber.strip(),
+                townshipblock.strip(),
+                rangelot.strip(),
+                sectionnumber.strip(),
+                qtrsectionnumber.strip(),
+                parcelnumber.strip(),
+                propertysplit.strip(),
+                fullpidnumber.strip(),
+                itemnumber.strip(),
+                ownername.strip(),
+                address1.strip(),
+                address2.strip(),
+                city.strip(),
+                state.strip(),
+                zip1.strip(),
+                zip2.strip(),
+                orgschooldistrictmain.strip(),
+                schooldistrictmain.strip(),
+                orgschooldistricttaxrate.strip(),
+                schooldistricttaxrate.strip(),
+                acres.strip(),
+                exemption1.strip(),
+                netassessedvalue.strip(),
+                totaltaxrate.strip(),
+                originaltotaldue.strip(),
+                totaldue.strip(),
+                balancedue.strip(),
+                pertyp.strip(),
+                proploc.strip(),
+                landassessed.strip(),
+                improvedassessed.strip(),
+                legaldescription]
+        importFileRaw = self.settingsF('taxroll.importFile')
+        if not  importFileRaw:
+            print 'missing path to tax file... fail!'
+            return
+        rows = []
+        with open( importFileRaw, 'r') as content_file:
+            rawData = content_file.read()
+            rawData = rawData.replace('""',' ')
+        i = 0
+        for row in rawData.split('\n'):
+            rows.append(map(row))
+
+        if len(rows) > 0:
+            print 'how many? ', len(rows)
+            print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
+            columnNames = ['recordType','additionnumber','townshipblock','rangelot','sectionnumber','qtrsectionnumber','parcelnumber','propertysplit']
+            columnNames = columnNames + ['fullpidnumber','itemnumber']
+            columnNames = columnNames + ['ownername','address1','address2','city','state','zip1','zip2']
+            columnNames = columnNames + ['orgschooldistrictmain','schooldistrictmain','orgschooldistricttaxrate','schooldistricttaxrate']
+            columnNames = columnNames + ['acres']
+            columnNames = columnNames + ['exemption1','netassessedvalue']
+            columnNames = columnNames + ['totaltaxrate','originaltotaldue','totaldue','balancedue']
+            columnNames = columnNames + ['proploc','landassessed','improvedassessed']
+            columnNames = columnNames + ['legaldescription','grossAssessed','miscassessed','realtaxyear','country','ownernumber','MFGHOMEASSESSED']
+            sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
+            tally = 0
+            print sqlInsert
+            for id, row in enumerate(rows):
+                formatedRow = self.bilFormatedRow(row)
+                print formatedRow
+                sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
+                print sqlInsert
+                print sqlSelect
+                if len(formatedRow) > 1:
+                    if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
+                        tally = tally + 1
+            print 'ok i inserted %s records' % tally
+
+
+
+    def bilFormatedRow(self,x):
+        try:
+            if x[9].isdigit():
+                it = float(x[9].strip())*1
+            else:
+                it = 0
+            if x[21].isdigit():
+                ac = float(x[21].strip())*.01
+            else:
+                ac = 0
+            if x[22].isdigit():
+                e1 = float(x[22].strip())*1
+            else:
+                e1 = 0
+            if x[23].isdigit():
+                nv = float(x[23].strip())*1
+            else:
+                nv = 0
+            if x[24].isdigit():
+                tr = float(x[24].strip())*.01
+            else:
+                tr = 0
+            if x[26].isdigit():
+                td = format(float(x[26].strip()*1),'.2f')
+            else:
+                td = 0
+            if x[30].isdigit():
+                la = float(x[30].strip())*1
+            else:
+                la = 0
+            if x[31].isdigit():
+                ia = float(x[31].strip())*1
+            else:
+                ia = 0
+            ga = nv + e1
+            ma = ga - (la + ia)
+            ty = 2016
+            pid = x[1].strip() + '-' + x[4].strip() + '-' + x[2].strip() + '-' + x[3].strip() + '-' + x[5].strip() + '-' + x[6].strip() + '-' + x[7].strip()
+
+               
+            return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
+                    ,pid,it
+                    ,x[10].strip(),x[11].strip(),x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip()
+                    ,ac,e1,nv,tr,td,td,td,x[29].strip(),la,ia,x[32],ga,ma,ty,'',0,0]
+        except ValueError, e:
+            print e
+            return []
+
+
+
 
     def defTaxroll(self):
         def map(row):
