@@ -2022,17 +2022,19 @@ class ktsMenu():
             orgschooldistricttaxrate = row[192:195]
             schooldistricttaxrate = row[192:195]
             acres = row[206:212]
-            exemption1 = row[239:250]
+            exemption1 = row[245:250]
             netassessedvalue = row[250:258]
-            totaltaxrate = row[258:265]
-            originaltotaldue = row[265:276]
-            totaldue = row[265:276]
-            balancedue = row[265:276]
+            totaltaxrate = row[258:266]
+            originaltotaldue = row[266:276]
+            totaldue = row[266:276]
+            balancedue = row[266:276]
             pertyp = row[1:2]
             proploc = row[141:192]
-            landassessed = row[212:230]
+            landassessed = row[221:230]
             improvedassessed = row[230:239]
             legaldescription = row[276:1426]
+            mfghomeassessed = row[239:245]
+            miscassessed = row[212:221]
             return [
                 recordtype.strip(),
                 additionnumber.strip(),
@@ -2066,7 +2068,9 @@ class ktsMenu():
                 proploc.strip(),
                 landassessed.strip(),
                 improvedassessed.strip(),
-                legaldescription]
+                legaldescription.strip(),
+                mfghomeassessed.strip(),
+                miscassessed.strip()]
         importFileRaw = self.settingsF('taxroll.importFile')
         if not  importFileRaw:
             print 'missing path to tax file... fail!'
@@ -2093,16 +2097,20 @@ class ktsMenu():
             columnNames = columnNames + ['legaldescription','grossAssessed','miscassessed','realtaxyear','country','ownernumber','MFGHOMEASSESSED']
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
-            print sqlInsert
+            #print sqlInsert
             for id, row in enumerate(rows):
                 formatedRow = self.bilFormatedRow(row)
-                print formatedRow
+                formatedRow = [str(x).replace("'", "''") for x in formatedRow]
+                #print formatedRow
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
-                print sqlInsert
-                print sqlSelect
+                #print sqlInsert
+                #print sqlSelect
                 if len(formatedRow) > 1:
                     if self.sqlQuery("%s %s" % (sqlInsert, sqlSelect), True)['code'][0] == 0:
                         tally = tally + 1
+                    else:
+                        print sqlInsert
+                        print sqlSelect
             print 'ok i inserted %s records' % tally
 
 
@@ -2126,11 +2134,11 @@ class ktsMenu():
             else:
                 nv = 0
             if x[24].isdigit():
-                tr = float(x[24].strip())*.01
+                tr = float(x[24].strip())*.00000001
             else:
                 tr = 0
             if x[26].isdigit():
-                td = format(float(x[26].strip()*1),'.2f')
+                td = format(float(x[26].strip())*.01,'.2f')
             else:
                 td = 0
             if x[30].isdigit():
@@ -2141,16 +2149,27 @@ class ktsMenu():
                 ia = float(x[31].strip())*1
             else:
                 ia = 0
+            if x[33].isdigit():
+                mh = float(x[33].strip())*1
+            else:
+                mh = 0
+            if x[34].isdigit():
+                mi = float(x[34].strip())*1
+            else:
+                mi = 0
             ga = nv + e1
-            ma = ga - (la + ia)
+            ma = ga - (la + ia + mh)
             ty = 2016
-            pid = x[1].strip() + '-' + x[4].strip() + '-' + x[2].strip() + '-' + x[3].strip() + '-' + x[5].strip() + '-' + x[6].strip() + '-' + x[7].strip()
+            if x[0] == "R":
+                pid = x[1].strip() + '-' + x[4].strip() + '-' + x[2].strip() + '-' + x[3].strip() + '-' + x[5].strip() + '-' + x[6].strip() + '-' + x[7].strip()
+            else:
+                pid = ''
 
                
             return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
                     ,pid,it
                     ,x[10].strip(),x[11].strip(),x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip()
-                    ,ac,e1,nv,tr,td,td,td,x[29].strip(),la,ia,x[32],ga,ma,ty,'',0,0]
+                    ,ac,e1,nv,tr,td,td,td,x[29].strip(),la,ia,x[32].strip(),ga,ma,ty,'',0,mh]
         except ValueError, e:
             print e
             return []
