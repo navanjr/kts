@@ -1672,6 +1672,7 @@ class ktsMenu():
                 'legal':           {'start':  760, 'end': 2760, 'ktsName': 'legalDescription', 'strip': True},
                 'advanceValue':    {'start': 2760, 'end': 2770, 'ktsName': 'GSI_advanceValue'},
                 'advanceTax':      {'start': 2770, 'end': 2780, 'ktsName': 'GSI_advanceTax'},
+                'mortgageCode':    {'start': 2780, 'end': 2792, 'ktsName': 'GSI_mortgageCode'},
             }
             return d
             
@@ -1855,6 +1856,7 @@ class ktsMenu():
                 'GSI_taxroll_LCT',
                 'GSI_advanceValue',
                 'GSI_advanceTax',
+                'GSI_mortgageCode',
             ]
 
         def gsiFormatedRow(self,x):
