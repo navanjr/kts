@@ -1922,7 +1922,7 @@ class ktsMenu():
                     except ValueError, e:
                         print 'tally#: %s, error while attempting to float fld: %s, val: %s,  error: %s' % (tally, fld, rowObj[val['ktsName']], e)
                         print rowObj
-                        
+                print rowObj        
                 # get the data arranged into the right order for insert
                 #  columnNames is the right order
                 formatedRow = []
