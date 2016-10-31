@@ -1672,7 +1672,7 @@ class ktsMenu():
                 'legal':           {'start':  760, 'end': 2760, 'ktsName': 'legalDescription', 'strip': True},
                 'advanceValue':    {'start': 2760, 'end': 2770, 'ktsName': 'GSI_advanceValue'},
                 'advanceTax':      {'start': 2770, 'end': 2780, 'ktsName': 'GSI_advanceTax'},
-                'mortgageCode':    {'start': 2780, 'end': 2792, 'ktsName': 'GSI_mortgageCode'},
+                'mortgageCode':    {'start': 2780, 'end': 2792, 'ktsName': 'MORTGAGECODE', 'strip': True, 'float4': True},
             }
             return d
             
@@ -1856,7 +1856,7 @@ class ktsMenu():
                 'GSI_taxroll_LCT',
                 'GSI_advanceValue',
                 'GSI_advanceTax',
-                'GSI_mortgageCode',
+                'MORTGAGECODE',
             ]
 
         def gsiFormatedRow(self,x):
@@ -1919,10 +1919,14 @@ class ktsMenu():
                             if rowObj[val['ktsName']] == '':
                                 rowObj[val['ktsName']] = '0'
                             rowObj[val['ktsName']] = format(float(rowObj[val['ktsName']])*.001,'.2f')
+                        if val.get('float4'):
+                            if rowObj[val['ktsName']] == '':
+                                rowObj[val['ktsName']] = '0'
+                            rowObj[val['ktsName']] = format(float(rowObj[val['ktsName']]),'.2f')
                     except ValueError, e:
                         print 'tally#: %s, error while attempting to float fld: %s, val: %s,  error: %s' % (tally, fld, rowObj[val['ktsName']], e)
                         print rowObj
-                print rowObj        
+                # print rowObj        
                 # get the data arranged into the right order for insert
                 #  columnNames is the right order
                 formatedRow = []
@@ -1930,8 +1934,12 @@ class ktsMenu():
                     if c == 'tally':
                         formatedRow.append(tally + 1)
                     else:
+                        # print c
                         formatedRow.append(rowObj[c])
                 formatedRow = [str(x).replace("'", "''") for x in formatedRow]
+                formatedRow = [str(x).replace('"', ' ') for x in formatedRow]
+                formatedRow = [str(x).replace(chr(176), ' ') for x in formatedRow]
+                formatedRow = [str(x).replace(chr(0), ' ') for x in formatedRow]
                 sqlSelect = "select '{values}'".format(values="','".join(formatedRow))
                 # print sqlInsert
                 # print sqlSelect
@@ -1940,8 +1948,13 @@ class ktsMenu():
                     if rslt['code'][0] == 0:
                         tally = tally + 1
                     else:
+                        # print rowObj
+                        for c in formatedRow[29]:
+                            print ord(c)
                         print '====>'
                         print rslt
+                        print sqlInsert
+                        print sqlSelect
                         print '<===='
                 else: 
                     print '====>'
