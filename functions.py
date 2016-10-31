@@ -2035,6 +2035,7 @@ class ktsMenu():
             legaldescription = row[276:1426]
             mfghomeassessed = row[239:245]
             miscassessed = row[212:221]
+            mortgagecode = row[1426:1432]
             return [
                 recordtype.strip(),
                 additionnumber.strip(),
@@ -2070,7 +2071,8 @@ class ktsMenu():
                 improvedassessed.strip(),
                 legaldescription.strip(),
                 mfghomeassessed.strip(),
-                miscassessed.strip()]
+                miscassessed.strip(),
+                mortgagecode.strip()]
         importFileRaw = self.settingsF('taxroll.importFile')
         if not  importFileRaw:
             print 'missing path to tax file... fail!'
@@ -2094,7 +2096,7 @@ class ktsMenu():
             columnNames = columnNames + ['exemption1','netassessedvalue']
             columnNames = columnNames + ['totaltaxrate','originaltotaldue','totaldue','balancedue']
             columnNames = columnNames + ['proploc','landassessed','improvedassessed']
-            columnNames = columnNames + ['legaldescription','grossAssessed','miscassessed','realtaxyear','country','ownernumber','MFGHOMEASSESSED']
+            columnNames = columnNames + ['legaldescription','grossAssessed','miscassessed','realtaxyear','country','ownernumber','MFGHOMEASSESSED','mortgagecode']
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             #print sqlInsert
@@ -2134,7 +2136,7 @@ class ktsMenu():
             else:
                 nv = 0
             if x[24].isdigit():
-                tr = float(x[24].strip())*.00000001
+                tr = float(x[24].strip())*.000001
             else:
                 tr = 0
             if x[26].isdigit():
@@ -2169,7 +2171,7 @@ class ktsMenu():
             return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
                     ,pid,it
                     ,x[10].strip(),x[11].strip(),x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip()
-                    ,ac,e1,nv,tr,td,td,td,x[29].strip(),la,ia,x[32].strip(),ga,ma,ty,'',0,mh]
+                    ,ac,e1,nv,tr,td,td,td,x[29].strip(),la,ia,x[32].strip(),ga,ma,ty,'',0,mh,x[35].strip()]
         except ValueError, e:
             print e
             return []
