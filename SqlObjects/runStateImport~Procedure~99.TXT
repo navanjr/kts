@@ -16,11 +16,25 @@ exec dbo.importMort
 
 exec dbo.importSpeTax
 
+
+--Add addresses for adtax archive records
+insert taxRollDetail(parcelNumber,name,itemNumber,taxYear,Stamp,businessName,ADDRESS1,ADDRESS2,ADDRESS3,CITY,STATE,ZIP1,ZIP2,ZIP3,Dtype,Comments)
+   select
+    a.FULLPIDNUMBER,a.OWNERNAME,a.ITEMNUMBER,a.REALTAXYEAR,
+    convert(varchar(10),GETDATE(),101)+' Import',
+    a.BUSINESSNAME,a.ADDRESS1,a.ADDRESS2,a.ADDRESS3,a.CITY,a.STATE,a.ZIP1,a.ZIP2,a.ZIP3,
+    'A',''
+   from AdTaxarchive a 
+   left join taxrolldetail d ON d.itemnumber=a.itemnumber and d.taxyear = a.realtaxyear
+   where (len(a.FULLPIDNUMBER)>0 or LEN(a.ownername)>0) and d.id is null
+
 /*
 update invoices set interestdate = dbo.clariondate('03/31/'+cast(taxyear+1 as varchar))
  where taxrollid in 
 (select id from adtax where balancedue > 0 and balancedue <= (totaldue/2))
 and typ <> 'F'
 */
+
+
 
 end
