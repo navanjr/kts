@@ -372,7 +372,7 @@ class ktsMenu():
 
         elif cmd[1] in ('batchsize') and len(cmd) == 4:
             resource = cmd[2]
-            newSize = cmd[3]
+            newSize = cmd[3].replace(';', '')
             securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
             if not securityCheck:
                 return [message]
