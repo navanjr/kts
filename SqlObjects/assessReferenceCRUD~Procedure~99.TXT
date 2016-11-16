@@ -139,6 +139,16 @@ origin,
 
    set @newAdtaxId = @@identity
 
+   if (select link1 from object where id = @assessmentId)>1
+     update a set PHYSICALSTREETNUMBER = aa.PHYSICALSTREETNUMBER,
+    PHYSICALSTREET = aa. PHYSICALSTREET,
+    PHYSICALTOWN  = aa.PHYSICALTOWN,
+    PHYSICALSTREETDIRECTION = aa. PHYSICALSTREETDIRECTION
+    from adtax a, adtax aa
+    where a.id = @newAdtaxId 
+     and aa.id = (select link1 from object where id = @assessmentId)
+
+
    exec dbo.logit @@procId, 'inserted into adtax typ = S.... @newAdtaxId', @newAdtaxId
  end
 else 

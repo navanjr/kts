@@ -2,7 +2,7 @@ create procedure dbo.taxrollAddAssessment (@invoiceId int, @initials varchar(5))
  
  if @invoiceId<9000000
  begin
-   insert into object (typ,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a18,a20,b2,e1,attributes)
+   insert into object (typ,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a18,a20,b2,e1,attributes,link1)
    select 4015 as typ,
        invoices.parcel as key1,
        dbo.clariondate(getdate()) as key2,
@@ -18,12 +18,13 @@ create procedure dbo.taxrollAddAssessment (@invoiceId int, @initials varchar(5))
        '' as a20,
        '5' as b2,
        adtax.[LEGALDESCRIPTION] as e1,
-       @initials
+       @initials,
+       adtax.id
    from invoices, adtax where invoices.id = @invoiceId and adtax.id=invoices.taxrollid
  end
  else
  begin
-   insert into object (typ,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a18,a20,b2,e1,attributes)
+   insert into object (typ,key1,key2,key3,a1,a2,a3,a4,a5,a6,a7,a18,a20,b2,e1,attributes,link1)
    select 4015 as typ,
        adtax.FULLPIDNUMBER as key1,
        dbo.clariondate(getdate()) as key2,
@@ -39,6 +40,7 @@ create procedure dbo.taxrollAddAssessment (@invoiceId int, @initials varchar(5))
        '' as a20,
        '5' as b2,
        adtax.[LEGALDESCRIPTION] as e1,
-       @initials
+       @initials,
+       adtax.id
    from adtax where adtax.id=@invoiceId-9000000
  end
