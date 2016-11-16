@@ -23,7 +23,7 @@ begin
 
  insert @rt
  select a.accountId, a.accountDesc, sum(a.amount), b.targetACR, 0.00, 0.00, b.reportorder, 'Posted', 0
- from glDetail a, glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
+ from glDetail a with (NOLOCK), glAccounts b where a.accountId = b.accountId and b.accountType = 'RECEIVABLE' and slink in (select slink from @slinks)
 group by a.accountId, a.accountDesc, b.targetACR, b.reportorder
 
 
@@ -36,7 +36,7 @@ group by a.accountId, a.accountDesc, b.targetACR, b.reportorder
          @tokenId int
 
  select top 1 @acrToken=isnull(ta.accountcode,a.accountcode) 
-  from receiptdetail rd
+  from receiptdetail rd with (NOLOCK)
   join glaccounts a on a.accountcode = rd.fundcode
   left join glaccounts ta on ta.targetAccountCode = a.accountcode and ta.accounttype = 'ACCRUED RECEIVABLE'
  where slink=@slink order by amount desc

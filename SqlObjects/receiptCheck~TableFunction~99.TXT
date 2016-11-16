@@ -35,7 +35,7 @@ begin
   @objectTyp = typ,
   @officialfund = a5,
   @exempt = case when olink3 = '1' then 'TRUE' else 'FALSE' end  
- from object where id = @sourceId
+ from object with (NOLOCK) where id = @sourceId
 
  select @balanceDue = dbo.receiptBalanceDue(@sourceId)
 
@@ -62,11 +62,11 @@ begin
   if @receiptType = 'OFFICIAL'
    begin
     select @contraId = accountId from glaccounts where accountCode = @officialfund
-    select @contraAccountCode = key3 from object where typ=4503 and key1 = 'OFFICIAL'
+    select @contraAccountCode = key3 from object with (NOLOCK) where typ=4503 and key1 = 'OFFICIAL'
    end
   else
    begin
-    select @contraId = link2, @contraAccountCode = key3 from object where typ=4503 and key1 = @receiptType
+    select @contraId = link2, @contraAccountCode = key3 from object with (NOLOCK) where typ=4503 and key1 = @receiptType
    end
  
   if isnull(@contraId,0) = 0
@@ -89,9 +89,9 @@ begin
  -- optionally check for the suspense account id
  if isnull(@paycode,'') > '  0'
  begin
-  select @suspenseAccountId = link1 from object where typ = 4505 and key1 = @paycode 
+  select @suspenseAccountId = link1 from object with (NOLOCK) where typ = 4505 and key1 = @paycode 
   
-  if not isnull((select id from object where typ=4701 and id=@suspenseAccountId),0)>0  /*isnull(@suspenseAccountId,0) > 0*/
+  if not isnull((select id from object with (NOLOCK) where typ=4701 and id=@suspenseAccountId),0)>0  /*isnull(@suspenseAccountId,0) > 0*/
   begin
    insert @rettable 
     select 1,'Missing G/L Suspense Account Information. Contact Support.',@receiptType,@suspenseAccountId,@contraId,@arAccountId,@fpid,@status,@objectTyp,@balanceDue,@exempt

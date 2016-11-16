@@ -114,10 +114,10 @@ begin
    0,
    case when b.invoiceId>0 then 'GETSOURCE' else '' end,
    b.typ,
-   case when b.typ='O' then isnull((select top 1 pertyp from adtax where id=b.taxrollId),'') else '' end,
+   case when b.typ='O' then isnull((select top 1 pertyp from adtax with (NOLOCK) where id=b.taxrollId),'') else '' end,
    case when b.invoiceId > 0 then 1 else 2 end,
    b.invoiceId
-  from receiptLink a, invoices b 
+  from receiptLink a with (NOLOCK), invoices b with (NOLOCK) 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
     and b.typ not in  ('S','A')
@@ -138,7 +138,7 @@ begin
    b.typ,
    case when b.invoiceId > 0 then 1 else 2 end,
    b.invoiceId
-  from receiptLink a, invoices b, receiptDetail r 
+  from receiptLink a with (NOLOCK), invoices b with (NOLOCK), receiptDetail r with (NOLOCK) 
   where a.invoiceId = b.id 
     and a.receiptId = @receiptId
     and b.typ = 'S'
@@ -159,7 +159,7 @@ begin
 
   insert @caccts 
    select distinct 0,rtrim(key3),0,left(a2,1), left(a3,1),0,rtrim(key3)+@protestCodeSuffix
-    from object 
+    from object with (NOLOCK) 
       where typ=4503 and left(key1,3)='TAX' and a2 in (select invoiceTyp from @wt) and key3 > ' 0'
   insert @caccts 
    select distinct 0,rtrim(taxyear)+@contraCodeSuffix,0,'','',0,'' from @wt
@@ -239,14 +239,14 @@ begin
  begin
   insert @glSuspense
   select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
-   from paid a, dbo.posAccounts(dbo.posName(@receiptId)) b 
+   from paid a with (NOLOCK), dbo.posAccounts(dbo.posName(@receiptId)) b 
    where a.paycode = b.paycode and b.receiptType = 'TAX' and a.slink = @receiptSlink group by b.accountId, a.id
  end
  else
  begin
   insert @glSuspense
   select @receiptSlink, b.accountId, round(sum(a.amount),2), 'p'+cast(a.id as varchar(14))
-   from paid a, paycodes b 
+   from paid a with (NOLOCK), paycodes b 
    where a.paycode = b.paycode and a.slink = @receiptSlink group by b.accountId, a.id
  end
 
@@ -260,10 +260,10 @@ begin
 -- Determine ETR Payments
   declare @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
 
-  select @otherPaid = sum(amount) from paid where slink = @receiptSlink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
-  select @etrPaid = sum(amount) from paid where slink = @receiptSlink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
+  select @otherPaid = sum(amount) from paid with (NOLOCK) where slink = @receiptSlink and paycode not in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
+  select @etrPaid = sum(amount) from paid with (NOLOCK) where slink = @receiptSlink and paycode in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
   select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
-  select top 1 @etrCode = paycode from paid where slink = @receiptSlink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
+  select top 1 @etrCode = paycode from paid with (NOLOCK) where slink = @receiptSlink and paycode in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
   select @etrPercent = case when @paidTotal>0 then isnull(@etrPaid,0)/@paidTotal else 0 end
   select @otherPercent = case when @paidTotal > 0 then isnull(@otherPaid,0)/@paidTotal else 0 end
 
@@ -409,7 +409,7 @@ begin
  insert @glFundDebits
  select
   c.slink, a.fundCode, 0, round(sum(a.amount),2) as amount,max(c.applyAmount/c.due),max(c.applyAmount), c.contraAccountId, c.due, c.protestAmount, c.protestId, case when c.protestAmount > 0.00 then c.invoiceSLink else '' end,c.sourceCode
- from receiptDetail a, @wt c 
+ from receiptDetail a with (NOLOCK), @wt c 
  where a.slink = c.invoiceSLink and c.due<>0.00 and c.invoiceTyp<>'S'
  group by c.slink, a.slink, a.fundCode, c.contraAccountId,c.due, c.protestAmount, c.protestId, c.invoiceSLink,c.sourceCode
 

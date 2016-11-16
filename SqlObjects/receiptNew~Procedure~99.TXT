@@ -10,7 +10,7 @@ begin
  if @receiptType = 'TAX'
  begin
  
-  if not exists(select * from dbo.invoices a, receiptLink b where a.id = b.invoiceId and b.receiptId = @receiptId)
+  if not exists(select * from dbo.invoices a with (NOLOCK), receiptLink b with (NOLOCK) where a.id = b.invoiceId and b.receiptId = @receiptId)
   begin
    exec dbo.logit @@procid, 'Someone tried to create a new Tax receipt with out taxroll items selected'
    select '@code=1;@message=Sorry, No Taxroll items were selected for this New Receipt.;'
@@ -22,14 +22,14 @@ begin
  if @receiptType = 'MTG'
  begin
  
-  if not exists(select * from object td, glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%TAX%')
+  if not exists(select * from object td with (NOLOCK), glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%TAX%')
   begin
    exec dbo.logit @@procid, 'Someone tried to create a new Mortgage receipt with out the appropriate Mortgage Tax Tax Description.'
    select '@code=1;@message=Sorry, The Mortgage Tax, Tax Descripiton has not been properly setup.;'
    return
   end 
 
-  if not exists(select * from object td, glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%FEE%')
+  if not exists(select * from object td with (NOLOCK), glaccounts s, glaccounts f  where td.typ=4504 and s.accountcode=td.key2 and f.accountcode=td.key3 and td.a1='MTG' and td.key1 like'%FEE%')
   begin
    exec dbo.logit @@procid, 'Someone tried to create a new Mortgage receipt with out the appropriate Mortgage Fee Tax Description.'
    select '@code=1;@message=Sorry, The Mortgage Fee, Tax Descripiton has not been properly setup.;'

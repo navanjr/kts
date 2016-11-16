@@ -10,24 +10,24 @@ create function dbo.getLegalDescription(@invoiceId int) returns varchar(max)
           @item varchar(50) = '',
           @adtaxId int 
 
-   select @typ = typ,@parcel = parcel,@taxYear = taxYear,@item = item from invoices where id = @invoiceId 
+   select @typ = typ,@parcel = parcel,@taxYear = taxYear,@item = item from invoices with (NOLOCK) where id = @invoiceId 
 
-   select @taxRollId = taxrollId from invoices where id = @invoiceId
+   select @taxRollId = taxrollId from invoices with (NOLOCK) where id = @invoiceId
 
  if @typ ='S' 
  begin
-  select @adtaxId = id from adtax where id = @taxrollId and [recordtype] = 'S'
+  select @adtaxId = id from adtax with (NOLOCK) where id = @taxrollId and [recordtype] = 'S'
  end
 
 If @typ<>'S' or (isnull(@adtaxId,0) = @taxrollId and @taxrollId <> 0)
   begin
-   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
+   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax with (NOLOCK) where id = @taxRollId
   end
  else
   begin
-   select @taxRollId = taxrollId from invoices where typ='r' and parcel = @parcel and taxYear=@taxYear
-   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax where id = @taxRollId
-   select @r = @r + char(13) + char(10) + cast(e1 as varchar(max)) from object where typ = 4002 and a7='lien' and key1=@item and a1=@taxyear
+   select @taxRollId = taxrollId from invoices with (NOLOCK) where typ='r' and parcel = @parcel and taxYear=@taxYear
+   select @r = dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,@taxRollId,'102')),@goofychar) from adtax with (NOLOCK) where id = @taxRollId
+   select @r = @r + char(13) + char(10) + cast(e1 as varchar(max)) from object with (NOLOCK) where typ = 4002 and a7='lien' and key1=@item and a1=@taxyear
   end  
 
  return @r

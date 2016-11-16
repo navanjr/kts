@@ -57,13 +57,13 @@ begin
   @reportCode varchar(50)
 
 -- Check to make sure we have the necessary glAccountTYpe in object typ 4702. if not logit level 3.
- if not exists(select * from object where typ = 4702 and key1 = upper(@accountType))
+ if not exists(select * from object with (NOLOCK) where typ = 4702 and key1 = upper(@accountType))
   exec dbo.logit @@procid, 'missing accountType', @accountType, @level = 3 
  
   select 
    @typeDesc = key2,
    @reportCode = key3
-  from object where typ = 4702 and key1 = upper(@accountType)
+  from object with (NOLOCK) where typ = 4702 and key1 = upper(@accountType)
 
   declare @collectionDescription varchar(60) = ''
 
@@ -71,7 +71,7 @@ begin
    begin
     select top 1
      @collectionDescription = key1
-    from object where typ = 4703 and upper(left(key1,len(@collectionDesc))) = upper(@collectionDesc)
+    from object with (NOLOCK) where typ = 4703 and upper(left(key1,len(@collectionDesc))) = upper(@collectionDesc)
    end
 
   declare @accountTypes table(

@@ -273,7 +273,7 @@ begin
 --remove Unused settings
   --Log settiing Values
   insert settingsHistory   
-   select * from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
+   select * from settings with (NOLOCK) where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
 
   delete from settings where settingName in (select removeSettingName from @defaultSettings where removeSettingName>'  0')
 
@@ -328,7 +328,7 @@ begin
    select
     @valueOut = @valueOut + '@' + dbo.splitF(settingName,'.',2) + '=' + settingValue + ';'
      + '@type=' + isnull(settingType,'') + ';'
-   from settings
+   from settings with (NOLOCK)
    where parentId = @parentId
    if @verbose = 'TRUE'
     select @valueOut as settingValue
@@ -350,7 +350,7 @@ begin
     + '@value=' + isnull(settingValue,'') + ';'
     + '@description=' + isnull(description,'') + ';'
     + '@type=' + isnull(settingType,'') + ';'
-   from dbo.settings where id = @settingId
+   from dbo.settings with (NOLOCK) where id = @settingId
    if @verbose = 'TRUE'
     select @valueOut as settingValue
    return

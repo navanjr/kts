@@ -68,7 +68,7 @@ begin
            sourcecode,
            fundcode,
            sum(amount*-1)
-      from receiptDetail 
+      from receiptDetail with (NOLOCK) 
       where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
           and left(slink,1)='t'
       group by sourceCode, fundcode
@@ -76,7 +76,7 @@ begin
   end 
 
   select top 1 @sourceCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'SOURCE'
-  select top 1 @fundCode = fundCode from receiptDetail where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
+  select top 1 @fundCode = fundCode from receiptDetail with (NOLOCK) where slink in (select slink from dbo.invoiceSLinks(@mainInvoiceId)) 
           and left(slink,1)='t'
 
   exec dbo.logit @@procid, 'Type Adjust @sourceCode', @sourceCode,'@fundCode', @fundCode
@@ -123,7 +123,7 @@ begin
      @printed,
      @queue,
      dbo.readstring('@ini=',dbo.whoAmI()) + ' - ' + @blob+char(13)+char(10)+dbo.splitF(dbo.whoAmI(),';',1) +';'
-     from invoices where id=@mainInvoiceId
+     from invoices with (NOLOCK) where id=@mainInvoiceId
       
    select @invoiceId = SCOPE_IDENTITY() 
 

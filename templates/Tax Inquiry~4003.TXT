@@ -6,7 +6,7 @@
 
 @menuprocess=
  lcHostName=kp('select host_name()'),
- lcinquiry=kp('select top 1 id from object where typ=4003 and key2='''&lcHostName&''''),
+ lcinquiry=kp('select top 1 id from object with (NOLOCK) where typ=4003 and key2='''&lcHostName&''''),
  if(lcinquiry+0>0,change(lcinquiry),new(4003,,004=lcHostName));
 
 @closewindow=gcscanid='';
@@ -166,12 +166,12 @@
  @acc354=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1),
-  lcAdtaxRecordId=kp('select taxrollid from invoices where id='&gcInvoiceId+0),
-  lcAdtaxRecordValid=kp('select case when recordtype=''S'' then ''TRUE'' else ''FALSE'' end from adtax where id='&lcAdtaxRecordId+0),
-  lcinvoiceType=kp('select typ from invoices where id='&gcInvoiceId+0),
+  lcAdtaxRecordId=kp('select taxrollid from invoices with (NOLOCK) where id='&gcInvoiceId+0),
+  lcAdtaxRecordValid=kp('select case when recordtype=''S'' then ''TRUE'' else ''FALSE'' end from adtax with (NOLOCK) where id='&lcAdtaxRecordId+0),
+  lcinvoiceType=kp('select typ from invoices with (NOLOCK) where id='&gcInvoiceId+0),
   if((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId+0>9000000, m('We are not currently able to set a mortgage code for this record.')), 
   break((lcinvoiceType='S' and lcAdtaxRecordValid <> 'TRUE') or gcInvoiceId+0>9000000),
-  gcMortCode=kp('select a.treamort from adtax a,invoices i where a.id=i.taxrollId and i.id='&gcInvoiceId+0),
+  gcMortCode=kp('select a.treamort from adtax a with (NOLOCK) ,invoices i with (NOLOCK) where a.id=i.taxrollId and i.id='&gcInvoiceId+0),
   iw('\t000Mortgage Code;,\t001Enter Code; \l0024030;  @lmode002=2; \t002@s5; \w00230; \f002'&gcMortCode&'; \t003Include Selected; \w00415; \u004; @choose004:YN; \f004N;'),
   break(gcretval='esc'),
   gcmortcode=obj7:key1,
@@ -190,7 +190,7 @@
  @acc355=
   gcInvoiceId=kpbrwid(1)*-1,
   break(gcInvoiceId+0<1 or gcInvoiceId>9000000),
-  gcInterestDate=kp('select interestdate from invoices where id='&gcInvoiceId),
+  gcInterestDate=kp('select interestdate from invoices with (NOLOCK) where id='&gcInvoiceId),
   iw(',.t000Set Interest Date.,,.t001Begin Interest On.,,.t002@d2.,,.w00245.,,.f002'&gcInterestDate&'.,,.t003NOTE: CHANGING THE INTEREST DATE WILL CHANGE THE AMOUNT OF PENALTIES THAT ARE OWED.  DO YOU WANT TO CONTINUE?.,,.w003200.,,.z00330.,,.h004.,'),
   break(gcretval='esc'),
   sql('update invoices set interestDate = '&obj7:key1&' where id='&gcInvoiceId),
@@ -277,7 +277,7 @@
  if(gcretval=2 or readstring(obj7:d1,'@code=')<=' 0',d1select('exec dbo.taxrollSelected '&obj:id&','&lcClickedId*-1&','''&lcPart&''','''&lcMethod&'''')),
  if(readstring(obj7:d1,'@code=')=3,m(readstring(obj7:d1,'@message='),'Unpaid Back Taxes!...','MISC01.ico')),
  gcClickedId=lcClickedId*-1,
- gcalreadylinked=kp('select receiptId from receiptlink where invoiceId='&gcClickedId&' and receiptId in (select id from object where typ=4502 and a17<>''Posted'' and a17<>''VOID'') and receiptId<>'&obj:id),
+ gcalreadylinked=kp('select receiptId from receiptlink with (NOLOCK) where invoiceId='&gcClickedId&' and receiptId in (select id from object with (NOLOCK) where typ=4502 and a17<>''Posted'' and a17<>''VOID'') and receiptId<>'&obj:id),
  if(gcalreadylinked+0>1,alreadylinked=),
  d1select('select count(*) from dbo.taxrollBRW('&obj:id&','''&obj:key1&''','''&lcbrw1Filter&''','''&obj:a13+0&obj:a14+0&obj:a11+0&obj:a12+0&obj:a15+0&obj:a10+0&''') where colorflag = 4'),
  if(obj7:d1+0>0,m(clip(obj7:d1)&' item(s) selected to pay has/have an individual certificate.  Do you have all the necessary paperwork to endorse the certificate?')),
@@ -297,7 +297,7 @@
  lcretVal=gcretval,
  gcDashRecType='TAX',
  if(gcretval=8,refreshBRW=),
- if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink where invoiceId='&lcId&')')),
+ if(gcretval=1,browse(1,4502,'id in (select receiptId from receiptLink with (NOLOCK) where invoiceId='&lcId&')')),
  if(gcretval=2,selectedRateToggle=),
  if(gcretval=3,releaseProtest=),
  if(gcretval=4,refundInvoice=),
@@ -419,13 +419,13 @@
  gcmethod='CHECK',
  do(450,'check='),
  break(gccontinue<>'TRUE'),
- lccheck=kp('select invoiceDue*-1 from invoices where id='&gcInvoiceId),
+ lccheck=kp('select invoiceDue*-1 from invoices with (NOLOCK) where id='&gcInvoiceId),
  iw('\t000Refund Balance?; \t001Refund Amount; \w00250; \f002'&lccheck&';\t002@n-19.2; @loadwindow=create(150,12,3,15,''Refund Fees/Penalties'',48);'),
  lcrefundAmount=obj7:key1,
  lcrefundfees=obj7:b1+0,
  break(gcretval='esc' or lcrefundAmount+0 <= 0),
- gcreceiptId=kp('select top 1 receiptId from receiptlink where invoiceId='&gcInvoiceId+0),
- lccheck=kp('select count(*) from receiptlink where invoiceId='&gcInvoiceId+0),
+ gcreceiptId=kp('select top 1 receiptId from receiptlink with (NOLOCK) where invoiceId='&gcInvoiceId+0),
+ lccheck=kp('select count(*) from receiptlink with (NOLOCK) where invoiceId='&gcInvoiceId+0),
  if(lccheck+0>1,pickreceipt=),
  d1select('exec dbo.receiptCRUD @mode=1, @receiptId='&gcreceiptId+0&', @invoiceId='&gcInvoiceId+0&', @refundAmount='&lcrefundAmount+0&', @voidFees='&lcrefundfees+0),
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'Void Receipt...')),
@@ -434,7 +434,7 @@
  sql('exec invoiceUpdate '&gcInvoiceId+0),
  refreshBRW=;
 
-@pickreceipt=select(1,4502,'id in (select receiptId from receiptlink where invoiceId='&gcInvoiceId+0&')'),
+@pickreceipt=select(1,4502,'id in (select receiptId from receiptlink with (NOLOCK) where invoiceId='&gcInvoiceId+0&')'),
  gcreceiptId=PIC:id;
 
 @ownerReport=
@@ -469,14 +469,14 @@
  if(readstring(obj7:d1,'@code=')+0>0,m(readstring(obj7:d1,'@message=')),change(readstring(obj7:d1,'@jeid='),,1));
 
 
-  lcCheckYear=kp('select taxyear from invoices where id='&lcId),
-  lcCheckItem=kp('select item from invoices where id='&lcId),
+  lcCheckYear=kp('select taxyear from invoices with (NOLOCK) where id='&lcId),
+  lcCheckItem=kp('select item from invoices with (NOLOCK) where id='&lcId),
   lccheck=kp('select amount from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0),
   break(lccheck+0<.01),
   if(gcjeid+0<1,newje=,lcchange='dont'),
   break(gcjeid+0<1),
   sql('insert object (typ,link1,key1,key2,key3,a2,a3,a4,olink2) select 4775,'&gcjeid&',''Journal'',accountcode,amount,name,parcel,item,slink from dbo.protestDetail where isnull(taxyear,0) = '&lcCheckYear+0&' and isnull(item,0.0) = '&lcCheckItem+0&' 
-    and slink not in (select olink2 from object where typ=4775 and link1='&gcjeid&')'),
+    and slink not in (select olink2 from object with (NOLOCK) where typ=4775 and link1='&gcjeid&')'),
   sql('exec  dbo.journalEntryStageGL '&gcjeid&''),
   if(lcchange<>'dont',change(gcjeid)),
   refreshBRW=;
@@ -508,7 +508,7 @@
  lcw3Id=kpbrwid(3)*-1,
  lcbrw3Typ=left(lcw3Id,1),
  lcbrw3Id=sub(lcw3Id,2,25),
- lcDtype=kp('select dtype from taxrolldetail where id='&lcbrw3Id),
+ lcDtype=kp('select dtype from taxrolldetail with (NOLOCK) where id='&lcbrw3Id),
  break(instring('@group=publicuser',cur:options,1,1)>0),
  gcotheroption='',
  if(lcbrw3Typ+0=9,gcotheroption='|Print Receipt'),
@@ -551,9 +551,9 @@
 @printReceipt=
  m('Print This Receipt?','Print?',,6),
  break(gcretval<>2),
- d1select('select receiptId from receiptlink where id='&lcbrw3Id),
+ d1select('select receiptId from receiptlink with (NOLOCK) where id='&lcbrw3Id),
  gcRecId=obj7:d1,
- d1select('select invoiceId from receiptlink where id='&lcbrw3Id),
+ d1select('select invoiceId from receiptlink with (NOLOCK) where id='&lcbrw3Id),
  gcPrintOneTaxReceiptId=obj7:d1,
  trreport('TAXReceipt'),
  gcRecId=0,
@@ -681,7 +681,7 @@
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddComment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
-  d1select('select top 1 id from object where typ=4002 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
+  d1select('select top 1 id from object with (NOLOCK) where typ=4002 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
   change(obj7:d1,,1),
   refreshBRW3=,
   focus(160);
@@ -719,7 +719,7 @@
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1 or lcSearchId>9000000),
   writecurdata(@BrowFil4502=,3),
-  browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink where invoiceId='&lcSearchId&')',,,,'Y');
+  browse(1,4502,'typ=4502 and id in (select receiptId from receiptlink with (NOLOCK) where invoiceId='&lcSearchId&')',,,,'Y');
 
 \t115Select &Parcel;
 @acc115=
@@ -763,7 +763,7 @@
   gcscanid='t'&lcSearchId,
   break(lcSearchId+0<1),
   sql('exec dbo.taxrollAddAssessment @invoiceId='&lcSearchId&', @initials='''&cur:ini&''''),
-  d1select('select top 1 id from object where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
+  d1select('select top 1 id from object with (NOLOCK) where typ=4015 and left(attributes,len('''&cur:ini&'''))='''&cur:ini&''' order by id desc'),
   change(obj7:d1,,1),
   refreshBRW=,
   focus(160);

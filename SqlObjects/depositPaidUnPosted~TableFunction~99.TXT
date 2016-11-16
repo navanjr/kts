@@ -36,12 +36,12 @@ begin
  select slink, substring(slink,2,14), o.key3, paycode, checkno, amount, depositId, cast(o.key2 as int), drawnon, location, officialDepositId, 1, o.typ, o.a17,
   coalesce(nullif(official.a4,''),a.accountCode,b.key2),
   coalesce(nullif(official.b3,''),a.accountDesc,b.a18) 
- from paid p
-  left join Object o on o.id = dbo.slinkId(p.slink)
-  left join object b on b.typ = 4503 and o.key3 = b.key1 -- lets get the depositAccountCode from the receiptType template
-  left join Object d on d.typ = 4513 and p.depositId = d.id  -- lets get the actual depositAccountCode from the deposit
-  left join dbo.glAccounts a on a.accountId = d.link1
-  left join Object official on official.typ = 4601 and official.id = case when o.typ = 4522 then o.link2 else 0 end  -- lets get the actual depositAccountCode from the Official Deposit
+ from paid p with (NOLOCK) 
+  left join Object o with (NOLOCK) on o.id = dbo.slinkId(p.slink)
+  left join object b with (NOLOCK) on b.typ = 4503 and o.key3 = b.key1 -- lets get the depositAccountCode from the receiptType template
+  left join Object d with (NOLOCK) on d.typ = 4513 and p.depositId = d.id  -- lets get the actual depositAccountCode from the deposit
+  left join dbo.glAccounts a with (NOLOCK)  on a.accountId = d.link1
+  left join Object official with (NOLOCK)  on official.typ = 4601 and official.id = case when o.typ = 4522 then o.link2 else 0 end  -- lets get the actual depositAccountCode from the Official Deposit
  where
   left(p.slink,1) = 'o'
   and o.typ in (4502,4522)

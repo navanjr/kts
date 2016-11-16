@@ -17,47 +17,47 @@ begin
 
  if isnumeric(@scanId)=1
   begin
-   select @imgCntPlus = isnull(count(*),0) from imglinks where objidref = @scanId
+   select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref = @scanId
 
    select @imgCnt = @imgCnt + @imgCntPlus
 
    
-   select @objectType = typ from object where id = @scanId
+   select @objectType = typ from object with (NOLOCK) where id = @scanId
    
    if @objectType in (4502,4522)
     begin
-     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-        (select id from object where typ = 3209 and key1 in 
-            (select 'p' + cast(id as varchar) from paid where slink = 'o'+cast(@scanId as varchar)))
+     select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+        (select id from object with (NOLOCK) where typ = 3209 and key1 in 
+            (select 'p' + cast(id as varchar) from paid with (NOLOCK) where slink = 'o'+cast(@scanId as varchar)))
 
      select @imgCnt = @imgCnt + @imgCntPlus
 
-     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-        (select mailLogId from paid where slink = 'o'+cast(@scanId as varchar))
+     select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+        (select mailLogId from paid with (NOLOCK) where slink = 'o'+cast(@scanId as varchar))
 
      select @imgCnt = @imgCnt + @imgCntPlus
 
    end   
    if @objectType = 4513
    begin
-    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-       (select id from object where typ = 3209 and key1 in 
-           (select 'p' + cast(id as varchar) from paid where depositId = cast(@scanId as int)))
+    select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+       (select id from object with (NOLOCK) where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid with (NOLOCK) where depositId = cast(@scanId as int)))
 
      select @imgCnt = @imgCnt + @imgCntPlus
 
 /*
-     select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-        (select mailLogId from paid where depositId = cast(@scanId as int))
+     select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+        (select mailLogId from paid with (NOLOCK) where depositId = cast(@scanId as int))
 
      select @imgCnt = @imgCnt + @imgCntPlus
 */
 
    end
    if @objectType = 4514
-    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-       (select id from object where typ = 3209 and key1 in 
-           (select 'p' + cast(id as varchar) from paid where mailLogId = cast(@scanId as int)))
+    select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+       (select id from object with (NOLOCK) where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid with (NOLOCK) where mailLogId = cast(@scanId as int)))
    
      select @imgCnt = @imgCnt + @imgCntPlus
    
@@ -66,8 +66,8 @@ begin
   begin
    select @slinkTyp = left(@scanId,1)
 
-   select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-      (select id from object where typ = 3209 and key1 = @scanId)
+   select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+      (select id from object with (NOLOCK) where typ = 3209 and key1 = @scanId)
 
    select @imgCnt = @imgCnt + @imgCntPlus
 
@@ -75,8 +75,8 @@ begin
    begin
     select @slinkId = cast(substring(@scanId,2,15) as int)
 
-    select @imgCntPlus = isnull(count(*),0) from imglinks where objidref in
-      (select id from object where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
+    select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+      (select id from object with (NOLOCK) where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
 
     select @imgCnt = @imgCnt + @imgCntPlus
  

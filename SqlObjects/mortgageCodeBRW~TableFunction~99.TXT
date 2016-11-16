@@ -42,7 +42,7 @@ set @searchString=replace(@searchstring,'~{','''')
           @mortcode varchar(50)
 
 --set @mortcode
-select @mortcode = key1 from object where id = @mtgCodeId 
+select @mortcode = key1 from object with (NOLOCK) where id = @mtgCodeId 
 
 
 
@@ -50,7 +50,7 @@ select @mortcode = key1 from object where id = @mtgCodeId
       insert @rt
        select top 1000 
         id*-1,name,parcel,taxYear,item,typ,invoiceAmount,invoiceDue,'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId
-       from dbo.invoices
+       from dbo.invoices with (NOLOCK)
        where 
         name+' '+parcel+' '+cast(taxyear as varchar(4))+cast(item as varchar) like '%'+@searchString+'%'
         and 0 = case when invoiceDue != 0 then 0 else case when @showPaidFlag = '1' then 0 else 1 end end
@@ -61,7 +61,7 @@ select @mortcode = key1 from object where id = @mtgCodeId
       insert @rt
        select 
         i.id*-1,i.name,i.parcel,i.taxYear,i.item,i.typ,i.invoiceAmount,i.invoiceDue,'t'+cast(i.id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then i.name else i.parcel end,case when i.invoiceDue != 0 then i.subInvoiceDue else 0.00 end,0,0,'',i.taxrollId
-       from dbo.invoices i, receiptlink r
+       from dbo.invoices i with (NOLOCK), receiptlink r with (NOLOCK)
        where 
         i.id=r.invoiceid 
         and r.receiptId = @mtgCodeId
@@ -72,7 +72,7 @@ select @mortcode = key1 from object where id = @mtgCodeId
     treamort = 
      case when a.treamort>'  0' then cast(a.treamort as varchar(5)) else 
      case when mortgagecode='0' then '' else cast(mortgagecode as varchar(50)) end end 
-   from adtax a where taxrollid=a.id and taxType not in ('A','S')
+   from adtax a with (NOLOCK) where taxrollid=a.id and taxType not in ('A','S')
 
   declare @interestToDate int
 
@@ -86,7 +86,7 @@ select @mortcode = key1 from object where id = @mtgCodeId
    end
 
 
-  if exists(select * from receiptLink where receiptId = @mtgCodeId)
+  if exists(select * from receiptLink with (NOLOCK) where receiptId = @mtgCodeId)
   begin
    update a set 
     fees = isnull((select sum(i.invoiceAmount) from invoices i where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),

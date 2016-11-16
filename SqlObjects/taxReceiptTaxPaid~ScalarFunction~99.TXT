@@ -8,12 +8,12 @@ declare @slinks table(slink varchar(15))
 if @switch = 0 
      begin
      insert @slinks
-      select 'l'+cast(b.id as varchar) from receiptlink b 
+      select 'l'+cast(b.id as varchar) from receiptlink b with (NOLOCK) 
         WHERE b.invoiceId = @invoiceId  
 			and b.receiptId = @recId
 	insert into @wt  
 		select g.amount,g.accountCode,a.accountType
-			from gldetail g, @slinks b, glAccounts a
+			from gldetail g with (NOLOCK), @slinks b, glAccounts a
 			where g.slink=b.slink
 			 and g.accountcode=a.accountcode
 			 and a.accountType='Receivable'
@@ -28,13 +28,13 @@ if @switch = 0
 if @switch = 1
      begin
      insert @slinks
-      select 'l'+cast(b.id as varchar) from receiptlink b 
+      select 'l'+cast(b.id as varchar) from receiptlink b with (NOLOCK) 
         WHERE b.invoiceId = @invoiceId  
 		and b.receiptId = @recId
 
 	insert into @wt  
 		select g.amount,g.accountCode,a.accounttype
-			from gldetail g, @slinks b, glAccounts a  
+			from gldetail g with (NOLOCK), @slinks b, glAccounts a  
 			where g.slink=b.slink
                          and g.accountcode=a.accountcode
                          and a.accounttype='Receivable'
@@ -49,14 +49,14 @@ if @switch = 2
      begin
         insert into @slinks 
                 select 'l'+cast(b.id as varchar) 
-                        from receiptlink b
+                        from receiptlink b with (NOLOCK)
                         where
 				b.invoiceId = @invoiceId  
 					and b.receiptId = @recId
 
         insert into @slinks 
                 select 'l'+cast(rl.id as varchar) 
-                        from receiptlink b, invoices i, receiptlink rl
+                        from receiptlink b with (NOLOCK), invoices i with (NOLOCK), receiptlink rl with (NOLOCK)
                         where
                                 rl.invoiceId = i.id
                                         and i.invoiceId = b.invoiceId
@@ -67,7 +67,7 @@ if @switch = 2
 
 	insert into @wt  
 		select a.amount,a.accountCode,''
-			from gldetail a, @slinks b
+			from gldetail a with (NOLOCK), @slinks b
 			where	
                                 a.slink=b.slink
 
@@ -85,7 +85,7 @@ begin
 
         insert into @slinks 
                 select 'l'+cast(b.id as varchar) 
-                        from receiptlink b, invoices i
+                        from receiptlink b with (NOLOCK), invoices i with (NOLOCK)
                         where   b.invoiceId = i.Id  
 					and i.invoiceId = @invoiceId  
 					and b.receiptId = @recId
@@ -96,7 +96,7 @@ begin
 
 	insert into @wt  
 		select amount,accountCode,''
-			from gldetail a, @slinks b
+			from gldetail a with (NOLOCK), @slinks b
 			where	
                                 a.slink=b.slink
 
@@ -112,7 +112,7 @@ if @switch = 4 -- Fee Sub invoices
 begin
         insert into @slinks 
                 select 'l'+cast(b.id as varchar) 
-                        from receiptlink b, invoices i
+                        from receiptlink b with (NOLOCK), invoices i with (NOLOCK)
                         where   b.invoiceId = i.Id  
 					and i.invoiceId = @invoiceId  
 					and b.receiptId = @recId
@@ -120,7 +120,7 @@ begin
                                         and isnull(i.invoiceId,0) > 0
 	insert into @wt  
 		select amount,accountCode,''
-			from gldetail a, @slinks b
+			from gldetail a with (NOLOCK), @slinks b
 			where	
                                 a.slink=b.slink
 

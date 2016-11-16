@@ -2,7 +2,7 @@ CREATE procedure [dbo].[taxrollPenaltyBatch](@receiptId int, @forceInvoiceId int
 as
 begin
 
- if not exists(select * from object where typ=4504 and a1='PENALTY')
+ if not exists(select * from object with (NOLOCK) where typ=4504 and a1='PENALTY')
   return
 
  declare 
@@ -24,7 +24,7 @@ begin
 
  if @parentType = 4003
   begin
-   select @penaltyDate = a16 from object where id = @receiptId
+   select @penaltyDate = a16 from object with (NOLOCK) where id = @receiptId
   end
  else
   begin
@@ -42,7 +42,7 @@ begin
   @description = key1,
   @sourceCode = key2,
   @fundCode = key3
- from object where typ=4504 and a1='PENALTY' and a3<' 0' and a4<' 0'
+ from object with (NOLOCK) where typ=4504 and a1='PENALTY' and a3<' 0' and a4<' 0'
  order by id desc
 
  exec dbo.logit @@procid, '@description', @description, '@sourceCode', @sourceCode, '@fundCode', @fundCode
@@ -56,8 +56,8 @@ begin
    select a.invoiceId,
           0,
           case when i.interestdate > 0 then cast(i.interestdate as varchar(50)) else dbo.clariondate('12/31/' + cast(i.taxyear as varchar)) end as dueDate
-    from receiptLink a, invoices i
-    where a.invoiceId=i.id and a.receiptId=@receiptId and a.invoiceId not in (select id from invoices where typ='A')
+    from receiptLink a with (NOLOCK), invoices i with (NOLOCK)
+    where a.invoiceId=i.id and a.receiptId=@receiptId and a.invoiceId not in (select id from invoices with (NOLOCK) where typ='A')
 
   delete from @pttemp where dueDate > @penaltyDate
 
@@ -79,7 +79,7 @@ begin
           ''
  end
 -- Set penalty description source and fund for records having an override for the fund that matches invoice typ and pertyp 
- if exists(select * from invoices i, object td, adtax a, @pt p where p.invoiceId=i.id and i.taxrollId=a.id and i.typ <> 'S' and td.typ=4504 and td.a1='PENALTY'
+ if exists(select * from invoices i with (NOLOCK), object td with (NOLOCK), adtax a with (NOLOCK), @pt p where p.invoiceId=i.id and i.taxrollId=a.id and i.typ <> 'S' and td.typ=4504 and td.a1='PENALTY'
   and i.typ=td.a3 and a.pertyp=td.a4 and p.description < ' 0' and p.sourceCode < ' 0')
  begin 
   update p 
@@ -99,7 +99,7 @@ begin
  end
 
 -- Set penalty description source and fund for records having an override for the fund that matches invoice typ
- if exists(select * from invoices i, object td, @pt p where p.invoiceId=i.id and td.typ=4504 and td.a1='PENALTY'
+ if exists(select * from invoices i with (NOLOCK), object td with (NOLOCK), @pt p where p.invoiceId=i.id and td.typ=4504 and td.a1='PENALTY'
   and i.typ=td.a3 and p.description < ' 0' and p.sourceCode < ' 0')
  begin 
   update p 
@@ -158,7 +158,7 @@ begin
   exec dbo.logit @@procid,  '@idToken', @idToken, '@amount', @amount
   
   -- Issue penalty invoice for this tax item or update an existing one
-  set @existingpenaltyId = isnull((select top 1 id from invoices where typ='P' and invoiceId=@idToken and id not in (select invoiceid from receiptlink where receiptId <> @receiptId)),0)
+  set @existingpenaltyId = isnull((select top 1 id from invoices with (NOLOCK) where typ='P' and invoiceId=@idToken and id not in (select invoiceid from receiptlink with (NOLOCK) where receiptId <> @receiptId)),0)
   if @existingpenaltyId=0
    begin
     exec dbo.subInvoiceCRUD  @idToken, @invoiceDate, @description, @sourceCode, @fundCode, 'P', @amount

@@ -1,8 +1,8 @@
-@recalcimg=set(-78,kp('select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))'),1),countImage=;
+@recalcimg=set(-78,kp('select count(ilinkid) from imglinks with (NOLOCK) where objidref = '&obj:id&' or objidref in (select id from object with (NOLOCK) where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid with (NOLOCK) where slink=''o'&obj:id&'''))'),1),countImage=;
 @newselbrowse=gcscanid=obj:id;
 @seriesField=key3;
 @gfwindow=gcscanid=obj:id,do(450,notify=),recalcimg=,update,tsc;
-@countImage=sql('update object set imagecount=isnull((select count(ilinkid) from imglinks where objidref = '&obj:id&' or objidref in (select id from object where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid where slink=''o'&obj:id&'''))),0) where id='&obj:id);
+@countImage=sql('update object set imagecount=isnull((select count(ilinkid) from imglinks with (NOLOCK) where objidref = '&obj:id&' or objidref in (select id from object with (NOLOCK) where typ=3209 and key1 in (select ''p''+cast(id as varchar) from paid with (NOLOCK) where slink=''o'&obj:id&'''))),0) where id='&obj:id);
 
 \00020500;
 @dup;
@@ -22,7 +22,7 @@ lmode=2;
 'typ=4502 and key3=''TRUST'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ',
 'typ=4502 and key3=''INDIV'' '&choose(len(filterfield1)>0,'and id in (select id from dbo.receiptSearch('''&filterfield1&'''))','')&' ';
 
-@browse14=kp('select case when '''&obj:key3&'''=''MTG'' then isnull((select top 1 mortgagor from mortgageinfo where receiptid = '&obj:id&'),'''') else '''' end');
+@browse14=kp('select case when '''&obj:key3&'''=''MTG'' then isnull((select top 1 mortgagor from mortgageinfo with (NOLOCK) where receiptid = '&obj:id&'),'''') else '''' end');
 
 @closebrowse=
  gcDashRecType='';
@@ -50,12 +50,12 @@ key7=apiUpdate
 
 @calcmailLog=sql('update object set a19=isnull((select dbo.mailLogComplete(id)),0) where typ=4514 and id in (select maillogid from paid where slink=''o'&obj:id&''')');
 
-@nox=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
+@nox=kp('select count(*) from gldetail with (NOLOCK) where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @noexit=
  tsc,
  cancelRoutine=;
 	
-@noc=kp('select count(*) from gldetail where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
+@noc=kp('select count(*) from gldetail with (NOLOCK) where slink=''o'&obj:id&'''')<1 and lower(obj:a17)<>'saved' and lower(obj:a17)<>'abandoned' and lower(obj:a17)<>'exempt' and lower(obj:a17)<>'void' and lower(obj:a17)<>'posted'; 
 @nocancel=cancelRoutine=;
 
 @cancelRoutine=m('This Receipt Has not Been Posted, Do you want to:',,,'Abandon It|Save It|Cancel'),
@@ -64,10 +64,10 @@ case(gcretval+0=1,abandonreceipt=,gcretval+0=2,saveReceipt=);
 @saveReceipt=
 set(040,'Saved'),close('ok');
 
-@abandonreceipt=lccheck=kp('select count(id) from invoices where id in (select invoiceid from receiptlink where receiptid='&obj:id&') and blob like ''%@addedfromreceipt='&obj:id&';%'''),
+@abandonreceipt=lccheck=kp('select count(id) from invoices with (NOLOCK) where id in (select invoiceid from receiptlink with (NOLOCK) where receiptid='&obj:id&') and blob like ''%@addedfromreceipt='&obj:id&';%'''),
 if(lccheck+0>0,checkdestroyfees=,gcdestroyfees=''),
 sql('exec dbo.receiptCRUD 6, '&obj:id+0&gcdestroyfees),
-set(040,kp('select a17 from object where id='&obj:id)),
+set(040,kp('select a17 from object with (NOLOCK) where id='&obj:id)),
 update,
 close('ok');
 
@@ -108,9 +108,9 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
  change(obj7:d1);
 
 @newMort=
- lccheck=kp('select id from object where typ = 4504 and a1=''MTG'' and key1 like ''%TAX%'''),
+ lccheck=kp('select id from object with (NOLOCK) where typ = 4504 and a1=''MTG'' and key1 like ''%TAX%'''),
  if(lccheck+0=0,addtaxcode=),
- lccheck=kp('select id from object where typ = 4504 and a1=''MTG'' and key1 like ''%FEE%'''),
+ lccheck=kp('select id from object with (NOLOCK) where typ = 4504 and a1=''MTG'' and key1 like ''%FEE%'''),
  if(lccheck+0=0,addfeecode=),
  d1select('exec dbo.receiptNew ''MTG'''),
  change(obj7:d1);
@@ -129,9 +129,9 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
 @addfeecode=neww(4504,,002='MORTGAGE CERTIFICATION FEE',008='MTG');
 
 @newIndiv=
- lccheck=kp('select id from object where typ = 4504 and a1=''INDIV'' and key1 not like ''%FEE%'''),
+ lccheck=kp('select id from object with (NOLOCK) where typ = 4504 and a1=''INDIV'' and key1 not like ''%FEE%'''),
  if(lccheck+0=0,addindivcode=),
- lccheck=kp('select id from object where typ = 4504 and a1=''INDIV'' and key1 like ''%FEE%'''),
+ lccheck=kp('select id from object with (NOLOCK) where typ = 4504 and a1=''INDIV'' and key1 like ''%FEE%'''),
  if(lccheck+0=0,addindivfeecode=),
  d1select('exec dbo.receiptNew ''INDIV'''),
  gcnewreceId=obj7:d1,
@@ -224,11 +224,11 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
  if(gcretval=2,sql('delete from receiptlink where receiptId<>0 and receiptId='&obj:id+0));
 
 @afterloadwindow=
- lccheck=kp('select count(*) from receiptlink where receiptid='&obj:id+0),
+ lccheck=kp('select count(*) from receiptlink with (NOLOCK) where receiptid='&obj:id+0),
  if(lccheck+0>2000,doremoveallitems=),
  break(lccheck+0>2000),
  lcAfter=1,
- lccheck=kp('select case when key2<'' 0'' then id else 0 end from object where typ=4503 and key1='''&obj:key3&''''),
+ lccheck=kp('select case when key2<'' 0'' then id else 0 end from object with (NOLOCK) where typ=4503 and key1='''&obj:key3&''''),
  if(lccheck+0>1,change(lccheck,,1)),
  refreshDetail=,
  lcAfter='',
@@ -504,7 +504,7 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
 @acc108=
  f(obj:c8+0<>0,m('This receipt still has an amount due, posting aborted.','Receipt Post & Print...')),
  reak(obj:c8+0<>0),
- lccheck=kp('select count(*) from receiptlink where receiptId='&obj:id),
+ lccheck=kp('select count(*) from receiptlink with (NOLOCK) where receiptId='&obj:id),
  if(obj:key3='TAX' and lccheck+0 < 1,m('No Statements Linked please retry receipt.')),
  break(obj:key3='TAX' and lccheck+0 < 1),
  if(obj:a17='Posted' or readstring(gcSiteBlob,'@recNoPost?=')=1,postAndPrint=,m('Are you sure you want to Print & Post this to the General Ledger?','Posting...',,6,4)),
@@ -520,7 +520,7 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
   gcamt=kp('select top 1 amount from dbo.purposedetail where isnull(receiptId,0) = '&obj:id&' and amount > 0.00 and purpose='''&gccode&''''),
   if(obj:b15='PROTEST',gcpaymenttype='Protest Voucher',gcpaymenttype='Trust Voucher'),
   d1select('exec dbo.paymentCRUD @mode=0,@paymentType='''&gcpaymenttype&''',@id='&obj:id),
-  if(readstring(obj7:d1,'@code=')+0=0,lcNewId=readstring(obj7:d1,'@id='),lcNewId=0),p('select top 1 id from object where typ=4771 and a18='''&gcpaymenttype&''' and a17<>''Posted'' order by id desc'),
+  if(readstring(obj7:d1,'@code=')+0=0,lcNewId=readstring(obj7:d1,'@id='),lcNewId=0),p('select top 1 id from object with (NOLOCK) where typ=4771 and a18='''&gcpaymenttype&''' and a17<>''Posted'' order by id desc'),
   break(lcNewId+0<1),
   sql('update object set a6=purpose, a3='''&gcamt&''', b5=accountDesc, c9='''&gcamt&''' from object, dbo.purposedetail where object.id='&lcNewId&' and isnull(receiptId,0) = '&obj:id&' and purpose='''&gccode&''''),
   insert(-02=4775,-03=lcNewId,-04=obj:id,004=gccode,006=gcamt,008=obj:key1),
@@ -585,7 +585,7 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
   refreshDetail=;
 
 \t091Due; \t092@n-14.2;  \s092-'select dbo.receiptBalanceDue('&obj:id&')'; \p0920947cfah,13499135;r2 \p0920947c13h,700;r2 \p0920947c0ch,1;r2 \d092094;r2 \h091092obj:key3='OFFICIAL';r
-\t093Paid; \t094@n14.2;  \s094-'select sum(amount) from dbo.paid where slink=''o'&obj:id&'''';
+\t093Paid; \t094@n14.2;  \s094-'select sum(amount) from dbo.paid with (NOLOCK) where slink=''o'&obj:id&'''';
  \y091283; \y092282; \x091300; \x092328;
  \y093294; \y094293; \x093300; \x094328;
 
@@ -667,7 +667,7 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
 
 \h118obj:key3<>'TAX' and obj:key3<>'TRUST';
 \t118Decal;
-@acc118=d1select('select count(*) from object where typ=4301 and link1='&obj:id),
+@acc118=d1select('select count(*) from object with (NOLOCK) where typ=4301 and link1='&obj:id),
 if(obj7:d1+0>1,dodecal2=,doadddecal=);
 
 @doadddecal=new(4301,,-03=obj:id,002=obj:b11,004=obj:a1,006=obj:b5,008=obj:b4,012=obj:b6,014=today(),016=today());
@@ -681,7 +681,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
   gc4794id=obj:id,
   gcApportionToDate=obj:key2,
   if(gcApportionToDate+0<today(),gcApportionToDate=today()),
-  lcApportionStage=kp('select max(id) from object where typ = 4794'),
+  lcApportionStage=kp('select max(id) from object with (NOLOCK) where typ = 4794'),
   if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794));
 
 @dounposted=gccontinue='No',
@@ -727,7 +727,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  break(obj:key3='OFFICIAL'),
  set(-07,0),set(012,'',1),set(014,'',1),set(016,'',1),set(018,'',1),set(050,'',1),update;
 
-@refreshDetail=lccheck=kp('select count(*) from receiptlink where receiptid='&obj:id+0),
+@refreshDetail=lccheck=kp('select count(*) from receiptlink with (NOLOCK) where receiptid='&obj:id+0),
  break(lccheck+0>2000),
  if(obj:a17='Posted',prop(165,'7C65H',1)),
  calcfld(092),calcfld(094),
@@ -746,7 +746,7 @@ if(obj7:d1+0>1,dodecal2=,doadddecal=);
  if(lcTyp+0=8,menu8=),
  if(lcTyp+0=7,lcid=lcrdId),
  if(lcTyp+0=7,donewinvoice=),
- lcid=kp('select substring(slink,2,25) from receiptdetail where id='&lcrdId+0),
+ lcid=kp('select substring(slink,2,25) from receiptdetail with (NOLOCK) where id='&lcrdId+0),
  if(lcTyp+0=5,donewinvoice=),
  if(lcTyp+0=6,taxitemchoose=),
  if(lcTyp+0=3,donewtaxreceiptno=)
@@ -892,7 +892,7 @@ acc551=
  gcDetailid=lcid,
  d1select('select dbo.receiptDetailGLDetailId('&gcDetailid+0&')'),
  gc4794gldetailid=obj7:d1,
- d1select('select isnull(bsId,0) from gldetail where id='&gc4794gldetailid+0),
+ d1select('select isnull(bsId,0) from gldetail with (NOLOCK) where id='&gc4794gldetailid+0),
  if(obj7:d1+0=0,gcBreak='FALSE',gcBreak='TRUE'),
  if(gcBreak='TRUE',m('This line has already been apportioned.')),
  break(gcBreak='TRUE'),
@@ -925,7 +925,7 @@ acc551=
  gc4794id=obj:id,
  gcApportionToDate=obj:key2,
  if(gcApportionToDate+0<today(),gcApportionToDate=today()),
- lcApportionStage=kp('select max(id) from object where typ = 4794'),
+ lcApportionStage=kp('select max(id) from object with (NOLOCK) where typ = 4794'),
  if(lcApportionStage+0>0,change(lcApportionStage,,1),neww(4794)),
  gc4794gldetailid=0
  ;
@@ -954,7 +954,7 @@ acc551=
 
 @doprint1=
 gcPrintInvoiceId=lcid,
-lcreceipt=kp('select receiptNumber from receiptlink where receiptid='&obj:id&' and invoiceid='&gcPrintInvoiceId),
+lcreceipt=kp('select receiptNumber from receiptlink with (NOLOCK) where receiptid='&obj:id&' and invoiceid='&gcPrintInvoiceId),
 break(len(lcreceipt)<2),
 m('Would you like to print Receipt# '&lcreceipt+'?','Print?',,6),
 break(gcretval<>2),
@@ -976,9 +976,9 @@ gcPrintOneTaxReceiptId=0,
 
 @donewinvoice=
  gcid=lcid,
- if(lcTyp=7,lcmaininvoiceId=lcid,lcmaininvoiceId=kp('select invoiceId from invoices where id='&lcid)),
+ if(lcTyp=7,lcmaininvoiceId=lcid,lcmaininvoiceId=kp('select invoiceId from invoices with (NOLOCK) where id='&lcid)),
   break(lcmaininvoiceId+0=0),
-  lcinvoicetype=kp('select top 1 description from receiptDetail where slink=''t'&gcid&''''),
+  lcinvoicetype=kp('select top 1 description from receiptDetail with (NOLOCK) where slink=''t'&gcid&''''),
   m('Would you like to adjust the '&lcinvoicetype&' amount of this tax item?','Adjust amount?',,6),
   break(gcretval<>2),
  gclocation='Receipt_Adjust_'&lcinvoicetype,
@@ -1049,7 +1049,7 @@ gcPrintOneTaxReceiptId=0,
 
 @postAndPrint=if(obj:key3<>'OFFICIAL' and obj:key3<>'TAX' and obj:c8+0<>0,m('This receipt still has an amount due, posting aborted.')),
  break(obj:key3<>'OFFICIAL' and obj:key3<>'TAX' and obj:c8+0<>0),
- lccashreturned=kp('select amount*-1 from paid where slink=''o'&obj:id&''' and checkno=''CASH RETURNED'''),
+ lccashreturned=kp('select amount*-1 from paid with (NOLOCK) where slink=''o'&obj:id&''' and checkno=''CASH RETURNED'''),
  if(lccashreturned+0>0,m(clip(format(lccashreturned,@n$-19.2))&' Cash Due To Customer. Continue?','Continue?',,6)),
  break(lccashreturned+0>0 and gcretval<>2),
  update,
@@ -1115,25 +1115,25 @@ sql('update object set key2=''I'' where typ=4100 and key1='''&obj:b4&'''');
  set(046,cur:ini&' '&format(kp('sqltoday'),@d2)&' '&format(kp('sqlclock'),@t1)),
  update,
  d1select('dbo.glPost '&obj:id&',''o'''),
- gcposted=kp('select a17 from object where id='&obj:id),
+ gcposted=kp('select a17 from object with (NOLOCK) where id='&obj:id),
  if(readstring(obj7:d1,'@code=')=1,m(readstring(obj7:d1,'@message='),'Posting...')),
- set(040,kp('select a17 from object where id='&obj:id)),
+ set(040,kp('select a17 from object with (NOLOCK) where id='&obj:id)),
  update,
  if(gcposted='Posted',close('ok'),m('Receipt Failed to Post, please try again.'));
 
 @checkCert=gcparcel=kp('select subdescription from receiptDetailBRW('&obj:id&',0,0) where left(ord,2)=''aa'' and right(ord,1)=''a'' 
-  and subdescription in (select key1 from object where typ=4100 and key2=''A'')'),
+  and subdescription in (select key1 from object with (NOLOCK) where typ=4100 and key2=''A'')'),
  if(gcparcel>' 0',docert=);
 
 @docert=m('Parcel# '&gcparcel&' has a certificate.  Would you like to endorse it now?','Endorse Certificate?',,6),
  break(gcretval<>2),
- lccertid=kp('select top 1 id from object where typ=4100 and key2=''A'' and key1='''&gcparcel&''''),
+ lccertid=kp('select top 1 id from object with (NOLOCK) where typ=4100 and key2=''A'' and key1='''&gcparcel&''''),
  lcinvoiceId=kp('select substring(ord,3,len(ord)-3) from receiptDetailBRW('&obj:id&',0,0) where subdescription='''&gcparcel&''''),
  lctaxamount=kp('select amount from receiptDetailBRW('&obj:id&',0,0) where subdescription='''&gcparcel&''''),
- lctaxyear=kp('select taxyear from invoices where id='&lcinvoiceId),
- lcitem=kp('select item from invoices where id='&lcinvoiceId),
- lcname=kp('select name from invoices where id='&lcinvoiceId),
- lctyp=kp('select typ from invoices where id='&lcinvoiceId),
+ lctaxyear=kp('select taxyear from invoices with (NOLOCK) where id='&lcinvoiceId),
+ lcitem=kp('select item from invoices with (NOLOCK) where id='&lcinvoiceId),
+ lcname=kp('select name from invoices with (NOLOCK) where id='&lcinvoiceId),
+ lctyp=kp('select typ from invoices with (NOLOCK) where id='&lcinvoiceId),
  neww(4101,,-03=lccertid,002=lctaxyear,004=lcitem,008=lcname,010=lctyp,012=lctaxamount,020='E',022=today()),
  calcrecord(lccertid),
  change(lccertid);

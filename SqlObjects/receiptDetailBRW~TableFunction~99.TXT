@@ -27,8 +27,8 @@ begin
 
  declare @paycodes table(paycode varchar(60), amount money)
 
- select @receiptTyp=typ, @receiptAccount = a2, @receiptKEY3 = key3 from object where id = @receiptId
- select top 1 @trustAccount = key3 from object where typ=4503 and key1='TRUST'
+ select @receiptTyp=typ, @receiptAccount = a2, @receiptKEY3 = key3 from object with (NOLOCK) where id = @receiptId
+ select top 1 @trustAccount = key3 from object with (NOLOCK) where typ=4503 and key1='TRUST'
 
 -- Bail if TAX receipt with too many items
  if @receiptKEY3 = 'TAX'
@@ -47,7 +47,7 @@ begin
 
 -- Insert MISC receiptdetail
  insert @rettable (ord,id,description,subdescription,amount,sCode,fCode)
- select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,sourcecode,fundcode from receiptDetail where slink = @slink 
+ select 'aa',cast('9'+cast(id as varchar) as int)*-1,description,lower(subDescription),amount,sourcecode,fundcode from receiptDetail with (NOLOCK) where slink = @slink 
 
 -- Insert Decision info
  insert @rettable (ord,id,description,subdescription)
@@ -67,7 +67,7 @@ begin
          '     '+rtrim(s.accountdesc),
          '     '+rtrim(f.accountdesc),
          amount 
-   from receiptDetail r, glaccounts s, glaccounts f 
+   from receiptDetail r with (NOLOCK), glaccounts s, glaccounts f 
    where r.slink = @slink 
      and s.accountcode = r.sourceCode
      and f.accountcode = r.fundCode
@@ -92,11 +92,11 @@ begin
          @mvStampDiff money
 
  select @mvStampRdTotal = isnull(sum(amount),0.00) 
-  from receiptdetail 
+  from receiptdetail with (NOLOCK) 
   where slink = @slink 
    and fundcode in (select accountcode from glaccounts where accounttype='PURPOSE' and code = 'MOTORSTAMP')
 
- select @mvStampTotal = isnull(sum(cast(a2 as money)),0.00) from object where typ=4302 and link1 = @receiptId
+ select @mvStampTotal = isnull(sum(cast(a2 as money)),0.00) from object with (NOLOCK) where typ=4302 and link1 = @receiptId
 
  select @mvStampDiff = isnull(@mvStampRdTotal,0.00) - isnull(@mvStampTotal,0.00)
 
@@ -109,13 +109,13 @@ begin
  end
 
 -- Insert MV Stamps
- if exists(select * from object where typ=4302 and link1 = @receiptId)
+ if exists(select * from object with (NOLOCK) where typ=4302 and link1 = @receiptId)
  begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'azb',0,'','',0,4
   insert @rettable (ord, id, description, amount)
    select 'azc', id, rtrim(cast(cast(a1 as int) as varchar))+' MV Stamps @ '+dbo.formatCurr(cast(key1 as money))+' ('+a3+'-'+a4+')', cast(a2 as money)
-    from object where typ=4302 and link1 = @receiptId
+    from object with (NOLOCK) where typ=4302 and link1 = @receiptId
  end
 
 
@@ -125,11 +125,11 @@ begin
          @farmStampDiff money
 
  select @farmStampRdTotal = isnull(sum(amount),0.00) 
-  from receiptdetail 
+  from receiptdetail with (NOLOCK) 
   where slink = @slink 
    and fundcode in (select accountcode from glaccounts where accounttype='PURPOSE' and code = 'FARMSTAMP')
 
- select @farmStampTotal = isnull(sum(cast(a2 as money)),0.00) from object where typ=4303 and link1 = @receiptId
+ select @farmStampTotal = isnull(sum(cast(a2 as money)),0.00) from object with (NOLOCK) where typ=4303 and link1 = @receiptId
 
  select @farmStampDiff = isnull(@farmStampRdTotal,0.00) - isnull(@farmStampTotal,0.00)
 
@@ -142,17 +142,17 @@ begin
  end
 
 -- Insert Farm Stamps
- if exists(select * from object where typ=4303 and link1 = @receiptId)
+ if exists(select * from object with (NOLOCK) where typ=4303 and link1 = @receiptId)
  begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'azb',0,'','',0,4
   insert @rettable (ord, id, description, amount)
    select 'azc', id, rtrim(cast(cast(a1 as int) as varchar))+' Farm Stamps @ '+dbo.formatCurr(cast(key1 as money))+' ('+a3+'-'+a4+')', cast(a2 as money)
-    from object where typ=4303 and link1 = @receiptId
+    from object with (NOLOCK) where typ=4303 and link1 = @receiptId
  end
 
 -- Insert Trust Vouchers
- if exists(select * from gldetail where contraid = @receiptId and slink <> @slink and dbo.slinktype(slink)='o')
+ if exists(select * from gldetail with (NOLOCK) where contraid = @receiptId and slink <> @slink and dbo.slinktype(slink)='o')
  begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'azd',0,'','',0,4
@@ -160,11 +160,11 @@ begin
    select 'aze', '-8'+cast(dbo.slinkId(slink) as varchar(15)), case when o.typ=4771 then 'Voucher #'+rtrim(o.key3) when o.typ=4512 then 'JE: '+rtrim(o.key1) else o.key1 end,
   case when o.typ=4771 then 'Vendor: '+rtrim(o.a2) when o.typ=4512 then 'Purpose: '+rtrim(o.a18) else o.key3 end,
     amount*-1,'@change=Y;'
-    from gldetail g, object o where g.contraid = @receiptId and g.slink <> @slink and o.id = dbo.slinkid(slink)
+    from gldetail g with (NOLOCK), object o with (NOLOCK) where g.contraid = @receiptId and g.slink <> @slink and o.id = dbo.slinkid(slink)
  end
 
 
- if exists(select * from dbo.journalLink where receiptId = @receiptId)
+ if exists(select * from dbo.journalLink with (NOLOCK) where receiptId = @receiptId)
  begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bf1',0,'','',0,4
@@ -175,24 +175,24 @@ begin
   select 'bf3'+cast(c.id as varchar)+'a',cast('4'+cast(c.id as varchar) as int)*-1,
    max(c.key1)+' '+max(c.a18),
    max(c.key3), 10
-  from journalLink a, object c
+  from journalLink a with (NOLOCK), object c with (NOLOCK)
   where a.jeId = c.ID
    and a.receiptId = @receiptId
   group by c.id
  end
 
 
- if exists(select * from dbo.receiptLink where receiptId = @receiptId)
+ if exists(select * from dbo.receiptLink with (NOLOCK) where receiptId = @receiptId)
  begin
 
   declare @invoices table(id int, due money)
   declare @receiptPostDate int
-   select @receiptPostDate = case when isnumeric(key2)=1 then cast(key2 as int) else dbo.clariondate(getdate()) end from object where typ=4502 and id=@receiptId
+   select @receiptPostDate = case when isnumeric(key2)=1 then cast(key2 as int) else dbo.clariondate(getdate()) end from object with (NOLOCK) where typ=4502 and id=@receiptId
 
   insert @invoices
    select distinct r.invoiceId, 
      isnull((select sum(amount) from gldetail where slink in (select slink from dbo.invoiceSLinks(r.invoiceId)) and [date]<=@receiptPostDate and accountcode in (select accountcode from glaccounts where accounttype='RECEIVABLE') and slink <> 'l'+cast(r.id as varchar)) ,0.00)
-    from dbo.receiptLink r 
+    from dbo.receiptLink r with (NOLOCK) 
     where r.receiptId = @receiptId
 
 
@@ -203,7 +203,7 @@ begin
    +case when a.methodrate>1.00 then ' Apply: '+cast(a.methodrate as varchar) else '' end,
    max(c.parcel),
    i.due, max(c.taxrollId), 1
-  from receiptLink a, receiptDetail b, invoices c, @invoices i
+  from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK), @invoices i
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
@@ -218,7 +218,7 @@ begin
    ' ** MOBILE HOME **',
    2,
    20
-  from @rettable a, adtax b
+  from @rettable a, adtax b with (NOLOCK)
   where a.adtaxid = b.id and a.origin = 1 and a.adtaxId > 0 and b.mfghomeassessed > 0
 
 -- individual certificate
@@ -228,14 +228,14 @@ begin
    ' ** INDIVIDUAL CERTIFICATE **',
    2,
    20
-  from @rettable a, object o
+  from @rettable a, object o with (NOLOCK)
   where o.typ=4100 and o.key2='A' and o.key1=subdescription and subdescription>' 0'
 
   insert @rettable (ord,id,description,subdescription,origin)
   select 'aa'+cast(c.id as varchar)+'aa',cast('3'+cast(max(a.id) as varchar) as int)*-1,
    'Tax Year: '+cast(c.taxyear as varchar(4)),
    'Tax Receipt: '+a.receiptNumber, 2
-  from receiptLink a, receiptDetail b, invoices c
+  from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK)
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
@@ -247,7 +247,7 @@ begin
    max('   '+b.description),
    max('   '+lower(b.subDescription)),
    i.due,3
-   from receiptLink a, receiptDetail b, invoices c, @invoices i
+   from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK), @invoices i
    where 't'+CAST(a.invoiceId as varchar) = b.slink
     and a.invoiceId = c.ID
     and receiptId = @receiptId
@@ -275,7 +275,7 @@ begin
    '',  --max('   '+b.description),
    sum(b.amount),
    case when isnull(b.fundCode,'') < '  0' then 1 else 0 end
-  from receiptLink a, receiptDetail b, invoices c
+  from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK)
   where 't'+CAST(a.invoiceId as varchar) = b.slink
    and a.invoiceId = c.ID
    and receiptId = @receiptId
@@ -294,29 +294,29 @@ begin
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bb',0,'Payment(s)','',0,5
   insert @rettable (ord,id,description,subdescription,amount,origin)
-  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6 from dbo.paid where slink = @slink
+  select 'bc',cast('8'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,6 from dbo.paid with (NOLOCK) where slink = @slink
  end
  if exists(select * from dbo.paid where officialDepositId = @receiptId)
  begin
-  insert @paycodes select paycode, amount from dbo.paid where officialDepositId = @receiptId
+  insert @paycodes select paycode, amount from dbo.paid with (NOLOCK) where officialDepositId = @receiptId
 
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bda',0,'','',0,7
   insert @rettable (ord,id,description,subdescription,amount,origin)
   select 'bdb',0,'Payment(s) - via Trust Receipt','',0,8
   insert @rettable (ord,id,description,subdescription,amount,origin,trustAccount)
-  select 'bdc'+paycode,cast('4'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9,
+  select 'bdc'+paycode,cast('4'+cast(id as varchar) as int)*-1,'   '+paycode+case when isnull(depositId,0) > 0 then isnull((select ' dep#:'+key1+' '+dbo.date1(key2) from object with (NOLOCK) where id = depositId),'') else '' end,case when len(checkno+''+drawnon+''+location)=0 then '' else checkno+'/'+drawnon+'/'+location end,amount,9,
   isnull((select top 1 a.accountcode 
- from gldetail g, glAccounts a 
+ from gldetail g with (NOLOCK), glAccounts a 
  where g.slink=paid.slink
   and g.accountcode=a.accountcode 
   and a.accountType='OFFICIAL' 
 ),@trustAccount)
- from dbo.paid where officialDepositId = @receiptId
+ from dbo.paid with (NOLOCK) where officialDepositId = @receiptId
 
   insert @rettable (ord,id,description,subdescription2,amount,origin)
   select 'bdc'+paycode+'z',0,'','   '+paycode+' TOTAL',sum(amount),99
- from dbo.paid where officialDepositId = @receiptId
+ from dbo.paid with (NOLOCK) where officialDepositId = @receiptId
   group by paycode
 
  update r set trustAccountDesc = a.accountdesc from @rettable r, glaccounts a where r.trustaccount=a.accountcode
@@ -335,7 +335,7 @@ begin
 
  if @showGl = 1
  begin
-  if exists(select * from dbo.glDetailStage where slink = @slink)
+  if exists(select * from dbo.glDetailStage with (NOLOCK) where slink = @slink)
   begin
    insert @rettable (ord,id,description,subdescription,amount,origin)
    select 'ca',0,'','',0,10
@@ -345,7 +345,7 @@ begin
    declare @stageScratch table(accountId int, amount money, accountType varchar(50), accountDesc varchar(50), ord varchar(50))
    insert @stageScratch
    select accountId, sum(amount),'','','' 
-    from dbo.glDetailStage 
+    from dbo.glDetailStage with (NOLOCK) 
     where slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink)!='t')
     group by accountId 
    update a set
@@ -370,12 +370,12 @@ begin
    select 'cb',0,'GL Detail (posted)','',0,2,14
    insert @rettable (ord,id,description,subdescription,amount,origin)
    select 'cc'+b.subord,0,'   '+rtrim(a.accountDesc)+case when count(*)>1 then ' ('+CAST(COUNT(*) as varchar)+')' else '' end,lower(b.accountType),sum(a.amount),15
-   from dbo.glDetail a, glaccounts b where a.accountId = b.accountId
+   from dbo.glDetail a with (NOLOCK), glaccounts b where a.accountId = b.accountId
     and a.slink in (select slink from dbo.receiptSLinks(@receiptId) where dbo.slinkType(slink) not in ('t','j'))
    group by b.subord,a.accountDesc,lower(b.accountType)
   end
 
-  if exists(select * from dbo.journalLink where receiptId = @receiptId)
+  if exists(select * from dbo.journalLink with (NOLOCK) where receiptId = @receiptId)
   begin
    declare @journals table (
     slink varchar(15),
@@ -395,7 +395,7 @@ begin
     rtrim(key3) as subDescription,
     o.id as invoiceId,
     'a' as ord
-   from object o, journalLink j 
+   from object o with (NOLOCK), journalLink j with (NOLOCK) 
     where o.id=j.jeId 
       and j.receiptId = @receiptId
 
@@ -423,14 +423,14 @@ begin
     left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
     lower(b.accountType),
     sum(a.amount),19
-   from dbo.glDetail a, glaccounts b, @journals c
+   from dbo.glDetail a with (NOLOCK), glaccounts b, @journals c
    where a.accountCode = b.accountCode
     and a.slink in (c.slink,c.realslink)
    group by c.slink,a.accountDesc,b.accountType, c.ord, a.comment2 
   end
 
 
-  if exists(select * from dbo.receiptLink where receiptId = @receiptId)
+  if exists(select * from dbo.receiptLink with (NOLOCK) where receiptId = @receiptId)
   begin
 
    declare @taxInvoices table (
@@ -451,9 +451,9 @@ begin
     subDescription,
     invoiceId,
     ord
-   from invoiceAll where id in (select invoiceId from receiptLink where receiptId = @receiptId)
+   from invoiceAll where id in (select invoiceId from receiptLink with (NOLOCK) where receiptId = @receiptId)
 
-   update @taxInvoices set description = (select top 1 description from receiptDetail where slink = realslink) 
+   update @taxInvoices set description = (select top 1 description from receiptDetail with (NOLOCK) where slink = realslink) 
    where description = 'sub invoice'
 
    insert @rettable (ord,id,description,subdescription,amount,origin)
@@ -480,7 +480,7 @@ begin
     left('      '+case when isnull(a.comment2,'')>' 0' then a.comment2 else a.accountDesc end,50),
     lower(b.accountType),
     sum(a.amount),19
-   from dbo.glDetail a, glaccounts b, @taxInvoices c
+   from dbo.glDetail a with (NOLOCK), glaccounts b, @taxInvoices c
    where a.accountId = b.accountId
     and a.slink = c. realslink
    group by c.slink,a.accountDesc,b.accountType, c.ord, a.comment2 

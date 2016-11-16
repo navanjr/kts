@@ -74,7 +74,7 @@ begin
                                         max(case when invoiceId>0 then '' else typ end)
                                        
 					
-					 from dbo.receiptSLinks(@recId),invoices i where LEFT(slink,1)='t' and right(slink,LEN(slink)-1)=i.id 
+					 from dbo.receiptSLinks(@recId),invoices i with (NOLOCK) where LEFT(slink,1)='t' and right(slink,LEN(slink)-1)=i.id 
 					  group by case when invoiceId>0 then invoiceId else ID end,i.TAXYEAR
 
 if isnull(@invoiceId,0) >0
@@ -144,7 +144,7 @@ declare
    @invoiceIdToken int = 0,
    @receiptDate varchar(20) 
 
-select @receiptDate = key2 from object where typ=4502 and id = @recId
+select @receiptDate = key2 from object with (NOLOCK) where typ=4502 and id = @recId
 
 
 
@@ -180,12 +180,12 @@ while exists(select * from @wt1 where process=0)
                                            + '@checkno=  '+case when count(id)>1 then cast(count(id) as varchar(10))+' Chks' else max(checkno) end+';'
                                            + '@change=  '+cast(SUM(case when checkno='CASH RETURNED' then amount else 0 end) as varchar)+';'
 
-		                      from paid where slink = 'o'+@recid 
+		                      from paid with (NOLOCK) where slink = 'o'+@recid 
                                          group by case when paycode='Cash' then paycode else 'Check' end
 
         declare @pt table(id int identity(1,1),paycode varchar(60), amount money, checkno varchar(60), processcount int)
          insert @pt
-           select case when paycode = 'Cash' then paycode else 'Check' end, amount, isnull(checkno,''),0 from paid where slink = 'o'+@recid 
+           select case when paycode = 'Cash' then paycode else 'Check' end, amount, isnull(checkno,''),0 from paid with (NOLOCK) where slink = 'o'+@recid 
                                          
         declare @checkno varchar(250),
                 @idToken int

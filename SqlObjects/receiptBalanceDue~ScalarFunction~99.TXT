@@ -23,20 +23,20 @@ begin
   @due money,
   @itemCount int
 
-select @receiptType = key3, @posted = case when a17 = 'Posted' then 'TRUE' else 'FALSE' end from object where id = @receiptId
+select @receiptType = key3, @posted = case when a17 = 'Posted' then 'TRUE' else 'FALSE' end from object with (NOLOCK) where id = @receiptId
 
 
 
 if @receiptType = 'TAX'
  begin
-  select @itemCount = count(*) from receiptlink where receiptId = @receiptId 
+  select @itemCount = count(*) from receiptlink with (NOLOCK) where receiptId = @receiptId 
   if @itemCount > 2000
    return 0.00
 
 -- get the invoices linked to this receipt
  insert @wt (linkId, invoiceId, methodRate,mainInvoiceId,invoiceType)
   select a.id, a.invoiceId, case when a.methodRate > 1.0 then 1.0 when @posted = 'TRUE' then 1.00 else a.methodRate end,b.invoiceId,b.typ
-  from receiptLink a, invoices b 
+  from receiptLink a with (NOLOCK), invoices b with (NOLOCK) 
   where a.invoiceId = b.id and a.receiptId = @receiptId
 
 -- calculate the balance due
@@ -47,7 +47,7 @@ if @receiptType = 'TAX'
  set @totalDue = (select sum(due) from @wt)
 
  select @glAmtStage = sum(a.amount) 
- from glDetailStage a, glAccounts b 
+ from glDetailStage a with (NOLOCK), glAccounts b 
   where a.accountId = b.accountId and 
   b.accountType = 'suspense' and 
   b.accountdesc <> 'temporary suspense' and 
@@ -60,13 +60,13 @@ if @receiptType = 'TAX'
  end
 
  select @glAmt = sum(a.amount) 
- from glDetail a, glAccounts b 
+ from glDetail a with (NOLOCK), glAccounts b 
   where a.accountId = b.accountId and 
   b.accountType = 'RECEIVABLE' and 
   slink in (select slink from dbo.receiptSLinks(@receiptId))
 
  select @glAmtStage = sum(a.amount) 
- from glDetailStage a, glAccounts b 
+ from glDetailStage a with (NOLOCK), glAccounts b 
   where a.accountId = b.accountId and 
   b.accountType = 'RECEIVABLE' and 
   slink in (select slink from dbo.receiptSLinks(@receiptId))

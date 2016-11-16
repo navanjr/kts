@@ -8,21 +8,21 @@ begin
  declare @slink varchar(15) = 'o' + cast(@receiptId as varchar)
 
  declare @wt table(slink varchar(15))
- insert @wt select 'l' + cast(id as varchar) from receiptLink where receiptId = @receiptId
+ insert @wt select 'l' + cast(id as varchar) from receiptLink with (NOLOCK) where receiptId = @receiptId
  insert @wt select @slink
 
- if exists(select * from glDetail where slink in (select slink from @wt))
+ if exists(select * from glDetail with (NOLOCK) where slink in (select slink from @wt))
  begin
   insert @rt
   select sum(amount),sum(case when amount > 0 then amount else 0 end)
-  from glDetail where slink in (select slink from @wt)
+  from glDetail with (NOLOCK) where slink in (select slink from @wt)
 --  group by slink having sum(amount) != 0
  end
  else
  begin
   insert @rt
   select sum(amount),sum(case when amount > 0 then amount else 0 end)
-  from glDetailStage where slink in (select slink from @wt)
+  from glDetailStage with (NOLOCK) where slink in (select slink from @wt)
 --  group by slink having sum(amount) != 0
  end
 

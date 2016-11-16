@@ -52,7 +52,7 @@
 @check=
  d1select('select dbo.whoami()'),
  lcperson=obj7:d1,
- d1select('select count(*) from securityDecision where slink = '''&gcslink&''' and location = '''&gclocation&''' and deniedDateTime is null and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''''),
+ d1select('select count(*) from securityDecision with (NOLOCK) where slink = '''&gcslink&''' and location = '''&gclocation&''' and deniedDateTime is null and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''''),
  if(obj7:d1+0=0,setReason=,lcReason=''),
  d1select('exec dbo.decisionCheck '''&gcslink&''', '''&gclocation&''', '''&gcmethod&''', @requestperson = '''&lcperson&''', @requestNotes = '''&lcReason&''', @setExecProc='''&gcsetexecproc&''''),
  gccontinue=readstring(obj7:d1,'@continue='),
@@ -64,22 +64,22 @@
  gcnotifyopen='TRUE',
  d1select('select dbo.whoami()'),
  lcperson=obj7:d1,
- d1select('select top 1 id from securityDecision where (deniedDateTime >= GETDATE()-1 or deniedDateTime is null) and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
+ d1select('select top 1 id from securityDecision with (NOLOCK) where (deniedDateTime >= GETDATE()-1 or deniedDateTime is null) and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
  gcDecisionId=obj7:d1,
  if(gcDecisionId+0>0,donotifyapprove=),
  gcDecisionId=0,
  gcnotifyopen='',
  break(cur:securitylevel+0<81),
- d1select('select count(*) from securityDecision where deniedDateTime is null and dbo.readstring(''@ini='',requestPerson) != '''&cur:ini&''' and notify=''APPROVE'''),
+ d1select('select count(*) from securityDecision with (NOLOCK) where deniedDateTime is null and dbo.readstring(''@ini='',requestPerson) != '''&cur:ini&''' and notify=''APPROVE'''),
  if(obj7:d1+0>0,donotifyrequest=);
 ;
 @donotifyrequest=m('There are outstanding decisions to approve.','What do I do?',,'Open Dashboard|Ignore'),
  if(gcretval=1,new(4501,,080=0,082=0)),
  sql('update securityDecision set notify='''' where deniedDateTime is null and dbo.readstring(''@ini='',requestPerson) != '''&cur:ini&''' and notify=''APPROVE''');
 
-@donotifyapprove=lcdenied=kp('select denieddatetime from securitydecision where id='&gcDecisionId+0),
- lcLocation=kp('select location from securitydecision where id='&gcDecisionId+0),
- gcexecproc=kp('select execproc from securitydecision where id='&gcDecisionId+0),
+@donotifyapprove=lcdenied=kp('select denieddatetime from securitydecision with (NOLOCK) where id='&gcDecisionId+0),
+ lcLocation=kp('select location from securitydecision with (NOLOCK) where id='&gcDecisionId+0),
+ gcexecproc=kp('select execproc from securitydecision with (NOLOCK) where id='&gcDecisionId+0),
  if(lcdenied+0>1,m('Your security request to '&lcLocation&' has been denied!','',,),m('Your security request to '&lcLocation&' has been approved! Would you like to go there now?','Go to...',,6)),
  sql('update securityDecision set notify=''DONE'' where id='&gcDecisionId+0&' and dbo.readstring(''@ini='',requestPerson) = '''&cur:ini&''' and notify=''NOTIFY'''),
  if(len(gcexecproc)<2,gcexecproc='FALSE'),

@@ -19,18 +19,18 @@ set nocount on
        select @ignoreassessormtgcode = dbo.settingsf('taxroll.ignoreAsessorMtgCodes','FALSE') 
    
 
-       select top 1 @unPaidSelected = a15 from object where typ=40 
+       select top 1 @unPaidSelected = a15 from object with (NOLOCK) where typ=40 
 
  declare @rd table(receiptId int, invoiceId int, methodRate money)
 
  exec dbo.logit @@procid, '@receiptId', @receiptId, '@invoiceId', @invoiceId, '@part', @part, '@method', @method
 
- if @method = 'taxCheck' and not exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+ if @method = 'taxCheck' and not exists(select * from receiptlink with (NOLOCK) where receiptId = @receiptId and invoiceId = @invoiceId)
   begin
  declare @m varchar(max)= '',
          @cblob varchar(max) = ''
 
-   select @cblob = case when rtrim(case when @ignoreassessormtgcode = 'TRUE' then a.treamort else case when a.treamort > ' 0' then a.treamort else cast(a.MORTGAGECODE as varchar) end end) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a,invoices i where a.id=i.taxrollId and i.id=@InvoiceId
+   select @cblob = case when rtrim(case when @ignoreassessormtgcode = 'TRUE' then a.treamort else case when a.treamort > ' 0' then a.treamort else cast(a.MORTGAGECODE as varchar) end end) > '0'  then 'MORTGAGECODE||' else '' end  from adtax a with (NOLOCK),invoices i with (NOLOCK) where a.id=i.taxrollId and i.id=@InvoiceId
 
 
    select @cblob = @cblob  + isnull(stuff((select '|' + ltrim(commentType) from taxrollSearchCommentBRW(@InvoiceId) where (ltrim(commentType) in ('Exempt','Bankrupt','Pending Payment','Insufficient Check') and isnull(actionDate,0)=0 or ltrim(commentType) = 'Correction' and noteDate>dbo.clarionToday()-30) for xml path('')),1,1,''),'') 
@@ -62,7 +62,7 @@ set nocount on
  end
 
  -- bail if the id is not an invoice
- if not exists(select * from invoices where id = @invoiceId)
+ if not exists(select * from invoices with (NOLOCK) where id = @invoiceId)
   return
  if isnull(@invoiceId,0) = 0
   return
@@ -79,16 +79,16 @@ set nocount on
 
  if lower(@method) = 'tax' and @unPaidSelected != 1 or lower(@method) = 'mtg'
  begin
-  if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+  if exists(select * from receiptlink with (NOLOCK) where receiptId = @receiptId and invoiceId = @invoiceId)
    delete receiptlink where receiptId = @receiptId and invoiceId = @invoiceId
   else
   begin
    insert @rd (receiptId, invoiceId, methodRate) select @receiptId, @invoiceId, @methodRate
-   select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
-   select @unPaidCnt = count(id) from invoices where 
+   select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices with (NOLOCK) where id = @invoiceId
+   select @unPaidCnt = count(id) from invoices with (NOLOCK) where 
           invoiceDue>0 and taxyear < @taxYear and
           (@parcel > '  0' and parcel = @parcel or name = @name)
-          and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+          and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    if @unPaidCnt>0
      select '@code=3;@message=There are unpaid back taxes!;'
   end   
@@ -97,13 +97,13 @@ set nocount on
 --UnPaidSelect by Parcel and Item and name
 if @unPaidSelected = 1 and lower(@method) = 'tax'
  begin
-  if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+  if exists(select * from receiptlink with (NOLOCK) where receiptId = @receiptId and invoiceId = @invoiceId)
      begin
        delete receiptlink where receiptId = @receiptId and invoiceId = @invoiceId
      end
      else
      begin
-       select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices where id = @invoiceId
+       select @parcel = parcel,@item = item,@name = name,@taxYear = taxyear from dbo.invoices with (NOLOCK) where id = @invoiceId
      end
 
   exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
@@ -111,30 +111,30 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
  if @Item > '  0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, id, @methodRate from invoices 
+   select @receiptId, id, @methodRate from invoices with (NOLOCK) 
    where item = @Item and name = @name
-    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
 
   if @parcel > '  0' and @parcel > '0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, id, @methodRate from invoices 
+   select @receiptId, id, @methodRate from invoices with (NOLOCK) 
    where parcel = @parcel
-    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd 
+    and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd 
      where receiptId = @receiptId)
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, invoiceLinkId, @methodRate from dbo.taxrolldetail where parcelNumber = @parcel 
-    and invoiceLinkId not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd 
+   select @receiptId, invoiceLinkId, @methodRate from dbo.taxrolldetail with (NOLOCK) where parcelNumber = @parcel 
+    and invoiceLinkId not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd 
       where receiptId = @receiptId)
   end
 
   if @name > '  0'
    begin
     insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, id, @methodRate from invoices 
+   select @receiptId, id, @methodRate from invoices with (NOLOCK) 
     where name = @name and taxyear < @taxYear
-    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
    end
 
  end
@@ -142,24 +142,24 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
  if lower(@method) = 'name'
  begin
   insert @rd (receiptId, invoiceId, methodRate) 
-  select @receiptId, id, @methodRate from invoices 
-  where name = (select name from dbo.invoices where id = @invoiceId)
-   and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+  select @receiptId, id, @methodRate from invoices with (NOLOCK) 
+  where name = (select name from dbo.invoices with (NOLOCK) where id = @invoiceId)
+   and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
  end
 
  if lower(@method) = 'parcel'
  begin
 
-  select @parcel=parcel from dbo.invoices where id = @invoiceId
+  select @parcel=parcel from dbo.invoices with (NOLOCK) where id = @invoiceId
 
   exec dbo.logit @@procid, '@parcel = ', @parcel, @level = 2   
 
   if @parcel > ' 0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, id, @methodRate from invoices 
+   select @receiptId, id, @methodRate from invoices with (NOLOCK) 
    where parcel = @parcel
-    and id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
  end
 
@@ -167,17 +167,17 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
  if lower(@method) = 'mortcode'
  begin
   declare @mortcode varchar(60)
-  select @mortcode=a.treamort from invoices i, adtax a where i.id = @invoiceId and a.id=i.taxrollId
+  select @mortcode=a.treamort from invoices i with (NOLOCK), adtax a with (NOLOCK) where i.id = @invoiceId and a.id=i.taxrollId
 
   exec dbo.logit @@procid, '@mortcode = ', @mortcode, @level = 2   
 
   if @mortcode > ' 0'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
-   select @receiptId, i.id, @methodRate from invoices i, adtax a
+   select @receiptId, i.id, @methodRate from invoices i with (NOLOCK), adtax a with (NOLOCK)
    where a.treamort = @mortcode
     and a.id = i.taxrollId
-    and i.id not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+    and i.id not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
  end
 
@@ -196,7 +196,7 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
    @taxYear = a10,
    @searchString = b9,
    @orderString = cast(b13+0 as varchar)+cast(b14+0 as varchar)+'0000'  
-  from object where id = @receiptId and typ = 4030
+  from object with (NOLOCK) where id = @receiptId and typ = 4030
 
 
   exec dbo.logit @@procid, '@mtgcode = ', @mtgcode,'@taxYear = ',@taxYear, @level = 2 
@@ -205,14 +205,14 @@ if @unPaidSelected = 1 and lower(@method) = 'tax'
   begin
    insert @rd (receiptId, invoiceId, methodRate) 
     select @receiptId, abs(invoiceId), @methodRate from dbo.mortgageCodeBRW(@receiptId,@taxYear,@searchString,@orderString)
-       where abs(invoiceId) not in (select invoiceId from receiptlink where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
+       where abs(invoiceId) not in (select invoiceId from receiptlink with (NOLOCK) where receiptId = @receiptId union select invoiceId from @rd where receiptId = @receiptId)
   end
  end
 
 
  if lower(@method) = 'toggle'
  begin
-  if exists(select * from receiptlink where receiptId = @receiptId and invoiceId = @invoiceId)
+  if exists(select * from receiptlink with (NOLOCK) where receiptId = @receiptId and invoiceId = @invoiceId)
   begin
    update receiptLink set methodRate = case when methodRate = 1 then .5 else 1 end
    where receiptId = @receiptId and invoiceId = @invoiceId   

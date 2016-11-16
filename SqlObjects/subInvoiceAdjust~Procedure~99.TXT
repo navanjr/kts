@@ -17,17 +17,17 @@ begin
   @sourceCode = r.sourcecode,
   @fundCode = r.fundcode,
   @subInvoiceType = i.typ
- from invoices i, receiptDetail r where i.id=@subInvoiceId and 
+ from invoices i with (NOLOCK), receiptDetail r with (NOLOCK) where i.id=@subInvoiceId and 
    r.slink=@invoiceslink
 
  exec dbo.logit @@procid, '@subInvoiceId', @subInvoiceId, '@amount', @amount, '@mode', @mode
 
- select @receiptType = key3 from object where id=@receiptId
+ select @receiptType = key3 from object with (NOLOCK) where id=@receiptId
 
  if @mode = 'single'
-  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices where id=@subInvoiceId),0)
+  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(invoices.Id),2)) from invoices with (NOLOCK) where id=@subInvoiceId),0)
  else
-  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(i.Id),2)) from invoices i, receiptdetail r where i.invoiceId=@mainInvoiceId and left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id and i.typ=@subInvoiceType and r.description=@description),0)
+  set @amount = round(@newamount,2)-isnull((select sum(round(dbo.invoiceTotalAR(i.Id),2)) from invoices i with (NOLOCK), receiptdetail r with (NOLOCK) where i.invoiceId=@mainInvoiceId and left(r.slink,1)='t' and dbo.slinkId(r.slink)=i.id and i.typ=@subInvoiceType and r.description=@description),0)
 
 
  set @blob = @blob + ': ' + dbo.formatcurr(@amount) + case when @receiptId > 0 and @subInvoiceType = 'F' then ': @addedfromreceipt=' + cast(@receiptId as varchar) + ';' else '' end
@@ -40,8 +40,8 @@ begin
  if @receiptId>0
  begin
    insert receiptLink (receiptId,invoiceId,methodRate)
-  select @receiptId, id, 1.00 from invoices where invoiceId in (select invoiceId from receiptLink where receiptId=@receiptId) 
-   and id not in (select invoiceId from receiptLink where receiptId=@receiptId)
+  select @receiptId, id, 1.00 from invoices with (NOLOCK) where invoiceId in (select invoiceId from receiptLink with (NOLOCK) where receiptId=@receiptId) 
+   and id not in (select invoiceId from receiptLink with (NOLOCK) where receiptId=@receiptId)
  end
  else
  exec dbo.invoiceUpdate @mainInvoiceId

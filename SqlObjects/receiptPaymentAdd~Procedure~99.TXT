@@ -55,7 +55,7 @@ begin
  select 
   @checkReq = isnull(a16,0),
   @bankReq = isnull(a15,0)
-  from object where typ=4505 and key1 = @paycode	
+  from object with (NOLOCK) where typ=4505 and key1 = @paycode	
 
  -- bail if we dont have enough data
  if @code = 1
@@ -113,18 +113,18 @@ begin
  if @checkNumber<>'CASH RETURNED'
  begin
   declare @overpayment money, @returnPaycode varchar(60)
-  select @overpayment = sum(amount) from gldetailstage where slink=@slink and accountId=0
+  select @overpayment = sum(amount) from gldetailstage with (NOLOCK) where slink=@slink and accountId=0
   select @receiptBalanceDue = round(dbo.receiptBalanceDue(@receiptId)+.001,2)
-  select @returnPaycode = key1 from object where typ=4505 and a14='1'
+  select @returnPaycode = key1 from object with (NOLOCK) where typ=4505 and a14='1'
 
 -- add or update CASH RETURNED
   set @changeAmount = case when isnull(@receiptBalanceDue,0) < isnull(@overpayment,0) then isnull(@receiptBalanceDue,0) else isnull(@overpayment,0) end
   if @changeAmount < -.006
   begin
    exec dbo.logit @@procid, 'Hang on, we are making change...'
-   if exists(select * from paid where paycode = 'CASH' and slink = @slink) or not exists(select * from object where typ=4505 and a14='1')
+   if exists(select * from paid with (NOLOCK) where paycode = 'CASH' and slink = @slink) or not exists(select * from object with (NOLOCK) where typ=4505 and a14='1')
    begin
-    if exists(select * from paid where checkno = 'CASH RETURNED' and slink = @slink)
+    if exists(select * from paid with (NOLOCK) where checkno = 'CASH RETURNED' and slink = @slink)
      update paid set amount = round(@changeAmount,2) where checkno = 'CASH RETURNED' and slink = @slink
     else
      insert paid (paycode,slink,amount,checkno)
@@ -133,7 +133,7 @@ begin
    else
    begin
 
-    if exists(select * from paid where checkno = @returnPaycode+' RETURNED' and slink = @slink)
+    if exists(select * from paid with (NOLOCK) where checkno = @returnPaycode+' RETURNED' and slink = @slink)
      update paid set amount = round(@changeAmount,2) where checkno = @returnPaycode+' RETURNED' and slink = @slink
     else
      insert paid (paycode,slink,amount,checkno)

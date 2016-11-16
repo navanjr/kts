@@ -56,7 +56,7 @@ begin
  select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
  -- Pre Stage check 
- if exists(select * from glDetail where slink = 'o' + cast(@receiptId as varchar))
+ if exists(select * from glDetail with (NOLOCK) where slink = 'o' + cast(@receiptId as varchar))
  begin
   select @blob = '@code=1;@message=This record already has records in gldetail;'
   exec dbo.logit @@procId,@blob
@@ -88,7 +88,7 @@ begin
  begin
   insert @accountsWorking
    select b.accountId, null, sum(a.amount)*-1,'', '', '', case when a.altContraId > 0 then altContraId else @contraId end
-   from receiptDetail a, dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId,a.altContraId
+   from receiptDetail a with (NOLOCK), dbo.glAccounts b where a.slink = @slink and a.sourceCode = b.accountCode group by b.accountId,a.altContraId
   select @tokenAmount = abs(sum(amount)) from @accountsWorking
   insert @accountsWorking select @arAccountId, null, @tokenAmount,'','','',0
  end
@@ -98,20 +98,20 @@ begin
  begin
   insert @accountsWorking
    select b.accountId, null, sum(a.amount)*-1,'Source', '', '', 0
-   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+   from receiptDetail a with (NOLOCK), dbo.glAccounts b where a.slink = @slink 
     and a.sourceCode = b.accountCode 
     group by b.accountId
 
   insert @accountsWorking
    select b.accountId, null, sum(a.amount),'Credit', '', '', 0
-   from receiptDetail a, dbo.glAccounts b where a.slink = @slink 
+   from receiptDetail a with (NOLOCK), dbo.glAccounts b where a.slink = @slink 
     and a.sourceCode = b.accountCode 
     group by b.accountId
  end
 
 
 -- Here we go with the Paid Block
- if exists(select * from paid where slink = @slink)
+ if exists(select * from paid with (NOLOCK) where slink = @slink)
  begin
   declare @ap table(id int identity(1,1),
    accountId int,
@@ -125,10 +125,10 @@ begin
   declare @paidTotal money, @etrPaid numeric(19,10), @otherPaid numeric(19,10), @etrPercent numeric(19,10), @otherPercent numeric(19,10), @etrCode varchar(60)
 
 -- credit AR
-  select @otherPaid = sum(amount)*-1 from paid where slink = @slink and paycode not in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
-  select @etrPaid = sum(amount)*-1 from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
+  select @otherPaid = sum(amount)*-1 from paid with (NOLOCK) where slink = @slink and paycode not in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
+  select @etrPaid = sum(amount)*-1 from paid with (NOLOCK) where slink = @slink and paycode in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
   select @paidTotal = isnull(@otherPaid,0)+isnull(@etrPaid,0)
-  select top 1 @etrCode = paycode from paid where slink = @slink and paycode in (select key1 from object where typ=4505 and a2 in ('E','C','B'))
+  select top 1 @etrCode = paycode from paid with (NOLOCK) where slink = @slink and paycode in (select key1 from object with (NOLOCK) where typ=4505 and a2 in ('E','C','B'))
 
   select @etrPercent = case when isnull(@paidTotal,0) <> 0.00 then isnull(@etrPaid,0)/isnull(@paidTotal,0) else 0 end
   select @otherPercent = case when isnull(@paidTotal,0) <> 0.00 then isnull(@otherPaid,0)/isnull(@paidTotal,0) else 0 end
@@ -144,14 +144,14 @@ begin
   begin
    insert @accountsWorking
    select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
-   from paid a, dbo.posAccounts(dbo.posName(@receiptId)) b 
+   from paid a with (NOLOCK), dbo.posAccounts(dbo.posName(@receiptId)) b 
    where a.paycode = b.paycode and b.receiptType = @receiptType and a.slink = @slink group by b.accountId, a.id
   end
   else
   begin
    insert @accountsWorking
    select b.accountId, null, sum(a.amount),'','','p'+cast(a.id as varchar(14)),0
-   from paid a, paycodes b 
+   from paid a with (NOLOCK), paycodes b 
    where a.paycode = b.paycode and a.slink = @slink group by b.accountId, a.id
   end
 
@@ -181,12 +181,12 @@ else
 
    insert @ap
     select b.accountId,  case when @receiptType='TRUST' then @receiptId else case when a.altContraId > 0 then altContraId else @contraId end end, sum(a.amount)*-1, 0, 0,a.description,a.sourceCode
-    from receiptDetail a, dbo.glAccounts b
+    from receiptDetail a with (NOLOCK), dbo.glAccounts b
     where a.slink = @slink and a.fundCode = b.accountCode and b.accountType in ('ACCRUED RECEIVABLE','PURPOSE') group by b.accountId, a.description, a.sourceCode,       a.altContraId
 
    insert @ap
     select b.accountId, case when a.altContraId > 0 then altContraId else @contraId end, sum(a.amount)*-1, 0, 0, a.description, a.sourcecode
-    from receiptDetail a, dbo.glAccounts b 
+    from receiptDetail a with (NOLOCK), dbo.glAccounts b 
     where a.slink = @slink
      and (select dbo.readString('@accrualcode=', dbo.glAccountGetFundAccrualBlob(a.fundcode,'ACCRUED RECEIVABLE'))) = b.accountCode
      and b.accountcode<>a.fundcode
