@@ -176,7 +176,7 @@ begin
        0,
        0
 --       sum(b.amount) -- MAK 07/21/2014
-      from receiptLink a, receiptDetail b, invoices c
+      from receiptLink a with (NOLOCK), receiptDetail b with (NOLOCK), invoices c with (NOLOCK)
      where 't'+CAST(a.invoiceId as varchar) = b.slink
          and a.receiptId in (select i.receiptId from @it i)
          and a.invoiceId = c.ID
@@ -205,7 +205,7 @@ begin
                    rl.receiptid,
            sum(case when i.invoiceId>0 and i.TYP='P' then g.amount else 0 end),
 		   sum(case when i.invoiceId>0 and i.TYP<>'P' and i.typ<>'A' then g.amount else 0 end)
-		from invoices i, receiptlink rl, @wt w, gldetail g 
+		from invoices i with (NOLOCK), receiptlink rl with (NOLOCK), @wt w, gldetail g with (NOLOCK) 
                  where i.id = rl.invoiceid 
                   and g.slink = 'l'+cast(rl.id as varchar)
                   and g.accountcode in (select accountcode from glaccounts where accounttype = 'Accrued Receivable')

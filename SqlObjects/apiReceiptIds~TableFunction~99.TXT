@@ -16,7 +16,7 @@ begin
    'o' + cast(o.id as varchar),
   (select max(r.invoiceId) from receiptLink r where r.receiptId = o.id),
   case when o.a17 = 'posted' then 'receipt' else 'voidReceipt' end
- from Object o 
+ from Object o with (NOLOCK) 
  where o.typ = 4502 
   and o.Key3 = 'TAX' 
   and cast(o.k7 as datetime) < cast(dbo.date112(LastEditdate) + ' ' + dbo.time24(LastEditTime) as datetime) 
@@ -30,7 +30,7 @@ begin
   slink,
   dbo.readstring('invoice_link=', blob),
   'deletedReceipt'
- from apiDeleted
+ from apiDeleted with (NOLOCK)
  where apiResource = 'receipts'
   and isnull(apiUpdated,'') < isnull(modified,'')
   and DATEDIFF(mi, isnull(apiupdated, 0), modified) > @dmzTime

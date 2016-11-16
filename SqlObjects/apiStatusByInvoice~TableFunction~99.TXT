@@ -10,18 +10,18 @@ begin
 
  declare @receiptIds table(id int)
  insert @receiptIds
- select receiptId from receiptlink where invoiceId = @invoiceId
+ select receiptId from receiptlink with (NOLOCK) where invoiceId = @invoiceId
  insert @rt
  select 'receipts', cast(dbo.date1(LastEditDate) + ' ' + dbo.time2(LastEditTime) as datetime), cast(k7 as datetime), 0
- from Object where ID in (select ID from @receiptIds)
+ from Object with (NOLOCK) where ID in (select ID from @receiptIds)
  
  declare @taxrollId int
- select @taxrollId= taxrollId from invoices where id = @invoiceId
+ select @taxrollId= taxrollId from invoices with (NOLOCK) where id = @invoiceId
 
- insert @rt select 'invoices', modified, apiupdated, 0 from invoices where id = @invoiceId
- insert @rt select 'invoices', modified, apiupdated, 0 from invoices where invoiceId = @invoiceId
- insert @rt select 'adtax', modified, apiupdated, 0 from invoices where id = @taxrollId
- insert @rt select 'apiDeleted', modified, apiupdated, 0 from apiDeleted where id in (@invoiceId,@taxrollId)
+ insert @rt select 'invoices', modified, apiupdated, 0 from invoices with (NOLOCK) where id = @invoiceId
+ insert @rt select 'invoices', modified, apiupdated, 0 from invoices with (NOLOCK) where invoiceId = @invoiceId
+ insert @rt select 'adtax', modified, apiupdated, 0 from invoices with (NOLOCK) where id = @taxrollId
+ insert @rt select 'apiDeleted', modified, apiupdated, 0 from apiDeleted with (NOLOCK) where id in (@invoiceId,@taxrollId)
 
  update @rt set status = 1 where modified > apiUpdated
 

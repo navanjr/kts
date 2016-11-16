@@ -73,7 +73,7 @@ begin
  if not @taxyear is null 
   insert @taxyears select @taxYear
  else
-  insert @taxyears select taxyear from invoices group by taxyear
+  insert @taxyears select taxyear from invoices with (NOLOCK) group by taxyear
 
  if @method = 'JOB'
  begin
@@ -89,10 +89,10 @@ begin
 
   if not @taxyear = 'ALL'
    insert @status select taxYear, count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-    from invoices where taxyear in (select year from @taxyears) group by taxyear
+    from invoices with (NOLOCK) where taxyear in (select year from @taxyears) group by taxyear
   else
    insert @status select 'ALL', count(*), sum(case when isnull(apiUpdated,0) < modified then 1 else 0 end), null
-    from invoices where taxyear in (select year from @taxyears)
+    from invoices with (NOLOCK) where taxyear in (select year from @taxyears)
 
   update @status set percentStale = (cast(stale as money)/cast(total as money)) * 100.0
 
@@ -195,8 +195,8 @@ begin
    dbo.stripChars(i.name,@goofyChars), 
    dbo.stripChars(i.parcel,@goofyChars),
    a.totaldue as adtaxtotaldue
-  from invoices i
-  left join adtax a on a.id = i.taxrollid and i.typ <> 'S'
+  from invoices i with (NOLOCK)
+  left join adtax a with (NOLOCK) on a.id = i.taxrollid and i.typ <> 'S'
   where i.id in (select id from @ids)
   order by i.id  
 

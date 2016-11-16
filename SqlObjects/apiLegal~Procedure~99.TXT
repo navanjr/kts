@@ -65,7 +65,7 @@ begin
  if not @taxyear is null and not @taxyear = 'ALL'
   insert @taxyears select @taxYear
  else
-  insert @taxyears select realTaxYear from adtax group by realtaxyear
+  insert @taxyears select realTaxYear from adtax with (NOLOCK) group by realtaxyear
 
  if @method = 'JOB'
  begin
@@ -83,7 +83,7 @@ begin
    OWNERNAME,
    dbo.stripChars(dbo.removeExtraSpacesSF(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102')),@goofyChars),
    apiUpdatedLegal
-   from adtax where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
+   from adtax with (NOLOCK) where REALTAXYEAR in (select year from @taxyears) and OWNERNAME>'  0' and id > 0
     and isnull(apiUpdatedLegal,0) < modified and ltrim(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102')) > '  0'
    order by OWNERNAME, ITEMNUMBER  
 

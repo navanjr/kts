@@ -34,20 +34,20 @@ begin
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'a', null, null, null, null
- FROM adtax t JOIN invoices i ON i.taxrollid = t.id 
+ FROM adtax t with (NOLOCK) JOIN invoices i with (NOLOCK) ON i.taxrollid = t.id 
 
 --legal
  declare @taxcorrections table(id int, taxrollid int)
  
  insert @taxcorrections 
-  select max(id), taxrollid from taxrollCorrections where fieldNumber='102' group by taxrollid
+  select max(id), taxrollid from taxrollCorrections with (NOLOCK) where fieldNumber='102' group by taxrollid
   
   
  declare @tempadtax table(id int, modified datetime, apiUpdatedLegal datetime, complegal varchar(max),stale int)
  insert @tempadtax
  select id,modified, isnull(apiUpdatedLegal,0),/*ltrim(cast(dbo.taxCorrectionsSF(LEGALDESCRIPTION,id,'102') as varchar(max)))*/legaldescription as complegal,
   case when modified > isnull(apiUpdatedLegal,0) and DATEDIFF(mi, isnull(apiupdatedLegal, 0), modified) > @dmzTime then 1 else 0 end as stale 
-  from adtax 
+  from adtax with (NOLOCK) 
   where OWNERNAME>'  0' and id > 0 
 
  update t set complegal = tc.fielddata from @tempadtax t, @taxcorrections c, taxrollcorrections tc where t.id = c.taxrollid and c.id = tc.id 
@@ -110,7 +110,7 @@ begin
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'e', null, null, null, null 
- from object where typ = 4030
+ from object with (NOLOCK) where typ = 4030
 
 --mortgageLink
  set @tokenResource = 'MortgageLinks'
@@ -123,11 +123,11 @@ begin
    null,
    dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
    'f', null, null, null, null 
-   from mortgageLinksImported 
+   from mortgageLinksImported with (NOLOCK) 
 
 --TaxRollInvoicing
  set @tokenResource = 'taxrollinvoicing'
- select @taxyear = max(realtaxyear) from adtax
+ select @taxyear = max(realtaxyear) from adtax with (NOLOCK)
  select @ini = dbo.readstring('@ini=',dbo.whoAmI())
 
  insert @rt
@@ -139,7 +139,7 @@ begin
   null,
   dbo.settingsF('api.' + @tokenResource + '.batchSize', '50'),
   'a', null, null, null, null
-from adtax where [RealTaxYear] = @taxYear
+from adtax with (NOLOCK) where [RealTaxYear] = @taxYear
  and [BALANCEDUE] > 0
  and id not in (select taxrollId from invoices where taxyear = @taxYear and typ<>'s')
  and id not in (select id from taxrollInvoiceProcessing where taxyear = @taxYear)
