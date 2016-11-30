@@ -2108,7 +2108,7 @@ class ktsMenu():
             columnNames = columnNames + ['ownername','address1','address2','city','state','zip1','zip2']
             columnNames = columnNames + ['orgschooldistrictmain','schooldistrictmain','orgschooldistricttaxrate','schooldistricttaxrate']
             columnNames = columnNames + ['acres']
-            columnNames = columnNames + ['exemption1','netassessedvalue']
+            columnNames = columnNames + ['exemption3','netassessedvalue']
             columnNames = columnNames + ['totaltaxrate','originaltotaldue','totaldue','balancedue']
             columnNames = columnNames + ['proploc','landassessed','improvedassessed']
             columnNames = columnNames + ['legaldescription','grossAssessed','miscassessed','realtaxyear','country','ownernumber','MFGHOMEASSESSED','mortgagecode']
