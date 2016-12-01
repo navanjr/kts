@@ -24,8 +24,8 @@ if @method = 'Check'
 						+ PARCEL + ' '
 						+ cast(taxYear as varchar(5)) + ' '
 						+ cast(ITEM as varchar(20)) +' as parent?;'
-						from invoices where ID = @InvoiceId
-	select @message = @message + '@invoiceCount=On ' + cast(COUNT(id) as varchar) + ' invoice(s);' from receiptlink where receiptId = @receiptId
+						from invoices with (NOLOCK) where ID = @InvoiceId
+	select @message = @message + '@invoiceCount=On ' + cast(COUNT(id) as varchar) + ' invoice(s);' from receiptlink with (NOLOCK) where receiptId = @receiptId
 	select @message
 	exec dbo.logit @@procid, @message
      return  
@@ -36,7 +36,7 @@ alter table invoices disable trigger invoicesModifiedTR
 if @method = 'Attach'
 begin
 
-	if not exists(select * from receiptlink where receiptId = @receiptId)
+	if not exists(select * from receiptlink with (NOLOCK) where receiptId = @receiptId)
 		begin
 			select '@code=1;@message=There are no invoices selected!;'
 			exec dbo.logit @@procid, '@code=1;@message=There are no invoices selected!;'

@@ -32,7 +32,7 @@ begin
   + '@printOrder=' + rtrim(isnull(@printOrder,'')) + ';'
   + '@FULLTYP=' + case rtrim(max(case when invoiceId>0 then '' else TYP end)) when 'R' then '    REAL ESTATE' when 'S' then '    SPECIAL ASSESSEMENT' ELSE 'PERSONAL' END + ';',
   @invoiceType = rtrim(max(case when invoiceId>0 then '' else TYP end)) 
-  from invoices where (ID=@InvId or invoiceId=@InvId) 
+  from invoices with (NOLOCK) where (ID=@InvId or invoiceId=@InvId) 
   group by case when invoiceId>0 then invoiceId else ID end
 
 
@@ -64,11 +64,11 @@ select @retval = @retval
  end) + ';'
  + '@OwnerNumber=' +dbo.taxCorrectionsSF(cast(OwnerNumber as varchar(50)),@taxrollId,'034')+  + ';'
  + '@propLoc= ' + case when proploc>'   0' then 'Physical Address: '+ proploc  else '' end + ';'
- from AdTax where ID = dbo.readstring('@taxrollid=',@retval)
+ from AdTax with (NOLOCK) where ID = dbo.readstring('@taxrollid=',@retval)
 
 select @retval = @retval
  + '@HideMrtgMsg=' + c2 + ';'
- from object where typ=4030 and key1=dbo.readstring('@MortgageCode=',@retval)
+ from object with (NOLOCK) where typ=4030 and key1=dbo.readstring('@MortgageCode=',@retval)
 
 if @revised = 'TRUE'
  select @retval = @retval + '@revised=TRUE;'

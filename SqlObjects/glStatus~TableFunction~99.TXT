@@ -13,7 +13,7 @@ begin
 -- check to see if this exists in object if object slink
  if left(@slink,1) = 'o' 
  begin
-  if not exists(select * from object where id = cast(substring(@slink,2,14) as int))
+  if not exists(select * from object with (NOLOCK) where id = cast(substring(@slink,2,14) as int))
   begin
    insert @rt (status) select 'bad slink'
   end 
@@ -31,7 +31,7 @@ begin
    min(fpCode),
    '',
    0
-  from dbo.glDetail where slink = @slink
+  from dbo.glDetail with (NOLOCK) where slink = @slink
 
 -- get staged gldetail
  if exists(select * from gldetailStage where slink = @slink)
@@ -45,7 +45,7 @@ begin
    '',
    '',
    1
-  from dbo.glDetailStage where slink = @slink
+  from dbo.glDetailStage with (NOLOCK) where slink = @slink
 
 -- get the fp status
  update a set a.fpStatus = case when b.a17 = '1' then 'Locked' else 'unlocked' end

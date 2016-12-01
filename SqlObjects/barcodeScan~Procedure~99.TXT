@@ -14,10 +14,10 @@ declare @invoiceId int,
         @mortCode varchar(50)
 
        select top 1 @invoiceId = id  
-             from dbo.invoices
+             from dbo.invoices with (NOLOCK)
             where 
             cast(taxyear as varchar(4))+cast(item as varchar)=@searchString
-            and id not in (select invoiceId from receiptlink where receiptid = @receiptId)  
+            and id not in (select invoiceId from receiptlink with (NOLOCK) where receiptid = @receiptId)  
             and item > 0
             and isnull(invoiceid,0)=0
             order by id desc
@@ -28,7 +28,7 @@ declare @invoiceId int,
 
 --check for mort
 if @invoiceId>0
-  select @mortCode = rtrim(a.treamort) from adtax a,invoices i where a.id=i.taxrollId and i.id=@invoiceId
+  select @mortCode = rtrim(a.treamort) from adtax a with (NOLOCK),invoices i with (NOLOCK) where a.id=i.taxrollId and i.id=@invoiceId
 
  if @mortCode>'  0'
    begin
@@ -41,9 +41,9 @@ if @invoiceId>0
 if @invoiceId>0 
 
  select @AlreadyLinked = receiptId 
-      from receiptlink 
+      from receiptlink with (NOLOCK) 
      where invoiceId=@invoiceId 
-       and receiptId in (select id from object where typ=4502 and a17 not in ('Posted','void')) 
+       and receiptId in (select id from object with (NOLOCK) where typ=4502 and a17 not in ('Posted','void')) 
        and receiptId<>@receiptId
 
  if @AlreadyLinked>0

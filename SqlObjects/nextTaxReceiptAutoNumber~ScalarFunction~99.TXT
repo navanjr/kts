@@ -11,21 +11,21 @@ begin
   @lastReceiptNumber varchar(50)
 
  select @lastReceiptNumber = cast(cast(case when isnumeric(a17) = 1 then a17 else '0' end as int) + 1 as varchar) 
-  from object where typ = 4000 and key1 = @taxYear
+  from object with (NOLOCK) where typ = 4000 and key1 = @taxYear
 
  select @keyCodeOptions = dbo.readKeyCode(4502,'\0002')
 
  if isnull(@invoiceTyp,'NULL')='NULL'
   begin
    select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
-    from receiptLink a, invoices b
+    from receiptLink a with (NOLOCK), invoices b with (NOLOCK)
     where a.invoiceId = b.id
      and b.taxYear = @taxYear 
   end
  else
   begin
    select @retval =  cast(cast(max(case when isnumeric(a.receiptNumber) = 1 then a.receiptNumber else '0' end) as int) + 1 as varchar) 
-    from receiptLink a, invoices b
+    from receiptLink a with (NOLOCK), invoices b with (NOLOCK)
     where a.invoiceId = b.id
      and b.taxYear = @taxYear 
      and ((b.typ=@invoiceTyp) or (@invoiceTyp not in ('O','S') and b.typ not in ('O','S')))

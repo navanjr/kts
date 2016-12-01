@@ -14,7 +14,7 @@ begin
   exec dbo.logit @@procid, 'update all Zero invoices in @taxyear', @taxyear
   declare @tokenId int
   declare @wt table(id int)
-  insert @wt select id from invoices where taxyear = @taxyear and invoiceDue = 0
+  insert @wt select id from invoices with (NOLOCK) where taxyear = @taxyear and invoiceDue = 0
   while exists(select * from @wt)
   begin
    select @tokenId = min(id) from @wt
@@ -40,12 +40,12 @@ begin
    from dbo.invoiceGLTotalTF(@invoiceId)
    where status='Posted'
 
-  select @parentInvoiceId = statementId from invoices where id = @invoiceId
+  select @parentInvoiceId = statementId from invoices with (NOLOCK) where id = @invoiceId
 
 -- get the linked invoice due if I am a parent
   select
    @taxRuleDue = sum(invoiceDue)
-  from invoices where statementId = @invoiceId
+  from invoices with (NOLOCK) where statementId = @invoiceId
 
   exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@amount', @amount, '@tally', @tallyEcho, '@taxRuleDue', @taxRuleDue --, '@due', @due, '@feeDue', @feeDue
 

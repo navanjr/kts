@@ -55,7 +55,7 @@ begin
     select key2+' By ADA',
            case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
            case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end
-     from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+     from object with (NOLOCK) where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
    end
   else
    begin
@@ -72,7 +72,7 @@ begin
     select key2+' By Population' ,
            case when isnumeric(key3)=1 then cast(key3 as decimal(19,9)) else 0 end,
            case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end
-     from object where typ = @typ and key1 = @year and a2 = @code and cast(key3 as money)<>0.00
+     from object with (NOLOCK) where typ = @typ and key1 = @year and a2 = @code and cast(key3 as money)<>0.00
    end
   else
    begin
@@ -91,7 +91,7 @@ begin
      case when key2 > ' 0' then key2 else '@objectid='+cast(id as varchar)+';' end,
      a1,
      case when a2 > ' 0' then a2 else null end 
-     from object where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
+     from object with (NOLOCK) where typ = @typ and key1 = @year and cast(key3 as money)<>0.00
    end
   else
    begin
@@ -104,7 +104,7 @@ begin
  begin
 -- For Journal Entries the @year is the slink to the Journal and @code is the interest to field
   insert @rt (description, millAmount, accountCode)
-  select 'INTEREST', sum(amount)*-1, accountCode from gldetailstage
+  select 'INTEREST', sum(amount)*-1, accountCode from gldetailstage with (NOLOCK)
   where slink=@year 
    and amount < 0 
    and isnull(contraId,0) = 0 
@@ -113,7 +113,7 @@ begin
   group by accountCode
 
   insert @rt (description, millAmount, accountCode)
-  select left('INTEREST '+comment2,49), sum(amount)*-1, accountCode from gldetailstage
+  select left('INTEREST '+comment2,49), sum(amount)*-1, accountCode from gldetailstage with (NOLOCK)
   where slink=@year 
    and amount < 0 
    and isnull(contraId,0) = 0 

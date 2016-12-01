@@ -18,7 +18,7 @@ begin
 -- here we insert ever invoice in the system
  if @receiptId = 0 and @idBlob is null
  begin
-  insert @wt select id from invoices
+  insert @wt select id from invoices with (NOLOCK)
   GOTO mainLoop
  end
 
@@ -32,21 +32,21 @@ begin
 -- if @taxyear set to fees. update all invoices that have fees
  if isnull(@taxyear,'') = 'FEES'
  begin
-  insert @wt select distinct invoiceid from invoices
+  insert @wt select distinct invoiceid from invoices with (NOLOCK)
   GOTO mainLoop
  end
 
 -- if @taxyear passed. update all invoices in this taxyear with invoiceDue of Zero
  if isnull(@taxyear,'') > '  0'
  begin
-  insert @wt select id from invoices where taxyear = @taxyear
+  insert @wt select id from invoices with (NOLOCK) where taxyear = @taxyear
   GOTO mainLoop
  end
 
  if isnull(@receiptId,0) > 0
  begin
-  insert @wt select invoiceId from receiptLink where receiptId = @receiptId order by invoiceId desc
-  insert @wt select invoiceId from journalLink where jeId = @receiptId  
+  insert @wt select invoiceId from receiptLink with (NOLOCK) where receiptId = @receiptId order by invoiceId desc
+  insert @wt select invoiceId from journalLink with (NOLOCK) where jeId = @receiptId  
   GOTO mainLoop
  end
 

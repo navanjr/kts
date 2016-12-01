@@ -61,7 +61,7 @@ begin
    @balance = sum(amount),
    @rowCount = count(*),
    @absValue = sum(abs(amount)) 
-  from glDetailStage 
+  from glDetailStage with (NOLOCK) 
   where slink in (select slink from @slinks)
 
   if @skipSQLTransaction = 'FALSE'
@@ -78,7 +78,7 @@ begin
    end
 
    -- if you are a receipt update the related Invoices
-   if @styp = 'o' and (exists(select * from receiptLink where receiptId = @id) or exists(select * from journalLink where receiptId = @id))
+   if @styp = 'o' and (exists(select * from receiptLink with (NOLOCK) where receiptId = @id) or exists(select * from journalLink where receiptId = @id))
    begin
     exec dbo.invoiceUpdateAll @receiptId = @id
    end
