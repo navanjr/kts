@@ -30,16 +30,16 @@ begin
  if isnumeric(@scanId)=1
   begin
    insert into object (typ,link1,link2,link3,key1,key2,key3) 
-    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,isnull((select key1 from object where id = @scanId),'') 
-      from imglinks where objidref = @scanId
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,isnull((select key1 from object with (NOLOCK) where id = @scanId),'') 
+      from imglinks with (NOLOCK) where objidref = @scanId
    
-   select @objectType = typ from object where id = @scanId
+   select @objectType = typ from object with (NOLOCK) where id = @scanId
    
    if @objectType in (4502,4522)
     begin
      insert into object (typ,link1,link2,link3,key1,key2,key3) 
       select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,p.checkno 
-      from imglinks il, object o, paid p 
+      from imglinks il with (NOLOCK), object o with (NOLOCK), paid p with (NOLOCK) 
        where il.objidref = o.id
         and o.typ=3209
         and o.key1 = 'p'+cast(p.id as varchar)
@@ -47,8 +47,8 @@ begin
 
      insert into object (typ,link1,link2,link3,key1,key2,key3) 
       select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,
-       isnull((select key1 from object where id = p.mailLogId),'') as key3
-       from imglinks il, paid p
+       isnull((select key1 from object with (NOLOCK) where id = p.mailLogId),'') as key3
+       from imglinks il with (NOLOCK), paid p with (NOLOCK)
         where il.objidref = p.mailLogId
          and p.slink = 'o'+cast(@scanId as varchar)
    end   
@@ -56,24 +56,19 @@ begin
    begin
     insert into object (typ,link1,link2,link3,key1,key2,key3) 
      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,
-       isnull((select key1 from object where id = dbo.slinkid(p.slink)),'') as key3
-      from imglinks il, object o, paid p 
+       isnull((select key1 from object with (NOLOCK) where id = dbo.slinkid(p.slink)),'') as key3
+      from imglinks il with (NOLOCK), object o with (NOLOCK), paid p with (NOLOCK) 
        where il.objidref = o.id
         and o.typ=3209
         and o.key1 = 'p'+cast(p.id as varchar)
         and p.depositId = cast(@scanId as int)
 
-/*
-     insert into object (typ,link1,link2,link3,key1,key2) 
-      select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-        (select mailLogId from paid where depositId = cast(@scanId as int))
-*/
    end
    if @objectType = 4514
     insert into object (typ,link1,link2,link3,key1,key2) 
-     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-       (select id from object where typ = 3209 and key1 in 
-           (select 'p' + cast(id as varchar) from paid where mailLogId = cast(@scanId as int)))
+     select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks with (NOLOCK) where objidref in
+       (select id from object with (NOLOCK) where typ = 3209 and key1 in 
+           (select 'p' + cast(id as varchar) from paid with (NOLOCK) where mailLogId = cast(@scanId as int)))
    
    
   end
@@ -82,16 +77,16 @@ begin
    select @slinkTyp = left(@scanId,1)
 
    insert into object (typ,link1,link2,link3,key1,key2) 
-    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-      (select id from object where typ = 3209 and key1 = @scanId)
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks with (NOLOCK) where objidref in
+      (select id from object with (NOLOCK) where typ = 3209 and key1 = @scanId)
 
    if @slinkTyp = 't'
    begin
     select @slinkId = cast(substring(@scanId,2,15) as int)
 
     insert into object (typ,link1,link2,link3,key1,key2) 
-    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks where objidref in
-      (select id from object where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
+    select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini from imglinks with (NOLOCK) where objidref in
+      (select id from object with (NOLOCK) where typ = 3209 and key1 in (select 'cb' + cast(Id as varchar) from dbo.taxrollSearchCommentBRW(@slinkId)))
  
    end
 
@@ -114,7 +109,7 @@ begin
              @gcDeputy = case when a1 > ' 0' then a1 else '0' end,
              @gcStation = case when a3 > ' 0' then a3 else '0' end,
              @gcBankAccount = b4
-      from object where typ=4506 and id = @slinkId
+      from object with (NOLOCK) where typ=4506 and id = @slinkId
 
 
      insert @slinks
@@ -126,7 +121,7 @@ begin
 
      insert into object (typ,link1,link2,link3,key1,key2,key3) 
       select 9208, ilinkid, objidref, imgline, ' ' as selected, @ini,p.checkno 
-      from imglinks il, object o, paid p 
+      from imglinks il with (NOLOCK), object o with (NOLOCK), paid p with (NOLOCK) 
        where il.objidref = o.id
         and o.typ=3209
         and o.key1 = 'p'+cast(p.id as varchar)
@@ -136,14 +131,14 @@ begin
 
   end
  --bail if no images were found
- if not exists(select * from object where typ = 9208 and key2 = @ini)
+ if not exists(select * from object with (NOLOCK) where typ = 9208 and key2 = @ini)
  begin
   select '@code=1;@message=No Images were found for this item;'
   return
  end
 
  select top 1 cast(link2 as varchar)
-  from object where typ = 9208 and key2 = @ini
+  from object with (NOLOCK) where typ = 9208 and key2 = @ini
   order by link2, link1
 
  
