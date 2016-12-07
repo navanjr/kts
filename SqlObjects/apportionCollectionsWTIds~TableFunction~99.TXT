@@ -54,7 +54,7 @@ begin
    '' as acrAccountCode,
    '' as acrAccountDesc,
    '',1
-   from gldetail a, glaccounts c
+   from gldetail a with (NOLOCK), glaccounts c
      where a.id=@glDetailId and 
      contraId > 0 and 
      c.accountId = a.contraId and
@@ -65,8 +65,8 @@ begin
   if @accountid < 0
   begin
    select @accountid = @accountid * -1
-   select @accountType = typ, @accountTypeDesc=a1 from object where id = @accountId
-   select @jeType = a18 from object where id=@accountId
+   select @accountType = typ, @accountTypeDesc=a1 from object with (NOLOCK) where id = @accountId
+   select @jeType = a18 from object with (NOLOCK) where id=@accountId
    if @accountType = 4512   
     begin
      insert into @twt
@@ -79,7 +79,7 @@ begin
       '' as acrAccountCode,
       '' as acrAccountDesc,
       '',8   
-      from gldetailstage a, glaccounts c 
+      from gldetailstage a with (NOLOCK), glaccounts c 
        where slink in (select slink from dbo.journalSLinks(@accountId))
         and c.accountId = a.contraId 
         and isnull(a.contraid,0)>0
@@ -94,7 +94,7 @@ begin
       '' as acrAccountCode,
       '' as acrAccountDesc,
       '',8   
-      from gldetail a 
+      from gldetail a with (NOLOCK) 
        where slink in (select slink from dbo.journalSLinks(@accountId))
         and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
         and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
@@ -216,7 +216,7 @@ begin
       '' as acrAccountCode,
       '' as acrAccountDesc,
       '',8   
-      from gldetail a 
+      from gldetail a with (NOLOCK) 
        where slink in (select slink from dbo.journalSLinks(@accountId))
         and (a.amount>0 or @apportionCodeOnly='MISCREPORT')
         and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
@@ -239,10 +239,10 @@ begin
         '' as acrAccountCode,
         '' as acrAccountDesc,
         '',9
-       from gldetail 
+       from gldetail with (NOLOCK) 
        where slink in (select slink from dbo.receiptSLinks(@accountId)
         union all
-        select 'o'+cast(jeId as varchar) from journallink where receiptId=@accountId) and      contraId > 0 and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
+        select 'o'+cast(jeId as varchar) from journallink with (NOLOCK) where receiptId=@accountId) and      contraId > 0 and (ISNULL(bsId,0) = 0 or @apportionCodeOnly='MISCREPORT')
 
       if @posted <> 'Posted'
       begin
@@ -256,10 +256,10 @@ begin
         '' as acrAccountCode,
         '' as acrAccountDesc,
         '',10
-       from gldetailstage 
+       from gldetailstage with (NOLOCK) 
        where slink in 
         (select slink from dbo.receiptSLinks(@accountId)
-         union all select 'o'+cast(jeId as varchar) from journallink where receiptId=@accountId)
+         union all select 'o'+cast(jeId as varchar) from journallink with (NOLOCK) where receiptId=@accountId)
         and contraId > 0 
 
       end

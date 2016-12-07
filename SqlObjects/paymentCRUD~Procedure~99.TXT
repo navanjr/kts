@@ -165,12 +165,12 @@ begin
    if exists(
     select * from gldetail with (NOLOCK) 
      where left(slink,1) = 'o'
-      and slink not in (select 'o'+cast(id as varchar) from object where TYP > 0) 
+      and slink not in (select 'o'+cast(id as varchar) from object with (NOLOCK) where TYP > 0) 
    )
    begin
     exec dbo.logit @@procid, 'you got a problem, orphaned glDetail.  Let me get that for you...'
     begin transaction
-     delete gldetail where left(slink,1) = 'o' and slink not in (select 'o'+cast(id as varchar) from object where TYP > 0) 
+     delete gldetail where left(slink,1) = 'o' and slink not in (select 'o'+cast(id as varchar) from object with (NOLOCK) where TYP > 0) 
     commit transaction
     exec dbo.logit @@procid, 'No worries i got it...'
    end
@@ -188,9 +188,9 @@ begin
 -- if you want to roll back an entire import batch we just delete everything and cleanup object.
   if @voidBatch = 'TRUE'
   begin
-   select @importStamp = a16 from object where typ = 4771 and id = @id
+   select @importStamp = a16 from object with (NOLOCK) where typ = 4771 and id = @id
    declare @toRemove table(id int, slink varchar(15))
-   insert @toRemove select id, 'o' + cast(id as varchar) from object where typ = 4771 and a16 = @importStamp
+   insert @toRemove select id, 'o' + cast(id as varchar) from object with (NOLOCK) where typ = 4771 and a16 = @importStamp
    exec dbo.logit @@procid, 'Begin transaction...'
    begin transaction
     delete dbo.glDetailStage where slink in (select slink from @toRemove)
@@ -202,7 +202,7 @@ begin
    return
   end
 
-  if (select a17 from object where id = @id) = '' and not exists(select * from glDetail where slink = @slink)
+  if (select a17 from object with (NOLOCK) where id = @id) = '' and not exists(select * from glDetail with (NOLOCK) where slink = @slink)
    set @deleteObject = 'TRUE'
 
   begin transaction
@@ -246,15 +246,15 @@ begin
     @voucherDate = dbo.clarionDate(getDate()),
     @debitAcct = key3,
     @creditAcct = key2
-   from object where typ = 4503 and key1 = 'TRUST'
+   from object with (NOLOCK) where typ = 4503 and key1 = 'TRUST'
 
-   select top 1 @debitAcct = key3 from object where typ=4503 and key1='TRUST'
+   select top 1 @debitAcct = key3 from object with (NOLOCK) where typ=4503 and key1='TRUST'
   end
 
   if @paymentType = 'Protest Voucher'
   begin
    set @voucherDate = (select dbo.clarionDate(getDate()))
-   select top 1 @creditAcct = key2 from object where typ=4503 and key1='TAX'
+   select top 1 @creditAcct = key2 from object with (NOLOCK) where typ=4503 and key1='TAX'
   end
 
   if @paymentType = 'Buy Warrant'
@@ -286,10 +286,10 @@ begin
     @nextNumAdditionalWhere = 'a8 = ''' + rtrim(b.targetAccountCode) + ''' and c10=''' 
      + rtrim(case when @paymentNumberHonorsWarrantFY='TRUE' then a.c10 else @fiscalYear end) + '''',
     @warrantPayee = a.a2
-   from object a, glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
+   from object a with (NOLOCK), glAccounts b where a.typ = 4771 and a.id = @id and b.accountCode=a.a5
 
    if @bankStatementId > 0
-    select @officialBankCode = key1 from object where typ = 4780 and id = @bankStatementId
+    select @officialBankCode = key1 from object with (NOLOCK) where typ = 4780 and id = @bankStatementId
 
    select @payee = accountDesc from dbo.glAccounts where accountCode = @officialBankCode
 
@@ -326,7 +326,7 @@ begin
     @officialName = a.a7,
     @officialDepositCode = a.a8,
     @officialBankCode = a.a9
-   from object a where a.typ = 4771 and a.id = @id
+   from object a with (NOLOCK) where a.typ = 4771 and a.id = @id
   end
 
   if @paymentType not in ('Miscellaneous','Transfer')
@@ -583,7 +583,7 @@ begin
   begin
    insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink,slink2)
    select accountId, accountCode, accountDesc, @voucherDate, amount*-1, @newslink, case when isnull(@id,0)>0 then 'o' + cast(@id as varchar) else null end
-    from gldetail
+    from gldetail with (NOLOCK)
      where slink = @slink and accountcode in (select accountcode from glaccounts where accounttype='Budget')
   end      
 
@@ -592,7 +592,7 @@ begin
   begin
    insert dbo.glDetailStage (accountId, accountCode, accountDesc,date,amount,slink,slink2,contraid)
    select accountId, accountCode, accountDesc, @voucherDate, amount*-1, @newslink, case when isnull(@id,0)>0 then 'o' + cast(@id as varchar) else null end, contraid
-    from gldetail
+    from gldetail with (NOLOCK)
      where slink = @slink and accountcode in (select accountcode from glaccounts where accounttype in ('expense','purpose'))
   end      
 
@@ -608,7 +608,7 @@ begin
   if @paymentType = 'Treasurers Check' and dbo.settingsF('site.checkStyleWarrants', 'FALSE') = 'TRUE'
   begin
     declare @glDetailToBeClearedId int
-    select @glDetailToBeClearedId = id from gldetail where slink = @newslink and accountcode = @officialbankcode
+    select @glDetailToBeClearedId = id from gldetail with (NOLOCK) where slink = @newslink and accountcode = @officialbankcode
     set @clearingDate = coalesce(@clearingDate, nullif(@postDate,''), dbo.bankStatementClearDate(@bankStatementId))
     exec dbo.bankStatementItemSelected @glDetailToBeClearedId, @bankStatementId, @clearedDate = @clearingDate, @verbose = 'FALSE'
 --     update gldetail set
@@ -633,7 +633,7 @@ begin
 
    select @creditAcctId = accountid from glaccounts where accountcode=@creditAcct
 
-   select @bsId = id from object o where o.typ = 4780 and o.link1 = @creditAcctId and @checkDate between o.a1 and o.a2
+   select @bsId = id from object o with (NOLOCK) where o.typ = 4780 and o.link1 = @creditAcctId and @checkDate between o.a1 and o.a2
 
    if not isnull(@bsId,0) > 0
    begin
@@ -659,10 +659,10 @@ begin
    union all
     select @creditAcct, @amount * -1, 'creditAcct'
 
-  if @paymentType = 'Warrant' and @trackAppropriationLedger='TRUE' and len(cast((select e2 from object where id = @id) as varchar(100))) > 2
+  if @paymentType = 'Warrant' and @trackAppropriationLedger='TRUE' and len(cast((select e2 from object with (NOLOCK) where id = @id) as varchar(100))) > 2
   begin
    declare @json varchar(max) 
-   select @json=e2 from object where id=@id
+   select @json=e2 from object with (NOLOCK) where id=@id
    
    insert @stageRows
      select ac.stringvalue as accountcode, cast(am.stringvalue as money) as amount,'budgetAccounts'

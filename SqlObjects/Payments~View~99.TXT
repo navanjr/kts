@@ -8,7 +8,7 @@ select
  key3 as clerksNumber,
  a1 as clerksDate,
  ltrim(a2) as payee,
- isnull((select sum(amount) from gldetail where slink='o' + cast(object.id as varchar) and accountCode=object.a4),0) as amount,
+ isnull((select sum(amount) from gldetail with (NOLOCK) where slink='o' + cast(object.id as varchar) and accountCode=object.a4),0) as amount,
  a4 as debitAccountCode,
  b3 as debitAccountDesc,
  a5 as creditAccountCode,
@@ -32,13 +32,13 @@ select
  case when a18 = 'WARRANT' then a4 else a8 end as dailyDataAccountLinkCode,
  c10 as fiscalYear,
  'o' + cast(id as varchar) as slink,
- isnull((select max(isnull(dateCleared,'')) from gldetail where slink='o' + cast(object.id as varchar) ),0) as dateCleared,
+ isnull((select max(isnull(dateCleared,'')) from gldetail with (NOLOCK) where slink='o' + cast(object.id as varchar) ),0) as dateCleared,
  '' as otreasurersNumber,
  '' as odateRegistered,
  '' as oclerksNumber,
  '' as oclerksDate,
  '' as stopexpires
-from object where typ = 4771 and id not in (select link1 from object where typ=4771)
+from object with (NOLOCK) where typ = 4771 and id not in (select link1 from object with (NOLOCK) where typ=4771)
 
 union all
 
@@ -50,7 +50,7 @@ select
  c.key3 as clerksNumber,
  c.a1 as clerksDate,
  ltrim(c.a2) as payee,
- isnull((select sum(amount) from gldetail where slink='o' + cast(c.id as varchar) and accountCode=c.a4),0) as amount,
+ isnull((select sum(amount) from gldetail with (NOLOCK) where slink='o' + cast(c.id as varchar) and accountCode=c.a4),0) as amount,
  c.a4 as debitAccountCode,
  c.b3 as debitAccountDesc,
  c.a5 as creditAccountCode,
@@ -74,10 +74,10 @@ select
  case when c.a18 = 'WARRANT' then c.a4 else c.a8 end as dailyDataAccountLinkCode,
  p.c10 as fiscalYear,
  'o' + cast(c.id as varchar) as slink,
- isnull((select max(isnull(dateCleared,'')) from gldetail where slink='o' + cast(c.id as varchar) ),0) as dateCleared,
+ isnull((select max(isnull(dateCleared,'')) from gldetail with (NOLOCK) where slink='o' + cast(c.id as varchar) ),0) as dateCleared,
  p.key1 as otreasurersNumber,
  p.key2 as odateRegistered,
  p.key3 as oclerksNumber,
  p.a1 as oclerksDate,
  c.b7 as stopexpires
-from object p, object c where p.typ = 4771 and c.typ=4771 and p.link1=c.id
+from object p with (NOLOCK), object c with (NOLOCK) where p.typ = 4771 and c.typ=4771 and p.link1=c.id

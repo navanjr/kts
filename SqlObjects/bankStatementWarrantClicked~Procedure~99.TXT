@@ -37,18 +37,18 @@ begin
   @paymentNumberHonorsWarrantFY varchar(10) = dbo.settingsf('site.paymentNumberHonorsWarrantFY','FALSE')
 
   declare @clearDate varchar(50)
-  select @clearDate = a5 from object where id = @bankStatementId
+  select @clearDate = a5 from object with (NOLOCK) where id = @bankStatementId
   select @fiscalYear = fiscalYear from dbo.fpinfo(@clearDate) 
 
  select
   @accountId = link1,
   @showAllWarrants = b13
- from object
+ from object with (NOLOCK)
  where id = @bankStatementId 
 
  select
   @warrantsBlob = e1
- from object
+ from object with (NOLOCK)
  where typ=4782 and link1 = @bankStatementId and key1=@ini
 
  insert @buyWt (id, brwid, fundCode, paymentNumber)
@@ -182,7 +182,7 @@ begin
     @fiscalYear = case when @paymentNumberHonorsWarrantFY='TRUE' then p.c10 else @fiscalYear end,
     @fundCode = g.targetAccountCode,
     @addWhere = 'a8 = ''' + g.targetAccountCode + ''' and c10='''+rtrim(case when @paymentNumberHonorsWarrantFY='TRUE' then p.c10 else @fiscalYear end)+''''
-   from object p
+   from object p with (NOLOCK)
     join dbo.glAccounts g on g.accountCode = p.a4
    where p.ID = dbo.brwidDecoderId(@brwId)
 
@@ -207,7 +207,7 @@ begin
    + rtrim(paymentNumber) + '|'
   from @buyWt
 
-  if exists (select * from object where typ=4782 and link1 = @bankStatementId and key1=@ini)
+  if exists (select * from object with (NOLOCK) where typ=4782 and link1 = @bankStatementId and key1=@ini)
    begin
     update object set e1 = @warrantsBlob where typ=4782 and link1 = @bankStatementId and key1=@ini
    end

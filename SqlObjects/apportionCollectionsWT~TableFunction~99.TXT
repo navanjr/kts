@@ -113,7 +113,7 @@ declare @twt table(
 -- debit Collection Account
    insert @wt (accountId, debitCode, apTableType, amount, contraAccountCode, contraAccountDesc, ord)
    select a.contraId, b.accountCode, b.apTableType, SUM(cast(c.a5 as money)), contraAccountCode, contraAccountDesc, '001'
-    from @twt a, glAccounts b, object c
+    from @twt a, glAccounts b, object c with (NOLOCK)
     where a.contraId = b.accountId
      and c.typ = 4775 
      and c.olink2 = a.slink2
@@ -123,7 +123,7 @@ declare @twt table(
 -- debit Expense accounts
    insert @wt (accountId, debitCode,apTableType,amount, contraAccountCode, contraAccountDesc,ord)
    select b.accountId, b.accountCode, b.apTableType, SUM(cast(d.a5 as money)), contraAccountCode, contraAccountDesc,'010'
-    from @twt a, glAccounts b, glaccounts c, object d
+    from @twt a, glAccounts b, glaccounts c, object d with (NOLOCK)
     where b.accountType = 'EXPENSE'
      and a.contraId = c.accountId
      and b.targetAccountCode = c.accountCode
@@ -295,7 +295,7 @@ from @wt where processFlag = 1
  end
 
 -- process S types
- update @wt set processFlag = 2,creditCode=isnull((select key2 from object where typ=4011 and key1=aprate),'') where processFlag = 0 and apTableType = 'S' 
+ update @wt set processFlag = 2,creditCode=isnull((select key2 from object with (NOLOCK) where typ=4011 and key1=aprate),'') where processFlag = 0 and apTableType = 'S' 
 
  insert @wt (acraccountCode,amount,stepDesc)
   select acraccountCode, sum(amount), 'ACR1'

@@ -35,10 +35,10 @@ create function dbo.bankStatementBRW(
 begin
  declare @warrantsHitLedgerWhenRegistered varchar(5)
 
- select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings where settingname = 'site.warrantsHitLedgerWhenRegistered'
+ select @warrantsHitLedgerWhenRegistered = settingvalue from dbo.settings with (NOLOCK) where settingname = 'site.warrantsHitLedgerWhenRegistered'
 
  declare @warrantBlob varchar(max)
- select @warrantBlob = e1 from object where typ=4782 and link1 = @id and key1=@ini
+ select @warrantBlob = e1 from object with (NOLOCK) where typ=4782 and link1 = @id and key1=@ini
 
  declare @showTable table(id int)
  insert @showTable select 0
@@ -71,11 +71,11 @@ begin
            @bankCode varchar(60),
            @filterWarrantsByBank varchar(5)
 
-   select @filterWarrantsByBank = isnull(settingValue,'FALSE') from settings where settingName='site.filterWarrantsByBank'
+   select @filterWarrantsByBank = isnull(settingValue,'FALSE') from settings with (NOLOCK) where settingName='site.filterWarrantsByBank'
 
-   select @bankCode = b.accountcode from object a, glaccounts b where a.id=@id and a.key1=b.accountcode and a.key1>' 0'
+   select @bankCode = b.accountcode from object a with (NOLOCK), glaccounts b where a.id=@id and a.key1=b.accountcode and a.key1>' 0'
 
-   select @limitfundcode = b.accountCode from object a, glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
+   select @limitfundcode = b.accountCode from object a with (NOLOCK), glAccounts b where a.id = @id and b.targetaccountCode = a.a16 and b.accountType = 'WARRANT' and a.a16>' 0'
 
    if @bankCode in (select accountcode from glaccounts where accounttype in (select accounttype from dbo.glbankfundtypes('BANK')) and code='WARRANT')
     begin
@@ -132,7 +132,7 @@ begin
    accountCode,
    b.a18,
    10
-  from dbo.glDetail a, object b
+  from dbo.glDetail a with (NOLOCK), object b with (NOLOCK)
   where a.slink = 'o' + cast(b.id as varchar)
    and a.accountId in (select id from @glAccountIds)
    and b.link1 = 0
@@ -188,7 +188,7 @@ if @warrantFlag != 1
 --  case when isnull(bsId,0) = 0 then '' else 'X' end,
   case when isnull(bsId,0) = 0 then '' else dbo.date2(dateCleared) end,
   0,comment,comment2,1,dateCleared
- from dbo.glDetail 
+ from dbo.glDetail with (NOLOCK) 
  where accountId = @accountId
   and isnull(bsId,0) in (select id from @showTable)
 end
@@ -207,7 +207,7 @@ end
   paymentType = b.a18,
   template = c.template,
   a.typ = b.typ
- from @rt a, object b, template c
+ from @rt a, object b with (NOLOCK), template c with (NOLOCK)
  where left(slink,1) = 'o' 
   and cast(substring(slink,2,14) as int) = b.id
   and b.typ = c.id
@@ -269,7 +269,7 @@ end
      'Period: ' + a.fpCode + ' ' + key2,
      a.fpCode,
      3,2 
-    from @rt a, object b
+    from @rt a, object b with (NOLOCK)
     where a.fpid = b.id and a.rowType = 0
     group by b.key1,b.key2,b.id,a.fpCode
    end

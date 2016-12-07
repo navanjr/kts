@@ -19,40 +19,40 @@ begin
  declare @priorBS table(id int)
 
  declare @slinks table(slink varchar(16), id int)
- insert @slinks select slink,dbo.slinkid(slink) from gldetail where bsId=@id
+ insert @slinks select slink,dbo.slinkid(slink) from gldetail with (NOLOCK) where bsId=@id
 
 
  declare @voucherSLinks table(slink varchar(16))
 
  insert @voucherSLinks
-   select 'o'+cast(id as varchar) from object where typ=4771 and id in (select id from @slinks)
+   select 'o'+cast(id as varchar) from object with (NOLOCK) where typ=4771 and id in (select id from @slinks)
 
  select 
   @accountId = link1,
   @sBDate = cast(a1 as int),
   @sEDate = cast(a2 as int)
- from object where typ = 4780 and id = @id
+ from object with (NOLOCK) where typ = 4780 and id = @id
 
  select @accounttype = a.accounttype,
         @glBalance = d.amount 
-   from glaccounts a, (select g.accountcode, sum(g.amount) as amount from gldetail g, glaccounts ac 
+   from glaccounts a, (select g.accountcode, sum(g.amount) as amount from gldetail g with (NOLOCK), glaccounts ac 
      where ac.accountid = @accountid and g.accountcode = ac.accountcode group by g.accountcode) d 
   where a.accountid = @accountid
    and d.accountcode = a.accountcode
 
- insert @priorBS select id from object where typ = 4780 and a2 < @sBDate and a2>'0'
+ insert @priorBS select id from object with (NOLOCK) where typ = 4780 and a2 < @sBDate and a2>'0'
 
  select 
   @bBalance = isnull(sum(case when bsId = @id then 0 else amount end),0),
   @eBalance = isnull(sum(amount),0)
- from glDetail where accountId = @accountId and bsId in (select id from @priorBS union all select @id)
+ from glDetail with (NOLOCK) where accountId = @accountId and bsId in (select id from @priorBS union all select @id)
 
  select 
   @tally = count(*)
- from glDetail where accountId = @accountId and bsId = @id
+ from glDetail with (NOLOCK) where accountId = @accountId and bsId = @id
 
  select @deposits = isnull(sum(amount),0) 
- from gldetail 
+ from gldetail with (NOLOCK) 
  where 
   accountId = @accountId 
    and bsId = @id
@@ -60,15 +60,15 @@ begin
    and slink not in (select slink from @voucherSLinks)
  
  select @credits = isnull(sum(amount),0) 
- from gldetail 
+ from gldetail with (NOLOCK) 
  where 
   accountId = @accountId 
    and bsId = @id
    and ((amount < 0) or slink in (select slink from @voucherSLinks))
 
- select @variance = case when isnumeric(a3)=1 then cast(a3 as money) else 0 end-@eBalance from object where typ = 4780 and id = @id
+ select @variance = case when isnumeric(a3)=1 then cast(a3 as money) else 0 end-@eBalance from object with (NOLOCK) where typ = 4780 and id = @id
 
- select @varianceItemTotal = sum(cast(key2 as money)) from object where typ = 4781 and link1 = @id
+ select @varianceItemTotal = sum(cast(key2 as money)) from object with (NOLOCK) where typ = 4781 and link1 = @id
 
  set @retvar = 
   '@bBalance=' + cast(@bBalance as varchar)
