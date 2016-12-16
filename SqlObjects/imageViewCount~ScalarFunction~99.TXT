@@ -7,7 +7,7 @@ begin
          @slinkTyp varchar(1),
          @slinkId int,
          @imgCnt int = 0,
-         @imgCntPlus int
+         @imgCntPlus int = 0
 
  --bail if scanid is zero or blank
  if len(isnull(@scanId,''))<2
@@ -40,21 +40,23 @@ begin
    end   
    if @objectType = 4513
    begin
-    select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
-       (select id from object with (NOLOCK) where typ = 3209 and key1 in 
-           (select 'p' + cast(id as varchar) from paid with (NOLOCK) where depositId = cast(@scanId as int)))
+--    select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
+--       (select id from object with (NOLOCK) where typ = 3209 and key1 in 
+--           (select 'p' + cast(id as varchar) from paid with (NOLOCK) where depositId = cast(@scanId as int)))
+    select @imgCntPlus = isnull(count(ilinkid),0) from imglinks i, (select o.id from object o, paid p where o.typ=3209 and        o.key1 = 'p'+cast(p.id as varchar) and p.depositid=@scanId union select @scanId) op where objidref = op.id
 
      select @imgCnt = @imgCnt + @imgCntPlus
 
 
    end
    if @objectType = 4514
+    begin
     select @imgCntPlus = isnull(count(*),0) from imglinks with (NOLOCK) where objidref in
        (select id from object with (NOLOCK) where typ = 3209 and key1 in 
            (select 'p' + cast(id as varchar) from paid with (NOLOCK) where mailLogId = cast(@scanId as int)))
    
      select @imgCnt = @imgCnt + @imgCntPlus
-   
+    end
   end
  else
   begin
