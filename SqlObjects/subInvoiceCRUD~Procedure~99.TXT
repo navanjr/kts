@@ -33,7 +33,8 @@ begin
   @accountBlob varchar(1000),
   @targetAmount money,
   @parcel varchar(50),
-  @item varchar(50)
+  @item varchar(50),
+  @voidbyreverse varchar(10)
 
 
  declare @rd table(description varchar(50),
@@ -73,6 +74,9 @@ begin
           and left(slink,1)='t'
       group by sourceCode, fundcode
 
+   if isnull((select count(*) from @rd),0) < 1
+    select @voidbyreverse='TRUE' 
+
   end 
 
   select top 1 @sourceCode = accountCode from dbo.invoiceTotalTF(@mainInvoiceId) where accountType = 'SOURCE'
@@ -84,7 +88,7 @@ begin
 
  end
 
- if @fundCode <= ' 0'
+ if @fundCode <= ' 0' and @voidbyreverse <> 'TRUE'
  begin
   exec dbo.logit @@procid, 'FundCode Missing... @mainInvoiceId', @mainInvoiceId
   select '@code=1; Missing Fund Code Information.'
@@ -129,13 +133,7 @@ begin
 
    set @slink='t'+cast(@invoiceId as varchar)
 
-/*if dbo.readstring('@addComment=',@blob) = 'TRUE'
-  begin
-   select @parcel = parcel, @item = item, @blob = replace(@blob,'@addComment=TRUE;','') from invoices where id = @mainInvoiceId
-   exec dbo.dtypeCommentCRUD  @mode='ADDFEE', @parcel = @parcel, @item = @item, @invoiceId = @mainInvoiceId ,@docReceivablesBRWBlob = '' , @blob = @blob
 
-  end
-*/
   exec dbo.logit @@procid, '@invoiceId', @invoiceId, '@slink', @slink
    
   if left(@description,4) = 'VOID'
@@ -155,8 +153,16 @@ begin
      cast(@amount as varchar(50))
    end
 
-  -- add to the gl stage
-  exec dbo.subInvoiceStageGL @invoiceId
+  if @voidbyreverse = 'TRUE'
+   begin
+    insert gldetailstage (accountid,accountcode,accountdesc,slink,date,amount,comment)
+     select accountid,accountcode,accountdesc,@slink,dbo.clariondate(getdate()),amount*-1,'Special void for creatively designed invoices' from gldetail where slink = 't'+cast(@mainInvoiceId as varchar)
+   end
+  else
+   begin
+    -- add to the gl stage
+    exec dbo.subInvoiceStageGL @invoiceId
+   end
 
  if (select balance from dbo.glSummary(@invoiceId,'t')) <> 0
   begin
