@@ -9,13 +9,13 @@ import kpsFunctions
 from general import *
 import importDBF
 import threading
+import datetime
 import time
 import zipfile
 import urllib
 import urlparse
 import re
 # from kirc import *
-
 
 class ktsMenu():
     def __init__(self, database=None, basePath=None):
@@ -43,6 +43,7 @@ class ktsMenu():
         self.settings['noticeEventLoop'] = self.settingsF('backup.noticeEventLoop', 'TRUE')
         self.settings['apiVerifyFrequencyTime'] = self.settingsF('site.apiVerifyFrequencyTime', 60)
         self.settings['apiSleepSeconds'] = self.settingsF('site.apiSleepSeconds', 300)
+        self.settings['apiVerifyAfterHours'] = self.settingsF('site.apiVerifyAfterHours', 'FALSE').upper()
 
         self.tasks = tasks(self.settings['database'])
         self.ftpSettingsInit()
@@ -144,7 +145,8 @@ class ktsMenu():
         self.apiService = {
             'running': False,
             'eventRunning': False,
-            'odometer': 0
+            'odometer': 0,
+            'waitUntilDate': datetime.datetime.now()
         }
 
         self.chatObj = {}
@@ -297,7 +299,8 @@ class ktsMenu():
 
     def chat_api(self):
         def getApiStatus():
-            apiStatus = [self.apiService]
+            s = self.apiService
+            apiStatus = [{'eventRunning': s['eventRunning'], 'running': s['running'], 'odometer': s['odometer']}]
             for key, value in self.apiStatus().items():
                 if value['jobEnabled'] == 1:
                     apiStatus.append({
@@ -379,8 +382,34 @@ class ktsMenu():
             self.command_setSetting('api', newValue=newSize, settingName="%s.batchsize" % resource)
             return "right on man! your batchsize for %s is now %s" % (resource, self.settingsF("api.%s.batchsize" % resource))
 
+        elif cmd[1] in ('set', 'settings', 's'):
+            # return all the api site settings
+            settings = ['DMZTime','SleepSeconds','VerifyFrequencyTime','VerifySampleTime','VerifyAfterHours']
+            if len(cmd) == 2:
+                retSettings = []
+                for setting in settings:
+                    retSettings.append(" - %s: %s" % (setting, self.settingsF('site.api' + setting)))
+                return retSettings
+
+            elif len(cmd) == 4 and cmd[2] in settings:
+                if cmd[2] == 'VerifyAfterHours':
+                    if cmd[3].lower() not in ('true', 'false'):
+                        return 'Sorry. The setting `VerifyAfterHours` requires a TRUE or FALSE setting.'
+                    else:
+                        cmd[3] = cmd[3].upper()
+                else:
+                    try:
+                        int(cmd[3])
+                    except ValueError:
+                        return 'Sorry. This setting requires an integer.'
+                securityCheck, message = self.shouldIListenToThisGuy(self.chatObj['from'])
+                if not securityCheck:
+                    return [message]
+                self.command_setSetting('site', newValue=cmd[3], settingName="api%s" % cmd[2])
+                return 'ok, I changed %s to %s.  It would be a good idea to restart me for your changes to take effect.' % (cmd[2], cmd[3])
+
         else:
-            return 'huh?... '
+            return ['huh?... what do you mean?', cmd]
 
     def apiShow(self, data):
         print
@@ -458,10 +487,19 @@ class ktsMenu():
         #     message = ', '.join(message)
         # try:
         #     file = open(self.logFile, "a")
-        #     file.write("%s\n" % message)
+        #     file.write("%s- %s\n" % (datetime.datetime.now().strftime("%H:%M:%S:%f"), message))
         #     file.close()
         # except IOError:
         #     pass
+
+    def canWeRunAPIVerify(self):
+        if self.settings['apiVerifyAfterHours'] == 'TRUE':
+            businessHours = [8,17]
+            now = datetime.datetime.now()
+            if not datetime.time(businessHours[0]) <= now.time() <= datetime.time(businessHours[1]):
+                self.log('apiVerify only runs outside of %s business hours.' % businessHours)
+                return False
+        return True
 
     def bulletProofApiServiceEventLoop(self):
         s = self.apiService
@@ -508,22 +546,25 @@ class ktsMenu():
                     checkinTimer.reset()
 
                 # so every X minutes we will run apiVerify if the settings and the function exists
-                if apiVerifyTimer.elaps() > (float(self.settings['apiVerifyFrequencyTime']) * (60)):   
-                    self.log('Fixing to call apiVerify()...')
-                    apiVerifyTimer.reset()
-                    self.irc.psend("Hi there, I am thinking now would be a good time to run an apiVerify(). I'll let you know how it goes...")
-                    apiVerifyQuery = """declare @message varchar(max), @tally int;
-                    EXEC dbo.apiVerify @method='POST', @resetAll='TRUE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
-                    SELECT @tally, @message;"""
+                if apiVerifyTimer.elaps() > (float(self.settings['apiVerifyFrequencyTime']) * (60)):
                     try:
-                        vResult = self.sqlQuery(apiVerifyQuery)['rows']
-                    except KeyError:
-                        self.log(['apiVerify... Oops, something when wrong'])
-                        self.irc.psend("Oops, something when wrong with the apiVerify()!!!")
-                    if len(vResult) > 0:
-                        self.log('Here is what we got: %s' % str(vResult))
-                        self.irc.psend('Here is what we got: %s' % str(vResult))
-            
+                        apiVerifyTimer.reset()
+                        if self.canWeRunAPIVerify():
+                            self.log('Fixing to call apiVerify()...')
+                            self.irc.psend("Hi there, I am thinking now would be a good time to run an apiVerify(). I'll let you know how it goes...")
+                            apiVerifyQuery = """declare @message varchar(max), @tally int;
+                            EXEC dbo.apiVerify @method='POST', @resetAll='TRUE', @invoiceFlags = @tally OUTPUT, @message = @message OUTPUT;
+                            SELECT @tally, @message;"""
+                            try:
+                                vResult = self.sqlQuery(apiVerifyQuery)['rows']
+                            except KeyError:
+                                self.log(['apiVerify... Oops, something when wrong'])
+                                self.irc.psend("Oops, something when wrong with the apiVerify()!!!")
+                            if len(vResult) > 0:
+                                self.log('Here is what we got: %s' % str(vResult))
+                                self.irc.psend('Here is what we got: %s' % str(vResult))
+                    except Exception as e:
+                        self.log(['Oops, something went wrong during apiVerify...', e])
         # turn the lights off when going out the door
         s['running'] = False
 
@@ -540,17 +581,23 @@ class ktsMenu():
         #     raise Exception('test')
 
         s['eventRunning'] = True
+        s['nowDate'] = datetime.datetime.now()
 
-        qOutput = self.sqlQuery("select top 1 resource from dbo.apiControlBRW() where jobEnabled = 1 and stale > 0 order by lastTime")
-        if qOutput['rows']:
-            print 'here is what i found [rows]: %s' % qOutput['rows']
-            resource = qOutput['rows'][0][0]
-            self.sqlQuery("dbo.api%s @method='JOB'" % resource)
+        if s['waitUntilDate'].time() <= s['nowDate'].time():
             s['odometer'] += 1
-        else:
-            sleepyTime = self.settings['apiSleepSeconds']
-            self.log(['apiServiceEvent()...','nothing found, going to sleep for %s seconds.' % sleepyTime])
-            time.sleep(int(sleepyTime))
+            qOutput = self.sqlQuery("select top 1 resource from dbo.apiControlBRW() where jobEnabled = 1 and stale > 0 order by lastTime")
+            if qOutput['rows']:
+                print 'here is what i found [rows]: %s' % qOutput['rows']
+                resource = qOutput['rows'][0][0]
+                self.sqlQuery("dbo.api%s @method='JOB'" % resource)
+            else:
+                try:
+                    sleepyTime = self.settings['apiSleepSeconds']
+                    self.log(['apiServiceEvent()...','nothing found, going to sleep for %s seconds.' % sleepyTime])
+                    s['waitUntilDate'] = datetime.datetime.now() + datetime.timedelta(0, int(sleepyTime))
+                except Exception as e:
+                    self.log('something went wrong here!!!')
+                    self.log(e)
         # turn the lights off when going out the door
         s['eventRunning'] = False
 
@@ -607,7 +654,7 @@ class ktsMenu():
         print "starting %s looper..." % resource, self.sqlQuery("exec dbo.apiLooper '%s'" % resource, True, appName=appName)['code']
 
     def command_apiSettings(self):
-        settings = ['site.apiurl', 'site.apikey', 'site.apisitecode']
+        settings = ['site.apiurl', 'site.apikey', 'site.apisitecode','site.apiDMZTime','site.apiSleepSeconds','site.apiVerifyFrequencyTime','site.apiVerifySampleTime','site.apiVerifyAfterHours']
         print
         for setting in settings:
             print "        %s %s" % (setting, self.settingsF(setting))
@@ -1078,7 +1125,7 @@ class ktsMenu():
             self.commands[commandName] = {'keywords':keywords,'description':description,'function':function,'chatFunction':chatFunction,'subMenu':{}}
         else:
             self.commands[parentMenu]['subMenu'][commandName] = {'keywords':keywords,'description':description,'function':function,'chatFunction':chatFunction}
-            
+
     def commandCheck(self,targetCommand):
         if self.command[0] in self.commands[targetCommand]['keywords']:
             return True
@@ -1228,7 +1275,7 @@ class ktsMenu():
         if settingsCRUD:
             self.sqlQuery("exec dbo.settingsCRUD '%s.%s','%s'" % (prefix, name, newValue), True)
         return newValue
-        
+
     def command_serverSettings(self):
         if len(self.command) < 2:
             return
@@ -1675,7 +1722,7 @@ class ktsMenu():
                 'mortgageCode':    {'start': 2780, 'end': 2792, 'ktsName': 'MORTGAGECODE', 'strip': True, 'float4': True},
             }
             return d
-            
+
         def mapOld(row):
             source_Type = row[0:1]
             tax_Year = row[1:5]
@@ -1792,7 +1839,7 @@ class ktsMenu():
                 total_Tax,              #A39
                 millCodeSet             #A40
             ]
-            
+
         def adtaxMap():
             return [
                 'recordType',
@@ -1887,14 +1934,14 @@ class ktsMenu():
             print 'how many? ', len(rows)
             print 'create adtaxCheck...', self.sqlQuery('exec dbo.createAdtaxCheck', True)['code']
             # get the adtaxCheck column names from the adtaxMap()
-            columnNames = adtaxMap() 
+            columnNames = adtaxMap()
             sqlInsert = "insert adtaxCheck ({columns})".format(columns=', '.join(columnNames))
             tally = 0
             odometer = 0
             for id, row in enumerate(rows):
                 odometer = odometer + 1
                 # formatedRow = self.gsiFormatedRow(row)
-                
+
                 # use the map to divide the row up to fields
                 m = gsiTrMap()
                 rowObj = {}
@@ -1926,7 +1973,7 @@ class ktsMenu():
                     except ValueError, e:
                         print 'tally#: %s, error while attempting to float fld: %s, val: %s,  error: %s' % (tally, fld, rowObj[val['ktsName']], e)
                         print rowObj
-                # print rowObj        
+                # print rowObj
                 # get the data arranged into the right order for insert
                 #  columnNames is the right order
                 formatedRow = []
@@ -1956,7 +2003,7 @@ class ktsMenu():
                         print sqlInsert
                         print sqlSelect
                         print '<===='
-                else: 
+                else:
                     print '====>'
                     print 'tally: %s, Failed to insert row...' % tally
                     print row
@@ -2182,7 +2229,7 @@ class ktsMenu():
             else:
                 pid = ''
 
-               
+
             return [x[0].strip(),x[1].strip(),x[2].strip(),x[3].strip(),x[4].strip(),x[5].strip(),x[6].strip(),x[7].strip()
                     ,pid,it
                     ,x[10].strip(),x[11].strip(),x[12].strip(),x[13].strip(),x[14].strip(),x[15].strip(),x[16].strip(),x[17].strip(),x[18].strip(),x[19].strip(),x[20].strip()
@@ -2505,7 +2552,7 @@ class ktsMenu():
                 ma = float(x[64].strip())*1
             else:
                 ma = 0
-                
+
             #leg = x[69].replace("'", "''")
             if x[65] > '0':
                 proploc = x[65].strip()+' '+x[68].strip()+' '+x[66].strip()+' '+x[67].strip()+'                                                         '
@@ -2660,7 +2707,7 @@ class ktsMenu():
                 goContinue = False
         else:
             taxYear = self.command[2]
-            
+
         if goContinue:
             print 'Here we go... AAmaster Update...'
             package, fields = self.tpsAamasterGetPackage()
