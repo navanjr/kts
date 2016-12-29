@@ -529,7 +529,8 @@ class ktsMenu():
                 # so every hour, check in with IRC let everyone know whats going on.
                 #   but only if notice is enabled
                 if checkinTimer.elaps() > 3600:
-                    apiStatus = [self.apiService]
+                    s = self.apiService
+                    apiStatus = [{'eventRunning': s['eventRunning'], 'running': s['running'], 'odometer': s['odometer']}]
                     for key, value in self.apiStatus().items():
                         if value['jobEnabled'] == 1:
                             apiStatus.append({
