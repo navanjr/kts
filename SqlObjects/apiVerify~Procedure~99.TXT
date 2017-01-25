@@ -19,8 +19,8 @@ BEGIN
   DECLARE
     @resource VARCHAR(50) = 'summaryDetail',
     @apiService VARCHAR(50),
-    @tempPath VARCHAR(50), 
-    @postFileFull VARCHAR(100), 
+    @tempPath VARCHAR(50),
+    @postFileFull VARCHAR(100),
     @apiCode VARCHAR(50),
     @apiwt JSONHierarchy,
     @filter VARCHAR(500),
@@ -41,7 +41,7 @@ BEGIN
   EXEC dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
   EXEC dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
 
-  -- if not @apiService = 'ON' 
+  -- if not @apiService = 'ON'
   --  return
 
   SELECT @tempPath = path FROM dbo.paths() where name = 'temp'
@@ -67,7 +67,7 @@ BEGIN
       tax_roll_link INT
     )
 
-    DECLARE 
+    DECLARE
       @verifyDate DATETIME,
       @verifySampleTime INT = dbo.settingsF('site.apiVerifySampleTime', 24)
 
@@ -84,8 +84,8 @@ BEGIN
      RECEIPTS
      we are looking for any receipts that where
      modified in the last @verifySampleTime hours
-     and are linked to a taxroll. 
-     ============================================= */   
+     and are linked to a taxroll.
+     ============================================= */
     INSERT @ids
     SELECT
       i.taxrollid,
@@ -94,11 +94,11 @@ BEGIN
     JOIN receiptlink rl ON rl.receiptId = r.id
     JOIN invoices i ON i.id = rl.invoiceId
     WHERE ABS(r.typ) = 4502 -- ABS() should return receipts and deleted receipts
-      AND r.Key3 = 'TAX' 
+      AND r.Key3 = 'TAX'
       AND CAST(dbo.date112(r.LastEditdate) + ' ' + dbo.time24(r.LastEditTime) as datetime) > @verifyDate
       AND r.a17 IN ('void','posted')
       AND i.TAXROLLID > 0 -- filter to only tax receipts
-    GROUP BY i.TAXROLLID 
+    GROUP BY i.TAXROLLID
 
     EXEC dbo.logit @@procid, 'Found modified RECEIPTS... @@rowcount', @@rowcount
 
@@ -108,7 +108,7 @@ BEGIN
      INVOICES
      we are looking for any invoices that where
      modified in the last @verifySampleTime hours
-     and are linked to a taxroll and have not 
+     and are linked to a taxroll and have not
      already been selected by a modified receipt
      ============================================= */
     INSERT @ids
@@ -119,8 +119,8 @@ BEGIN
     WHERE i.modified > @verifyDate
       AND i.TAXROLLID > 0 -- filter to only tax invoices
       AND i.TAXROLLID NOT IN (SELECT TAXROLLID FROM @ids)
-    GROUP BY i.TAXROLLID 
-    
+    GROUP BY i.TAXROLLID
+
     EXEC dbo.logit @@procid, 'Found modified INVOICES... @@rowcount', @@rowcount
 
     --TODO: does this include all the invoices we need?  what about fee invoices?
@@ -129,7 +129,7 @@ BEGIN
      TAXROLLS
      we are looking for any adtax rows that where
      modified in the last @verifySampleTime hours
-     and have not already been selected by a 
+     and have not already been selected by a
      modified receipt
      ============================================= */
     INSERT @ids
@@ -141,14 +141,14 @@ BEGIN
     WHERE t.modified > @verifyDate
       AND i.TAXROLLID > 0 -- filter to only rows with a link in invoices
       AND i.TAXROLLID NOT IN (SELECT TAXROLLID FROM @ids)
-    GROUP BY t.id 
+    GROUP BY t.id
 
     EXEC dbo.logit @@procid, 'Found modified ADTAX... @@rowcount', @@rowcount
 
     -- create the post data file then call the API
-    INSERT @wt SELECT TOP (@batchSize) taxrollid FROM @ids 
+    INSERT @wt SELECT TOP (@batchSize) taxrollid FROM @ids
 
-    -- bail if your done or update batchSize from tally, maybe... 
+    -- bail if your done or update batchSize from tally, maybe...
     SELECT @tally = count(*) FROM @wt
     IF ISNULL(@tally,0) = 0
     BEGIN
@@ -156,7 +156,7 @@ BEGIN
       SELECT @invoiceFlags = 0, @message = 'No modified records were found.'
       RETURN
     END
- 
+
     IF @batchSize != @tally
     BEGIN
       SET @batchSize = @tally
@@ -167,10 +167,10 @@ BEGIN
 
     -- insert lowest level object wrapper
     SELECT @tokenId = MAX(id) + 1 FROM @jsonPrep
-    INSERT @jsonPrep (objectId,parentId,name,value,type) 
+    INSERT @jsonPrep (objectId,parentId,name,value,type)
     SELECT parentId,@tokenId,null,'','object' FROM @jsonPrep group by parentId
     -- insert array wrapper
-    INSERT @jsonPrep (objectId,name,value,type) 
+    INSERT @jsonPrep (objectId,name,value,type)
     SELECT @tokenId,'','','array'
 
     INSERT @apiwt SELECT * FROM @jsonPrep
@@ -178,7 +178,7 @@ BEGIN
 
     -- write the post file to the file system
     EXEC spOverwriteTextFile @postFileFull, @dump
-  
+
     EXEC dbo.api
       @method = @method,
       @resource = @apiResource,
@@ -202,7 +202,7 @@ BEGIN
         SELECT @invoiceFlags = 0, @message = 'Failed Insert in to @apiResultWt'
         RETURN
       END catch
-      
+
       DECLARE @okct TABLE(
         id INT identity(1,1),
         a_id INT,
@@ -218,7 +218,7 @@ BEGIN
 
       WHILE EXISTS(SELECT * FROM @apiResultWt)
       BEGIN
-        SELECT @token = min(parent_id) FROM @apiResultWt insert @okct (b_id, b_rc, b_amt, b_due) SELECT 
+        SELECT @token = min(parent_id) FROM @apiResultWt insert @okct (b_id, b_rc, b_amt, b_due) SELECT
           ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_link'),''),
           ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'receipt_count'),''),
           ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_amount'),''),
@@ -231,30 +231,30 @@ BEGIN
 
       -- begin comparison of api data with KTS
       ;WITH okct AS (
-  		SELECT 
+  		SELECT
   			i.id AS id,
   			SUM(CASE WHEN CAST(o.C9 AS money) != 0 AND o.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc,
   			dbo.taxCorrectionsSF(a.totaldue, a.id, '078') AS amt,
   			i.invoiceDue AS due
   		FROM invoices AS i
-  			JOIN @okct AS t ON t.b_id = i.ID 
-  			JOIN adtax AS a ON i.TAXROLLID = a.ID  
+  			JOIN @okct AS t ON t.b_id = i.ID
+  			JOIN adtax AS a ON i.TAXROLLID = a.ID
   			LEFT JOIN receiptlink AS r ON r.invoiceId = i.ID
   			LEFT JOIN object AS o ON r.receiptId = o.id and o.Typ = 4502
-  		GROUP BY 
+  		GROUP BY
   			i.id,
   			a.totaldue,
   			i.invoiceDue,
   			a.id
   		)
-  		UPDATE t SET 
+  		UPDATE t SET
   			t.a_id = o.id,
   			t.a_rc = o.rc,
   			t.a_amt = o.amt,
   			t.a_due = o.due
   		FROM @okct AS t
   		JOIN okct AS o ON o.id = t.b_id
-  		
+
   		EXEC dbo.logit @@procid, 'Rows updated from the KTS data... @@rowcount', @@rowcount
 
   		UPDATE @okct SET flag = 1 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_amt,0) != ISNULL(b_amt,0)
@@ -263,10 +263,20 @@ BEGIN
   		exec dbo.logit @@procid, 'locating mismatched invoice_due... @@rowcount', @@rowcount
   		UPDATE @okct SET flag = 3 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_rc,0) != ISNULL(b_rc,0)
   		exec dbo.logit @@procid, 'locating mismatched receipt_count... @@rowcount', @@rowcount
-  		
+
   		SELECT @invoiceFlags = count(*) FROM @okct WHERE ISNULL(flag,0) > 0
       SELECT @message = 'Count of invoices requiring an apiReset(): ' + CAST(@invoiceFlags AS VARCHAR)
-      exec dbo.logit @@procid, 'Count of invoices requiring an apiReset()... @invoiceFlags', @invoiceFlags   
+      exec dbo.logit @@procid, 'Count of invoices requiring an apiReset()... @invoiceFlags', @invoiceFlags
+
+      /*
+      this seems to be working Ok, but we are missing some where amount owed should be $0.
+      So what needs to happen is find any invoices where we have receipts that exceed the
+      totaldue amount. OR total_amount != amount_due + sum of receipts
+      */
+
+
+
+
 
       -- do an apiReset() on all items that have an issue
       IF @invoiceFlags > 0 AND @resetAll = 'TRUE'
@@ -275,11 +285,11 @@ BEGIN
           id INT IDENTITY (1,1),
           invId INT
         )
-        
-        INSERT @invIds SELECT a_id FROM @okct WHERE a_id IS NOT NULL AND ISNULL(flag,0) != 0  
+
+        INSERT @invIds SELECT a_id FROM @okct WHERE a_id IS NOT NULL AND ISNULL(flag,0) != 0
 
         EXEC dbo.logit @@procid, 'Selected invoices for reset... @@ROWCOUNT', @@ROWCOUNT
-        
+
         IF @debugMode = 'TRUE'
         BEGIN
           SELECT * FROM @invIds
@@ -305,7 +315,7 @@ BEGIN
 
       IF @verbose = 'TRUE'
         SELECT * FROM @okct
-      
+
       IF @debugMode != 'TRUE'
       BEGIN
         SELECT @when = CAST(GETDATE() AS VARCHAR)
