@@ -36,13 +36,11 @@ BEGIN
     @tally INT,
     @token INT,
     @when varchar(50),
-    @goofyChars VARCHAR(100) = '13,10,9,167,248,34,39,129'
+    @goofyChars VARCHAR(100) = '13,10,9,167,248,34,39,129',
+    @putFlag varchar(10) = 'TRUE'
 
   EXEC dbo.keyAcVars 'acapiservice', @silentMode = 'TRUE', @dump = @apiService output
   EXEC dbo.logit @@procid, '@method', @method, '@batchSize', @batchSize, '@apiService', @apiService, @override = 'TRUE'
-
-  -- if not @apiService = 'ON'
-  --  return
 
   SELECT @tempPath = path FROM dbo.paths() where name = 'temp'
   SELECT top 1 @apiCode = b12 FROM object where typ = 40 order by id
@@ -93,7 +91,7 @@ BEGIN
     FROM Object r
     JOIN receiptlink rl ON rl.receiptId = r.id
     JOIN invoices i ON i.id = rl.invoiceId
-    WHERE ABS(r.typ) = 4502 -- ABS() should return receipts and deleted receipts
+    WHERE ABS(r.typ) = 4502 -- ABS() should give us receipts and deleted receipts
       AND r.Key3 = 'TAX'
       AND CAST(dbo.date112(r.LastEditdate) + ' ' + dbo.time24(r.LastEditTime) as datetime) > @verifyDate
       AND r.a17 IN ('void','posted')
@@ -150,11 +148,11 @@ BEGIN
 
     -- bail if your done or update batchSize from tally, maybe...
     SELECT @tally = count(*) FROM @wt
-    IF ISNULL(@tally,0) = 0
+    IF ISNULL(@tally, 0) = 0
     BEGIN
-      EXEC dbo.logit @@procid, 'all records updated... nothing to do. :)', @override = 'TRUE'
+      EXEC dbo.logit @@procid, 'apiVerify, all records updated... nothing to do. :)', @override = 'TRUE'
       SELECT @invoiceFlags = 0, @message = 'No modified records were found.'
-      RETURN
+      SET @putFlag = 'FALSE'
     END
 
     IF @batchSize != @tally
@@ -163,138 +161,180 @@ BEGIN
       EXEC dbo.logit @@procid, 'ATTENTION... Changed... @batchSize', @batchSize, @override = 'TRUE'
     END
 
-    INSERT @jsonPrep SELECT parentId,null,'tax_roll_link',tax_roll_link,'int' FROM @wt
-
-    -- insert lowest level object wrapper
-    SELECT @tokenId = MAX(id) + 1 FROM @jsonPrep
-    INSERT @jsonPrep (objectId,parentId,name,value,type)
-    SELECT parentId,@tokenId,null,'','object' FROM @jsonPrep group by parentId
-    -- insert array wrapper
-    INSERT @jsonPrep (objectId,name,value,type)
-    SELECT @tokenId,'','','array'
-
-    INSERT @apiwt SELECT * FROM @jsonPrep
-    SELECT @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
-
-    -- write the post file to the file system
-    EXEC spOverwriteTextFile @postFileFull, @dump
-
-    EXEC dbo.api
-      @method = @method,
-      @resource = @apiResource,
-      @postFile = @postFile,
-      @debugMode = @debugMode,
-      @scratchfile = @scratchFile,
-      @cmdOutput = @tokenId output,
-      @dump = @dump output
-
-    SET @result = @dump
-
-    IF @debugMode != 'TRUE'
+    IF @putFlag = 'TRUE'
     BEGIN
-      BEGIN try
-        INSERT @apiResultWt SELECT * FROM dbo.parseJSON(@dump) WHERE name IS NOT NULL AND parent_id IS NOT NULL
-      END try
-      BEGIN catch
-        SET @log = error_message()
-        EXEC dbo.logit @@procid, 'Failed Insert in to @apiResultWt', @log
-        SELECT '@code=1;@message=Failed Insert in to @apiResultWt:' + @log + ';'
-        SELECT @invoiceFlags = 0, @message = 'Failed Insert in to @apiResultWt'
-        RETURN
-      END catch
+      INSERT @jsonPrep SELECT parentId,null,'tax_roll_link',tax_roll_link,'int' FROM @wt
 
-      DECLARE @okct TABLE(
-        id INT identity(1,1),
-        a_id INT,
-        a_rc INT,
-        a_amt MONEY,
-        a_due MONEY,
-        b_id INT,
-        b_rc INT,
-        b_amt MONEY,
-        b_due MONEY,
-        flag INT
-      )
+      -- insert lowest level object wrapper
+      SELECT @tokenId = MAX(id) + 1 FROM @jsonPrep
+      INSERT @jsonPrep (objectId,parentId,name,value,type)
+      SELECT parentId,@tokenId,null,'','object' FROM @jsonPrep group by parentId
+      -- insert array wrapper
+      INSERT @jsonPrep (objectId,name,value,type)
+      SELECT @tokenId,'','','array'
 
-      WHILE EXISTS(SELECT * FROM @apiResultWt)
+      INSERT @apiwt SELECT * FROM @jsonPrep
+      SELECT @dump = 'site_id='+@apiCode+'&rows='+dbo.URLEncode(dbo.toJSON(@apiwt))
+
+      -- write the post file to the file system
+      EXEC spOverwriteTextFile @postFileFull, @dump
+
+      EXEC dbo.api
+        @method = @method,
+        @resource = @apiResource,
+        @postFile = @postFile,
+        @debugMode = @debugMode,
+        @scratchfile = @scratchFile,
+        @cmdOutput = @tokenId output,
+        @dump = @dump output
+
+      SET @result = @dump
+
+      IF @debugMode != 'TRUE'
       BEGIN
-        SELECT @token = min(parent_id) FROM @apiResultWt insert @okct (b_id, b_rc, b_amt, b_due) SELECT
-          ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_link'),''),
-          ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'receipt_count'),''),
-          ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_amount'),''),
-          ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_due'),'')
-        DELETE @apiResultWt WHERE parent_id = @token
-      END
+        BEGIN try
+          INSERT @apiResultWt SELECT * FROM dbo.parseJSON(@dump) WHERE name IS NOT NULL AND parent_id IS NOT NULL
+        END try
+        BEGIN catch
+          SET @log = error_message()
+          EXEC dbo.logit @@procid, 'Failed Insert in to @apiResultWt', @log
+          SELECT '@code=1;@message=Failed Insert in to @apiResultWt:' + @log + ';'
+          SELECT @invoiceFlags = 0, @message = 'Failed Insert in to @apiResultWt'
+          SET @putFlag = 'FAILED'
+        END catch
 
-      SELECT @tally = count(*) from @okct
-      EXEC dbo.logit @@procid, 'total rows received from the API', @tally
+        IF @putFlag = 'TRUE'
+        BEGIN
+          DECLARE @okct TABLE(
+            id INT identity(1,1),
+            a_id INT,
+            a_rc INT,
+            a_amt MONEY,
+            a_due MONEY,
+            b_id INT,
+            b_rc INT,
+            b_amt MONEY,
+            b_due MONEY,
+            flag INT
+          )
 
-      -- begin comparison of api data with KTS
-      ;WITH okct AS (
-  		SELECT
-  			i.id AS id,
-  			SUM(CASE WHEN CAST(o.C9 AS money) != 0 AND o.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc,
-  			dbo.taxCorrectionsSF(a.totaldue, a.id, '078') AS amt,
-  			i.invoiceDue AS due
-  		FROM invoices AS i
-  			JOIN @okct AS t ON t.b_id = i.ID
-  			JOIN adtax AS a ON i.TAXROLLID = a.ID
-  			LEFT JOIN receiptlink AS r ON r.invoiceId = i.ID
-  			LEFT JOIN object AS o ON r.receiptId = o.id and o.Typ = 4502
-  		GROUP BY
-  			i.id,
-  			a.totaldue,
-  			i.invoiceDue,
-  			a.id
-  		)
-  		UPDATE t SET
-  			t.a_id = o.id,
-  			t.a_rc = o.rc,
-  			t.a_amt = o.amt,
-  			t.a_due = o.due
-  		FROM @okct AS t
-  		JOIN okct AS o ON o.id = t.b_id
+          WHILE EXISTS(SELECT * FROM @apiResultWt)
+          BEGIN
+            SELECT @token = min(parent_id) FROM @apiResultWt insert @okct (b_id, b_rc, b_amt, b_due) SELECT
+              ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_link'),''),
+              ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'receipt_count'),''),
+              ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_amount'),''),
+              ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'invoice_due'),'')
+            DELETE @apiResultWt WHERE parent_id = @token
+          END
 
-  		EXEC dbo.logit @@procid, 'Rows updated from the KTS data... @@rowcount', @@rowcount
+          SELECT @tally = count(*) from @okct
+          EXEC dbo.logit @@procid, 'total rows received from the API', @tally
 
-  		UPDATE @okct SET flag = 1 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_amt,0) != ISNULL(b_amt,0)
-  		exec dbo.logit @@procid, 'locating mismatched invoice_amount... @@rowcount', @@rowcount
-  		UPDATE @okct SET flag = 2 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_due,0) != ISNULL(b_due,0)
-  		exec dbo.logit @@procid, 'locating mismatched invoice_due... @@rowcount', @@rowcount
-  		UPDATE @okct SET flag = 3 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_rc,0) != ISNULL(b_rc,0)
-  		exec dbo.logit @@procid, 'locating mismatched receipt_count... @@rowcount', @@rowcount
+          -- begin comparison of api data with KTS
+          ;WITH okct AS (
+      		SELECT
+      			i.id AS id,
+      			SUM(CASE WHEN CAST(o.C9 AS money) != 0 AND o.a17 = 'POSTED' THEN 1 ELSE 0 END) AS rc,
+      			dbo.taxCorrectionsSF(a.totaldue, a.id, '078') AS amt,
+      			i.invoiceDue AS due
+      		FROM invoices AS i
+      			JOIN @okct AS t ON t.b_id = i.ID
+      			JOIN adtax AS a ON i.TAXROLLID = a.ID
+      			LEFT JOIN receiptlink AS r ON r.invoiceId = i.ID
+      			LEFT JOIN object AS o ON r.receiptId = o.id and o.Typ = 4502
+      		GROUP BY
+      			i.id,
+      			a.totaldue,
+      			i.invoiceDue,
+      			a.id
+      		)
+      		UPDATE t SET
+      			t.a_id = o.id,
+      			t.a_rc = o.rc,
+      			t.a_amt = o.amt,
+      			t.a_due = o.due
+      		FROM @okct AS t
+      		JOIN okct AS o ON o.id = t.b_id
 
-  		SELECT @invoiceFlags = count(*) FROM @okct WHERE ISNULL(flag,0) > 0
-      SELECT @message = 'Count of invoices requiring an apiReset(): ' + CAST(@invoiceFlags AS VARCHAR)
-      exec dbo.logit @@procid, 'Count of invoices requiring an apiReset()... @invoiceFlags', @invoiceFlags
+      		EXEC dbo.logit @@procid, 'Rows updated from the KTS data... @@rowcount', @@rowcount
+
+      		UPDATE @okct SET flag = 1 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_amt,0) != ISNULL(b_amt,0)
+      		exec dbo.logit @@procid, 'locating mismatched invoice_amount... @@rowcount', @@rowcount
+      		UPDATE @okct SET flag = 2 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_due,0) != ISNULL(b_due,0)
+      		exec dbo.logit @@procid, 'locating mismatched invoice_due... @@rowcount', @@rowcount
+      		UPDATE @okct SET flag = 3 WHERE ISNULL(flag,0) = 0 AND ISNULL(a_rc,0) != ISNULL(b_rc,0)
+      		exec dbo.logit @@procid, 'locating mismatched receipt_count... @@rowcount', @@rowcount
+        END -- @putFlag
+      END -- @putFlag
+
+      DECLARE @invIds table(
+        id INT IDENTITY (1,1),
+        invId INT
+      )
 
       /*
       this seems to be working Ok, but we are missing some where amount owed should be $0.
       So what needs to happen is find any invoices where we have receipts that exceed the
       totaldue amount. OR total_amount != amount_due + sum of receipts
+      **** AMOUNT DUE ISSUES ****
       */
 
+      SET @filter = 'site_id=' + @apiCode
+      EXEC dbo.api
+        @method = 'GET',
+        @resource = '/v2/treasurer_administration/amountdueissues',
+        @filter = @filter,
+        @dump = @dump output
 
+      -- do i have a valid array?
+      IF LEFT(@dump,1) = '[' AND RIGHT(@dump,1) = ']' AND LEN(@dump) > 3
+      BEGIN
+        -- begin by striping the brackets
+        SET @dump = SUBSTRING(@dump, 2, LEN(@dump)-2)
+        SET @token = 0
+        WHILE @token <= 50
+        BEGIN
+          SET @token = CHARINDEX(',', @dump)
+          IF @token = 0
+          BEGIN
+              IF LEN(@dump) > 0
+            INSERT @invIds SELECT @dump
+            BREAK
+          END
+          INSERT @invIds SELECT LEFT(@dump, @token - 1)
+          SET @dump = SUBSTRING(@dump, @token + 1, LEN(@dump))
+        END
+      END
 
+      SELECT @invoiceFlags = count(*) FROM @invIds
+      EXEC dbo.logit @@procid, 'Selected invoices for reset from amountDueIssues... @invoiceFlags', @invoiceFlags
 
+      -- gather up the invoices from the verify
+      IF @putFlag = 'TRUE'
+      BEGIN
+        INSERT @invIds
+        SELECT a_id
+        FROM @okct
+        WHERE a_id IS NOT NULL
+          AND ISNULL(flag,0) != 0
+          AND a_id NOT IN (SELECT invId FROM @invIds)
+        EXEC dbo.logit @@procid, 'Selected invoices for reset from Verify... @@ROWCOUNT', @@ROWCOUNT
+      END
+
+      SELECT @invoiceFlags = count(*) FROM @invIds
+      SELECT @message = 'Total Count of invoices requiring an apiReset(): ' + CAST(@invoiceFlags AS VARCHAR)
+      exec dbo.logit @@procid, 'Count of invoices requiring an apiReset()... @invoiceFlags', @invoiceFlags
+
+      IF @debugMode = 'TRUE'
+      BEGIN
+        SELECT * FROM @invIds
+        RETURN
+      END
 
       -- do an apiReset() on all items that have an issue
       IF @invoiceFlags > 0 AND @resetAll = 'TRUE'
       BEGIN
-        DECLARE @invIds table(
-          id INT IDENTITY (1,1),
-          invId INT
-        )
-
-        INSERT @invIds SELECT a_id FROM @okct WHERE a_id IS NOT NULL AND ISNULL(flag,0) != 0
-
-        EXEC dbo.logit @@procid, 'Selected invoices for reset... @@ROWCOUNT', @@ROWCOUNT
-
-        IF @debugMode = 'TRUE'
-        BEGIN
-          SELECT * FROM @invIds
-          RETURN
-        END
 
         WHILE EXISTS(SELECT * FROM @invIds)
         BEGIN
@@ -325,3 +365,5 @@ BEGIN
     END
   END
 END
+
+GO
