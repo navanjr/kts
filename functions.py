@@ -897,6 +897,8 @@ class ktsMenu():
             fileId = int(cmd[2])
             self.putFileName = files[fileId]['name']
             self.threadit("ftp", self.theFTPPutChatThread)
+        else:
+            self.irc.psend("um... FTP wah?")
 
     def theFTPPutChatThread(self):
         if self.ftpThreadOn:
