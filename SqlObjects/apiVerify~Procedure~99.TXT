@@ -10,6 +10,7 @@ CREATE PROC dbo.apiVerify(
   @dropRawFile VARCHAR(5) = 'FALSE',
   @includeRecall VARCHAR(5) = 'TRUE',
   @resetAll VARCHAR(5) = 'FALSE',
+  @includeVerifyFees VARCHAR(5) = 'TRUE',
   @invoiceFlags INT = NULL OUTPUT,
   @message VARCHAR(MAX) = '' OUTPUT
 ) AS
@@ -335,7 +336,6 @@ BEGIN
       -- do an apiReset() on all items that have an issue
       IF @invoiceFlags > 0 AND @resetAll = 'TRUE'
       BEGIN
-
         WHILE EXISTS(SELECT * FROM @invIds)
         BEGIN
           SELECT TOP 1
@@ -350,9 +350,12 @@ BEGIN
 
         EXEC dbo.logit @@procid, 'Finished apiReset...'
         SELECT @message = @message + CHAR(13) + CHAR(10) + 'Finished apiReset...'
-
       END
-
+      
+      -- do apiVerifyFees
+      IF @includeVerifyFees = 'TRUE'
+        EXEC dbo.apiVerifyFees @apiCode = @apiCode
+      
       IF @verbose = 'TRUE'
         SELECT * FROM @okct
 

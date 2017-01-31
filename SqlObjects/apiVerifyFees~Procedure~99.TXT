@@ -1,0 +1,182 @@
+CREATE PROC dbo.apiVerifyFees(
+  @taxyear VARCHAR(4) = null,
+  @scratchFileName VARCHAR(1000) = 'apiVerifyFees.tmp',
+  @apiCode VARCHAR(50) = null,
+  @debugMode VARCHAR(5) = 'FALSE'
+) AS
+BEGIN
+/*
+This procedure will trackdown fee invoices that do not belong on api.kellpro.com/v2/treasurer/invocies
+1. GET the sum of all the ids in the API
+2. Identity the offending tax years
+3. within each tax year get the fee invoies from the api that dont belong
+4. send DELETEs to the API
+*/
+
+  DECLARE
+    @filter VARCHAR(500),
+    @apiResultWt JSONHierarchy,
+    @log VARCHAR(max),
+    @token INT,
+    @tokenYear INT,
+    @tempPath VARCHAR(100),
+    @postFileName VARCHAR(100),
+    @postFileFull VARCHAR(100),
+    @dump VARCHAR(max)
+    
+  SELECT @tempPath = path FROM dbo.paths() where name = 'temp'
+  IF @apiCode IS NULL
+    SELECT top 1 @apiCode = b12 FROM object where typ = 40 order by id
+
+/**** STEP 1 - GET the sum of all the ids in the API ****/
+  SELECT @filter = 'site_id=' + @apiCode
+
+  IF @taxyear > '  0'
+    SELECT @filter = @filter + '&tax_year=' + @taxyear
+
+  SELECT @filter = '"' + @filter + '"'
+
+  EXEC dbo.api
+    @method = 'GET',
+    @resource = 'v2/treasurer_administration/feeidsummary',
+    @filter = @filter,
+    @scratchFileName = @scratchFileName,
+    @debugMode = @debugMode,
+    @dump = @dump output
+
+  BEGIN try
+    INSERT @apiResultWt SELECT * FROM dbo.parseJSON(@dump) WHERE name IS NOT NULL AND parent_id IS NOT NULL
+  END try
+  BEGIN catch
+    SET @log = error_message()
+    EXEC dbo.logit @@procid, 'Failed Insert in to @apiResultWt', @log
+    RETURN
+  END catch
+  DECLARE @idSums TABLE(
+    id INT identity(1,1),
+    taxyear INT,
+    idsum INT
+  )
+
+  WHILE EXISTS(SELECT * FROM @apiResultWt)
+  BEGIN
+    SELECT @token = min(parent_id) FROM @apiResultWt INSERT @idSums (taxyear, idsum) SELECT 
+      ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'tax_year'),''),
+      ISNULL((SELECT stringValue FROM @apiResultWt WHERE parent_id = @token AND name = 'id_sum'),'')
+    DELETE @apiResultWt WHERE parent_id = @token
+  END
+
+/**** STEP 2 - Identity the offending tax years ****/
+  DECLARE @kts TABLE(
+    taxyear INT,
+    idsum INT
+  )
+  INSERT @kts
+  SELECT
+    s.taxyear AS taxyear,
+    SUM(s.id) AS idsum
+  FROM invoices AS s
+  JOIN invoices AS i ON i.id  = s.invoiceId
+  WHERE s.invoiceId > 0 
+  GROUP BY s.taxyear
+
+  DECLARE @badYears TABLE(
+    taxyear INT
+  )
+  INSERT @badYears
+  SELECT
+    kts.taxyear as ktstaxyear
+  FROM @kts AS kts
+  LEFT JOIN @idSums AS api ON api.taxyear = kts.taxyear AND api.idsum = kts.idsum
+  WHERE api.idsum IS NULL
+  ORDER BY kts.taxyear
+
+  IF NOT EXISTS(SELECT * FROM @badYears)
+  BEGIN
+    RETURN
+  END
+  
+/**** STEP 3 - within each tax year get the fee invoies from the api that dont belong ****/
+  DELETE FROM @apiResultWt
+  DELETE FROM @idSums
+  WHILE EXISTS(SELECT * FROM @badYears)
+  BEGIN
+    SELECT @tokenYear = min(taxyear) FROM @badYears
+    SELECT @filter = '"site_id=' + @apiCode + '&tax_year=' + CAST(@tokenYear AS varchar(10)) + '"'
+    EXEC dbo.api
+      @method = 'GET',
+      @resource = 'v2/treasurer_administration/feeids',
+      @filter = @filter,
+      @scratchFileName = @scratchFileName,
+      @debugMode = @debugMode,
+      @dump = @dump output
+
+      DECLARE @invIds table(
+        id INT IDENTITY (1,1),
+        invId INT
+      )
+
+      -- do i have a valid array?
+      IF LEFT(@dump,1) = '[' AND RIGHT(@dump,1) = ']' AND LEN(@dump) > 3
+      BEGIN
+        -- begin by striping the brackets
+        SET @dump = SUBSTRING(@dump, 2, LEN(@dump)-2)
+        SET @token = 0
+        WHILE @token <= 50
+        BEGIN
+          SET @token = CHARINDEX(',', @dump)
+          IF @token = 0
+          BEGIN
+              IF LEN(@dump) > 0
+            INSERT @invIds SELECT @dump
+            BREAK
+          END
+          INSERT @invIds SELECT LEFT(@dump, @token - 1)
+          SET @dump = SUBSTRING(@dump, @token + 1, LEN(@dump))
+        END
+      END
+
+    DELETE FROM @badYears WHERE taxyear = @tokenYear
+  END
+
+  DECLARE @feeIdsToDelete TABLE(id INT)
+  INSERT @feeIdsToDelete
+  SELECT invId FROM @invIds
+  WHERE invId NOT IN (
+    SELECT
+      s.id
+    FROM invoices AS s
+    JOIN invoices AS i ON i.id  = s.invoiceId
+    WHERE s.invoiceId > 0 
+  )
+  
+  EXEC dbo.logit @@procid, 'Count of @feeIdsToDelete', @@ROWCOUNT
+  
+  IF NOT EXISTS(SELECT * FROM @feeIdsToDelete)
+    RETURN
+    
+/**** STEP 4 - send DELETEs to the API ****/
+  -- create post file with all ids
+  SELECT 
+    @postFileName = 'apiVerifyFeesToDelete.tmp',
+    @dump = 'site_id='+@apiCode+'&rows=['
+  SELECT @dump = @dump + CAST(id AS varchar(12)) + ',' FROM @feeIdsToDelete WHERE id IS NOT NULL ORDER BY id
+  SET @dump = LEFT(@dump, LEN(@dump) - 1) + ']'  
+  set @postFileFull = @tempPath + CHAR(92) + @postFileName
+  EXEC spOverwriteTextFile @postFileFull, @dump
+
+  -- post file to api
+  EXEC dbo.api
+    @method = 'DELETE',
+    @resource = 'v2/treasurer_administration/feeids',
+    @postFile = @postFileName,
+    @scratchFileName = 'apiVerifyFeesToDelete.response',
+    @debugMode = @debugMode,
+    @dump = @dump output
+  
+  SELECT @dump  
+
+END
+--  EXEC dbo.apiVerifyFees @apiCode=12 --, @taxyear=2014
+
+
