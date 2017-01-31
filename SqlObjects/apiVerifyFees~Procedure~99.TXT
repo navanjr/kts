@@ -41,7 +41,6 @@ This procedure will trackdown fee invoices that do not belong on api.kellpro.com
     @resource = 'v2/treasurer_administration/feeidsummary',
     @filter = @filter,
     @scratchFileName = @scratchFileName,
-    @debugMode = @debugMode,
     @dump = @dump output
 
   BEGIN try
@@ -108,7 +107,6 @@ This procedure will trackdown fee invoices that do not belong on api.kellpro.com
       @resource = 'v2/treasurer_administration/feeids',
       @filter = @filter,
       @scratchFileName = @scratchFileName,
-      @debugMode = @debugMode,
       @dump = @dump output
 
       DECLARE @invIds table(
@@ -139,8 +137,9 @@ This procedure will trackdown fee invoices that do not belong on api.kellpro.com
     DELETE FROM @badYears WHERE taxyear = @tokenYear
   END
 
+  DECLARE @feeIdsToDeleteAll TABLE(id INT)
   DECLARE @feeIdsToDelete TABLE(id INT)
-  INSERT @feeIdsToDelete
+  INSERT @feeIdsToDeleteAll
   SELECT invId FROM @invIds
   WHERE invId NOT IN (
     SELECT
@@ -150,33 +149,52 @@ This procedure will trackdown fee invoices that do not belong on api.kellpro.com
     WHERE s.invoiceId > 0 
   )
   
-  EXEC dbo.logit @@procid, 'Count of @feeIdsToDelete', @@ROWCOUNT
+  EXEC dbo.logit @@procid, 'Count of @feeIdsToDeleteAll', @@ROWCOUNT
   
-  IF NOT EXISTS(SELECT * FROM @feeIdsToDelete)
+  IF NOT EXISTS(SELECT * FROM @feeIdsToDeleteAll)
     RETURN
     
 /**** STEP 4 - send DELETEs to the API ****/
-  -- create post file with all ids
-  SELECT 
-    @postFileName = 'apiVerifyFeesToDelete.tmp',
-    @dump = 'site_id='+@apiCode+'&rows=['
-  SELECT @dump = @dump + CAST(id AS varchar(12)) + ',' FROM @feeIdsToDelete WHERE id IS NOT NULL ORDER BY id
-  SET @dump = LEFT(@dump, LEN(@dump) - 1) + ']'  
-  set @postFileFull = @tempPath + CHAR(92) + @postFileName
-  EXEC spOverwriteTextFile @postFileFull, @dump
+  -- post deletes to the api 100 at a time
+  DECLARE @apiDeleteResponses TABLE(response VARCHAR(1000))
+  DECLARE @tally int, @totalCount int
+  SELECT @totalCount = COUNT(*) FROM @feeIdsToDeleteAll
+  SET @tally = CEILING(@totalCount / 100.00)
+  EXEC dbo.logit @@procid, '@totalCount:', @totalCount, 'Number of iterations to call apiVerifyFees DELETE:', @tally
+  WHILE @tally > 0
+  BEGIN
+    INSERT @feeIdsToDelete SELECT TOP 100 id FROM @feeIdsToDeleteAll ORDER BY id 
+    EXEC dbo.logit @@procid, 'Count of @feeIdsToDelete', @@ROWCOUNT, @tally
+    
+    -- create post file with all ids in the batch
+    SELECT 
+      @postFileName = 'apiVerifyFeesToDelete.tmp',
+      @dump = 'site_id='+@apiCode+'&rows=['
+    SELECT @dump = @dump + CAST(id AS varchar(12)) + ',' FROM @feeIdsToDelete WHERE id IS NOT NULL ORDER BY id
+    SET @dump = LEFT(@dump, LEN(@dump) - 1) + ']'  
+    set @postFileFull = @tempPath + CHAR(92) + @postFileName
+    EXEC spOverwriteTextFile @postFileFull, @dump
 
-  -- post file to api
-  EXEC dbo.api
-    @method = 'DELETE',
-    @resource = 'v2/treasurer_administration/feeids',
-    @postFile = @postFileName,
-    @scratchFileName = 'apiVerifyFeesToDelete.response',
-    @debugMode = @debugMode,
-    @dump = @dump output
-  
-  SELECT @dump  
-
+    IF @debugMode = 'FALSE'
+      EXEC dbo.api
+        @method = 'DELETE',
+        @resource = 'v2/treasurer_administration/feeids',
+        @postFile = @postFileName,
+        @scratchFileName = 'apiVerifyFeesToDelete.response',
+        @dump = @dump output
+    ELSE
+      SELECT @dump = '{deletedCount:?}'
+      
+    INSERT @apiDeleteResponses SELECT @dump   
+    DELETE @feeIdsToDeleteAll WHERE id IN (SELECT id FROM @feeIdsToDelete)
+    DELETE @feeIdsToDelete
+    SET @tally = @tally - 1
+  END
+  IF @debugMode = 'TRUE'
+    SELECT * FROM @apiDeleteResponses
 END
---  EXEC dbo.apiVerifyFees @apiCode=12 --, @taxyear=2014
+--  EXEC dbo.apiVerifyFees @debugMode='TRUE', @apiCode=12 --, @taxyear=2014
+--  exec dbo.logit @control='start|1|'
+--  exec dbo.logit @control=stop
 
 
