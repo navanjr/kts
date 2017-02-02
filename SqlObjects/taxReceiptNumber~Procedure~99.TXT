@@ -10,14 +10,14 @@ begin
  select @specialAssessmentsGetOwnReceiptNumber = settingvalue from settings with (NOLOCK) where settingname='site.specialAssessmentsGetOwnReceiptNumber'
 
 
- while exists(select * from receiptLink with (NOLOCK) where receiptId = @receiptId and isnull(receiptNumber,'') < '  0' and 0 = (select invoiceId from invoices with (NOLOCK) where id=receiptLink.invoiceId))
+ while exists(select * from receiptLink with (NOLOCK) where receiptId = @receiptId and isnull(receiptNumber,'') < '00001' and 0 = (select isnull(invoiceId,0) from invoices with (NOLOCK) where id=receiptLink.invoiceId))
  begin
 
   select top 1 @idToken = id 
    from receiptLink with (NOLOCK)
    where receiptId = @receiptId
-    and isnull(receiptNumber,'') < '  0'
-    and 0 = (select invoiceId from invoices where id=receiptLink.invoiceId)
+    and isnull(receiptNumber,'') < '00001'
+    and 0 = (select isnull(invoiceId,0) from invoices where id=receiptLink.invoiceId)
    order by invoiceId
 
   if @specialAssessmentsGetOwnReceiptNumber = 'TRUE'
