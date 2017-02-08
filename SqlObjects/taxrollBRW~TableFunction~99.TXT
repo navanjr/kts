@@ -269,7 +269,7 @@ end
   begin
    update a set 
     fees = isnull((select sum(i.invoiceDue) from invoices i with (NOLOCK) where i.invoiceId=a.invoiceId*-1 and i.typ='f'),0),
-    penalty = case when @importBRW = 'FALSE' then round((cast(due as money)*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2) else penalty end
+    penalty = case when @importBRW = 'FALSE' then round((case when a.methodrate = .5 then cast(due as money)*2 else cast(due as money) end*dbo.penaltyPercent(invoiceId*-1,dbo.date1(@interestToDate))/100),2) else penalty end
    from @rt a where selectedFlag in (char(189),'x')
  
   update a set
