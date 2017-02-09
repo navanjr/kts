@@ -253,6 +253,9 @@ declare @adtaxids table(adtaxid int)
   insert @voids
    select r.invoiceId, r.taxrollid from @rt r, @taxrollids t where r.taxrollid=t.taxrollid and r.invoiceid <> t.id and cast(amount as money)=0.00 and cast(due as money) = 0.00 
 
+  insert @voids
+   select r.invoiceId, r.taxrollid from @rt r, @rt t where r.taxrollid=t.taxrollid and r.invoiceid <> t.invoiceid and cast(r.amount as money)=0.00 and cast(r.due as money) = 0.00 and cast(t.amount as money) <> 0.00
+
   insert @voidassess
    select taxyear, item, count(*) from invoices where TYP='S' group by taxyear, item having count(*) >1
 
