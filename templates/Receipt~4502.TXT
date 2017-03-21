@@ -232,8 +232,11 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
  if(lccheck+0>1,change(lccheck,,1)),
  refreshDetail=,
  lcAfter='',
- d1select('select case when sum(isnull(amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetailreports where slink in (select * from dbo.receiptSLinks('&obj:id&')) and accountType = ''ACCRUED RECEIVABLE'''),
+ 1select('select case when sum(isnull(amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetailreports where slink in (select * from dbo.receiptSLinks('&obj:id&')) and accountType = ''ACCRUED RECEIVABLE'''),
+ d1select('select case when sum(isnull(g.amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetail g join glaccounts a on g.accountcode = a.accountcode where g.slink in (select * from dbo.receiptSLinks('&obj:id&')) and a.accountType = ''ACCRUED RECEIVABLE'''),
  gcAlreadyCancelled=obj7:d1,
+ m('select case when sum(isnull(g.amount,0))<=0 then ''TRUE'' else ''FALSE'' end from gldetail g join glaccounts a on g.accountcode = a.accountcode where g.slink in (select * from dbo.receiptSLinks('&obj:id&')) and a.accountType = ''ACCRUED RECEIVABLE'''),
+ m(gcAlreadyCancelled),
  if(obj:key3='TAX',prop(001,'text','Control Number')),
  if(obj:key3='TRUST',create(152,9,475,131,'Ad&just')),prop(152,'width',67),
  tsc,
@@ -619,7 +622,7 @@ if(gcretval=2,gcdestroyfees=', @blob='' Destroy New Fees'' ',gcdestroyfees='')
  if(readstring(obj7:d1,'@code=')>0,m(readstring(obj7:d1,'@message='),'New Deposit...')),
  if(readstring(obj7:d1,'@newObjectId=')>0,change(readstring(obj7:d1,'@newObjectId=')));
 
-\t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114obj:a17<>'Posted' or gcAlreadyCancelled='TRUE'; or obj:key3<>'TAX';
+\t114&Cancel/Refund; @acc114=gcMode=1,refundReceipt=; \h114(obj:a17<>'Posted' or gcAlreadyCancelled='TRUE'); or obj:key3<>'TAX';
 @refundReceipt=
  if(gcMode+0=1,m('Cancelling a receipt cannot be undone. Are you sure you wish to continue?','Void Receipt...',,6,4),m('You are about to modify the apportionment for this receipt. Do you wish to continue?','Change Apportionment...',,6,4)),
  break(gcretval<>2),

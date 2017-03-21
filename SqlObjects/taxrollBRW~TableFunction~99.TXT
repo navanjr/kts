@@ -111,7 +111,7 @@ set @searchString=replace(@searchString,'''','%')
         select invoiceId from dbo.taxrollBRWIds(@taxYear,@searchString,@AdvSrch)
 
       insert @rt
-       select  top 200 
+       select  top (@returncount) 
         i.id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(i.id as varchar),'',0,
         'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,
         case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',
@@ -129,7 +129,7 @@ set @searchString=replace(@searchString,'''','%')
 ---Regular Search 
      if @sSlen=1 and isnumeric(@searchString)=0
       insert @rt
-       select  top 200 
+       select  top (@returncount)  
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
        from dbo.invoices with (NOLOCK)
        where 
@@ -142,7 +142,7 @@ set @searchString=replace(@searchString,'''','%')
         and isnull(invoiceid,0)=0
      else
       insert @rt
-       select  top 200 
+       select  top (@returncount)  
         id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(name,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
        from dbo.invoices with (NOLOCK)
        where 
@@ -157,7 +157,7 @@ set @searchString=replace(@searchString,'''','%')
 -- get the first 1000 rows with out using a search string.  ordered by name  why would you ever do this?
    else
      insert @rt
-     select top 200 
+     select top (@returncount)  
       id*-1,name,parcel,taxYear,item,typ,dbo.formatCurrZero(invoiceAmount),dbo.formatCurrZero(invoiceDue),'t'+cast(id as varchar),'',0,'b_'+case when left(@orderString,2) = '10' then name else parcel end,case when invoiceDue != 0 then subInvoiceDue else 0.00 end,0,0,'',taxrollId,queue,printed,0 
      from dbo.invoices with (NOLOCK)
      where
@@ -183,7 +183,7 @@ declare @adtaxids table(adtaxid int)
 ---Advanced Search 
      if @AdvSrch = 1  
        insert @rt
-         select  top 200 
+         select  top (@returncount)  
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0 
          from dbo.adtax a with (NOLOCK)
          inner join dbo.taxrollBRWAdTaxIds(@taxYear,@searchString,@AdvSrch) at on a.ID = at.adtaxId
@@ -191,7 +191,7 @@ declare @adtaxids table(adtaxid int)
        else
 ---Regular Search 
        insert @rt
-         select top 200
+         select top (@returncount) 
           (id+9000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,0.00,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
          from dbo.adtax a with (NOLOCK), @adtaxids t
           where a.id = t.adtaxid and
@@ -205,7 +205,7 @@ declare @adtaxids table(adtaxid int)
    begin
 ---Regular Search 
        insert @rt
-         select top 200
+         select top (@returncount) 
           (id+10000000)*-1,OWNERNAME,FULLPIDNUMBER,REALTAXYEAR,ITEMNUMBER,RECORDTYPE,totaldue,0.00,'a'+cast(id as varchar),'',0,'b_'+case when left(@searchString,@sSLen)=left(OWNERNAME,@sSLen) then '' else 'zzzz' end+case when left(@orderString,2) = '10' then OWNERNAME else FULLPIDNUMBER end,0.00 ,0,0,'',id,'','',0
          from dbo.adtaxarchive a with (NOLOCK)
           where (OWNERNAME  like '%'+@searchString+'%' or FULLPIDNUMBER like '%'+@searchString+'%' or cast(REALTAXYEAR as varchar(4)) like '%'+@searchString+'%' or '0'+cast(ITEMNUMBER as varchar) like '%'+@searchString+'%' or cast(ITEMNUMBER as varchar) like '%'+@searchString+'%')
