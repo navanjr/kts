@@ -136,18 +136,19 @@ bbproc8=
 
 @filtername=All,Bank Accounts,Suspense Accounts,Source Accounts,Fund Accounts,Accrual Accounts,Warrants Registered,Official Accounts,Trust Purposes, Schools, Cities, Budget,In-Active;
 @filter='1=1 and b3!=1','a1 in (select accountType from dbo.glBankFundTypes(''BANK'') where accountType<>''SUSPENSE'') and b3!=1','a1=''SUSPENSE'' and b3!=1','a1=''SOURCE'' and b3!=1','a1=''FUND'' and b3!=1','a1 in (''ACCRUED PAYABLE'',''RECEIVABLE'',''ACCRUED RECEIVABLE'') and b3!=1','a1=''WARRANT'' and b3!=1','a1=''OFFICIAL'' and b3!=1','a1=''PURPOSE'' and b3!=1','a1=''SCHOOL'' and b3!=1','a1=''CITY'' and b3!=1','a1=''BUDGET'' and b3!=1','b3=1';
-@ordername=Account Code,Description,Report Order;
+@ordername=Account Code,Description,Report Order,Seca #;
 @key2=obj:key2;
 @key3=obj:a9;
+@key4=obj:a19&obj:key1;
 
 @loadwindow=
  if(sub(obj:attributes,12,1)='C' and gcFilter>'  0',setDefaultAcct=),
  d1select('select stuff((select '','' + accountType from dbo.glbankfundtypes(''fund'') for XML path('''')),1,1,'''')'),
  lcBankFundtype=obj7:d1,
- create(151,12,200,15,'&In-Active',52),
+ create(151,12,185,15,'&In-Active',52),
  create(155,12,120,42,'&School Fund',76),
- create(156,12,265,15,'&Form 308',82),
- if(instring(obj:a1,lcBankFundtype,1,1)>0,create(152,12,200,28,'&Hide on Receipts',66)),
+ create(156,12,240,15,'&Form 308',82),
+ if(instring(obj:a1,lcBankFundtype,1,1)>0,create(152,12,295,15,'&Hide on Receipts',66)),
  lcMasterAccountType=kp('select dbo.glBankFundMasterTypeSF('&obj:id&')'),
  if(lcMasterAccountType='BANK',create(153,12,260,15,'&Book Keepers Dashboard',78)),
  if(obj:a1='INVESTMENT',create(154,12,190,180,'CDARS',80)),
@@ -260,7 +261,7 @@ sql('update glDetail set key1='''&obj:a17&''' where typ=204 and link2='&obj:id),
 
 \t067Target ACR; \h067068obj:a1<>'RECEIVABLE' or left(obj:a8,5)=left(obj:key1,5);r \l0684701; @lf068='typ=4701 and a1=''ACCRUED RECEIVABLE''';
 
-\t043Report Sec A; \h043044obj:a1<>'SOURCE';r 
+\t043Report Sec A; \h043044obj:a1<>'SOURCE' and obj:a1<>'FUND' and obj:a1<>'OFFICIAL' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH';r 
 \t045GL Report Order; \h045046obj:a1<>'BANK' and obj:a1<>'INVESTMENT' and obj:a1<>'CASH' and obj:a1<>'FUND' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH' and obj:a1<>'OFFICIAL' and obj:a1<>'RECEIVABLE';r 
 \t047School Pages Cat; \h047048obj:a1<>'SOURCE';r 
 \t049School Pages Col; \h049050obj:a1<>'SOURCE' and obj:a1<>'FUND' and obj:a1<>'SCHOOL' and obj:a1<>'CITY' and obj:a1<>'VOTECH';r 
