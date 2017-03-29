@@ -115,13 +115,19 @@ begin
 
    select @altcontraId = isnull(f.accountid,0) from glaccounts f with (NOLOCK) where @altcontracode = f.accountcode
   end
+  
+  declare @sourcechart varchar(60),
+          @fundchart varchar(60)
+
+  select @sourcechart = chartnumber from glaccounts where accountcode = @sourcecode
+  select @fundchart = chartnumber from glaccounts where accountcode = @fundcode
 
   if isnull(@receiptDetailId,0) = 0
    insert receiptDetail (slink,description,subDescription,sourceCode,fundCode,amount,altContraId) 
     select
      @slink,
      left(@description,49),
-     left(rtrim(@sourceCode) + '/' + rtrim(@fundCode),49),
+     left(rtrim(@sourcechart) + '/' + rtrim(@fundchart),49),
      @sourceCode,
      @fundCode,
      cast(@amount as varchar(50)),
@@ -129,7 +135,7 @@ begin
   else 
    update receiptDetail set 
     description = left(@description,49),
-    subDescription = left(rtrim(@sourceCode) + '/' + rtrim(@fundCode),49),
+    subDescription = left(rtrim(@sourcechart) + '/' + rtrim(@fundchart),49),
     sourceCode = @sourceCode,
     fundCode = @fundCode,
     amount = @amount,

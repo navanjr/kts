@@ -19,7 +19,8 @@ create function dbo.dailyledgerdata(@beginDate varchar(50),@endDate varchar(50),
  ledgerGroup varchar(50),
  financialReportGroup varchar(50),
  reportOrder varchar(50),
- origin int
+ origin int,
+ chartnumber varchar(60)
 )
 as 
 begin 
@@ -301,7 +302,7 @@ end
 
 -- why are we inserting into @rt twice?
 insert @rt
- select * from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
+ select *, '' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
   and ledgerGroup <= ' 0'
 
  insert @rt
@@ -311,7 +312,7 @@ insert @rt
   sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin),
   sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits),
   sum(endbalance), accounttype, ledgerGroup,
-  '',min(case when reportOrder > '  0' then reportOrder else 'zzzzz' end), 2  -- maybe this will be useful 
+  '',min(case when reportOrder > '  0' then reportOrder else 'zzzzz' end), 2, ''  -- maybe this will be useful 
  from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
   and ledgerGroup > ' 0' group by accountType, ledgerGroup
@@ -323,7 +324,7 @@ insert @rt
   sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin),
   sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits),
   sum(endbalance), accountType, ledgerGroup,
-  '',min(case when reportOrder > '  0' then reportOrder else 'xxxxx' end), 2  -- maybe this will be useful 
+  '',min(case when reportOrder > '  0' then reportOrder else 'xxxxx' end), 2, ''  -- maybe this will be useful 
  from @wt2
  where accountType in (select accountType from dbo.glBankFundTypes('BOTH') union select 'BACK TAX')
   and accountType not in (select accountType from dbo.glBankFundTypes('BANK') where accountType <>'SUSPENSE' union select 'FUND')
@@ -337,7 +338,7 @@ end
 else
 begin
 insert @rt
- select * from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BOTH') where accounttype <> 'SUSPENSE')
+ select *, '' from @wt2 where accountType in (select accountType from dbo.glBankFundTypes('BOTH') where accounttype <> 'SUSPENSE')
 
  insert @rt
  select 
@@ -346,7 +347,7 @@ insert @rt
   sum(beginbalance), sum(paid), sum(appout), sum(appin), sum(specappout), sum(specappin),
   sum(tranout), sum(tranin), sum(fundtranout), sum(fundtranin), sum(deposits), sum(elecdeposits),
   sum(endbalance), accountType, ledgerGroup,
-  '',min(case when reportOrder > '  0' then reportOrder else 'xxxxx' end), 2  -- maybe this will be useful 
+  '',min(case when reportOrder > '  0' then reportOrder else 'xxxxx' end), 2, ''  -- maybe this will be useful 
  from @wt2
  where accountType = 'SUSPENSE'
  group by accountType, ledgerGroup
@@ -357,25 +358,9 @@ insert @rt
 
 end
 
--- here is where we set the report order
-/*
- update @rt set reportOrder = accountDesc
 
- update r set
-  r.reportOrder = 
-  (select case when max(a.reportOrder) > '  0' then max(a.reportOrder) else max(a.ledgerGroup) end from dbo.glAccounts a where a.ledgerGroup = r.ledgerGroup)
- from @rt r
- where r.ledgerGroup > '  0'
-
- update r set reportOrder = a.reportOrder
-  from @rt r, glaccounts a
-  where r.accountCode = a.accountCode
-   and a.reportOrder > '  0'
-   and a.ledgerGroup < '  0'
-*/
--- that was were we set the report order
-
-update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 
+update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end,
+  chartnumber = a.chartnumber 
  from @rt r, glaccounts a where r.accountcode=a.accountcode
 
 update r set financialReportGroup = case when a.financialGroup='A' then 'Trust and Agency Funds' when a.financialGroup='X' then 'X' else 'County Funds' end 

@@ -33,15 +33,16 @@ create function dbo.paymentReports(
  fiscalYear varchar(50),
  comments varchar(max),
  warrantstatus varchar(100)
- 
 ) as
 begin
 
  set @includeAsOfBalanceZeros = coalesce(@includeAsOfBalanceZeros,'FALSE')
 
- declare @accounts table(accountCode varchar(50), targetAccountCode varchar(50), targetAccountDesc varchar(50))
+ declare @accounts table(accountCode varchar(50), targetAccountCode varchar(50), targetAccountDesc varchar(50), targetchartnumber varchar(60))
  insert @accounts 
- select a.accountCode, a.targetAccountCode, case when isnull(b.accountDesc,'')>' 0' then b.accountDesc else a.accountDesc end
+ select a.accountCode, a.targetAccountCode,
+  case when isnull(b.accountDesc,'')>' 0' then b.accountDesc else a.accountDesc end,
+  case when isnull(b.chartnumber,'')>' 0' then b.chartnumber else a.accountCode end 
  from dbo.glAccounts a
  left join dbo.glAccounts b on a.targetAccountCode = b.accountCode
  where a.accountType in (select accounttype from dbo.glbankfundtypes(@accountType) where accounttype <> 'SUSPENSE')
@@ -60,10 +61,10 @@ begin
   COUNT(g.id),
   null,null,null,null,
   null,null,null,null,null,null,null,null,
-  rtrim(a.targetAccountCode) + ' - ' + a.targetAccountDesc,
+  rtrim(a.targetchartnumber) + ' - ' + a.targetAccountDesc,
   max(g.bsId),
   max(case when @accountType='Bank' then dateCleared else @asofDate end),
-  a.targetAccountCode,
+  a.targetchartnumber,
   a.targetAccountDesc,
   null,
   null,
@@ -75,7 +76,7 @@ begin
  group by
   coalesce(g.slink2,g.slink),
   g.accountCode,
-  a.targetAccountCode, 
+  a.targetchartnumber, 
   a.targetAccountDesc 
  having
   @includeAsOfBalanceZeros = 'TRUE' or (
@@ -123,7 +124,7 @@ begin
   
   update r
    set fundAccount = a.accountdesc,
-   fundCode = a.accountcode,
+   fundCode = a.chartnumber,
    fundDesc = a.accountdesc
   from @rt r
   join gldetail d on r.slink = d.slink 

@@ -23,7 +23,8 @@ begin
          @receiptTyp int,
          @receiptAccount varchar(60),
          @trustAccount varchar(60),
-         @receiptKEY3 varchar(50)
+         @receiptKEY3 varchar(50),
+         @useChartNumber varchar(5) = dbo.settingsf('site.use2017ChartofAccounts','FALSE')
 
  declare @paycodes table(paycode varchar(60), amount money)
 
@@ -74,11 +75,11 @@ begin
  end
  
  update @rettable 
-      set sName = dbo.proper(sCode+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts 
+      set sName = dbo.proper(case when @useChartNumber = 'TRUE' then chartnumber else sCode end+' / '+accountDesc),subDescription2 = dbo.padright(accountDesc,' ',12) from glaccounts 
   where accountCode=sCode and ord<>'aa1'
 
  update @rettable 
-      set fName = left(dbo.proper(fCode+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts 
+      set fName = left(dbo.proper(case when @useChartNumber = 'TRUE' then chartnumber else fCode end+' / '+accountDesc),50),subDescription2 = subDescription2 +'/'+ dbo.padright(accountDesc,' ',12) from glaccounts 
   where accountCode=fCode and ord<>'aa1'
 
   update @rettable 

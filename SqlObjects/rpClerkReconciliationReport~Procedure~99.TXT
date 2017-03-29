@@ -37,10 +37,12 @@ reportColumn int
 )
 
 insert @wt
-select slink,contraslink,naturalAmount,contraAmount,balanceAsOf,postDate,contraPostDate,fundcode,fundDesc,dbo.validateFiscalYear(fiscalYear),contraPaymentType 
-  from paymentreports('Warrant',@enddate,'TRUE') 
-  where paymentType='WARRANT'
-  order by fundcode,controlnumber
+select pr.slink,pr.contraslink,pr.naturalAmount,pr.contraAmount,pr.balanceAsOf,pr.postDate,pr.contraPostDate,glaccounts.chartnumber,
+ pr.fundDesc,dbo.validateFiscalYear(pr.fiscalYear),pr.contraPaymentType 
+  from paymentreports('Warrant',@enddate,'TRUE') AS pr
+  left join glaccounts on glaccounts.accountcode = pr.fundcode 
+  where pr.paymentType='WARRANT'
+  order by glaccounts.chartnumber,pr.controlnumber
 
 insert @wt2
 select fundcode, fundDesc, fiscalYear, 
