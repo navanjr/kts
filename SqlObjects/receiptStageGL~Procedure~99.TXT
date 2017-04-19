@@ -51,7 +51,8 @@ begin
   @suspenseMethod varchar(50),
   @exempt varchar(10),
   @blob varchar(max),
-  @message varchar(max)
+  @message varchar(max),
+  @tokenETRPaidAmount money
 
  select @suspenseMEthod = dbo.readstring('@suspenseMethod=',dbo.whoAmI())
  
@@ -162,10 +163,38 @@ if @tokenAmount*-1=@paidTotal
   insert @accountsWorking
   select altContraId,null, round(sum(amount)*@etrPercent,2),@etrCode,'','',0 from @accountsWorking where altContraId>0 group by altContraId
 
+  select @tokenETRPaidAmount=sum(amount) from @accountsWorking where accountid in (select altcontraid from @accountsworking) and comment=@etrCode
+  select @tokenETRPaidAmount, @etrPaid
+  if @tokenETRPaidAmount <> @etrPaid
+  begin
+   select @tokenAccountId = max(altContraId) from @accountsWorking where altContraId>0
+   update @accountsWorking set amount = amount - (@tokenETRPaidAmount - @etrPaid) where accountId = @tokenAccountId
+  end
+  insert @accountsWorking
+  select a.accountId,
+  a.contraId,
+  a.amount-aw.amount,
+  a.comment,
+  a.sourceCode,
+  a.slink2,
+  a.altContraId from 
+  (select altContraId as accountId,null as contraid, sum(amount) as amount,'' as comment,'' as sourcecode,'' as slink2,0 as altcontraid 
+    from @accountsWorking where altContraId>0 group by altContraId) as a,
+	@accountsWorking as aw
+	where a.accountid = aw.accountid
+
+
+ end
+/*
+ begin
+  insert @accountsWorking
+  select altContraId,null, round(sum(amount)*@etrPercent,2),@etrCode,'','',0 from @accountsWorking where altContraId>0 group by altContraId
+
   insert @accountsWorking
   select altContraId,null, sum(amount)-round(sum(amount)*@etrPercent,2),'','','',0 from @accountsWorking where altContraId>0 group by altContraId
 
  end
+*/
 else
  begin
   insert @accountsWorking
